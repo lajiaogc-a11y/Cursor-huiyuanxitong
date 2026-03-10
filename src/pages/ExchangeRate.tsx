@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { safeNumber, safeDivide, safeMultiply, safeToFixed } from "@/lib/safeCalc";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,7 @@ import MemberEntryTab from "@/components/MemberEntryTab";
 import RatePosterGenerator from "@/components/RatePosterGenerator";
 import RateSettingsTab from "@/components/exchange-rate/RateSettingsTab";
 import ShiftHandoverTab from "@/components/ShiftHandoverTab";
+import TasksQuickPanel from "@/components/TasksQuickPanel";
 import { useOrders, useUsdtOrders } from "@/hooks/useOrders";
 import { useMembers } from "@/hooks/useMembers";
 import { useActivityGifts } from "@/hooks/useActivityGifts";
@@ -546,11 +548,23 @@ export default function ExchangeRate() {
     return () => observer.disconnect();
   }, [TAB_CONFIG.length]);
 
-  // 当前选中的tab - 使用数据库持久化，支持跨设备同步
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
+
+  // 当前选中的tab - 优先使用 URL 参数，否则 sessionStorage，默认 calc1
   const [activeTab, setActiveTab] = useState(() => {
-    // 从 sessionStorage 读取临时状态（页面内导航）
+    const urlTab = searchParams.get("tab");
+    if (urlTab && TAB_CONFIG.some((t) => t.value === urlTab)) return urlTab;
     return sessionStorage.getItem('exchangeRateActiveTab') || 'calc1';
   });
+
+  // URL 参数变化时同步 tab（如从海报库点击「去汇率页生成海报」跳转）
+  useEffect(() => {
+    if (tabFromUrl && TAB_CONFIG.some((t) => t.value === tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+      sessionStorage.setItem('exchangeRateActiveTab', tabFromUrl);
+    }
+  }, [tabFromUrl]);
   
   // Tab 切换处理 - 保存到 sessionStorage 以便导航返回时恢复
   const handleTabChange = useCallback((value: string) => {
@@ -1726,7 +1740,8 @@ export default function ExchangeRate() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
+      <div className="space-y-4 min-w-0">
       {/* 订单异常检测警告对话框 */}
       <AlertDialog open={showAnomalyDialog} onOpenChange={setShowAnomalyDialog}>
         <AlertDialogContent>
@@ -2070,6 +2085,18 @@ export default function ExchangeRate() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* 移动端：工作任务面板（主内容下方，点击打开弹窗） */}
+      <div className="lg:hidden">
+        <TasksQuickPanel />
+      </div>
+
+      </div>
+
+      {/* 右侧：工作任务快捷面板（展示分配给当前员工的任务及发布内容，点击打开弹窗） */}
+      <div className="hidden lg:block space-y-4">
+        <TasksQuickPanel />
+      </div>
 
       {/* 积分兑换对话框 - 与会员管理活动数据保持一致 */}
       <Dialog open={isRedeemDialogOpen} onOpenChange={setIsRedeemDialogOpen}>

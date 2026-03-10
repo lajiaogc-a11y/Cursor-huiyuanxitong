@@ -1,5 +1,5 @@
 import { ReactNode, useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { MobileNavbar } from "./MobileNavbar";
 import { MobileMenu } from "./MobileMenu";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,8 +36,41 @@ const pageTitles: Record<string, { zh: string; en: string }> = {
   "/audit-center": { zh: "审核中心", en: "Audit" },
   "/operation-logs": { zh: "操作日志", en: "Logs" },
   "/login-logs": { zh: "登录日志", en: "Login Logs" },
+  "/tasks/dashboard": { zh: "任务看板", en: "Task Dashboard" },
+  "/tasks/settings": { zh: "维护设置", en: "Maintenance Settings" },
+  "/tasks/history": { zh: "维护历史", en: "Maintenance History" },
+  "/tasks/posters": { zh: "发动态", en: "Posters" },
   "/customer-query": { zh: "客户查询", en: "Customer Query" },
   "/pending-authorization": { zh: "待审批", en: "Pending" },
+};
+
+// 带 tab 的页面：根据 tab 显示子页面标题
+const tabPageTitles: Record<string, Record<string, { zh: string; en: string }>> = {
+  "/activity-reports": {
+    members: { zh: "会员数据", en: "Member Data" },
+    activity: { zh: "活动数据", en: "Activity Data" },
+    gifts: { zh: "活动赠送", en: "Activity Gifts" },
+    points: { zh: "积分明细", en: "Points Ledger" },
+  },
+  "/merchants": {
+    cards: { zh: "卡片管理", en: "Cards" },
+    vendors: { zh: "卡商管理", en: "Vendors" },
+    "payment-providers": { zh: "代付商家", en: "Payment Providers" },
+  },
+  "/settings": {
+    fee: { zh: "手续费设置", en: "Fee" },
+    exchange: { zh: "汇率设置", en: "Exchange" },
+    currency: { zh: "币种设置", en: "Currency" },
+    points: { zh: "积分设置", en: "Points" },
+    activity: { zh: "活动设置", en: "Activity" },
+    activityType: { zh: "活动类型", en: "Activity Type" },
+    giftDistribution: { zh: "活动分配", en: "Gift Distribution" },
+    source: { zh: "客户来源", en: "Customer Source" },
+    data: { zh: "数据管理", en: "Data" },
+    copy: { zh: "复制设置", en: "Copy" },
+    permission: { zh: "权限设置", en: "Permissions" },
+    api: { zh: "API管理", en: "API" },
+  },
 };
 
 // Primary pages (shown in bottom navbar) - no back button needed
@@ -60,7 +93,18 @@ export function MobileLayout({ children }: MobileLayoutProps) {
     return () => clearInterval(interval);
   }, []);
 
-  const pageTitle = pageTitles[location.pathname] || { zh: "GC会员系统", en: "GC Member System" };
+  const [searchParams] = useSearchParams();
+  const tab = searchParams.get("tab") || "";
+  const defaultTab: Record<string, string> = {
+    "/activity-reports": "members",
+    "/merchants": "cards",
+    "/settings": "fee",
+  };
+  const effectiveTab = tab || defaultTab[location.pathname] || "";
+  const tabTitles = tabPageTitles[location.pathname];
+  const pageTitle = (tabTitles && effectiveTab && tabTitles[effectiveTab])
+    ? tabTitles[effectiveTab]
+    : (pageTitles[location.pathname] || { zh: "GC会员系统", en: "GC Member System" });
   const showBackButton = !primaryPaths.has(location.pathname);
 
   return (

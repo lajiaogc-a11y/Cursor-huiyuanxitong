@@ -18,6 +18,7 @@ import {
   ChevronDown,
   BookOpen,
   X,
+  ListTodo,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -61,16 +62,71 @@ const allMenuItems: MenuItem[] = [
   { icon: Calculator, labelZh: "汇率计算", labelEn: "Exchange Rate", path: "/exchange-rate", navKey: "exchange_rate" },
   { icon: LayoutDashboard, labelZh: "数据统计", labelEn: "Statistics", path: "/", navKey: "dashboard" },
   { icon: ClipboardList, labelZh: "订单管理", labelEn: "Orders", path: "/orders", navKey: "orders" },
-  { icon: Star, labelZh: "会员管理", labelEn: "Members", path: "/activity-reports", navKey: "members" },
+  {
+    icon: Star,
+    labelZh: "会员管理",
+    labelEn: "Members",
+    path: "/activity-reports",
+    navKey: "members",
+    children: [
+      { labelZh: "会员数据", labelEn: "Member Data", path: "/activity-reports?tab=members" },
+      { labelZh: "活动数据", labelEn: "Activity Data", path: "/activity-reports?tab=activity" },
+      { labelZh: "活动赠送", labelEn: "Activity Gifts", path: "/activity-reports?tab=gifts" },
+      { labelZh: "积分明细", labelEn: "Points Ledger", path: "/activity-reports?tab=points" },
+    ],
+  },
   { icon: Building2, labelZh: "商家结算", labelEn: "Settlement", path: "/merchant-settlement", navKey: "merchant_settlement" },
   { icon: BookOpen, labelZh: "公司文档", labelEn: "Company Docs", path: "/knowledge", navKey: "knowledge_base", badgeType: "unread" as const },
   { icon: BarChart3, labelZh: "报表管理", labelEn: "Reports", path: "/reports", navKey: "reports" },
-  { icon: Store, labelZh: "商家管理", labelEn: "Merchants", path: "/merchants", navKey: "merchant_management" },
+  {
+    icon: ListTodo,
+    labelZh: "工作任务",
+    labelEn: "Tasks",
+    path: "/tasks/settings",
+    navKey: "work_tasks",
+    children: [
+      { labelZh: "维护设置", labelEn: "Settings", path: "/tasks/settings" },
+      { labelZh: "维护历史", labelEn: "History", path: "/tasks/history" },
+      { labelZh: "发动态(海报库)", labelEn: "Posters", path: "/tasks/posters" },
+    ],
+  },
+  {
+    icon: Store,
+    labelZh: "商家管理",
+    labelEn: "Merchants",
+    path: "/merchants",
+    navKey: "merchant_management",
+    children: [
+      { labelZh: "卡片管理", labelEn: "Cards", path: "/merchants?tab=cards" },
+      { labelZh: "卡商管理", labelEn: "Vendors", path: "/merchants?tab=vendors" },
+      { labelZh: "代付商家", labelEn: "Payment Providers", path: "/merchants?tab=payment-providers" },
+    ],
+  },
   { icon: Shield, labelZh: "审核中心", labelEn: "Audit", path: "/audit-center", navKey: "audit_center", badgeType: "pending" as const },
   { icon: UserCog, labelZh: "员工管理", labelEn: "Employees", path: "/employees", navKey: "employees" },
   { icon: History, labelZh: "操作日志", labelEn: "Logs", path: "/operation-logs", navKey: "operation_logs" },
   { icon: LogIn, labelZh: "登录日志", labelEn: "Login Logs", path: "/login-logs", navKey: "login_logs" },
-  { icon: Settings, labelZh: "系统设置", labelEn: "Settings", path: "/settings", navKey: "system_settings" },
+  {
+    icon: Settings,
+    labelZh: "系统设置",
+    labelEn: "Settings",
+    path: "/settings",
+    navKey: "system_settings",
+    children: [
+      { labelZh: "手续费设置", labelEn: "Fee", path: "/settings?tab=fee" },
+      { labelZh: "汇率设置", labelEn: "Exchange", path: "/settings?tab=exchange" },
+      { labelZh: "币种设置", labelEn: "Currency", path: "/settings?tab=currency" },
+      { labelZh: "积分设置", labelEn: "Points", path: "/settings?tab=points" },
+      { labelZh: "活动设置", labelEn: "Activity", path: "/settings?tab=activity" },
+      { labelZh: "活动类型", labelEn: "Activity Type", path: "/settings?tab=activityType" },
+      { labelZh: "活动分配", labelEn: "Gift Distribution", path: "/settings?tab=giftDistribution" },
+      { labelZh: "客户来源", labelEn: "Customer Source", path: "/settings?tab=source" },
+      { labelZh: "数据管理", labelEn: "Data", path: "/settings?tab=data" },
+      { labelZh: "复制设置", labelEn: "Copy", path: "/settings?tab=copy" },
+      { labelZh: "权限设置", labelEn: "Permissions", path: "/settings?tab=permission" },
+      { labelZh: "API管理", labelEn: "API", path: "/settings?tab=api" },
+    ],
+  },
   { icon: Building2, labelZh: "租户管理", labelEn: "Tenant Management", path: "/company-management", navKey: "platform_tenant_management" },
   { icon: Users, labelZh: "租户数据查看", labelEn: "View Tenant Data", path: "/platform-tenant-view", navKey: "platform_tenant_view" },
   { icon: Settings, labelZh: "平台设置", labelEn: "Platform Settings", path: "/platform-settings", navKey: "platform_settings" },
@@ -109,6 +165,18 @@ export function Sidebar() {
     if (isTablet) {
       setTabletSidebarOpen(false);
     }
+  }, [location.pathname]);
+
+  // 进入对应路径时自动展开下拉菜单
+  useEffect(() => {
+    setExpandedMenus((prev) => {
+      const next = new Set(prev);
+      if (location.pathname.startsWith("/tasks")) next.add("工作任务");
+      if (location.pathname === "/activity-reports") next.add("会员管理");
+      if (location.pathname === "/merchants") next.add("商家管理");
+      if (location.pathname === "/settings") next.add("系统设置");
+      return next;
+    });
   }, [location.pathname]);
 
   // 加载导航配置和权限 - 实时从数据库读取，禁止缓存
@@ -179,6 +247,9 @@ export function Sidebar() {
   }, [employee?.role, employee?.id]);
 
   const getMenuLabel = (item: MenuItem) => {
+    if (item.navKey === "work_tasks") {
+      return language === "zh" ? "工作任务" : "Tasks";
+    }
     if (item.navKey === "dashboard") {
       return language === "zh" ? "数据统计" : "Statistics";
     }
@@ -255,9 +326,10 @@ export function Sidebar() {
   const renderNavItem = (item: MenuItem, isOverlay = false) => {
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedMenus.has(item.labelZh);
+    const fullPath = location.pathname + (location.search || "");
     const isActive = location.pathname === item.path || 
-      (hasChildren && item.children?.some(c => location.pathname === c.path));
-    const isChildActive = hasChildren && item.children?.some(c => location.pathname === c.path);
+      (hasChildren && item.children?.some(c => fullPath === c.path));
+    const isChildActive = hasChildren && item.children?.some(c => fullPath === c.path);
     const menuLabel = getMenuLabel(item);
     const showLabel = isOverlay || !collapsed;
 
@@ -285,8 +357,15 @@ export function Sidebar() {
           </button>
           {isExpanded && (
             <ul className="ml-4 mt-1 space-y-1">
-              {item.children?.map((child) => {
-                const isSubActive = location.pathname === child.path;
+              {item.children
+                ?.filter((child) => {
+                  if (item.navKey !== "system_settings") return true;
+                  const pathTab = child.path.split("tab=")[1]?.split("&")[0];
+                  if (pathTab === "permission" || pathTab === "api") return employee?.role === "admin";
+                  return true;
+                })
+                ?.map((child) => {
+                const isSubActive = fullPath === child.path;
                 const childLabel = language === 'zh' ? child.labelZh : child.labelEn;
                 return (
                   <li key={child.path}>

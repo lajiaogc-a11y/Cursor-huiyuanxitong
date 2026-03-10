@@ -37,6 +37,9 @@ const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
 const CompanyManagement = lazy(() => import("./pages/CompanyManagement"));
 const PlatformTenantView = lazy(() => import("./pages/PlatformTenantView"));
 const PlatformSettingsPage = lazy(() => import("./pages/PlatformSettingsPage"));
+const TasksSettings = lazy(() => import("./pages/TasksSettings"));
+const TasksHistory = lazy(() => import("./pages/TasksHistory"));
+const TasksPosters = lazy(() => import("./pages/TasksPosters"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 function PageLoader() {
@@ -85,6 +88,10 @@ const App = () => (
                   <Route path="/company-management" element={<ProtectedRoute requirePlatformSuperAdmin><CompanyManagement /></ProtectedRoute>} />
                   <Route path="/platform-tenant-view" element={<ProtectedRoute requirePlatformSuperAdmin><PlatformTenantView /></ProtectedRoute>} />
                   <Route path="/platform-settings" element={<ProtectedRoute requirePlatformSuperAdmin><PlatformSettingsPage /></ProtectedRoute>} />
+                  <Route path="/tasks/dashboard" element={<ProtectedRoute><Navigate to="/exchange-rate" replace /></ProtectedRoute>} />
+                  <Route path="/tasks/settings" element={<ProtectedRoute><TasksSettings /></ProtectedRoute>} />
+                  <Route path="/tasks/history" element={<ProtectedRoute><TasksHistory /></ProtectedRoute>} />
+                  <Route path="/tasks/posters" element={<ProtectedRoute><TasksPosters /></ProtectedRoute>} />
                   
                   {/* 404 */}
                   <Route path="/404" element={<NotFound />} />

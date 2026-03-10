@@ -159,7 +159,7 @@ interface MemberActivityRow {
   referralOrderCount: number;
   referralReward: { points: number };
   consumptionReward: number;
-  consumptionCount: number; // 消费次数
+  consumptionCount: number; // 下级次数
 }
 
 // 统一时间范围计算（使用系统级时间搜索规则：00:00:00 至 23:59:59.999）
@@ -278,7 +278,7 @@ export default function MemberActivityDataContent() {
     { key: 'giftUsdt', label: t('赠送US', 'Gift USDT') },
     { key: 'resetTime', label: t('重置时间', 'Reset Time') },
     { key: 'referralCount', label: t('推荐人数', 'Referrals') },
-    { key: 'consumptionCount', label: t('消费次数', 'Consumption Count') },
+    { key: 'consumptionCount', label: t('下级次数', 'Subordinate Count') },
     { key: 'consumptionReward', label: t('消费奖励', 'Consumption Reward') },
     { key: 'referralReward', label: t('推荐奖励', 'Referral Reward') },
     { key: 'remainingPoints', label: t('剩余积分', 'Remaining Points') },
@@ -1059,7 +1059,7 @@ export default function MemberActivityDataContent() {
   // 导出数据
   const handleExport = () => {
     const csvContent = [
-      ["电话号码", "会员编号", "累积次数", "累积利润", "累积奈拉", "累积赛地", "累积US", "赠送奈拉", "赠送赛地", "赠送US", "重置时间", "推荐人数", "消费次数", "消费奖励", "推荐奖励", "剩余积分"].join(","),
+      ["电话号码", "会员编号", "累积次数", "累积利润", "累积奈拉", "累积赛地", "累积US", "赠送奈拉", "赠送赛地", "赠送US", "重置时间", "推荐人数", "下级次数", "消费奖励", "推荐奖励", "剩余积分"].join(","),
       ...activityData.map(row => [
         row.member.phoneNumber,
         row.member.memberCode,
@@ -1336,7 +1336,7 @@ export default function MemberActivityDataContent() {
                   {isVisible('giftUsdt') && <SortableTableHead sortKey="giftUsdt" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("赠送US", "Gift USDT")}</SortableTableHead>}
                   {isVisible('resetTime') && <TableHead className="text-center whitespace-nowrap px-2">{t("重置时间", "Reset Time")}</TableHead>}
                   {isVisible('referralCount') && <SortableTableHead sortKey="referralCount" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("推荐人数", "Referrals")}</SortableTableHead>}
-                  {isVisible('consumptionCount') && <SortableTableHead sortKey="consumptionCount" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("消费次数", "Consumption")}</SortableTableHead>}
+                  {isVisible('consumptionCount') && <SortableTableHead sortKey="consumptionCount" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("下级次数", "Subordinate")}</SortableTableHead>}
                   {isVisible('consumptionReward') && <SortableTableHead sortKey="consumptionReward" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("消费奖励", "Reward")}</SortableTableHead>}
                   {isVisible('referralReward') && <TableHead className="text-center whitespace-nowrap px-2">{t("推荐奖励", "Ref. Reward")}</TableHead>}
                   {isVisible('remainingPoints') && <SortableTableHead sortKey="remainingPoints" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("剩余积分", "Points")}</SortableTableHead>}

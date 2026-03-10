@@ -25,6 +25,6 @@ Write-Host "Committing: $Message" -ForegroundColor Cyan
 git commit -m $Message
 
 Write-Host "Pushing to GitHub..." -ForegroundColor Cyan
-git push origin main
+git push origin HEAD:main
 
 Write-Host "`nPublished to GitHub!" -ForegroundColor Green

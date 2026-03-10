@@ -28,6 +28,8 @@
     "db:fix-platform-admin": "node scripts/run-platform-admin-fix.mjs",
     "db:gift-number": "node scripts/run-gift-number-migration.mjs",
     "db:exclude-platform-admin": "node scripts/run-exclude-platform-admin-from-tenant.mjs",
+    "db:task-posters-storage": "node scripts/run-task-posters-storage.mjs",
+    "db:task-tables-platform-admin": "node scripts/run-task-tables-platform-admin.mjs",
     "db:restore-tenant-super-admin": "node scripts/run-restore-tenant-super-admin.mjs",
     "restore-employees": "node scripts/restore-employees.mjs",
     "restore-full": "node scripts/restore-full.mjs"

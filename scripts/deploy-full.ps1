@@ -34,7 +34,7 @@ if (Test-Path ".git") {
     if ($status) {
         git add .
         git commit -m $Message
-        git push origin main
+        git push origin HEAD:main
         Write-Host "GitHub push done" -ForegroundColor Green
     } else {
         Write-Host "No changes, skip GitHub" -ForegroundColor Yellow

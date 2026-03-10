@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -195,7 +196,17 @@ const updateActivityRecordInDB = async (id: string, record: Partial<ActivityReco
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
+const TAB_MAP: Record<string, string> = { members: "members", activity: "activity", gifts: "gifts", points: "points" };
+const TAB_LABELS: Record<string, { zh: string; en: string }> = {
+  members: { zh: "会员数据", en: "Member Data" },
+  activity: { zh: "活动数据", en: "Activity Data" },
+  gifts: { zh: "活动赠送", en: "Activity Gifts" },
+  points: { zh: "积分明细", en: "Points Ledger" },
+};
+
 export default function ActivityReports() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = TAB_MAP[searchParams.get("tab") || ""] || "members";
   const { t } = useLanguage();
   const { isAdmin, employee } = useAuth();
   const isMobile = useIsMobile();
@@ -205,7 +216,11 @@ export default function ActivityReports() {
   const { currencies } = useCurrencies();
   const { activeProviders } = usePaymentProviders();
   const { submitBatchForApproval } = useAuditWorkflow();
-  const [activeTab, setActiveTab] = useState("members");
+  const [activeTab, setActiveTab] = useState(tabFromUrl);
+
+  useEffect(() => {
+    setActiveTab(tabFromUrl);
+  }, [tabFromUrl]);
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [searchError, setSearchError] = useState("");
@@ -601,27 +616,8 @@ const [editFormData, setEditFormData] = useState({
   return (
     <div className="flex flex-col h-full gap-4">
       <div className="shrink-0">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 min-h-0">
+        <Tabs value={activeTab} className="w-full flex flex-col flex-1 min-h-0">
           <div className={isMobile ? "flex flex-col gap-3" : "flex items-center justify-between gap-4 flex-wrap"}>
-            <TabsList className={isMobile ? "w-full grid grid-cols-4" : "grid grid-cols-4 lg:w-auto lg:inline-flex"}>
-              <TabsTrigger value="members" className="gap-1">
-                <Users className="h-4 w-4" />
-                {!isMobile && t("会员管理", "Members")}
-              </TabsTrigger>
-              <TabsTrigger value="activity" className="gap-1">
-                <Activity className="h-4 w-4" />
-                {!isMobile && t("活动数据", "Activity")}
-              </TabsTrigger>
-              <TabsTrigger value="gifts" className="gap-1">
-                <Gift className="h-4 w-4" />
-                {!isMobile && t("活动赠送", "Gifts")}
-              </TabsTrigger>
-              <TabsTrigger value="points" className="gap-1">
-                <List className="h-4 w-4" />
-                {!isMobile && t("积分明细", "Points")}
-              </TabsTrigger>
-            </TabsList>
-
             {activeTab === "members" && (
               <div className={isMobile ? "flex flex-col gap-2" : "flex items-center gap-3"}>
                 <div className="relative">

@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { TablePageSkeleton } from "@/components/skeletons/TablePageSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -1362,28 +1363,37 @@ function PaymentProviderTab() {
   );
 }
 
+const MERCHANT_TAB_MAP: Record<string, string> = { cards: "cards", vendors: "vendors", "payment-providers": "payment-providers" };
+const MERCHANT_TAB_LABELS: Record<string, { zh: string; en: string }> = {
+  cards: { zh: "卡片管理", en: "Cards" },
+  vendors: { zh: "卡商管理", en: "Vendors" },
+  "payment-providers": { zh: "代付商家", en: "Payment Providers" },
+};
+
 // Main Component
 export default function MerchantManagement() {
-  const { tr } = useLanguage();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = MERCHANT_TAB_MAP[searchParams.get("tab") || ""] || "cards";
+  const { tr, t } = useLanguage();
+  const [activeTab, setActiveTab] = useState(tabFromUrl);
+
+  useEffect(() => {
+    setActiveTab(tabFromUrl);
+  }, [tabFromUrl]);
+
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-end">
+        <Link
+          to="/tasks/settings"
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {t("进入维护设置", "Maintenance Settings")} →
+        </Link>
+      </div>
       <Card>
         <CardContent className="pt-4">
-          <Tabs defaultValue="cards" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 h-9">
-              <TabsTrigger value="cards" className="flex items-center gap-1.5 text-sm">
-                <CreditCard className="h-3.5 w-3.5" />
-                {tr('merchants.cards')}
-              </TabsTrigger>
-              <TabsTrigger value="vendors" className="flex items-center gap-1.5 text-sm">
-                <Store className="h-3.5 w-3.5" />
-                {tr('merchants.vendors')}
-              </TabsTrigger>
-              <TabsTrigger value="payment-providers" className="flex items-center gap-1.5 text-sm">
-                <Wallet className="h-3.5 w-3.5" />
-                {tr('merchants.paymentProviders')}
-              </TabsTrigger>
-            </TabsList>
+          <Tabs value={activeTab} className="w-full">
             <TabsContent value="cards" className="mt-4">
               <CardTab />
             </TabsContent>

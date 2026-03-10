@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Globe, User, LogOut, Settings, Sun, Moon, Maximize2, Minimize2, Menu, Monitor, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,11 +61,45 @@ const PAGE_TITLES: Record<string, { zh: string; en: string }> = {
   "/member-management": { zh: "会员管理", en: "Member Management" },
   "/member-activity": { zh: "会员活动数据", en: "Member Activity Data" },
   "/login-logs": { zh: "登录日志", en: "Login Logs" },
+  "/tasks/dashboard": { zh: "任务看板", en: "Task Dashboard" },
+  "/tasks/settings": { zh: "维护设置", en: "Maintenance Settings" },
+  "/tasks/history": { zh: "维护历史", en: "Maintenance History" },
+  "/tasks/posters": { zh: "发动态", en: "Posters" },
+};
+
+// 带 tab 的页面：根据 tab 显示子页面标题（不显示父级如「会员管理」「商家管理」）
+const TAB_PAGE_TITLES: Record<string, Record<string, { zh: string; en: string }>> = {
+  "/activity-reports": {
+    members: { zh: "会员数据", en: "Member Data" },
+    activity: { zh: "活动数据", en: "Activity Data" },
+    gifts: { zh: "活动赠送", en: "Activity Gifts" },
+    points: { zh: "积分明细", en: "Points Ledger" },
+  },
+  "/merchants": {
+    cards: { zh: "卡片管理", en: "Cards" },
+    vendors: { zh: "卡商管理", en: "Vendors" },
+    "payment-providers": { zh: "代付商家", en: "Payment Providers" },
+  },
+  "/settings": {
+    fee: { zh: "手续费设置", en: "Fee" },
+    exchange: { zh: "汇率设置", en: "Exchange" },
+    currency: { zh: "币种设置", en: "Currency" },
+    points: { zh: "积分设置", en: "Points" },
+    activity: { zh: "活动设置", en: "Activity" },
+    activityType: { zh: "活动类型", en: "Activity Type" },
+    giftDistribution: { zh: "活动分配", en: "Gift Distribution" },
+    source: { zh: "客户来源", en: "Customer Source" },
+    data: { zh: "数据管理", en: "Data" },
+    copy: { zh: "复制设置", en: "Copy" },
+    permission: { zh: "权限设置", en: "Permissions" },
+    api: { zh: "API管理", en: "API" },
+  },
 };
 
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { language, setLanguage, t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
   const { employee, signOut, isAdmin, updateEmployeeLocal } = useAuth();
@@ -81,11 +115,23 @@ export function Header() {
   const [saving, setSaving] = useState(false);
 
   const getPageTitle = () => {
+    const tabTitles = TAB_PAGE_TITLES[location.pathname];
+    const tab = searchParams.get("tab") || "";
+    const defaultTab: Record<string, string> = {
+      "/activity-reports": "members",
+      "/merchants": "cards",
+      "/settings": "fee",
+    };
+    const effectiveTab = tab || defaultTab[location.pathname] || "";
+    if (tabTitles && effectiveTab && tabTitles[effectiveTab]) {
+      const cfg = tabTitles[effectiveTab];
+      return language === "zh" ? cfg.zh : cfg.en;
+    }
     const pageConfig = PAGE_TITLES[location.pathname];
     if (pageConfig) {
-      return language === 'zh' ? pageConfig.zh : pageConfig.en;
+      return language === "zh" ? pageConfig.zh : pageConfig.en;
     }
-    return language === 'zh' ? "GC会员系统" : "GC Member System";
+    return language === "zh" ? "GC会员系统" : "GC Member System";
   };
 
   const handleLogout = async () => {

@@ -18,14 +18,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Download, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Download, Image as ImageIcon, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { getRateSettingEntries, getPosterTableColumns, type RateSettingEntry, type PosterColumnKey } from "@/stores/systemSettings";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTenantView } from "@/contexts/TenantViewContext";
+import { savePosterToLibrary } from "@/services/taskService";
 
 interface RatePosterGeneratorProps {
   onGenerate?: () => void;
+  /** 保存到海报库后的回调（如刷新海报列表） */
+  onSavedToLibrary?: () => void;
   /** 汇率配置数据（与海报设置表格一致，不传则从 store 读取） */
   rateEntries?: RateSettingEntry[];
   /** 用于计算兑换金额和百分比（来自海报设置页） */
@@ -57,12 +62,16 @@ const DEFAULT_TEXT_SETTINGS: PosterTextSettings = {
 
 export default function RatePosterGenerator({
   onGenerate,
+  onSavedToLibrary,
   rateEntries: rateEntriesProp,
   getExchangeAmount,
   getPercentage,
 }: RatePosterGeneratorProps) {
   const { t } = useLanguage();
+  const { employee } = useAuth();
+  const { viewingTenantId } = useTenantView() || {};
   const isMobile = useIsMobile();
+  const [saving, setSaving] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [posterDataUrl, setPosterDataUrl] = useState<string | null>(null);
@@ -369,6 +378,31 @@ export default function RatePosterGenerator({
     toast.success(t("海报下载成功", "Poster downloaded successfully"));
   };
 
+  const saveToLibrary = async () => {
+    const tenantId = viewingTenantId || employee?.tenant_id;
+    if (!posterDataUrl || !employee?.id || !tenantId) {
+      toast.error(t("请先登录", "Please login"));
+      return;
+    }
+    setSaving(true);
+    try {
+      await savePosterToLibrary({
+        tenantId,
+        employeeId: employee.id,
+        dataUrl: posterDataUrl,
+        title: `汇率海报 ${new Date().toLocaleDateString()}`,
+      });
+      toast.success(t("已保存到海报库", "Saved to poster library"));
+      onSavedToLibrary?.();
+    } catch (e: any) {
+      console.error("Save poster to library failed:", e);
+      const msg = e?.message || e?.error_description || t("保存失败", "Save failed");
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleOpenDialog = () => {
     setIsDialogOpen(true);
     setPosterDataUrl(null);
@@ -535,7 +569,7 @@ export default function RatePosterGenerator({
                     className="max-h-[500px] rounded-lg shadow-lg border"
                   />
                 </div>
-                <div className="flex justify-center gap-3">
+                <div className="flex justify-center gap-3 flex-wrap">
                   <Button variant="outline" onClick={generatePoster} disabled={isGenerating}>
                     {isGenerating ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -545,6 +579,14 @@ export default function RatePosterGenerator({
                   <Button onClick={downloadPoster} className="gap-2">
                     <Download className="h-4 w-4" />
                     {t("下载海报", "Download Poster")}
+                  </Button>
+                  <Button variant="outline" onClick={saveToLibrary} disabled={saving} className="gap-2">
+                    {saving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    {t("保存到海报库", "Save to Library")}
                   </Button>
                 </div>
               </div>
