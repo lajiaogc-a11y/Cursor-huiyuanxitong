@@ -117,12 +117,17 @@ export default function TasksSettings() {
   };
 
   const handleGenerate = async () => {
+    if (!tenantId) {
+      toast.error(t("请先选择租户", "Please select tenant first"));
+      return;
+    }
     setGenerating(true);
     try {
       const { start, end } = getDateRangeForPreset(datePreset);
       const { phones: ph, sample: s } = await generateCustomerList({
         start_date: start,
         end_date: end,
+        tenantId,
       });
       setPhones(ph);
       setSample(s);

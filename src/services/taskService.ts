@@ -111,10 +111,12 @@ export function getDateRangeForPreset(preset: DateRangePreset): { start: string;
  * 4. 过滤：手机号长度>=10 的会员
  * 5. 排除新入会会员：仅统计在搜索日期范围结束前已入会的会员（created_at <= end），
  *    本月新入会的会员在查询上月订单时必然无交易，不应计入未交易名单
+ * 6. 租户隔离：传入 tenantId 时仅统计该租户的会员与订单（creator_id/recorder_id/sales_user_id 关联该租户员工）
  */
 export async function generateCustomerList(params?: {
   start_date?: string;
   end_date?: string;
+  tenantId?: string;
 }): Promise<{
   count: number;
   phones: string[];
@@ -124,22 +126,40 @@ export async function generateCustomerList(params?: {
     ? { start: params.start_date, end: params.end_date }
     : getLastWeekRange();
 
+  // 租户隔离：获取该租户员工 ID 列表，用于过滤 members 和 orders
+  let empIds: string[] = [];
+  if (params?.tenantId) {
+    const { data: emps } = await supabase
+      .from("employees")
+      .select("id")
+      .eq("tenant_id", params.tenantId);
+    empIds = (emps || []).map((e: { id: string }) => e.id);
+    if (empIds.length === 0) return { count: 0, phones: [], sample: [] };
+  }
+
   let membersQuery = supabase
     .from("members")
     .select("id, phone_number, created_at");
   // 排除在搜索日期范围结束之后才入会的会员（如查上月未交易，排除本月新入会的）
   membersQuery = membersQuery.lte("created_at", `${end}T23:59:59.999Z`);
+  if (empIds.length > 0) {
+    membersQuery = membersQuery.or(`creator_id.in.(${empIds.join(",")}),recorder_id.in.(${empIds.join(",")})`);
+  }
   const { data: members, error: membersError } = await membersQuery;
 
   if (membersError) throw membersError;
   if (!members?.length) return { count: 0, phones: [], sample: [] };
 
-  const { data: ordersInRange } = await supabase
+  let ordersQuery = supabase
     .from("orders")
     .select("member_id, phone_number")
     .gte("created_at", `${start}T00:00:00Z`)
     .lte("created_at", `${end}T23:59:59Z`)
     .in("status", ["completed", "pending"]);
+  if (empIds.length > 0) {
+    ordersQuery = ordersQuery.or(`creator_id.in.(${empIds.join(",")}),sales_user_id.in.(${empIds.join(",")})`);
+  }
+  const { data: ordersInRange } = await ordersQuery;
 
   const tradedMemberIds = new Set<string>();
   const tradedPhones = new Set<string>();
