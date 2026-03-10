@@ -303,6 +303,11 @@ export function Header() {
               <div className="px-3 py-2 text-sm text-muted-foreground border-b border-border">
                 {t("账号", "Account")}: <span className="font-medium text-foreground">{employee?.username}</span>
               </div>
+              {typeof __BUILD_TIME__ !== "undefined" && (
+                <div className="px-3 py-1.5 text-xs text-muted-foreground/80">
+                  {t("构建", "Build")}: {__BUILD_TIME__}
+                </div>
+              )}
               <div className="p-1">
                 {forceDesktopLayout && (
                   <DropdownMenuItem onClick={toggleForceDesktopLayout} className="cursor-pointer py-2.5">

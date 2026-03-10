@@ -48,7 +48,7 @@ Write-Host "`n=== Step 2: Build + Cloudflare ===" -ForegroundColor Cyan
 npm run build
 if ($LASTEXITCODE -ne 0) { Write-Host "Build failed" -ForegroundColor Red; exit 1 }
 
-npx wrangler pages deploy dist --project-name=gift-system
+npx wrangler pages deploy dist --project-name=gift-system --branch=main
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Deploy failed. Token needs: User->User Details Read, Account->Pages Edit" -ForegroundColor Red
     Write-Host "Or run: npx wrangler login" -ForegroundColor Yellow

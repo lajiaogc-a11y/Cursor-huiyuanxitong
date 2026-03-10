@@ -9,8 +9,12 @@ import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig(({ mode }) => {
   const buildTarget = process.env.VITE_BUILD_TARGET || 'web';
   const useRelativeBase = buildTarget === 'electron' || buildTarget === 'capacitor';
+  const buildTime = new Date().toISOString().slice(0, 19).replace('T', ' ');
   return {
   base: useRelativeBase ? './' : '/',
+  define: {
+    __BUILD_TIME__: JSON.stringify(buildTime),
+  },
   server: {
     host: "::",
     port: 8080,
@@ -23,6 +27,8 @@ export default defineConfig(({ mode }) => {
       includeAssets: ["favicon.ico", "pwa-192x192.png", "pwa-512x512.png"],
       manifest: false, // use public/manifest.json
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
           {
