@@ -352,7 +352,7 @@ export const translations = {
 
   // Page titles
   pages: {
-    dashboard: { zh: '仪表盘', en: 'Dashboard' },
+    dashboard: { zh: '数据统计', en: 'Statistics' },
     exchangeRate: { zh: '汇率计算', en: 'Exchange Rate' },
     orders: { zh: '订单管理', en: 'Order Management' },
     reports: { zh: '报表管理', en: 'Report Management' },

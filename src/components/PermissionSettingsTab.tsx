@@ -132,7 +132,7 @@ const MODULES = {
     label_zh: "导航菜单可见性",
     label_en: "Navigation Visibility",
     fields: {
-      dashboard: { label_zh: "仪表盘", label_en: "Dashboard" },
+      dashboard: { label_zh: "数据统计", label_en: "Statistics" },
       exchange_rate: { label_zh: "汇率计算", label_en: "Exchange Rate" },
       orders: { label_zh: "订单管理", label_en: "Orders" },
       reports: { label_zh: "报表管理", label_en: "Reports" },
@@ -149,8 +149,8 @@ const MODULES = {
     },
   },
   dashboard: {
-    label_zh: "仪表盘数据",
-    label_en: "Dashboard Data",
+    label_zh: "数据统计数据",
+    label_en: "Statistics Data",
     fields: {
       own_data_only: { label_zh: "仅显示自己的数据", label_en: "Show Own Data Only" },
     },

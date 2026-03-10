@@ -1,7 +1,7 @@
 // System Settings Store - 系统设置管理
 // 所有数据存储在线上数据库，不使用本地存储
 
-import { loadSharedData, saveSharedData, saveSharedDataSync } from '@/services/sharedDataService';
+import { loadSharedData, saveSharedData, saveSharedDataSync, getSharedDataSync } from '@/services/sharedDataService';
 import { CurrencyCode } from "@/config/currencies";
 
 // ============= Gift Distribution Settings =============
@@ -594,9 +594,36 @@ export function getRateSettingEntries(): RateSettingEntry[] {
   return [];
 }
 
+/** 从服务器加载汇率配置（租户内所有人可见，跨浏览器同步） */
+export async function loadRateSettingEntriesAsync(): Promise<RateSettingEntry[]> {
+  const data = await loadSharedData<RateSettingEntry[]>('rateSettingEntries');
+  const entries = data && Array.isArray(data) ? data : [];
+  rateSettingEntriesCache = entries;
+  return entries;
+}
+
+/** 保存到服务器（必须等待完成，确保跨浏览器持久化） */
+export async function saveRateSettingEntriesAsync(entries: RateSettingEntry[]): Promise<boolean> {
+  rateSettingEntriesCache = entries;
+  return await saveSharedData('rateSettingEntries', entries);
+}
+
 export function saveRateSettingEntries(entries: RateSettingEntry[]): void {
   rateSettingEntriesCache = entries;
   saveSharedDataSync('rateSettingEntries', entries);
+}
+
+/** 添加汇率配置并保存到服务器 */
+export async function addRateSettingEntryAsync(entry: Omit<RateSettingEntry, 'id'>): Promise<RateSettingEntry> {
+  const entries = getRateSettingEntries();
+  const newEntry: RateSettingEntry = {
+    ...entry,
+    id: generateId(),
+  };
+  const next = [...entries, newEntry];
+  const ok = await saveRateSettingEntriesAsync(next);
+  if (!ok) throw new Error('保存失败');
+  return newEntry;
 }
 
 export function addRateSettingEntry(entry: Omit<RateSettingEntry, 'id'>): RateSettingEntry {
@@ -610,6 +637,15 @@ export function addRateSettingEntry(entry: Omit<RateSettingEntry, 'id'>): RateSe
   return newEntry;
 }
 
+/** 更新汇率配置并保存到服务器 */
+export async function updateRateSettingEntryAsync(id: string, updates: Partial<RateSettingEntry>): Promise<boolean> {
+  const entries = getRateSettingEntries();
+  const entry = entries.find(e => e.id === id);
+  if (!entry) return false;
+  Object.assign(entry, updates);
+  return await saveRateSettingEntriesAsync(entries);
+}
+
 export function updateRateSettingEntry(id: string, updates: Partial<RateSettingEntry>): void {
   const entries = getRateSettingEntries();
   const entry = entries.find(e => e.id === id);
@@ -619,9 +655,88 @@ export function updateRateSettingEntry(id: string, updates: Partial<RateSettingE
   }
 }
 
+/** 删除汇率配置并保存到服务器 */
+export async function deleteRateSettingEntryAsync(id: string): Promise<boolean> {
+  const entries = getRateSettingEntries().filter(e => e.id !== id);
+  return await saveRateSettingEntriesAsync(entries);
+}
+
 export function deleteRateSettingEntry(id: string): void {
   const entries = getRateSettingEntries().filter(e => e.id !== id);
   saveRateSettingEntries(entries);
+}
+
+// ============= 海报表格列配置（与海报设置页表格一致）=============
+
+export const POSTER_COLUMN_KEYS = [
+  "country",
+  "card",
+  "faceValue",
+  "exchangeAmount",
+  "currency",
+  "percentageRate",
+  "rate",
+  "profitRate",
+] as const;
+
+export type PosterColumnKey = (typeof POSTER_COLUMN_KEYS)[number];
+
+const DEFAULT_POSTER_TABLE_COLUMNS: PosterColumnKey[] = [...POSTER_COLUMN_KEYS];
+const POSTER_COLUMNS_STORAGE_KEY = "posterTableColumns";
+
+let posterTableColumnsCache: PosterColumnKey[] | null = null;
+
+function isValidPosterColumns(arr: unknown): arr is PosterColumnKey[] {
+  return Array.isArray(arr) && arr.length > 0 && arr.every((k) => POSTER_COLUMN_KEYS.includes(k as PosterColumnKey));
+}
+
+export function getPosterTableColumns(): PosterColumnKey[] {
+  if (posterTableColumnsCache && posterTableColumnsCache.length > 0) {
+    loadSharedData<PosterColumnKey[]>("posterTableColumns")
+      .then((data) => {
+        if (data && isValidPosterColumns(data)) posterTableColumnsCache = data;
+      })
+      .catch(console.error);
+    return posterTableColumnsCache;
+  }
+  // 优先从 localStorage 读取，避免刷新后默认全选
+  try {
+    const raw = localStorage.getItem(POSTER_COLUMNS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown;
+      if (isValidPosterColumns(parsed)) {
+        posterTableColumnsCache = parsed;
+        return parsed;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  // 其次尝试共享数据缓存（同步）
+  const fromShared = getSharedDataSync<PosterColumnKey[] | null>("posterTableColumns", null);
+  if (fromShared && isValidPosterColumns(fromShared)) {
+    posterTableColumnsCache = fromShared;
+    return fromShared;
+  }
+  loadSharedData<PosterColumnKey[]>("posterTableColumns")
+    .then((data) => {
+      if (data && isValidPosterColumns(data)) posterTableColumnsCache = data;
+      else posterTableColumnsCache = [...DEFAULT_POSTER_TABLE_COLUMNS];
+    })
+    .catch(console.error);
+  return posterTableColumnsCache && posterTableColumnsCache.length > 0
+    ? posterTableColumnsCache
+    : [...DEFAULT_POSTER_TABLE_COLUMNS];
+}
+
+export function savePosterTableColumns(columns: PosterColumnKey[]): void {
+  posterTableColumnsCache = columns.length > 0 ? columns : [...DEFAULT_POSTER_TABLE_COLUMNS];
+  try {
+    localStorage.setItem(POSTER_COLUMNS_STORAGE_KEY, JSON.stringify(posterTableColumnsCache));
+  } catch {
+    /* ignore */
+  }
+  saveSharedDataSync("posterTableColumns", posterTableColumnsCache);
 }
 
 // ============= 异步版本（推荐使用）=============
@@ -681,13 +796,14 @@ export async function getWorkMemosAsync(): Promise<WorkMemo[]> {
 // 预加载所有共享配置到缓存
 export async function initializeSystemSettings(): Promise<void> {
   try {
-    const [feeSettings, trxSettings, usdtFee, workMemos, countries, rateEntries] = await Promise.all([
+    const [feeSettings, trxSettings, usdtFee, workMemos, countries, rateEntries, posterCols] = await Promise.all([
       loadSharedData<FeeSettings>('feeSettings'),
       loadSharedData<TrxSettings>('trxSettings'),
       loadSharedData<number>('systemSettings_usdtFee'),
       loadSharedData<WorkMemo[]>('workMemos'),
       loadSharedData<Country[]>('countries'),
       loadSharedData<RateSettingEntry[]>('rateSettingEntries'),
+      loadSharedData<PosterColumnKey[]>('posterTableColumns'),
     ]);
 
     if (feeSettings) feeSettingsCache = normalizeFeeSettings(feeSettings);
@@ -696,6 +812,7 @@ export async function initializeSystemSettings(): Promise<void> {
     if (workMemos) workMemosCache = workMemos;
     if (countries) countriesCache = countries;
     if (rateEntries) rateSettingEntriesCache = rateEntries;
+    if (posterCols && posterCols.length > 0) posterTableColumnsCache = posterCols;
 
     console.log('[SystemSettings] Initialized from database');
   } catch (error) {

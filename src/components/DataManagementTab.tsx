@@ -52,7 +52,7 @@ interface NavigationConfig {
 }
 
 const DEFAULT_NAV_CONFIG: NavigationConfig[] = [
-  { navKey: "dashboard", displayTextZh: "数据概览", displayTextEn: "Dashboard", sortOrder: 1, isVisible: true },
+  { navKey: "dashboard", displayTextZh: "数据统计", displayTextEn: "Statistics", sortOrder: 1, isVisible: true },
   { navKey: "exchangeRate", displayTextZh: "汇率计算", displayTextEn: "Exchange Rate", sortOrder: 2, isVisible: true },
   { navKey: "orders", displayTextZh: "订单管理", displayTextEn: "Orders", sortOrder: 3, isVisible: true },
   { navKey: "members", displayTextZh: "会员管理", displayTextEn: "Members", sortOrder: 4, isVisible: true },

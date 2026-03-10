@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -17,9 +17,9 @@ const NotFound = () => {
         <p className="mb-4 text-xl text-muted-foreground">
           {t("页面未找到", "Oops! Page not found")}
         </p>
-        <a href="/" className="text-primary underline hover:text-primary/90">
+        <Link to="/" className="text-primary underline hover:text-primary/90">
           {t("返回首页", "Return to Home")}
-        </a>
+        </Link>
       </div>
     </div>
   );

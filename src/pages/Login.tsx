@@ -49,7 +49,8 @@ export default function Login() {
 
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
-      const from = (location.state as any)?.from?.pathname || "/";
+      let from = (location.state as any)?.from?.pathname || "/";
+      if (from === "/404" || !from || from === "") from = "/";
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, authLoading, navigate, location]);
@@ -85,7 +86,8 @@ export default function Login() {
       const result = await withTimeout(signIn(username.trim(), password), TIMEOUT.AUTH, tr('login.timeout'));
       if (result.success) {
         toast.success(result.message);
-        const from = (location.state as any)?.from?.pathname || "/";
+        let from = (location.state as any)?.from?.pathname || "/";
+        if (from === "/404" || !from || from === "") from = "/";
         navigate(from, { replace: true });
       } else {
         const errorCode = parseErrorCode(result.message);

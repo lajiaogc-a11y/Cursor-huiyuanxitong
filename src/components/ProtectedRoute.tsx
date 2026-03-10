@@ -132,9 +132,9 @@ export function ProtectedRoute({ children, requireAdmin, requireManager, require
     );
   }
 
-  // 平台总管理员专属页面（公司管理）：非平台总管理员直接 404，不暴露接口
+  // 平台总管理员专属页面：非平台总管理员重定向到首页，避免出现 404
   if (requirePlatformSuperAdmin && !employee?.is_platform_super_admin) {
-    return <Navigate to="/404" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // 权限检查

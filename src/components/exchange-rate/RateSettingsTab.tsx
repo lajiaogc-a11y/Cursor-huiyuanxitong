@@ -22,6 +22,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableTableRow } from "@/components/ui/sortable-item";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -33,6 +49,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Timer, RefreshCw, Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -40,12 +57,19 @@ import CurrencySelect from "@/components/CurrencySelect";
 import RatePosterGenerator from "@/components/RatePosterGenerator";
 import {
   getRateSettingEntries,
-  addRateSettingEntry,
-  updateRateSettingEntry,
-  deleteRateSettingEntry,
+  loadRateSettingEntriesAsync,
+  addRateSettingEntryAsync,
+  updateRateSettingEntryAsync,
+  deleteRateSettingEntryAsync,
+  saveRateSettingEntriesAsync,
+  getPosterTableColumns,
+  savePosterTableColumns,
+  POSTER_COLUMN_KEYS,
   type RateSettingEntry,
+  type PosterColumnKey,
 } from "@/stores/systemSettings";
 import { getCountriesAsync } from "@/stores/systemSettings";
+import { subscribeToSharedData } from "@/services/sharedDataService";
 
 interface CurrencyRates {
   USD_NGN: number;
@@ -57,15 +81,31 @@ interface CurrencyRates {
   lastUpdated: string;
 }
 
+const INTERVAL_OPTIONS = [
+  { value: 7200, label: "2小时", labelEn: "2 hours" },
+  { value: 14400, label: "4小时", labelEn: "4 hours" },
+  { value: 86400, label: "24小时", labelEn: "24 hours" },
+] as const;
+
 interface RateSettingsTabProps {
   currencyRates: CurrencyRates;
   currencyRatesAutoUpdate: boolean;
+  currencyRatesInterval: number;
   currencyRatesCountdown: number;
   onRefreshCurrencyRates: (isManual?: boolean) => Promise<void>;
   onToggleCurrencyRatesAutoUpdate: () => Promise<void>;
+  onChangeCurrencyRatesInterval: (intervalSeconds: number) => Promise<void>;
   nairaRate: number;
   cediRate: number;
   cardsList: { id: string; name: string }[];
+}
+
+// 卡片列只显示英文部分：去除括号内中文，再去除剩余 CJK 字符
+function getCardEnglishPart(card: string): string {
+  if (!card) return "-";
+  let s = card.replace(/\s*[（(][^）)]*[）)]\s*/g, "").trim();
+  s = s.replace(/[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/g, "").trim();
+  return s || "-";
 }
 
 function getCountryRate(currencyRates: CurrencyRates, country: string): number {
@@ -94,9 +134,11 @@ function getCountryRate(currencyRates: CurrencyRates, country: string): number {
 export default function RateSettingsTab({
   currencyRates,
   currencyRatesAutoUpdate,
+  currencyRatesInterval,
   currencyRatesCountdown,
   onRefreshCurrencyRates,
   onToggleCurrencyRatesAutoUpdate,
+  onChangeCurrencyRatesInterval,
   nairaRate,
   cediRate,
   cardsList,
@@ -115,10 +157,56 @@ export default function RateSettingsTab({
   });
   const [editingRateEntry, setEditingRateEntry] = useState<RateSettingEntry | null>(null);
   const [countries, setCountries] = useState<{ id: string; name: string }[]>([]);
+  const [posterColumns, setPosterColumns] = useState<PosterColumnKey[]>(() => getPosterTableColumns());
 
+  // 百分比(%) 公式：兑换金额 ÷ (面值 × 该国汇率) × 100，四舍五入取整
+  const percentageFormulaHint = t(
+    "百分比 = 兑换金额 ÷ (面值 × 该国汇率) × 100",
+    "Pct = Exchange Amt ÷ (Face Value × Country Rate) × 100"
+  );
+
+  const posterColumnLabels: Record<PosterColumnKey, string> = {
+    country: t("国家", "Country"),
+    card: t("卡片", "Card"),
+    faceValue: t("面值", "Face Value"),
+    exchangeAmount: t("兑换金额", "Exchange Amt"),
+    currency: t("币种", "Currency"),
+    percentageRate: t("百分比(%)", "Pct(%)"),
+    rate: t("汇率", "Rate"),
+    profitRate: t("需求利润%", "Profit(%)"),
+  };
+
+  const togglePosterColumn = (key: PosterColumnKey) => {
+    const next = posterColumns.includes(key)
+      ? posterColumns.filter((c) => c !== key)
+      : [...posterColumns, key].sort(
+          (a, b) => POSTER_COLUMN_KEYS.indexOf(a) - POSTER_COLUMN_KEYS.indexOf(b)
+        );
+    setPosterColumns(next);
+    savePosterTableColumns(next);
+  };
+
+  // 从服务器加载汇率配置（租户内所有人可见，跨浏览器同步）
   useEffect(() => {
-    setRateSettingEntries(getRateSettingEntries());
+    let mounted = true;
+    const load = async () => {
+      const entries = await loadRateSettingEntriesAsync();
+      if (mounted) setRateSettingEntries(entries);
+    };
+    load();
+    setPosterColumns(getPosterTableColumns());
     getCountriesAsync().then(setCountries).catch(console.error);
+
+    // 订阅共享数据变更，其他用户/标签页修改时同步
+    const unsub = subscribeToSharedData((key, value) => {
+      if (key === "rateSettingEntries" && Array.isArray(value) && mounted) {
+        setRateSettingEntries(value);
+      }
+    });
+    return () => {
+      mounted = false;
+      unsub();
+    };
   }, []);
 
   const calculateExchangeAmount = useCallback(
@@ -133,63 +221,148 @@ export default function RateSettingsTab({
   );
 
   const calculatePercentage = useCallback(
-    (entry: { faceValue: number; currency: "NGN" | "GHS" | "USDT"; rate: number; exchangeAmount?: number; profitRate?: number; country?: string }) => {
+    (entry: { faceValue: number; currency: "NGN" | "GHS" | "USDT"; rate: number; exchangeAmount?: number; profitRate?: number; country?: string }): number | null => {
       const { faceValue, rate, exchangeAmount, profitRate, country } = entry;
-      if (!faceValue || !rate) return "0.00";
-      const exchAmt = exchangeAmount !== undefined ? exchangeAmount : parseFloat(calculateExchangeAmount({ ...entry, profitRate }));
+      if (!faceValue || !rate) return null;
+      // 当 exchangeAmount 为 0 或缺失时，使用计算值，避免 Pct 列错误显示 0%
+      const exchAmt = (exchangeAmount != null && exchangeAmount > 0)
+        ? exchangeAmount
+        : parseFloat(calculateExchangeAmount({ ...entry, profitRate }));
       const countryRate = getCountryRate(currencyRates, country || "");
       const denominator = faceValue * countryRate;
-      if (denominator === 0) return "0.00";
-      return ((exchAmt / denominator) * 100).toFixed(2);
+      if (denominator === 0) return null;
+      return Math.round((exchAmt / denominator) * 100);
     },
     [currencyRates, calculateExchangeAmount]
   );
 
-  const handleAddRateEntry = () => {
+  const [adding, setAdding] = useState(false);
+  const handleAddRateEntry = async () => {
     if (!newRateEntry.country || !newRateEntry.faceValue) {
       toast.error(t("请填写完整信息", "Please fill in all fields"));
       return;
     }
-    const calculatedPercentage =
-      newRateEntry.faceValue && newRateEntry.rate
-        ? parseFloat(
-            calculatePercentage({
+    setAdding(true);
+    try {
+      const calculatedExchangeAmount =
+        newRateEntry.faceValue && newRateEntry.rate
+          ? parseFloat(
+              calculateExchangeAmount({
+                faceValue: newRateEntry.faceValue,
+                currency: newRateEntry.currency,
+                rate: newRateEntry.rate,
+                profitRate: newRateEntry.profitRate,
+              })
+            )
+          : 0;
+      const calculatedPercentage =
+        newRateEntry.faceValue && newRateEntry.rate
+          ? (calculatePercentage({
               faceValue: newRateEntry.faceValue,
               currency: newRateEntry.currency,
               rate: newRateEntry.rate,
               profitRate: newRateEntry.profitRate,
               country: newRateEntry.country,
-            })
-          )
-        : 0;
-    const entryWithPercentage = { ...newRateEntry, percentageRate: calculatedPercentage };
-    const entry = addRateSettingEntry(entryWithPercentage);
-    setRateSettingEntries([...rateSettingEntries, entry]);
-    setNewRateEntry({
-      country: "",
-      card: "",
-      faceValue: 0,
-      exchangeAmount: 0,
-      currency: "NGN",
-      percentageRate: 0,
-      rate: 0,
-      profitRate: 0,
-    });
-    toast.success(t("添加成功", "Added successfully"));
+            }) ?? 0)
+          : 0;
+      const entryWithPercentage = {
+        ...newRateEntry,
+        exchangeAmount: calculatedExchangeAmount,
+        percentageRate: calculatedPercentage,
+      };
+      const entry = await addRateSettingEntryAsync(entryWithPercentage);
+      setRateSettingEntries((prev) => [...prev, entry]);
+      setNewRateEntry({
+        country: "",
+        card: "",
+        faceValue: 0,
+        exchangeAmount: 0,
+        currency: "NGN",
+        percentageRate: 0,
+        rate: 0,
+        profitRate: 0,
+      });
+      toast.success(t("添加成功，已保存到服务器", "Added and saved to server"));
+    } catch (err) {
+      console.error("Add rate entry failed:", err);
+      toast.error(t("保存失败，请重试", "Save failed, please retry"));
+    } finally {
+      setAdding(false);
+    }
   };
 
-  const handleUpdateRateEntry = () => {
+  const [updating, setUpdating] = useState(false);
+  const handleUpdateRateEntry = async () => {
     if (!editingRateEntry) return;
-    updateRateSettingEntry(editingRateEntry.id, editingRateEntry);
-    setRateSettingEntries(getRateSettingEntries());
-    setEditingRateEntry(null);
-    toast.success(t("更新成功", "Updated successfully"));
+    setUpdating(true);
+    try {
+      const exchAmt = parseFloat(
+        calculateExchangeAmount({
+          faceValue: editingRateEntry.faceValue,
+          currency: editingRateEntry.currency,
+          rate: editingRateEntry.rate,
+          profitRate: editingRateEntry.profitRate,
+        })
+      );
+      const pct = calculatePercentage({
+        faceValue: editingRateEntry.faceValue,
+        currency: editingRateEntry.currency,
+        rate: editingRateEntry.rate,
+        profitRate: editingRateEntry.profitRate,
+        country: editingRateEntry.country,
+      }) ?? 0;
+      const toSave = {
+        ...editingRateEntry,
+        exchangeAmount: exchAmt,
+        percentageRate: pct,
+      };
+      const ok = await updateRateSettingEntryAsync(editingRateEntry.id, toSave);
+      if (ok) {
+        setRateSettingEntries(await loadRateSettingEntriesAsync());
+        setEditingRateEntry(null);
+        toast.success(t("更新成功，已保存到服务器", "Updated and saved to server"));
+      } else {
+        toast.error(t("保存失败，请重试", "Save failed, please retry"));
+      }
+    } catch (err) {
+      console.error("Update rate entry failed:", err);
+      toast.error(t("保存失败，请重试", "Save failed, please retry"));
+    } finally {
+      setUpdating(false);
+    }
   };
 
-  const handleDeleteRateEntry = (id: string) => {
-    deleteRateSettingEntry(id);
-    setRateSettingEntries(getRateSettingEntries());
-    toast.success(t("删除成功", "Deleted successfully"));
+  const handleDeleteRateEntry = async (id: string) => {
+    try {
+      const ok = await deleteRateSettingEntryAsync(id);
+      if (ok) {
+        setRateSettingEntries(await loadRateSettingEntriesAsync());
+        toast.success(t("删除成功，已保存到服务器", "Deleted and saved to server"));
+      } else {
+        toast.error(t("保存失败，请重试", "Save failed, please retry"));
+      }
+    } catch (err) {
+      console.error("Delete rate entry failed:", err);
+      toast.error(t("保存失败，请重试", "Save failed, please retry"));
+    }
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = rateSettingEntries.findIndex((e) => e.id === active.id);
+    const newIndex = rateSettingEntries.findIndex((e) => e.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(rateSettingEntries, oldIndex, newIndex);
+    setRateSettingEntries(reordered);
+    const ok = await saveRateSettingEntriesAsync(reordered);
+    if (ok) toast.success(t("排序已保存", "Order saved"));
+    else toast.error(t("保存失败", "Save failed"));
   };
 
   return (
@@ -198,7 +371,14 @@ export default function RateSettingsTab({
       <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <RatePosterGenerator />
+            <RatePosterGenerator
+              rateEntries={rateSettingEntries}
+              getExchangeAmount={(e) => calculateExchangeAmount(e)}
+              getPercentage={(e) => {
+                const p = calculatePercentage(e);
+                return p === null ? "-" : `${p}%`;
+              }}
+            />
             <span className="text-xs text-muted-foreground">
               {t("下次更新", "Next update")}: {Math.floor(currencyRatesCountdown / 3600)}:
               {Math.floor((currencyRatesCountdown % 3600) / 60)
@@ -207,7 +387,7 @@ export default function RateSettingsTab({
               :{(currencyRatesCountdown % 60).toString().padStart(2, "0")}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant={currencyRatesAutoUpdate ? "default" : "outline"}
               size="sm"
@@ -217,10 +397,44 @@ export default function RateSettingsTab({
               <Timer className="h-3 w-3" />
               {currencyRatesAutoUpdate ? t("自动更新开", "Auto ON") : t("自动更新关", "Auto OFF")}
             </Button>
+            {currencyRatesAutoUpdate && (
+              <Select
+                value={INTERVAL_OPTIONS.some((o) => o.value === currencyRatesInterval) ? String(currencyRatesInterval) : "7200"}
+                onValueChange={(v) => onChangeCurrencyRatesInterval(parseInt(v, 10))}
+              >
+                <SelectTrigger className="h-7 w-[100px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {INTERVAL_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={String(opt.value)}>
+                      {t(opt.label, opt.labelEn)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Button variant="outline" size="sm" onClick={() => onRefreshCurrencyRates(true)} className="h-7 text-xs gap-1">
               <RefreshCw className="h-3 w-3" />
               {t("手动更新", "Manual Update")}
             </Button>
+          </div>
+        </div>
+        {/* 海报表格列配置：勾选的列将显示在生成的海报中 */}
+        <div className="flex flex-wrap items-center gap-4 py-2 border-t border-border/50">
+          <span className="text-xs font-medium text-muted-foreground">
+            {t("海报表格列（勾选=生成海报时显示）", "Poster columns (checked = shown in poster)")}:
+          </span>
+          <div className="flex flex-wrap gap-4">
+            {POSTER_COLUMN_KEYS.map((key) => (
+              <label key={key} className="flex items-center gap-2 cursor-pointer text-sm">
+                <Checkbox
+                  checked={posterColumns.includes(key)}
+                  onCheckedChange={() => togglePosterColumn(key)}
+                />
+                {posterColumnLabels[key]}
+              </label>
+            ))}
           </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -256,7 +470,12 @@ export default function RateSettingsTab({
 
       {/* 新增条目表单 */}
       <div className="border rounded-lg p-3 bg-muted/30 space-y-3">
-        <h4 className="font-medium text-sm">{t("添加汇率配置", "Add Rate Config")}</h4>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h4 className="font-medium text-sm">{t("添加汇率配置", "Add Rate Config")}</h4>
+          <span className="text-xs text-muted-foreground" title={percentageFormulaHint}>
+            {t("百分比公式", "Pct formula")}: 兑换金额÷(面值×该国汇率)×100
+          </span>
+        </div>
         <div className="space-y-2">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
             <div className="space-y-1">
@@ -326,19 +545,22 @@ export default function RateSettingsTab({
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="space-y-1">
+            <div className="space-y-1" title={percentageFormulaHint}>
               <Label className="text-xs">{t("百分比(%)", "Pct(%)")}</Label>
               <Input
                 type="text"
                 value={
                   newRateEntry.faceValue && newRateEntry.rate
-                    ? calculatePercentage({
-                        faceValue: newRateEntry.faceValue,
-                        currency: newRateEntry.currency,
-                        rate: newRateEntry.rate,
-                        profitRate: newRateEntry.profitRate,
-                        country: newRateEntry.country,
-                      })
+                    ? (() => {
+                        const p = calculatePercentage({
+                          faceValue: newRateEntry.faceValue,
+                          currency: newRateEntry.currency,
+                          rate: newRateEntry.rate,
+                          profitRate: newRateEntry.profitRate,
+                          country: newRateEntry.country,
+                        });
+                        return p === null ? "-" : `${p}%`;
+                      })()
                     : ""
                 }
                 readOnly
@@ -366,9 +588,9 @@ export default function RateSettingsTab({
               />
             </div>
             <div className="flex items-end">
-              <Button onClick={handleAddRateEntry} size="sm" className="h-8 w-full gap-1">
+              <Button onClick={handleAddRateEntry} size="sm" className="h-8 w-full gap-1" disabled={adding}>
                 <Plus className="h-3.5 w-3.5" />
-                {t("添加", "Add")}
+                {adding ? t("保存中...", "Saving...") : t("添加", "Add")}
               </Button>
             </div>
           </div>
@@ -380,6 +602,7 @@ export default function RateSettingsTab({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
+              <TableHead className="w-10 text-center" />
               <TableHead className="text-center">{t("国家", "Country")}</TableHead>
               <TableHead className="text-center">{t("卡片", "Card")}</TableHead>
               <TableHead className="text-center">{t("面值", "Face Value")}</TableHead>
@@ -394,13 +617,15 @@ export default function RateSettingsTab({
           <TableBody>
             {rateSettingEntries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                   {t("暂无数据", "No data")}
                 </TableCell>
               </TableRow>
             ) : (
-              rateSettingEntries.map((entry) => (
-                <TableRow key={entry.id}>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={rateSettingEntries.map((e) => e.id)} strategy={verticalListSortingStrategy}>
+                  {rateSettingEntries.map((entry) => (
+                    <SortableTableRow key={entry.id} id={entry.id} disabled={!!editingRateEntry}>
                   {editingRateEntry?.id === entry.id ? (
                     <>
                       <TableCell className="text-center">
@@ -462,13 +687,16 @@ export default function RateSettingsTab({
                       <TableCell className="text-center">
                         <Input
                           type="text"
-                          value={calculatePercentage({
-                            faceValue: editingRateEntry.faceValue,
-                            currency: editingRateEntry.currency,
-                            rate: editingRateEntry.rate,
-                            profitRate: editingRateEntry.profitRate,
-                            country: editingRateEntry.country,
-                          })}
+                          value={(() => {
+                            const p = calculatePercentage({
+                              faceValue: editingRateEntry.faceValue,
+                              currency: editingRateEntry.currency,
+                              rate: editingRateEntry.rate,
+                              profitRate: editingRateEntry.profitRate,
+                              country: editingRateEntry.country,
+                            });
+                            return p === null ? "-" : `${p}%`;
+                          })()}
                           readOnly
                           className="h-8 w-20 text-center bg-muted/50"
                         />
@@ -521,13 +749,19 @@ export default function RateSettingsTab({
                   ) : (
                     <>
                       <TableCell className="text-center">{entry.country}</TableCell>
-                      <TableCell className="text-center">{entry.card || "-"}</TableCell>
+                      <TableCell className="text-center">{getCardEnglishPart(entry.card)}</TableCell>
                       <TableCell className="text-center">{entry.faceValue}</TableCell>
                       <TableCell className="text-center font-medium">{entry.exchangeAmount || calculateExchangeAmount(entry)}</TableCell>
                       <TableCell className="text-center">
                         <Badge variant="secondary">{entry.currency}</Badge>
                       </TableCell>
-                      <TableCell className="text-center">{entry.percentageRate || calculatePercentage(entry)}%</TableCell>
+                      <TableCell className="text-center">
+                        {(() => {
+                          const p = calculatePercentage(entry);
+                          if (p === null) return "-";
+                          return `${Math.round(entry.percentageRate ?? p)}%`;
+                        })()}
+                      </TableCell>
                       <TableCell className="text-center">{entry.rate}</TableCell>
                       <TableCell className="text-center">{entry.profitRate}%</TableCell>
                       <TableCell className="text-center">
@@ -560,8 +794,10 @@ export default function RateSettingsTab({
                       </TableCell>
                     </>
                   )}
-                </TableRow>
-              ))
+                </SortableTableRow>
+                  ))}
+                </SortableContext>
+              </DndContext>
             )}
           </TableBody>
         </Table>

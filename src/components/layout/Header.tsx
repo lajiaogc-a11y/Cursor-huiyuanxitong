@@ -43,7 +43,7 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 
 // 路由到页面标题的映射
 const PAGE_TITLES: Record<string, { zh: string; en: string }> = {
-  "/": { zh: "仪表盘", en: "Dashboard" },
+  "/": { zh: "数据统计", en: "Statistics" },
   "/exchange-rate": { zh: "汇率计算", en: "Exchange Rate" },
   "/orders": { zh: "订单管理", en: "Order Management" },
   "/reports": { zh: "报表管理", en: "Report Management" },
@@ -52,8 +52,8 @@ const PAGE_TITLES: Record<string, { zh: string; en: string }> = {
   "/merchant-settlement": { zh: "商家结算", en: "Merchant Settlement" },
   "/merchants": { zh: "商家管理", en: "Merchant Management" },
   "/settings": { zh: "系统设置", en: "System Settings" },
-  "/audit": { zh: "审核中心", en: "Audit Center" },
-  "/logs": { zh: "操作日志", en: "Operation Logs" },
+  "/audit-center": { zh: "审核中心", en: "Audit Center" },
+  "/operation-logs": { zh: "操作日志", en: "Operation Logs" },
   "/knowledge": { zh: "公司文档", en: "Company Docs" },
   "/company-management": { zh: "租户管理", en: "Tenant Management" },
   "/platform-tenant-view": { zh: "租户数据查看", en: "View Tenant Data" },

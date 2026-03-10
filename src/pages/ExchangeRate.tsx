@@ -221,16 +221,17 @@ const initCurrencyRatesFromDb = async (): Promise<CurrencyRates> => {
   return DEFAULT_CURRENCY_RATES;
 };
 
-// 获取保存的汇率（同步，优先使用缓存）
+// 获取保存的汇率（同步，优先使用 sharedData 缓存，确保首次与导航返回一致）
 const getSavedCurrencyRates = (): CurrencyRates => {
-  if (currencyRatesCacheLoaded && currencyRatesCache) {
-    // 确保所有属性存在
-    return {
-      ...DEFAULT_CURRENCY_RATES,
-      ...currencyRatesCache,
-    };
+  const cached = getSharedDataSync<CurrencyRates | null>('currencyRatesToNGN', null);
+  if (cached && typeof cached.USD_NGN === 'number') {
+    currencyRatesCache = { ...DEFAULT_CURRENCY_RATES, ...cached };
+    currencyRatesCacheLoaded = true;
+    return currencyRatesCache;
   }
-  // 触发异步加载
+  if (currencyRatesCacheLoaded && currencyRatesCache) {
+    return { ...DEFAULT_CURRENCY_RATES, ...currencyRatesCache };
+  }
   initCurrencyRatesFromDb();
   return DEFAULT_CURRENCY_RATES;
 };
@@ -242,6 +243,8 @@ const saveCurrencyRates = async (rates: CurrencyRates) => {
   await saveSharedData('currencyRatesToNGN', rates);
 };
 
+const DEFAULT_INTERVAL = 7200; // 2小时
+
 // 获取自动更新设置（兼容 object {enabled, interval} 与 boolean 两种存储格式）
 const getCurrencyRatesAutoUpdate = (): boolean => {
   const raw = getSharedDataSync<boolean | { enabled?: boolean; interval?: number }>('currencyRatesAutoUpdate', true);
@@ -249,49 +252,65 @@ const getCurrencyRatesAutoUpdate = (): boolean => {
   return raw?.enabled ?? true;
 };
 
-// 保存自动更新设置（等待写入完成，保持与现有格式兼容）
-const saveCurrencyRatesAutoUpdate = async (enabled: boolean) => {
+// 获取自动更新间隔（秒）
+const getCurrencyRatesInterval = (): number => {
+  const raw = getSharedDataSync<boolean | { enabled?: boolean; interval?: number }>('currencyRatesAutoUpdate', true);
+  if (typeof raw === 'object' && raw !== null && typeof raw.interval === 'number' && raw.interval > 0) {
+    return raw.interval;
+  }
+  return DEFAULT_INTERVAL;
+};
+
+// 保存自动更新设置（enabled + interval）
+const saveCurrencyRatesAutoUpdate = async (enabled: boolean, interval?: number) => {
   const raw = await loadSharedData<boolean | { enabled?: boolean; interval?: number }>('currencyRatesAutoUpdate');
-  const toSave = typeof raw === 'object' && raw !== null && 'interval' in raw
-    ? { ...raw, enabled }
-    : enabled;
+  const currentInterval = typeof raw === 'object' && raw !== null && typeof raw.interval === 'number'
+    ? raw.interval
+    : DEFAULT_INTERVAL;
+  const toSave = { enabled, interval: interval ?? currentInterval };
   await saveSharedData('currencyRatesAutoUpdate', toSave);
 };
 
-// 自动采集国际汇率 - 返回各货币对奈拉的汇率
+// 保存自动更新间隔
+const saveCurrencyRatesInterval = async (interval: number) => {
+  const raw = await loadSharedData<boolean | { enabled?: boolean; interval?: number }>('currencyRatesAutoUpdate');
+  const enabled = typeof raw === 'boolean' ? raw : (raw?.enabled ?? true);
+  await saveSharedData('currencyRatesAutoUpdate', { enabled, interval });
+};
+
+// 通过 Supabase Edge Function 采集国际汇率（避免浏览器 CORS 限制）
 const fetchCurrencyRatesToNGN = async (): Promise<CurrencyRates | null> => {
+  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+  const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-    const response = await fetch('https://open.er-api.com/v6/latest/USD', {
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
+    const response = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/fetch-usdt-rates`,
+      {
+        method: 'POST',
+        signal: AbortSignal.timeout(10000),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${anonKey}`,
+          'apikey': anonKey,
+        },
+        body: JSON.stringify({ includeForex: true }),
+      }
+    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    if (!data?.rates) {
-      throw new Error('Invalid API response');
+    const rates = data?.currencyRatesToNGN;
+    if (rates && typeof rates.USD_NGN === 'number') {
+      return {
+        USD_NGN: rates.USD_NGN,
+        MYR_NGN: rates.MYR_NGN ?? DEFAULT_CURRENCY_RATES.MYR_NGN,
+        GBP_NGN: rates.GBP_NGN ?? DEFAULT_CURRENCY_RATES.GBP_NGN,
+        CAD_NGN: rates.CAD_NGN ?? DEFAULT_CURRENCY_RATES.CAD_NGN,
+        EUR_NGN: rates.EUR_NGN ?? DEFAULT_CURRENCY_RATES.EUR_NGN,
+        CNY_NGN: rates.CNY_NGN ?? DEFAULT_CURRENCY_RATES.CNY_NGN,
+        lastUpdated: rates.lastUpdated ?? new Date().toISOString(),
+      };
     }
-
-    const ngnRate = data.rates?.NGN || 1434.47;
-    const myrToUsd = 1 / (data.rates?.MYR || 4.71);  // 1 MYR = x USD
-    const gbpToUsd = 1 / (data.rates?.GBP || 0.743);
-    const cadToUsd = 1 / (data.rates?.CAD || 1.37);
-    const eurToUsd = 1 / (data.rates?.EUR || 0.85);
-    const cnyToUsd = 1 / (data.rates?.CNY || 7.01);
-
-    return {
-      USD_NGN: ngnRate,
-      MYR_NGN: myrToUsd * ngnRate,
-      GBP_NGN: gbpToUsd * ngnRate,
-      CAD_NGN: cadToUsd * ngnRate,
-      EUR_NGN: eurToUsd * ngnRate,
-      CNY_NGN: cnyToUsd * ngnRate,
-      lastUpdated: new Date().toISOString(),
-    };
+    throw new Error('Invalid currency rates response');
   } catch (error) {
     console.error('Failed to fetch currency rates:', error);
     return null;
@@ -425,13 +444,27 @@ export default function ExchangeRate() {
         setQuickRates((value as string[]).map(String));
       }
       if (key === 'currencyRatesAutoUpdate' && value !== null && value !== undefined) {
-        const enabled = typeof value === 'boolean' ? value : (value as { enabled?: boolean })?.enabled ?? true;
+        const raw = value as boolean | { enabled?: boolean; interval?: number };
+        const enabled = typeof raw === 'boolean' ? raw : (raw?.enabled ?? true);
+        const interval = typeof raw === 'object' && raw !== null && typeof raw.interval === 'number'
+          ? raw.interval
+          : DEFAULT_INTERVAL;
         setCurrencyRatesAutoUpdate(enabled);
+        setCurrencyRatesInterval(interval);
       }
       if (key === 'calculatorInputRates' && value && typeof value === 'object') {
         const rates = value as { nairaRate?: number; cediRate?: number };
         if (rates.nairaRate != null && rates.nairaRate > 0) setNairaRate(rates.nairaRate);
         if (rates.cediRate != null && rates.cediRate > 0) setCediRate(rates.cediRate);
+      }
+      if (key === 'currencyRatesToNGN' && value && typeof value === 'object') {
+        const rates = value as CurrencyRates;
+        if (typeof rates.USD_NGN === 'number') {
+          const merged = { ...DEFAULT_CURRENCY_RATES, ...rates };
+          currencyRatesCache = merged;
+          currencyRatesCacheLoaded = true;
+          setCurrencyRates(merged);
+        }
       }
     });
     return unsubscribe;
@@ -565,7 +598,8 @@ export default function ExchangeRate() {
   // 汇率采集状态
   const [currencyRates, setCurrencyRates] = useState<CurrencyRates>(getSavedCurrencyRates);
   const [currencyRatesAutoUpdate, setCurrencyRatesAutoUpdate] = useState(getCurrencyRatesAutoUpdate);
-  const [currencyRatesCountdown, setCurrencyRatesCountdown] = useState(7200); // 2小时 = 7200秒
+  const [currencyRatesInterval, setCurrencyRatesInterval] = useState(getCurrencyRatesInterval);
+  const [currencyRatesCountdown, setCurrencyRatesCountdown] = useState(getCurrencyRatesInterval);
   const currencyRatesCountdownRef = useRef<NodeJS.Timeout | null>(null);
 
   // 积分兑换对话框状态 - 与会员管理活动数据保持一致
@@ -675,11 +709,25 @@ export default function ExchangeRate() {
     };
     loadInputRates();
     
+    // 异步加载汇率采集数据（currencyRatesToNGN）- 确保首次进入与导航返回后显示一致
+    loadSharedData<CurrencyRates>('currencyRatesToNGN').then((saved) => {
+      if (saved && typeof saved.USD_NGN === 'number') {
+        const merged = { ...DEFAULT_CURRENCY_RATES, ...saved };
+        currencyRatesCache = merged;
+        currencyRatesCacheLoaded = true;
+        setCurrencyRates(merged);
+      }
+    }).catch(console.error);
+
     // 异步加载汇率自动更新设置（避免 getSharedDataSync 返回默认值后不再更新）
     loadSharedData<boolean | { enabled?: boolean; interval?: number }>('currencyRatesAutoUpdate').then((raw) => {
       if (raw !== null) {
         const enabled = typeof raw === 'boolean' ? raw : (raw?.enabled ?? true);
+        const interval = typeof raw === 'object' && raw !== null && typeof raw.interval === 'number'
+          ? raw.interval
+          : DEFAULT_INTERVAL;
         setCurrencyRatesAutoUpdate(enabled);
+        setCurrencyRatesInterval(interval);
       }
     }).catch(console.error);
     
@@ -793,51 +841,58 @@ export default function ExchangeRate() {
         await saveCurrencyRates(updatedRates);
         if (isManual) toast.info("汇率无变化");
       }
-      setCurrencyRatesCountdown(7200);
+      setCurrencyRatesCountdown(currencyRatesInterval);
     } else {
       // 采集失败：手动刷新时提示，自动刷新时静默使用缓存
       if (isManual) {
         toast.error("汇率采集失败");
       }
     }
-  }, [currencyRates]);
+  }, [currencyRates, currencyRatesInterval]);
 
   // 切换自动更新（等待保存完成）
   const handleToggleCurrencyRatesAutoUpdate = useCallback(async () => {
     const newValue = !currencyRatesAutoUpdate;
     setCurrencyRatesAutoUpdate(newValue);
-    await saveCurrencyRatesAutoUpdate(newValue);
+    await saveCurrencyRatesAutoUpdate(newValue, currencyRatesInterval);
     toast.success(newValue ? "已开启自动更新" : "已关闭自动更新");
+  }, [currencyRatesAutoUpdate, currencyRatesInterval]);
+
+  // 修改自动更新间隔
+  const handleChangeCurrencyRatesInterval = useCallback(async (intervalSeconds: number) => {
+    setCurrencyRatesInterval(intervalSeconds);
+    await saveCurrencyRatesInterval(intervalSeconds);
+    if (currencyRatesAutoUpdate) {
+      setCurrencyRatesCountdown(intervalSeconds);
+    }
+    toast.success("更新间隔已保存");
   }, [currencyRatesAutoUpdate]);
 
-  // 汇率采集自动更新（2小时）- 🔧 修复：基于 lastUpdated 计算剩余时间
+  // 汇率采集自动更新 - 基于 lastUpdated 计算剩余时间，导航切换回来不触发刷新
   useEffect(() => {
-    // 初始化时计算剩余时间
-    const initCurrencyCountdown = () => {
-      if (currencyRates.lastUpdated) {
-        const lastTime = new Date(currencyRates.lastUpdated).getTime();
-        const now = Date.now();
-        const elapsed = Math.floor((now - lastTime) / 1000);
-        const remaining = Math.max(0, 7200 - elapsed);
-        setCurrencyRatesCountdown(remaining);
-        
-        // 如果已超时，立即刷新
-        if (remaining === 0 && currencyRatesAutoUpdate) {
-          handleRefreshCurrencyRates();
-        }
-      }
-    };
-    initCurrencyCountdown();
+    const interval = getCurrencyRatesInterval();
+    if (currencyRates.lastUpdated) {
+      const lastTime = new Date(currencyRates.lastUpdated).getTime();
+      const now = Date.now();
+      const elapsed = Math.floor((now - lastTime) / 1000);
+      const remaining = Math.max(0, interval - elapsed);
+      setCurrencyRatesCountdown(remaining);
+      setCurrencyRatesInterval(interval);
+      // 不在此处触发刷新，严格按倒计时；超时后由定时器触发
+    } else {
+      setCurrencyRatesCountdown(interval);
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
-  // 自动更新倒计时
+  // 自动更新倒计时（严格按设定间隔，导航切换不触发额外刷新）
   useEffect(() => {
-    if (currencyRatesAutoUpdate) {
+    const interval = currencyRatesInterval;
+    if (currencyRatesAutoUpdate && interval > 0) {
       currencyRatesCountdownRef.current = setInterval(() => {
         setCurrencyRatesCountdown(prev => {
           if (prev <= 1) {
             handleRefreshCurrencyRates();
-            return 7200;
+            return interval;
           }
           return prev - 1;
         });
@@ -848,7 +903,7 @@ export default function ExchangeRate() {
         clearInterval(currencyRatesCountdownRef.current);
       }
     };
-  }, [currencyRatesAutoUpdate, handleRefreshCurrencyRates]);
+  }, [currencyRatesAutoUpdate, currencyRatesInterval, handleRefreshCurrencyRates]);
 
 
   // 卡片信息（用于旧逻辑兼容，新逻辑使用计算器独立状态）
@@ -1991,9 +2046,11 @@ export default function ExchangeRate() {
               <RateSettingsTab
                 currencyRates={currencyRates}
                 currencyRatesAutoUpdate={currencyRatesAutoUpdate}
+                currencyRatesInterval={currencyRatesInterval}
                 currencyRatesCountdown={currencyRatesCountdown}
                 onRefreshCurrencyRates={handleRefreshCurrencyRates}
                 onToggleCurrencyRatesAutoUpdate={handleToggleCurrencyRatesAutoUpdate}
+                onChangeCurrencyRatesInterval={handleChangeCurrencyRatesInterval}
                 nairaRate={safeNairaRate}
                 cediRate={safeCediRate}
                 cardsList={cardsList}

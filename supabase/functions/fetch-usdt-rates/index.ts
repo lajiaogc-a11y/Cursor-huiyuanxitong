@@ -119,24 +119,153 @@ async function fetchBinanceRates(): Promise<ExchangeRate> {
   }
 }
 
-// Fetch NGN/GHS from open.er-api.com (1 USD = X NGN/GHS)，用于积分设置与汇率海报
-async function fetchForexRates(): Promise<{ ngnRate: number; ghsRate: number; available: boolean; error?: string }> {
+// 汇率海报所需完整结构
+interface CurrencyRatesToNGN {
+  USD_NGN: number
+  MYR_NGN: number
+  GBP_NGN: number
+  CAD_NGN: number
+  EUR_NGN: number
+  CNY_NGN: number
+  lastUpdated: string
+}
+
+// Binance P2P 获取 USDT/法币 中间价（市场交易汇率）
+async function fetchBinanceP2PMid(asset: string, fiat: string): Promise<{ mid: number; available: boolean }> {
   try {
-    const resp = await fetch('https://open.er-api.com/v6/latest/USD', {
-      headers: { 'Accept': 'application/json' },
-    })
+    const [buyResp, sellResp] = await Promise.all([
+      fetch('https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ asset, fiat, tradeType: 'BUY', page: 1, rows: 10, publisherType: null, payTypes: [] }),
+      }),
+      fetch('https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ asset, fiat, tradeType: 'SELL', page: 1, rows: 10, publisherType: null, payTypes: [] }),
+      }),
+    ])
+    if (!buyResp.ok || !sellResp.ok) return { mid: 0, available: false }
+    const buyData = await buyResp.json()
+    const sellData = await sellResp.json()
+    const buyAds = buyData?.data || []
+    const sellAds = sellData?.data || []
+    const askPrices = buyAds.map((ad: any) => parseFloat(ad.adv?.price || '0')).filter((p: number) => p > 0)
+    const bidPrices = sellAds.map((ad: any) => parseFloat(ad.adv?.price || '0')).filter((p: number) => p > 0)
+    const ask = askPrices.length > 0 ? Math.min(...askPrices) : 0
+    const bid = bidPrices.length > 0 ? Math.max(...bidPrices) : 0
+    const mid = ask > 0 && bid > 0 ? (ask + bid) / 2 : ask || bid
+    return { mid, available: mid > 0 }
+  } catch (e) {
+    console.warn(`[P2P] ${asset}/${fiat} failed:`, e)
+    return { mid: 0, available: false }
+  }
+}
+
+// 采集市场交易汇率：优先 Binance P2P，fallback 官方汇率
+async function fetchForexRates(): Promise<{
+  ngnRate: number
+  ghsRate: number
+  available: boolean
+  error?: string
+  currencyRatesToNGN?: CurrencyRatesToNGN
+}> {
+  const fallback = async (): Promise<{ ngn: number; ghs: number; rates: CurrencyRatesToNGN }> => {
+    const resp = await fetch('https://open.er-api.com/v6/latest/USD', { headers: { 'Accept': 'application/json' } })
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
     const data = await resp.json()
-    const ngn = data?.rates?.NGN
-    const ghs = data?.rates?.GHS
-    if (typeof ngn === 'number' && ngn > 0 && typeof ghs === 'number' && ghs > 0) {
-      return { ngnRate: ngn, ghsRate: ghs, available: true }
+    const rates = data?.rates
+    if (!rates) throw new Error('Invalid API response')
+    const ngn = rates.NGN || 1400
+    const ghs = rates.GHS || 18
+    const myrToUsd = 1 / (rates.MYR || 4.71)
+    const gbpToUsd = 1 / (rates.GBP || 0.743)
+    const cadToUsd = 1 / (rates.CAD || 1.37)
+    const eurToUsd = 1 / (rates.EUR || 0.85)
+    const cnyToUsd = 1 / (rates.CNY || 7.01)
+    return {
+      ngn,
+      ghs,
+      rates: {
+        USD_NGN: ngn,
+        MYR_NGN: myrToUsd * ngn,
+        GBP_NGN: gbpToUsd * ngn,
+        CAD_NGN: cadToUsd * ngn,
+        EUR_NGN: eurToUsd * ngn,
+        CNY_NGN: cnyToUsd * ngn,
+        lastUpdated: new Date().toISOString(),
+      },
     }
-    throw new Error('Invalid rates')
+  }
+
+  try {
+    // 并行获取 P2P 市场汇率 与 官方汇率
+    const [usdtNgn, usdtCny, usdtMyr, usdtGbp, usdtCad, usdtEur, officialRates] = await Promise.all([
+      fetchBinanceP2PMid('USDT', 'NGN'),
+      fetchBinanceP2PMid('USDT', 'CNY'),
+      fetchBinanceP2PMid('USDT', 'MYR'),
+      fetchBinanceP2PMid('USDT', 'GBP'),
+      fetchBinanceP2PMid('USDT', 'CAD'),
+      fetchBinanceP2PMid('USDT', 'EUR'),
+      fetch('https://open.er-api.com/v6/latest/USD', { headers: { 'Accept': 'application/json' } })
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null),
+    ])
+
+    let currencyRatesToNGN: CurrencyRatesToNGN
+    const rates = officialRates?.rates || {}
+    const ngn = rates.NGN || 1400
+    const ghs = rates.GHS || 18
+
+    // USD/NGN: P2P USDT/NGN ≈ 1:1
+    const usdNgn = usdtNgn.available ? usdtNgn.mid : ngn
+    // CNY/NGN: 1 CNY = (USDT/NGN) / (USDT/CNY)
+    const cnyNgn = usdtNgn.available && usdtCny.available && usdtCny.mid > 0
+      ? usdtNgn.mid / usdtCny.mid
+      : (1 / (rates.CNY || 7.01)) * ngn
+    // MYR/NGN: P2P 有则用，否则官方
+    const myrNgn = usdtMyr.available && usdtNgn.available && usdtMyr.mid > 0
+      ? usdtNgn.mid / usdtMyr.mid
+      : (1 / (rates.MYR || 4.71)) * ngn
+    // GBP/NGN, CAD/NGN, EUR/NGN: P2P 有则用，否则官方
+    const gbpToUsd = 1 / (rates.GBP || 0.743)
+    const cadToUsd = 1 / (rates.CAD || 1.37)
+    const eurToUsd = 1 / (rates.EUR || 0.85)
+    const gbpNgnP2P = usdtGbp.available && usdtNgn.available && usdtGbp.mid > 0
+      ? usdtNgn.mid / usdtGbp.mid
+      : gbpToUsd * ngn
+    const cadNgnP2P = usdtCad.available && usdtNgn.available && usdtCad.mid > 0
+      ? usdtNgn.mid / usdtCad.mid
+      : cadToUsd * ngn
+    const eurNgnP2P = usdtEur.available && usdtNgn.available && usdtEur.mid > 0
+      ? usdtNgn.mid / usdtEur.mid
+      : eurToUsd * ngn
+
+    currencyRatesToNGN = {
+      USD_NGN: usdNgn,
+      MYR_NGN: myrNgn,
+      GBP_NGN: gbpNgnP2P,
+      CAD_NGN: cadNgnP2P,
+      EUR_NGN: eurNgnP2P,
+      CNY_NGN: cnyNgn,
+      lastUpdated: new Date().toISOString(),
+    }
+
+    return {
+      ngnRate: usdNgn,
+      ghsRate: ghs,
+      available: usdNgn > 0 && ghs > 0,
+      currencyRatesToNGN,
+    }
   } catch (e) {
     const err = String(e)
     console.warn('[Forex] fetch failed:', e)
-    return { ngnRate: 0, ghsRate: 0, available: false, error: err }
+    try {
+      const fb = await fallback()
+      return { ngnRate: fb.ngn, ghsRate: fb.ghs, available: fb.ngn > 0, currencyRatesToNGN: fb.rates }
+    } catch {
+      return { ngnRate: 0, ghsRate: 0, available: false, error: err }
+    }
   }
 }
 
@@ -243,7 +372,7 @@ Deno.serve(async (req) => {
       // No body or invalid body, skip anomaly check
     }
 
-    const response: RateResponse & { btc?: any; forex?: any } = {
+    const response: RateResponse & { btc?: any; forex?: any; currencyRatesToNGN?: CurrencyRatesToNGN } = {
       binance,
       okx,
       recommended: { bid: recommendedBid, ask: recommendedAsk, mid },
@@ -252,7 +381,10 @@ Deno.serve(async (req) => {
       anomaly,
       anomalyDelta,
       ...(btcResult !== null && { btc: btcResult }),
-      ...(forexResult !== null && { forex: forexResult }),
+      ...(forexResult !== null && {
+        forex: { ngnRate: forexResult.ngnRate, ghsRate: forexResult.ghsRate, available: forexResult.available, error: forexResult.error },
+        ...(forexResult.currencyRatesToNGN && { currencyRatesToNGN: forexResult.currencyRatesToNGN }),
+      }),
     }
 
     return new Response(JSON.stringify(response), {

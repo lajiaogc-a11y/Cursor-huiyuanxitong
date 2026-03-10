@@ -18,7 +18,7 @@ interface MobileLayoutProps {
 
 // Page title mapping
 const pageTitles: Record<string, { zh: string; en: string }> = {
-  "/": { zh: "仪表盘", en: "Dashboard" },
+  "/": { zh: "数据统计", en: "Statistics" },
   "/exchange-rate": { zh: "汇率计算", en: "Exchange Rate" },
   "/orders": { zh: "订单管理", en: "Orders" },
   "/reports": { zh: "报表管理", en: "Reports" },

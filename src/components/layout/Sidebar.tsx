@@ -56,23 +56,24 @@ interface MenuItem {
 }
 
 // 所有菜单项配置 - navKey 对应 navigation_config 表中的 nav_key
+// 排序：汇率计算 数据统计 订单管理 会员管理 商家结算 公司文档 报表管理 商家管理 审核中心 员工管理 操作日志 登录日志 系统设置
 const allMenuItems: MenuItem[] = [
-  { icon: LayoutDashboard, labelZh: "仪表盘", labelEn: "Dashboard", path: "/", navKey: "dashboard" },
   { icon: Calculator, labelZh: "汇率计算", labelEn: "Exchange Rate", path: "/exchange-rate", navKey: "exchange_rate" },
+  { icon: LayoutDashboard, labelZh: "数据统计", labelEn: "Statistics", path: "/", navKey: "dashboard" },
   { icon: ClipboardList, labelZh: "订单管理", labelEn: "Orders", path: "/orders", navKey: "orders" },
-  { icon: BarChart3, labelZh: "报表管理", labelEn: "Reports", path: "/reports", navKey: "reports" },
   { icon: Star, labelZh: "会员管理", labelEn: "Members", path: "/activity-reports", navKey: "members" },
-  { icon: UserCog, labelZh: "员工管理", labelEn: "Employees", path: "/employees", navKey: "employees" },
   { icon: Building2, labelZh: "商家结算", labelEn: "Settlement", path: "/merchant-settlement", navKey: "merchant_settlement" },
-  { icon: Store, labelZh: "商家管理", labelEn: "Merchants", path: "/merchants", navKey: "merchant_management" },
   { icon: BookOpen, labelZh: "公司文档", labelEn: "Company Docs", path: "/knowledge", navKey: "knowledge_base", badgeType: "unread" as const },
+  { icon: BarChart3, labelZh: "报表管理", labelEn: "Reports", path: "/reports", navKey: "reports" },
+  { icon: Store, labelZh: "商家管理", labelEn: "Merchants", path: "/merchants", navKey: "merchant_management" },
+  { icon: Shield, labelZh: "审核中心", labelEn: "Audit", path: "/audit-center", navKey: "audit_center", badgeType: "pending" as const },
+  { icon: UserCog, labelZh: "员工管理", labelEn: "Employees", path: "/employees", navKey: "employees" },
+  { icon: History, labelZh: "操作日志", labelEn: "Logs", path: "/operation-logs", navKey: "operation_logs" },
+  { icon: LogIn, labelZh: "登录日志", labelEn: "Login Logs", path: "/login-logs", navKey: "login_logs" },
+  { icon: Settings, labelZh: "系统设置", labelEn: "Settings", path: "/settings", navKey: "system_settings" },
   { icon: Building2, labelZh: "租户管理", labelEn: "Tenant Management", path: "/company-management", navKey: "platform_tenant_management" },
   { icon: Users, labelZh: "租户数据查看", labelEn: "View Tenant Data", path: "/platform-tenant-view", navKey: "platform_tenant_view" },
   { icon: Settings, labelZh: "平台设置", labelEn: "Platform Settings", path: "/platform-settings", navKey: "platform_settings" },
-  { icon: Settings, labelZh: "系统设置", labelEn: "Settings", path: "/settings", navKey: "system_settings" },
-  { icon: Shield, labelZh: "审核中心", labelEn: "Audit", path: "/audit-center", navKey: "audit_center", badgeType: "pending" as const },
-  { icon: History, labelZh: "操作日志", labelEn: "Logs", path: "/operation-logs", navKey: "operation_logs" },
-  { icon: LogIn, labelZh: "登录日志", labelEn: "Login Logs", path: "/login-logs", navKey: "login_logs" },
 ];
 
 interface NavPermission {
@@ -84,7 +85,7 @@ export function Sidebar() {
   const isTablet = useIsTablet();
   const { tabletSidebarOpen, setTabletSidebarOpen, navScrollTop, setNavScrollTop } = useLayout();
   const [collapsed, setCollapsed] = useState(false);
-  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set(["会员管理"]));
+  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set());
   const [navPermissions, setNavPermissions] = useState<NavPermission[]>([]);
   const [navConfigs, setNavConfigs] = useState<NavConfig[]>([]);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
@@ -178,6 +179,9 @@ export function Sidebar() {
   }, [employee?.role, employee?.id]);
 
   const getMenuLabel = (item: MenuItem) => {
+    if (item.navKey === "dashboard") {
+      return language === "zh" ? "数据统计" : "Statistics";
+    }
     if (item.navKey === "knowledge_base") {
       return language === "zh" ? "公司文档" : "Company Docs";
     }

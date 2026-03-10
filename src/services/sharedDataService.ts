@@ -76,7 +76,9 @@ export type SharedDataKey =
   | 'usdtLiveRates'
   | 'usdtLiveRateConfig'
   // 马来西亚林吉特兑奈拉汇率（海报等）
-  | 'myrToNgnRate';
+  | 'myrToNgnRate'
+  // 海报表格列勾选（勾选=生成海报时显示）
+  | 'posterTableColumns';
 
 // 汇率计算器手动输入汇率数据结构
 export interface CalculatorInputRates {
@@ -309,6 +311,7 @@ export async function preloadSharedData(): Promise<void> {
     'rewardTypeSettings',
     'currencyRatesToNGN',
     'currencyRatesAutoUpdate',
+    'rateSettingEntries',
   ];
   
   await loadMultipleSharedData(commonKeys);

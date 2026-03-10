@@ -23,7 +23,7 @@ npm run build
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
 Write-Host "Deploy to Cloudflare Pages..." -ForegroundColor Cyan
-npx wrangler pages deploy dist --project-name=gift-system
+npx wrangler pages deploy dist --project-name=gift-system --branch=main
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
 Write-Host "`nDone: https://crm.fastgc.cc" -ForegroundColor Green
