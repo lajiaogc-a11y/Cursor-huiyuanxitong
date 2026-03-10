@@ -1,0 +1,190 @@
+import { useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Search, ShoppingCart, Star, ArrowLeft, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { GCLogo } from '@/components/GCLogo';
+
+interface QueryResult {
+  memberCode: string;
+  phone: string;
+  points: number;
+  orderCount: number;
+  recentOrders: { order_number: string; status: string; created_at: string; amount: number; currency: string }[];
+}
+
+export default function CustomerQuery() {
+  const [phone, setPhone] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<QueryResult | null>(null);
+  const [error, setError] = useState('');
+
+  const handleQuery = async () => {
+    if (!phone || phone.length < 6) {
+      setError('请输入有效的手机号 / Please enter a valid phone number');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setResult(null);
+    try {
+      // Look up member
+      const { data: member } = await supabase
+        .from('members')
+        .select('id, member_code, phone_number')
+        .eq('phone_number', phone)
+        .maybeSingle();
+      
+      if (!member) {
+        setError('未找到该手机号对应的会员记录 / No member found with this phone number');
+        setLoading(false);
+        return;
+      }
+
+      // Get activity data
+      const { data: activity } = await supabase
+        .from('member_activity')
+        .select('accumulated_points, remaining_points, order_count')
+        .eq('member_id', member.id)
+        .maybeSingle();
+
+      // Get recent orders
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('order_number, status, created_at, amount, currency')
+        .eq('member_id', member.id)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      setResult({
+        memberCode: member.member_code,
+        phone: member.phone_number,
+        points: activity?.remaining_points || 0,
+        orderCount: activity?.order_count || 0,
+        recentOrders: orders || [],
+      });
+    } catch {
+      setError('查询失败，请稍后重试 / Query failed, please try again');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const statusMap: Record<string, { zh: string; en: string; variant: 'default' | 'secondary' | 'destructive' }> = {
+    completed: { zh: '已完成', en: 'Completed', variant: 'default' },
+    pending: { zh: '待处理', en: 'Pending', variant: 'secondary' },
+    cancelled: { zh: '已取消', en: 'Cancelled', variant: 'destructive' },
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col items-center justify-center p-6">
+      <div className="max-w-md w-full space-y-6">
+        <div className="text-center space-y-2">
+          <div className="mx-auto mb-4">
+            <GCLogo size={48} />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight">会员自助查询</h1>
+          <p className="text-slate-400 text-sm">Member Self-Service Query</p>
+        </div>
+
+        {!result ? (
+          <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+            <CardContent className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm text-slate-300">手机号 / Phone Number</label>
+                <Input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="请输入手机号..."
+                  className="bg-white/10 border-white/20 text-white placeholder:text-slate-500 h-12 text-base"
+                  onKeyDown={(e) => e.key === 'Enter' && handleQuery()}
+                />
+              </div>
+              {error && <p className="text-sm text-red-400">{error}</p>}
+              <Button
+                className="w-full h-11"
+                onClick={handleQuery}
+                disabled={loading}
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Search className="h-4 w-4 mr-2" />}
+                查询 Query
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-400">会员编号</span>
+                  <span className="font-mono font-bold">{result.memberCode}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-400">手机号</span>
+                  <span>{result.phone}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Star className="h-4 w-4 text-amber-400" />
+                    <span className="text-sm text-slate-400">可用积分</span>
+                  </div>
+                  <span className="text-xl font-bold text-amber-300">{result.points}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <ShoppingCart className="h-4 w-4 text-blue-400" />
+                    <span className="text-sm text-slate-400">累计订单</span>
+                  </div>
+                  <span className="font-bold">{result.orderCount}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {result.recentOrders.length > 0 && (
+              <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+                <CardContent className="p-5">
+                  <h3 className="text-sm font-medium text-slate-300 mb-3">最近订单 / Recent Orders</h3>
+                  <div className="space-y-2.5">
+                    {result.recentOrders.map((o) => {
+                      const s = statusMap[o.status] || statusMap.pending;
+                      return (
+                        <div key={o.order_number} className="flex items-center justify-between text-sm border-b border-white/5 pb-2 last:border-0">
+                          <div>
+                            <p className="font-mono text-xs">{o.order_number}</p>
+                            <p className="text-[11px] text-slate-500">{new Date(o.created_at).toLocaleDateString()}</p>
+                          </div>
+                          <div className="text-right flex items-center gap-2">
+                            <span className="text-xs">{o.amount} {o.currency}</span>
+                            <Badge variant={s.variant} className="text-[10px] h-5">
+                              {s.zh}
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <Button
+              variant="ghost"
+              className="w-full text-slate-400 hover:text-white hover:bg-white/10"
+              onClick={() => { setResult(null); setPhone(''); }}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              返回查询 / Back
+            </Button>
+          </div>
+        )}
+
+        <p className="text-center text-[11px] text-slate-600 mt-8">
+          © {new Date().getFullYear()} FastGC
+        </p>
+      </div>
+    </div>
+  );
+}

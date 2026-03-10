@@ -1,0 +1,8 @@
+# Cloudflare Pages 配置
+# Account ID: a6fa9e34e1c8653d73bb0d5d6dfbb785
+name = "gift-system"
+compatibility_date = "2025-03-05"
+pages_build_output_dir = "dist"
+
+[vars]
+# 如需环境变量可在此添加

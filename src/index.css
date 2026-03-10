@@ -1,0 +1,777 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap");
+/* 办公软件风格：优先使用系统字体 Segoe UI（Windows） / SF Pro（macOS） */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* 浅色主题 - 现代 SaaS 风格，简洁专业 */
+    --background: 210 20% 98%;
+    --foreground: 220 15% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 10%;
+
+    /* 主色调 - 品牌蓝（Stripe/Linear 风格） */
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    /* 次要色 */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 10% 25%;
+
+    /* 静音色 */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    /* 强调色 */
+    --accent: 221 83% 96%;
+    --accent-foreground: 221 83% 40%;
+
+    /* 功能色 */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* 处理中/待审核 */
+    --pending: 38 92% 50%;
+    --pending-foreground: 0 0% 100%;
+
+    /* 边框与输入 */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 221 83% 53%;
+
+    --radius: 0.5rem;
+
+    /* 阴影 - 柔和专业 */
+    --shadow-color: 220 40% 2%;
+    --shadow-sm: 0 1px 2px 0 hsl(220 40% 2% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(220 40% 2% / 0.07), 0 2px 4px -2px hsl(220 40% 2% / 0.05);
+    --shadow-lg: 0 10px 15px -3px hsl(220 40% 2% / 0.08), 0 4px 6px -4px hsl(220 40% 2% / 0.05);
+
+    /* 侧边栏 - 浅色主题使用浅色侧边栏 */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 15% 10%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 220 10% 25%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 221 83% 53%;
+
+    /* 登录页面 - 浅色主题 */
+    --login-bg-from: 210 20% 98%;
+    --login-bg-via: 220 14% 96%;
+    --login-bg-to: 210 20% 98%;
+    --login-card: 0 0% 100%;
+    --login-card-border: 220 13% 91%;
+    --login-input: 0 0% 100%;
+    --login-input-border: 220 13% 91%;
+    --login-foreground: 220 15% 10%;
+    --login-label: 220 9% 46%;
+
+    /* 计算器专用颜色 - 浅色模式优化 */
+    --calc-orange-bg: 28 100% 97%;
+    --calc-orange-text: 20 85% 35%;
+    --calc-orange-border: 28 70% 85%;
+    --calc-green-bg: 145 60% 96%;
+    --calc-green-text: 152 75% 30%;
+    --calc-green-border: 145 50% 82%;
+    --calc-blue-bg: 215 100% 97%;
+    --calc-blue-text: 224 80% 42%;
+    --calc-blue-border: 215 70% 86%;
+    --calc-purple-bg: 265 70% 97%;
+    --calc-purple-text: 265 70% 45%;
+    --calc-purple-border: 265 50% 86%;
+    --calc-amber-bg: 42 100% 96%;
+    --calc-amber-text: 32 90% 32%;
+    --calc-amber-border: 42 70% 82%;
+    --chart-1: 221 83% 53%;
+    --chart-2: 142 71% 45%;
+    --chart-3: 199 89% 48%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 220 9% 46%;
+    --sidebar: 0 0% 98%;
+    --font-sans: 'Segoe UI', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    --font-serif: 'Lora', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+    --font-mono: 'Inconsolata', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
+    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+    --tracking-normal: 0em;
+    --spacing: 0.25rem;
+  }
+
+  .dark {
+    --pending: 38 92% 50%;
+    --pending-foreground: 0 0% 100%;
+    /* 深色主题 - 高对比度清晰设计，消除雾蒙蒙感 */
+    /* 采用冷灰蓝基调，层次分明 */
+    --background: 222 18% 11%;
+    --foreground: 210 20% 98%;
+
+    /* 卡片 - 明显高于背景，形成清晰层级 */
+    --card: 222 14% 16%;
+    --card-foreground: 210 20% 98%;
+
+    /* 弹出层 */
+    --popover: 222 14% 18%;
+    --popover-foreground: 210 20% 98%;
+
+    /* 主色 - 更鲜明的蓝 */
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 11%;
+
+    /* 次要色 - 按钮/标签背景，与卡片区分 */
+    --secondary: 222 12% 22%;
+    --secondary-foreground: 210 20% 92%;
+
+    /* 静音色 - 表头、分隔区，清晰可见 */
+    --muted: 222 12% 20%;
+    --muted-foreground: 210 15% 72%;
+
+    /* 强调色 - hover 等交互 */
+    --accent: 222 12% 24%;
+    --accent-foreground: 217 91% 70%;
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 48%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 55%;
+    --warning-foreground: 222 47% 11%;
+
+    /* 边框 - 提高可见度 */
+    --border: 220 12% 26%;
+    --input: 222 12% 18%;
+    --ring: 217 91% 60%;
+
+    /* 侧边栏 - 略深于主区，形成对比 */
+    --sidebar-background: 222 18% 9%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 222 12% 18%;
+    --sidebar-accent-foreground: 217 91% 75%;
+    --sidebar-border: 220 12% 22%;
+    --sidebar-ring: 217 91% 60%;
+
+    /* 登录页面 */
+    --login-bg-from: 222 18% 11%;
+    --login-bg-via: 222 16% 13%;
+    --login-bg-to: 222 18% 11%;
+    --login-card: 222 14% 16%;
+    --login-card-border: 220 12% 26%;
+    --login-input: 222 12% 18%;
+    --login-input-border: 220 12% 28%;
+    --login-foreground: 210 20% 98%;
+    --login-label: 210 15% 72%;
+
+    /* 计算器专用颜色 - 深色模式，清晰对比 */
+    --calc-orange-bg: 25 30% 18%;
+    --calc-orange-text: 30 85% 72%;
+    --calc-orange-border: 25 25% 28%;
+    --calc-green-bg: 145 25% 16%;
+    --calc-green-text: 145 65% 62%;
+    --calc-green-border: 145 20% 26%;
+    --calc-blue-bg: 217 25% 16%;
+    --calc-blue-text: 217 75% 75%;
+    --calc-blue-border: 217 20% 28%;
+    --calc-purple-bg: 265 25% 16%;
+    --calc-purple-text: 265 65% 75%;
+    --calc-purple-border: 265 20% 28%;
+    --calc-amber-bg: 40 25% 16%;
+    --calc-amber-text: 45 80% 68%;
+    --calc-amber-border: 40 20% 26%;
+    --chart-1: 217 91% 60%;
+    --chart-2: 142 71% 52%;
+    --chart-3: 199 89% 55%;
+    --chart-4: 38 92% 55%;
+    --chart-5: 210 15% 68%;
+    --sidebar: 222 18% 9%;
+    --radius: 0.25rem;
+    --shadow-2xs: 0 1px 2px hsl(0 0% 0% / 0.15);
+    --shadow-xs: 0 1px 2px hsl(0 0% 0% / 0.15);
+    --shadow-sm: 0 1px 3px hsl(0 0% 0% / 0.25);
+    --shadow: 0 1px 3px hsl(0 0% 0% / 0.25);
+    --shadow-md: 0 2px 6px hsl(0 0% 0% / 0.2);
+    --shadow-lg: 0 4px 12px hsl(0 0% 0% / 0.2);
+    --shadow-xl: 0 6px 20px hsl(0 0% 0% / 0.2);
+    --shadow-2xl: 0 8px 24px hsl(0 0% 0% / 0.25);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  .dark body {
+    letter-spacing: 0.01em;
+  }
+
+  /* Improved scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-muted/30 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/30 transition-colors;
+  }
+
+  /* 深色模式滚动条 - 办公风格，细窄清晰 */
+  .dark ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .dark ::-webkit-scrollbar-track {
+    background-color: hsl(222 12% 14%);
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    @apply rounded-sm;
+    background-color: hsl(220 12% 32%);
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(220 12% 42%);
+  }
+
+  /* Better focus ring visibility */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer utilities {
+  /* Safe area insets for mobile devices (iPhone notch, etc.) */
+  .safe-area-pt {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  
+  .safe-area-pl {
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+  
+  .safe-area-pr {
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Login page gradient background */
+  .bg-login-gradient {
+    background: linear-gradient(
+      to bottom right,
+      hsl(var(--login-bg-from)),
+      hsl(var(--login-bg-via)),
+      hsl(var(--login-bg-to))
+    );
+  }
+
+  /* Login card styling */
+  .bg-login-card {
+    background-color: hsl(var(--login-card) / 0.5);
+  }
+
+  .border-login-card {
+    border-color: hsl(var(--login-card-border));
+  }
+
+  /* Login input styling */
+  .bg-login-input {
+    background-color: hsl(var(--login-input) / 0.5);
+  }
+
+  .border-login-border {
+    border-color: hsl(var(--login-input-border));
+  }
+
+  /* Login text colors */
+  .text-login-foreground {
+    color: hsl(var(--login-foreground));
+  }
+
+  .text-login-label {
+    color: hsl(var(--login-label));
+  }
+
+  .table-header {
+    @apply bg-muted/70 text-foreground/80 text-sm font-semibold;
+  }
+
+  .stat-value {
+    @apply text-lg sm:text-2xl font-semibold tabular-nums;
+  }
+
+  .stat-value-success {
+    @apply text-2xl font-semibold text-success tabular-nums;
+  }
+
+  .stat-value-destructive {
+    @apply text-2xl font-semibold text-destructive tabular-nums;
+  }
+
+  .action-link {
+    @apply text-primary hover:text-primary/80 hover:underline cursor-pointer text-sm font-medium transition-colors;
+  }
+
+  .action-link-destructive {
+    @apply text-destructive hover:text-destructive/80 hover:underline cursor-pointer text-sm font-medium transition-colors;
+  }
+
+  /* Improved table row hover */
+  .table-row-hover {
+    @apply transition-colors hover:bg-muted/50 duration-150;
+  }
+
+  /* Card with subtle shadow - enhanced for light theme */
+  .card-elevated {
+    @apply shadow-sm hover:shadow-md transition-all duration-200 border-border/60;
+  }
+
+  /* Input focus animation - enhanced */
+  .input-focus-animation {
+    @apply transition-all duration-200 ease-out focus:ring-2 focus:ring-primary/20 focus:border-primary/50;
+  }
+
+  /* Enhanced table styling for light theme */
+  .table-enhanced {
+    @apply border border-border/50 rounded-lg overflow-hidden;
+  }
+
+  .table-header-enhanced {
+    @apply bg-muted/70 border-b border-border/50;
+  }
+
+  /* Card with professional depth */
+  .card-professional {
+    @apply bg-card border border-border/40 rounded-lg shadow-sm hover:shadow-md transition-all duration-200;
+  }
+
+  /* Subtle divider line */
+  .divider-subtle {
+    @apply border-t border-border/40;
+  }
+
+  /* Badge with better visibility */
+  .badge-enhanced {
+    @apply font-medium shadow-sm;
+  }
+
+  /* Button with depth */
+  .btn-elevated {
+    @apply shadow-sm hover:shadow-md active:shadow-sm transition-all duration-150;
+  }
+
+  /* Form section with subtle background */
+  .form-section {
+    @apply bg-muted/30 rounded-lg p-4 border border-border/30;
+  }
+
+  /* Stats card styling */
+  .stats-card {
+    @apply bg-card border border-border/40 rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-200;
+  }
+
+  /* Header with glass effect */
+  .header-glass {
+    @apply bg-background/80 backdrop-blur-md border-b border-border/50;
+  }
+
+  /* Calculator quick buttons - improved visibility */
+  .calc-quick-btn {
+    @apply h-7 px-3 text-sm font-semibold 
+           bg-primary/10 border-primary/40 
+           hover:bg-primary/20 hover:border-primary 
+           active:bg-primary/25 active:scale-95
+           text-foreground
+           transition-all duration-150;
+  }
+
+  /* Calculator section label */
+  .calc-section-label {
+    @apply font-bold text-sm text-primary tracking-tight;
+  }
+
+  /* Calculator large input */
+  .calc-large-input {
+    @apply font-extrabold text-center 
+           border-primary/40 focus:border-primary 
+           bg-background leading-tight 
+           text-foreground
+           transition-all duration-200;
+  }
+
+  /* Payment input row styling */
+  .payment-row-input {
+    @apply h-8 text-center font-bold text-base
+           placeholder:text-muted-foreground/50
+           focus:ring-2 focus:ring-primary/30
+           bg-background text-foreground
+           transition-all duration-150;
+  }
+
+  /* Profit value display */
+  .profit-value {
+    @apply text-base font-bold h-8 flex items-center justify-center tabular-nums text-foreground;
+  }
+
+  /* Analysis table cell */
+  .analysis-cell {
+    @apply border-r border-b p-2.5 transition-colors border-border/50;
+  }
+
+  /* Arrow down button for filling */
+  .fill-btn {
+    @apply h-6 w-6 p-0 shrink-0 
+           active:scale-90 
+           transition-all duration-100;
+  }
+
+  /* Section divider with soft gradient */
+  .section-divider {
+    @apply border-t border-border/60 my-2;
+  }
+
+  /* Improved form label */
+  .form-label-sm {
+    @apply text-xs font-medium text-muted-foreground mb-0.5;
+  }
+
+  /* Read-only display field */
+  .readonly-field {
+    @apply h-7 flex-1 flex items-center px-2.5 
+           bg-muted/60 rounded-md border border-border/50 
+           text-sm font-medium tabular-nums text-foreground;
+  }
+
+  /* Calculator themed rows - theme-aware colors */
+  .calc-row-orange {
+    background-color: hsl(var(--calc-orange-bg));
+  }
+  .calc-row-orange .calc-text {
+    color: hsl(var(--calc-orange-text));
+  }
+  .calc-row-orange .calc-border {
+    border-color: hsl(var(--calc-orange-border));
+  }
+
+  .calc-row-green {
+    background-color: hsl(var(--calc-green-bg));
+  }
+  .calc-row-green .calc-text {
+    color: hsl(var(--calc-green-text));
+  }
+  .calc-row-green .calc-border {
+    border-color: hsl(var(--calc-green-border));
+  }
+
+  .calc-row-blue {
+    background-color: hsl(var(--calc-blue-bg));
+  }
+  .calc-row-blue .calc-text {
+    color: hsl(var(--calc-blue-text));
+  }
+  .calc-row-blue .calc-border {
+    border-color: hsl(var(--calc-blue-border));
+  }
+
+  .calc-row-purple {
+    background-color: hsl(var(--calc-purple-bg));
+  }
+  .calc-row-purple .calc-text {
+    color: hsl(var(--calc-purple-text));
+  }
+  .calc-row-purple .calc-border {
+    border-color: hsl(var(--calc-purple-border));
+  }
+
+  .calc-row-amber {
+    background-color: hsl(var(--calc-amber-bg));
+  }
+  .calc-row-amber .calc-text {
+    color: hsl(var(--calc-amber-text));
+  }
+  .calc-row-amber .calc-border {
+    border-color: hsl(var(--calc-amber-border));
+  }
+
+  /* Required field section - theme aware */
+  .required-section {
+    @apply border rounded-lg p-2 flex-1 flex flex-col;
+    background-color: hsl(var(--calc-amber-bg));
+    border-color: hsl(var(--calc-amber-border));
+  }
+  .required-section .required-label {
+    color: hsl(var(--calc-amber-text));
+  }
+
+  /* Theme-aware text helpers for maximum visibility */
+  .text-visible {
+    @apply text-foreground;
+  }
+  .text-visible-muted {
+    @apply text-muted-foreground;
+  }
+
+  /* Card with proper dark mode bg */
+  .calc-card {
+    @apply bg-card border border-border/50 rounded-lg shadow-sm;
+  }
+
+  /* Ensure input readability in dark mode */
+  .dark input,
+  .dark textarea,
+  .dark select {
+    color-scheme: dark;
+  }
+
+  /* 深色模式 - 高对比度清晰设计 */
+  .dark .table-header,
+  .dark .table-header-enhanced {
+    background-color: hsl(var(--muted));
+    border-color: hsl(var(--border));
+  }
+  /* 表格行交替色 - 提升可读性，消除雾蒙蒙感 */
+  .dark table tbody tr:nth-child(even) {
+    background-color: hsl(222 10% 15% / 0.8);
+  }
+  .dark table tbody tr:nth-child(odd) {
+    background-color: transparent;
+  }
+  .dark table tbody tr:hover {
+    background-color: hsl(var(--accent));
+  }
+  .dark .card-elevated,
+  .dark .card-professional,
+  .dark .calc-card {
+    border-color: hsl(var(--border));
+    border-radius: var(--radius);
+  }
+  .dark .header-glass {
+    border-color: hsl(var(--border));
+  }
+  /* 深色模式主内容区 */
+  .dark main {
+    background-color: hsl(var(--background));
+  }
+
+  /* Force high contrast text in calculator rows */
+  .calc-row-orange input,
+  .calc-row-green input,
+  .calc-row-blue input,
+  .calc-row-purple input {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* 小屏幕响应式优化 */
+@media (max-width: 1280px) {
+  .calc-section-label {
+    @apply text-xs;
+  }
+  .calc-large-input {
+    font-size: 1.5rem !important;
+  }
+  .calc-quick-btn {
+    @apply px-2 text-xs;
+  }
+}
+
+@media (max-width: 1024px) {
+  .calc-quick-btn {
+    @apply h-6 px-1.5;
+  }
+}
+
+/* 移动端触控目标 ≥44px (768px 以下) */
+@media (max-width: 767px) {
+  .calc-quick-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Shimmer gradient for background update indicator */
+.animate-shimmer-slide {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(var(--primary) / 0.4) 40%,
+    hsl(var(--primary) / 0.7) 50%,
+    hsl(var(--primary) / 0.4) 60%,
+    transparent 100%
+  );
+  background-size: 50% 100%;
+}
+
+/* GPU-accelerated page transition */
+.animate-page-enter {
+  will-change: opacity, transform;
+}
+
+/* 隐藏滚动条工具类 - 用于自定义滚动条场景 */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+/* Dashboard stat card - 现代 SaaS 风格 / 深色办公风格 */
+.dash-stat-card {
+  @apply relative overflow-hidden rounded-lg border border-border/50 p-5 transition-all duration-200;
+  background: hsl(var(--card));
+  box-shadow: 0 1px 3px 0 hsl(220 40% 2% / 0.05);
+}
+.dark .dash-stat-card {
+  border-color: hsl(var(--border));
+  box-shadow: none;
+  border-radius: var(--radius);
+}
+.dash-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 0 0 0 100%;
+  opacity: 0.06;
+  transition: opacity 0.2s;
+}
+.dark .dash-stat-card::before {
+  opacity: 0.06;
+}
+.dash-stat-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -4px hsl(var(--primary) / 0.12);
+}
+.dark .dash-stat-card:hover {
+  box-shadow: none;
+  background-color: hsl(var(--accent));
+}
+.dash-stat-card:hover::before {
+  opacity: 0.1;
+}
+.dark .dash-stat-card:hover::before {
+  opacity: 0.08;
+}
+.dash-stat-primary::before { background: hsl(var(--primary)); }
+.dash-stat-success::before { background: hsl(var(--success)); }
+.dash-stat-chart3::before { background: hsl(var(--chart-3)); }
+.dash-stat-warning::before { background: hsl(var(--warning)); }
+
+/* Dashboard icon container */
+.dash-icon {
+  @apply flex items-center justify-center rounded-lg p-2.5 shrink-0;
+}
+.dash-icon-primary {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+}
+.dash-icon-success {
+  background: hsl(var(--success) / 0.1);
+  color: hsl(var(--success));
+}
+.dash-icon-chart3 {
+  background: hsl(var(--chart-3) / 0.1);
+  color: hsl(var(--chart-3));
+}
+.dash-icon-warning {
+  background: hsl(var(--warning) / 0.1);
+  color: hsl(var(--warning));
+}
+.dash-icon-muted {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+/* Dashboard chart card */
+.dash-chart-card {
+  @apply rounded-lg border border-border/50 bg-card overflow-hidden transition-shadow duration-200;
+  box-shadow: 0 1px 3px 0 hsl(220 40% 2% / 0.05);
+}
+.dark .dash-chart-card {
+  border-color: hsl(var(--border));
+  box-shadow: none;
+  border-radius: var(--radius);
+}
+.dash-chart-card:hover {
+  box-shadow: 0 4px 12px -4px hsl(var(--primary) / 0.08);
+}
+.dark .dash-chart-card:hover {
+  box-shadow: none;
+}
+
+/* Profit card accent stripe */
+.dash-profit-card {
+  @apply relative rounded-lg border border-border/50 bg-card overflow-hidden p-5 transition-all duration-200;
+  box-shadow: 0 1px 3px 0 hsl(220 40% 2% / 0.05);
+}
+.dash-profit-card::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+}
+.dash-profit-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -4px hsl(var(--success) / 0.12);
+}
+.dash-profit-ghs::after { background: hsl(var(--chart-1)); }
+.dash-profit-ngn::after { background: hsl(var(--warning)); }
+.dash-profit-usdt::after { background: hsl(var(--primary)); }
+
+/* Dynamic viewport height utility for iOS compatibility */
+.h-dvh {
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* Premium skeleton shimmer animation */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, 
+    hsl(var(--muted) / 0.4) 25%, 
+    hsl(var(--muted) / 0.2) 50%, 
+    hsl(var(--muted) / 0.4) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
