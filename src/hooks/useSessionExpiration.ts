@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -8,6 +9,7 @@ import { toast } from 'sonner';
  */
 export function useSessionExpiration() {
   const hasShownToast = useRef(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
@@ -23,15 +25,16 @@ export function useSessionExpiration() {
           hasShownToast.current = true;
           // 延迟检查，避免与正常登出冲突
           setTimeout(() => {
-            const currentPath = window.location.pathname;
-            if (currentPath !== '/login' && currentPath !== '/signup' && currentPath !== '/pending') {
+            // 兼容 HashRouter：pathname 可能在 hash 中
+            const path = window.location.hash ? window.location.hash.slice(1) || '/' : window.location.pathname;
+            if (path !== '/login' && path !== '/signup' && path !== '/pending') {
               toast.error('会话已过期，请重新登录', {
                 duration: 8000,
                 description: 'Your session has expired. Please log in again.',
                 action: {
                   label: '重新登录',
                   onClick: () => {
-                    window.location.href = '/login';
+                    navigate('/login', { replace: true });
                   },
                 },
               });
@@ -44,5 +47,5 @@ export function useSessionExpiration() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 }

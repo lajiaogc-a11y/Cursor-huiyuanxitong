@@ -1,0 +1,2 @@
+# SPA fallback: 所有路径返回 index.html，由 React Router 处理
+/*    /index.html   200

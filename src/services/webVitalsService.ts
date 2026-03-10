@@ -20,7 +20,7 @@ async function reportMetric(metric: Metric) {
       metric_value: Math.round(metric.value * 100) / 100,
       rating: metric.rating,
       navigation_type: metric.navigationType,
-      url: window.location.pathname,
+      url: (window.location.pathname || '/') + (window.location.hash || ''),
       user_agent: navigator.userAgent.slice(0, 200),
       employee_id: employeeId,
     });
