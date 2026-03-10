@@ -65,7 +65,7 @@ export function PaymentProviderSettlementTab({
                 <MobileCardRow label={t("最后重置", "Last Reset")} value={item.lastResetTime || "-"} />
               </MobileCardCollapsible>
               <MobileCardActions>
-                <Button size="sm" variant="outline" className="flex-1 h-8" onClick={() => onOpenManagement(item.providerName, 'details')}>
+                <Button size="sm" variant="outline" className="flex-1 h-8" onClick={() => onOpenManagement(item.providerName, 'add-recharge')}>
                   <Eye className="h-3 w-3 mr-1" />{t("管理", "Manage")}
                 </Button>
                 {canEditBalance && (
@@ -114,7 +114,7 @@ export function PaymentProviderSettlementTab({
                 <td className="p-3 text-center">{item.lastResetTime || "-"}</td>
                 <td className="p-3 text-center whitespace-nowrap sticky right-0 bg-background shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">
                   <div className="flex items-center justify-center gap-1">
-                    <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => onOpenManagement(item.providerName, 'details')}>
+                    <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => onOpenManagement(item.providerName, 'add-recharge')}>
                       <Eye className="h-4 w-4 mr-1" />
                       {t("管理", "Manage")}
                     </Button>

@@ -35,6 +35,7 @@ import { useColumnVisibility, ColumnConfig } from "@/hooks/useColumnVisibility";
 import ColumnVisibilityDropdown from "@/components/ColumnVisibilityDropdown";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenantView } from "@/contexts/TenantViewContext";
 import { getActiveEmployees, getEmployees, Employee } from "@/stores/employeeStore";
 import { useModulePermissions, useFieldPermissions } from "@/hooks/useFieldPermissions";
 import { isUserTyping, trackRender } from "@/lib/performanceUtils";
@@ -123,6 +124,7 @@ export default function OrderManagement() {
   const useCompactLayout = isMobile || isTablet;
   const { t, tr, formatDate } = useLanguage();
   const { isAdmin, employee: currentEmployee } = useAuth();
+  const { viewingTenantId } = useTenantView() || {};
   const [activeTab, setActiveTab] = useState("normal");
   
   // 检查当前用户是否为总管理员
@@ -219,8 +221,8 @@ export default function OrderManagement() {
 
   // 加载商家管理数据 + 检查总管理员身份
   useEffect(() => {
-    // 加载员工列表用于销售员筛选
-    getActiveEmployees().then(employees => {
+    // 加载员工列表用于销售员筛选（按租户过滤）
+    getActiveEmployees(viewingTenantId || null).then(employees => {
       setEmployeeNames(employees.map(e => e.real_name));
       setAllEmployees(employees);
     });
@@ -293,7 +295,7 @@ export default function OrderManagement() {
       .channel('order-page-entity-sync')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'employees' }, () => {
         // 员工信息变更时刷新订单数据和员工名称列表
-        getActiveEmployees().then(employees => {
+        getActiveEmployees(viewingTenantId || null).then(employees => {
           setEmployeeNames(employees.map(e => e.real_name));
         });
         debouncedRefresh(false);
@@ -315,7 +317,7 @@ export default function OrderManagement() {
         clearTimeout(refreshTimeoutId);
       }
     };
-  }, [refetchOrders, refetchUsdtOrders]);
+  }, [refetchOrders, refetchUsdtOrders, viewingTenantId]);
 
   // 筛选下拉选项：使用商家管理数据（服务端分页后不从订单推导）
   const uniqueSalesPersons = useMemo(() => employeeNames.sort(), [employeeNames]);
@@ -411,8 +413,6 @@ export default function OrderManagement() {
     setIsEditSubmitting(true);
     try {
     
-    // 检查员工是否有直接编辑权限
-    const canEditRemark = await checkCanEditDirectly('order', 'remark');
     const canEditSalesPerson = isSuperAdmin; // 只有总管理员可以改销售员
     
     // 收集所有字段变更
@@ -632,8 +632,8 @@ export default function OrderManagement() {
       window.dispatchEvent(new CustomEvent('ledger-updated'));
       window.dispatchEvent(new CustomEvent('points-updated'));
       toast.success("订单已更新");
-    } else if (!canEditRemark) {
-      // 非管理员且没有直接编辑权限 -> 提交审核
+    } else {
+      // 非管理员：按字段判断，需审核的只提交审核不直接更新，可直接编辑的才更新
       const result = await submitBatchForApproval({
         module: 'order',
         changes,
@@ -642,15 +642,22 @@ export default function OrderManagement() {
         originalData: originalOrder,
       });
       
-      if (result.submitted) {
-        toast.success(result.message);
-      } else if (result.hasRejected) {
+      if (result.hasRejected) {
         toast.error(result.message);
-      } else {
-        toast.info(result.message);
+        return;
       }
-    } else {
-      // 非管理员但有直接编辑权限
+      
+      // 有需审核的字段时，不直接更新订单（避免未审批的修改生效），仅提交审核
+      if (result.pendingFields.length > 0) {
+        toast.success(result.message);
+        setIsEditDialogOpen(false);
+        setEditingOrder(null);
+        setOriginalOrder(null);
+        await refetchOrders();
+        return;
+      }
+      
+      // 全部为可直接编辑的字段，执行完整更新
       const updates = buildUpdates();
       
       const { data, error } = await supabase
@@ -808,9 +815,6 @@ export default function OrderManagement() {
     
     setIsUsdtEditSubmitting(true);
     try {
-    
-    // 检查员工是否有直接编辑权限
-    const canEditRemark = await checkCanEditDirectly('order', 'remark');
     
     // 收集所有字段变更
     const changes: { fieldKey: string; oldValue: any; newValue: any }[] = [];
@@ -1000,8 +1004,8 @@ export default function OrderManagement() {
       window.dispatchEvent(new CustomEvent('ledger-updated'));
       window.dispatchEvent(new CustomEvent('points-updated'));
       toast.success("USDT订单已更新");
-    } else if (!canEditRemark) {
-      // 非管理员且没有直接编辑权限 -> 提交审核
+    } else {
+      // 非管理员：按字段判断，需审核的只提交审核不直接更新
       const result = await submitBatchForApproval({
         module: 'order',
         changes,
@@ -1010,15 +1014,22 @@ export default function OrderManagement() {
         originalData: originalUsdtOrder,
       });
       
-      if (result.submitted) {
-        toast.success(result.message);
-      } else if (result.hasRejected) {
+      if (result.hasRejected) {
         toast.error(result.message);
-      } else {
-        toast.info(result.message);
+        return;
       }
-    } else {
-      // 非管理员但有直接编辑权限
+      
+      // 有需审核的字段时，不直接更新订单
+      if (result.pendingFields.length > 0) {
+        toast.success(result.message);
+        setIsUsdtEditDialogOpen(false);
+        setEditingUsdtOrder(null);
+        setOriginalUsdtOrder(null);
+        await refetchUsdtOrders();
+        return;
+      }
+      
+      // 全部为可直接编辑的字段，执行更新
       const updates = buildUpdates();
       
       const { data, error } = await supabase

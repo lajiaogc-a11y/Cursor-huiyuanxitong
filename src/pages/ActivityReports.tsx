@@ -62,6 +62,7 @@ import { useAuditWorkflow } from "@/hooks/useAuditWorkflow";
 
 interface ActivityRecord {
   id: string;
+  giftNumber?: string;
   order: number;
   time: string;
   currency: string;
@@ -136,6 +137,7 @@ const loadActivityRecordsFromDB = async (): Promise<ActivityRecord[]> => {
       
       return {
         id: gift.id,
+        giftNumber: gift.gift_number || '',
         order: index + 1,
         time: new Date(gift.created_at).toLocaleString("zh-CN"),
         currency: gift.currency,
@@ -732,6 +734,7 @@ const [editFormData, setEditFormData] = useState({
                               </div>
                               <span className="text-xs text-muted-foreground">{record.time}</span>
                             </MobileCardHeader>
+                            {record.giftNumber && <MobileCardRow label={t("赠送编号", "Gift ID")} value={record.giftNumber} />}
                             <MobileCardRow label={t("电话号码", "Phone")} value={getDisplayPhone(record.phone, isAdmin)} />
                             <MobileCardRow label={t("代付商家", "Agent")} value={resolvePaymentProviderName(record.paymentAgent)} />
                             <MobileCardRow label={t("赠送价值", "Gift Value")} value={record.giftValue.toFixed(2)} highlight />
@@ -773,8 +776,9 @@ const [editFormData, setEditFormData] = useState({
                 <StickyScrollTableContainer minWidth="1400px">
                   <Table className="text-xs">
                     <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
-                      <TableRow className="bg-muted/50">
+                        <TableRow className="bg-muted/50">
                         <TableHead className="w-[60px] text-center px-1.5">{t("排序", "Order")}</TableHead>
+                        <TableHead className="w-[140px] text-center px-1.5 font-mono">{t("赠送编号", "Gift ID")}</TableHead>
                         <TableHead className="w-[160px] text-center px-1.5">{t("录入时间", "Time")}</TableHead>
                         <TableHead className="text-center px-1.5">{t("赠送币种", "Currency")}</TableHead>
                         <TableHead className="text-center px-1.5">{t("赠送金额", "Amount")}</TableHead>
@@ -792,7 +796,7 @@ const [editFormData, setEditFormData] = useState({
                     <TableBody>
                       {paginatedRecords.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={13} className="text-center py-12 text-muted-foreground">
+                          <TableCell colSpan={14} className="text-center py-12 text-muted-foreground">
                             {t("暂无活动赠送数据", "No activity gift data")}
                           </TableCell>
                         </TableRow>
@@ -800,6 +804,7 @@ const [editFormData, setEditFormData] = useState({
                         paginatedRecords.map((record) => (
                           <TableRow key={record.id}>
                             <TableCell className="text-center px-1.5">{record.order}</TableCell>
+                            <TableCell className="text-center px-1.5 font-mono text-muted-foreground text-xs">{record.giftNumber || '-'}</TableCell>
                             <TableCell className="text-center px-1.5">{record.time}</TableCell>
                             <TableCell className="text-center px-1.5">
                               <Badge variant="secondary">{record.currency}</Badge>

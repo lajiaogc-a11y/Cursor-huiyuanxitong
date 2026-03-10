@@ -197,9 +197,11 @@ async function saveActivityGiftToDB(gift: {
   creator_id: string | null;
 }): Promise<boolean> {
   try {
+    const { generateUniqueGiftNumber } = await import('@/hooks/useActivityGifts');
+    const giftNumber = await generateUniqueGiftNumber();
     const { error } = await supabase
       .from('activity_gifts')
-      .insert(gift);
+      .insert({ ...gift, gift_number: giftNumber });
     
     if (error) throw error;
     return true;

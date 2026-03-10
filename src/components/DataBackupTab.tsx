@@ -29,7 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DangerConfirmDialog } from "@/components/ui/danger-confirm-dialog";
-import { Database, Download, Loader2, Trash2, RefreshCw, CheckCircle, XCircle, Eye, RotateCcw, FileDown, ShieldAlert, Clock, HardDrive, FlaskConical } from "lucide-react";
+import { Database, Download, Loader2, Trash2, RefreshCw, CheckCircle, XCircle, Eye, RotateCcw, FileDown, ShieldAlert, Clock, HardDrive, FlaskConical, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,6 +39,7 @@ import {
   deleteBackup,
   getBackupSnapshot,
   restoreBackup,
+  restoreEmployeesOnly,
   exportBackupAsJson,
   cleanupWebhookEventQueue,
   formatBytes,
@@ -57,7 +58,9 @@ export default function DataBackupTab() {
   const [cleaning, setCleaning] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
+  const [restoreEmployeesTarget, setRestoreEmployeesTarget] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [restoringEmployees, setRestoringEmployees] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
 
   // DR Drill state
@@ -84,6 +87,7 @@ export default function DataBackupTab() {
 
   // Restore danger confirm
   const [restoreDangerOpen, setRestoreDangerOpen] = useState(false);
+  const [restoreEmployeesDangerOpen, setRestoreEmployeesDangerOpen] = useState(false);
 
   useEffect(() => {
     if (isSuperAdmin) loadHistory();
@@ -147,6 +151,27 @@ export default function DataBackupTab() {
       setRestoring(false);
       setRestoreTarget(null);
       setRestoreDangerOpen(false);
+    }
+  };
+
+  const handleRestoreEmployeesOnly = async () => {
+    if (!restoreEmployeesTarget) return;
+    setRestoringEmployees(true);
+    try {
+      const result = await restoreEmployeesOnly(restoreEmployeesTarget);
+      if (result.success) {
+        const empCount = result.restored.employees || 0;
+        const permCount = result.restored.employee_permissions || 0;
+        toast.success(t(`员工恢复成功：${empCount} 名员工，${permCount} 条权限`, `Employees restored: ${empCount} employees, ${permCount} permissions`));
+      } else {
+        toast.error(t(`恢复失败: ${result.errors.slice(0, 2).join('; ')}`, `Restore failed: ${result.errors.slice(0, 2).join('; ')}`));
+      }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setRestoringEmployees(false);
+      setRestoreEmployeesTarget(null);
+      setRestoreEmployeesDangerOpen(false);
     }
   };
 
@@ -296,8 +321,14 @@ export default function DataBackupTab() {
         <CardContent>
           <p className="text-sm text-muted-foreground mb-2">
             {t(
-              "备份将保存 9 张关键业务表的完整数据到云存储。系统每6小时自动备份一次，保留最近30个备份。",
-              "Backs up 9 critical business tables to cloud storage. System auto-backs up every 6 hours, keeping the last 30 backups."
+              "备份将保存关键业务表的完整数据到云存储。系统每6小时自动备份一次，保留最近30个备份。",
+              "Backs up critical business tables to cloud storage. System auto-backs up every 6 hours, keeping the last 30 backups."
+            )}
+          </p>
+          <p className="text-xs text-muted-foreground mb-2">
+            {t(
+              "若员工数据误删，可使用「仅恢复员工」从历史备份中恢复 employees 与权限，不影响其他业务数据。",
+              "If employees were accidentally deleted, use 'Restore Employees Only' to recover from a backup without affecting other data."
             )}
           </p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
@@ -422,6 +453,23 @@ export default function DataBackupTab() {
                           >
                             <RotateCcw className="h-4 w-4" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-emerald-600"
+                            title={t("仅恢复员工", "Restore Employees Only")}
+                            disabled={restoringEmployees && restoreEmployeesTarget === record.id}
+                            onClick={() => {
+                              setRestoreEmployeesTarget(record.id);
+                              setRestoreEmployeesDangerOpen(true);
+                            }}
+                          >
+                            {restoringEmployees && restoreEmployeesTarget === record.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Users className="h-4 w-4" />
+                            )}
+                          </Button>
                         </>
                       )}
                       <Button
@@ -531,6 +579,22 @@ export default function DataBackupTab() {
         )}
         confirmText={t("确认恢复", "RESTORE")}
         onConfirm={handleRestore}
+      />
+
+      {/* Restore Employees Only DangerConfirmDialog */}
+      <DangerConfirmDialog
+        open={restoreEmployeesDangerOpen}
+        onOpenChange={(open) => {
+          setRestoreEmployeesDangerOpen(open);
+          if (!open) setRestoreEmployeesTarget(null);
+        }}
+        title={t("仅恢复员工数据", "Restore Employees Only")}
+        description={t(
+          "将从此备份中恢复 employees 和 employee_permissions 表。已存在的员工记录会被覆盖，不存在的会被插入。其他业务数据不受影响。",
+          "Restore employees and employee_permissions from this backup. Existing records will be overwritten, missing ones inserted. Other data unaffected."
+        )}
+        confirmText={t("恢复员工", "RESTORE EMPLOYEES")}
+        onConfirm={handleRestoreEmployeesOnly}
       />
 
       {/* DR Drill Report Dialog */}

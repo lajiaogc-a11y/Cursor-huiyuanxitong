@@ -22,7 +22,15 @@
     "cap:ios": "npm run build:capacitor && npx cap open ios",
     "cap:add:android": "npx cap add android",
     "cap:add:ios": "npx cap add ios",
-    "db:migrate-fixes": "node scripts/run-migration-fixes.mjs"
+    "db:migrate-fixes": "node scripts/run-migration-fixes.mjs",
+    "db:fix-delete-tenant": "node scripts/run-delete-tenant-fix.mjs",
+    "db:fix-delete-employee": "node scripts/run-delete-employee-fix.mjs",
+    "db:fix-platform-admin": "node scripts/run-platform-admin-fix.mjs",
+    "db:gift-number": "node scripts/run-gift-number-migration.mjs",
+    "db:exclude-platform-admin": "node scripts/run-exclude-platform-admin-from-tenant.mjs",
+    "db:restore-tenant-super-admin": "node scripts/run-restore-tenant-super-admin.mjs",
+    "restore-employees": "node scripts/restore-employees.mjs",
+    "restore-full": "node scripts/restore-full.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^6.0.0",

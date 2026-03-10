@@ -111,12 +111,21 @@ export default function CurrencySettingsTab() {
       return;
     }
 
+    const codeUpper = formData.code.trim().toUpperCase();
+    const existing = currencies.find(
+      (c) => c.code.toUpperCase() === codeUpper && c.id !== editingCurrency?.id
+    );
+    if (existing) {
+      toast.error(t("该币种代码已存在", "This currency code already exists"));
+      return;
+    }
+
     try {
       if (editingCurrency) {
         const { error } = await supabase
           .from("currencies")
           .update({
-            code: formData.code.toUpperCase(),
+            code: codeUpper,
             name_zh: formData.name_zh,
             badge_color: formData.badge_color,
             sort_order: formData.sort_order,
@@ -128,12 +137,12 @@ export default function CurrencySettingsTab() {
         
         // 记录操作日志
         const { logOperation } = await import('@/stores/auditLogStore');
-        logOperation('currency_settings', 'update', editingCurrency.id, editingCurrency, formData, `更新币种: ${formData.code}`);
+        logOperation('currency_settings', 'update', editingCurrency.id, editingCurrency, formData, `更新币种: ${codeUpper}`);
         
         toast.success(t("币种已更新", "Currency updated"));
       } else {
         const { data: insertedData, error } = await supabase.from("currencies").insert({
-          code: formData.code.toUpperCase(),
+          code: codeUpper,
           name_zh: formData.name_zh,
           name_en: formData.name_zh, // Use Chinese name as default for English
           badge_color: formData.badge_color,
@@ -145,7 +154,7 @@ export default function CurrencySettingsTab() {
         
         // 记录操作日志
         const { logOperation } = await import('@/stores/auditLogStore');
-        logOperation('currency_settings', 'create', insertedData?.[0]?.id || null, null, formData, `新增币种: ${formData.code}`);
+        logOperation('currency_settings', 'create', insertedData?.[0]?.id || null, null, formData, `新增币种: ${codeUpper}`);
         
         toast.success(t("币种已添加", "Currency added"));
       }
@@ -154,7 +163,10 @@ export default function CurrencySettingsTab() {
       fetchCurrencies();
     } catch (error: any) {
       console.error("Failed to save currency:", error);
-      toast.error(error.message || t("保存失败", "Failed to save"));
+      const msg = error?.code === "23505" || error?.message?.includes("duplicate")
+        ? t("该币种代码已存在", "This currency code already exists")
+        : (error.message || t("保存失败", "Failed to save"));
+      toast.error(msg);
     }
   };
 
@@ -176,6 +188,37 @@ export default function CurrencySettingsTab() {
     } catch (error: any) {
       console.error("Failed to delete currency:", error);
       toast.error(error.message || t("删除失败", "Failed to delete"));
+    }
+  };
+
+  const handleCleanDuplicates = async () => {
+    const byCode = new Map<string, Currency[]>();
+    for (const c of currencies) {
+      const k = c.code.toUpperCase().trim();
+      if (!byCode.has(k)) byCode.set(k, []);
+      byCode.get(k)!.push(c);
+    }
+    const toDelete: Currency[] = [];
+    for (const [, list] of byCode) {
+      if (list.length > 1) {
+        list.sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id));
+        toDelete.push(...list.slice(1));
+      }
+    }
+    if (toDelete.length === 0) {
+      toast.info(t("没有重复的币种", "No duplicate currencies"));
+      return;
+    }
+    try {
+      for (const c of toDelete) {
+        const { error } = await supabase.from("currencies").delete().eq("id", c.id);
+        if (error) throw error;
+      }
+      toast.success(t("已清理 {n} 个重复项", "Cleaned {n} duplicates").replace("{n}", String(toDelete.length)));
+      fetchCurrencies();
+    } catch (error: any) {
+      console.error("Failed to clean duplicates:", error);
+      toast.error(error.message || t("清理失败", "Failed to clean"));
     }
   };
 
@@ -212,10 +255,15 @@ export default function CurrencySettingsTab() {
           <DollarSign className="h-5 w-5" />
           {t("币种设置", "Currency Settings")}
         </CardTitle>
-        <Button onClick={handleAdd} size="sm">
-          <Plus className="h-4 w-4 mr-1" />
-          {t("添加币种", "Add Currency")}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleCleanDuplicates}>
+            {t("清理重复项", "Clean Duplicates")}
+          </Button>
+          <Button onClick={handleAdd} size="sm">
+            <Plus className="h-4 w-4 mr-1" />
+            {t("添加币种", "Add Currency")}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {loading ? (

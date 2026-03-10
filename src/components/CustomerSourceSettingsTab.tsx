@@ -141,7 +141,12 @@ export default function CustomerSourceSettingsTab() {
 
   const handleDelete = async (id: string) => {
     const source = sources.find(s => s.id === id);
-    deleteCustomerSource(id);
+    const success = await deleteCustomerSource(id);
+    
+    if (!success) {
+      toast.error(t("删除失败，可能有会员正在使用该来源", "Delete failed, members may be using this source"));
+      return;
+    }
     
     const { logOperation } = await import('@/stores/auditLogStore');
     logOperation('customer_source', 'delete', id, source, null, `删除客户来源: ${source?.name || id}`);

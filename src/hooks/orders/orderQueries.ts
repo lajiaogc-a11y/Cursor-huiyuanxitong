@@ -384,7 +384,7 @@ export async function fetchOrderStats(
     p_start_date: startDate,
     p_end_date: endDate,
     p_search_term: filters?.searchTerm?.trim() || null,
-    p_tenant_id: null,
+    p_tenant_id: tenantId,
   });
 
   if (error) {

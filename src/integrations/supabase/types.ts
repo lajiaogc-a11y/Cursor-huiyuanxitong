@@ -21,6 +21,7 @@ export type Database = {
           creator_id: string | null
           currency: string
           fee: number | null
+          gift_number: string | null
           gift_type: string | null
           gift_value: number | null
           id: string
@@ -36,6 +37,7 @@ export type Database = {
           creator_id?: string | null
           currency: string
           fee?: number | null
+          gift_number?: string | null
           gift_type?: string | null
           gift_value?: number | null
           id?: string
@@ -51,6 +53,7 @@ export type Database = {
           creator_id?: string | null
           currency?: string
           fee?: number | null
+          gift_number?: string | null
           gift_type?: string | null
           gift_value?: number | null
           id?: string
@@ -2552,14 +2555,14 @@ export type Database = {
         Returns: string
       }
       get_active_employees_safe: {
-        Args: never
+        Args: { p_tenant_id?: string | null }
         Returns: {
           id: string
           real_name: string
         }[]
       }
       get_active_visible_employees_safe: {
-        Args: never
+        Args: { p_tenant_id?: string | null }
         Returns: {
           id: string
           real_name: string

@@ -384,6 +384,7 @@ export default function AuditCenter() {
                     {new Date(item.timestamp).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US')}
                   </div>
                   <MobileCardRow label={t("模块", "Module")} value={item.module} />
+                  <MobileCardRow label={t("订单/目标ID", "Order/Target ID")} value={item.targetDisplayId || item.targetId?.substring(0, 8) + '...' || '-'} />
                   <MobileCardRow label={t("字段", "Field")} value={item.field} />
                   <MobileCardRow label={t("原值", "Old")} value={item.oldValue || '-'} />
                   <MobileCardRow label={t("新值", "New")} value={item.newValue} highlight />
@@ -414,6 +415,7 @@ export default function AuditCenter() {
                   <TableHead className="text-center whitespace-nowrap px-1.5">{t("提交时间", "Submit Time")}</TableHead>
                   <TableHead className="text-center whitespace-nowrap px-1.5">{t("操作人", "Operator")}</TableHead>
                   <TableHead className="text-center whitespace-nowrap px-1.5">{t("模块", "Module")}</TableHead>
+                  <TableHead className="text-center whitespace-nowrap px-1.5">{t("订单/目标ID", "Order/Target ID")}</TableHead>
                   <TableHead className="text-center whitespace-nowrap px-1.5">{t("字段", "Field")}</TableHead>
                   <TableHead className="text-center whitespace-nowrap px-1.5">{t("原值", "Old Value")}</TableHead>
                   <TableHead className="text-center whitespace-nowrap px-1.5">{t("新值", "New Value")}</TableHead>
@@ -430,6 +432,9 @@ export default function AuditCenter() {
                     </TableCell>
                     <TableCell className="text-center whitespace-nowrap px-1.5">{item.operator}</TableCell>
                     <TableCell className="text-center whitespace-nowrap px-1.5">{item.module}</TableCell>
+                    <TableCell className="font-mono text-center whitespace-nowrap px-1.5 text-muted-foreground">
+                      {item.targetDisplayId || item.targetId?.substring(0, 8) + '...' || '-'}
+                    </TableCell>
                     <TableCell className="text-center whitespace-nowrap px-1.5">{item.field}</TableCell>
                     <TableCell className="max-w-[150px] truncate text-center text-muted-foreground px-1.5">{item.oldValue}</TableCell>
                     <TableCell className="max-w-[150px] truncate text-center font-medium px-1.5">{item.newValue}</TableCell>
@@ -466,7 +471,7 @@ export default function AuditCenter() {
                 ))}
                 {paginatedItems.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                       {t("暂无审核记录", "No audit records")}
                     </TableCell>
                   </TableRow>

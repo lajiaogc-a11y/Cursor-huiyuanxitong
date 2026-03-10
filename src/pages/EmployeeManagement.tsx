@@ -388,7 +388,7 @@ export default function EmployeeManagement() {
         setDeletingEmployee(null);
         refetch();
       } else {
-        const msg = result.error_code === 'CANNOT_DELETE_SUPER_ADMIN' ? tr('employees.superAdminNotModify') : (result.error_code === 'EMPLOYEE_NOT_FOUND' ? t("员工不存在", "Employee not found") : t("删除失败", "Delete failed"));
+        const msg = result.error_code === 'CANNOT_DELETE_SUPER_ADMIN' ? tr('employees.superAdminNotModify') : (result.error_code === 'EMPLOYEE_NOT_FOUND' ? t("员工不存在", "Employee not found") : (result.error_code === 'NO_PERMISSION' ? t("无权限删除该员工", "No permission to delete this employee") : t("删除失败", "Delete failed")));
         toast.error(msg);
       }
     } catch (error) {

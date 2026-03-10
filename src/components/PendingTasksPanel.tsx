@@ -60,7 +60,7 @@ export default function PendingTasksPanel() {
             label: t("待审核记录", "Pending Audits"),
             icon: ClipboardCheck,
             color: "text-amber-500",
-            link: "/audit",
+            link: "/audit-center",
           });
         }
 
@@ -82,7 +82,7 @@ export default function PendingTasksPanel() {
             label: t("24h异常报告", "24h Error Reports"),
             icon: AlertTriangle,
             color: "text-destructive",
-            link: "/logs?tab=errors",
+            link: "/operation-logs?tab=errors",
           });
         }
 

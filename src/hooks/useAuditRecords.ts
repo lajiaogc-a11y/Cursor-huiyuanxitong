@@ -9,6 +9,22 @@ import { toast } from 'sonner';
 import { logOperation } from '@/stores/auditLogStore';
 import { Json } from '@/integrations/supabase/types';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// 需要解析为可读名称的字段（按表+字段）
+const PROVIDER_FIELDS = new Set([
+  'vendor_id', 'vendorId', 'payment_provider', 'payment_provider_id', 'paymentProvider', 'paymentProviderId',
+  'payment_agent', 'paymentAgent',
+]);
+const VENDOR_FIELDS = new Set(['card_merchant_id', 'cardMerchantId', 'vendor']);
+const CARD_FIELDS = new Set(['card_type', 'cardType', 'order_type', 'orderType']);
+const EMPLOYEE_FIELDS = new Set([
+  'sales_user_id', 'salesUserId', 'sales_person', 'salesPerson',
+  'recorder_id', 'recorderId', 'creator_id', 'creatorId',
+]);
+const SOURCE_FIELDS = new Set(['source_id', 'sourceId']);
+const GIFT_TYPE_FIELDS = new Set(['gift_type', 'giftType']);
+
 export interface AuditRecord {
   id: string;
   target_table: string;
@@ -42,6 +58,8 @@ export interface LegacyAuditItem {
   rejectReason?: string;
   targetId: string;
   targetDescription?: string;
+  /** 可读的目标标识：订单管理=订单号，会员管理=手机号，活动赠送=赠送编号 */
+  targetDisplayId?: string;
   originalData?: any;
 }
 
@@ -56,7 +74,7 @@ const FIELD_LABELS: Record<string, Record<string, string>> = {
   orders: {
     phone_number: '电话号码', member_code: '会员编号', card_value: '卡片价值',
     actual_payment: '实付金额', exchange_rate: '外币汇率', foreign_rate: '外币汇率',
-    card_type: '卡片类型', order_type: '卡片类型', vendor: '卡商', vendor_id: '卡商',
+    card_type: '卡片类型', order_type: '卡片类型', vendor: '卡商', vendor_id: '代付商家',
     card_merchant_id: '卡商', payment_provider: '代付商家', payment_provider_id: '代付商家',
     fee: '手续费', currency: '币种', remark: '备注', sales_person: '业务员',
     sales_user_id: '业务员', cancel_button: '取消按钮', delete_button: '删除按钮',
@@ -85,7 +103,51 @@ function formatValue(value: any): string {
   return String(value);
 }
 
-function convertToLegacyItem(record: AuditRecord): LegacyAuditItem {
+interface ResolveMaps {
+  providerMap: Record<string, string>;
+  vendorMap: Record<string, string>;
+  cardMap: Record<string, string>;
+  sourceMap: Record<string, string>;
+  activityTypeMap: Record<string, string>;
+}
+
+function resolveAuditValue(
+  fieldKey: string,
+  rawValue: any,
+  maps: ResolveMaps,
+  employeeMap: Record<string, string>
+): string {
+  const strVal = formatValue(rawValue);
+  if (!strVal) return strVal;
+  if (!UUID_REGEX.test(strVal)) return strVal;
+
+  if (PROVIDER_FIELDS.has(fieldKey) && maps.providerMap[strVal]) {
+    return maps.providerMap[strVal];
+  }
+  if (VENDOR_FIELDS.has(fieldKey) && maps.vendorMap[strVal]) {
+    return maps.vendorMap[strVal];
+  }
+  if (CARD_FIELDS.has(fieldKey) && maps.cardMap[strVal]) {
+    return maps.cardMap[strVal];
+  }
+  if (EMPLOYEE_FIELDS.has(fieldKey) && employeeMap[strVal]) {
+    return employeeMap[strVal];
+  }
+  if (SOURCE_FIELDS.has(fieldKey) && maps.sourceMap[strVal]) {
+    return maps.sourceMap[strVal];
+  }
+  if (GIFT_TYPE_FIELDS.has(fieldKey) && maps.activityTypeMap[strVal]) {
+    return maps.activityTypeMap[strVal];
+  }
+  return strVal;
+}
+
+function convertToLegacyItem(
+  record: AuditRecord,
+  maps: ResolveMaps,
+  employeeMap: Record<string, string>,
+  targetDisplayIdMap: Record<string, string>
+): LegacyAuditItem {
   const module = TABLE_TO_MODULE[record.target_table] || record.target_table;
   const fieldLabels = FIELD_LABELS[record.target_table] || {};
   const newData = record.new_data as Record<string, any> || {};
@@ -93,8 +155,10 @@ function convertToLegacyItem(record: AuditRecord): LegacyAuditItem {
   const changedFields = Object.keys(newData);
   const fieldKey = changedFields[0] || 'unknown';
   const fieldLabel = fieldLabels[fieldKey] || fieldKey;
-  const oldValue = formatValue(oldData[fieldKey]);
-  const newValue = formatValue(newData[fieldKey]);
+  const rawOld = oldData[fieldKey];
+  const rawNew = newData[fieldKey];
+  const oldValue = resolveAuditValue(fieldKey, rawOld, maps, employeeMap) || formatValue(rawOld) || '-';
+  const newValue = resolveAuditValue(fieldKey, rawNew, maps, employeeMap) || formatValue(rawNew);
 
   return {
     id: record.id,
@@ -111,6 +175,7 @@ function convertToLegacyItem(record: AuditRecord): LegacyAuditItem {
     reviewTime: record.review_time || undefined,
     rejectReason: record.review_comment || undefined,
     targetId: record.target_id,
+    targetDisplayId: targetDisplayIdMap[record.target_id],
     originalData: { id: record.target_id, ...oldData },
   };
 }
@@ -174,9 +239,126 @@ async function fetchAuditRecordsFromDb(params?: AuditRecordsFetchParams): Promis
     reviewer_name: record.reviewer_id ? employeeMap[record.reviewer_id] : undefined,
   }));
 
+  // 收集需要解析的 UUID，批量查询可读名称
+  const providerIds = new Set<string>();
+  const vendorIds = new Set<string>();
+  const cardIds = new Set<string>();
+  const sourceIds = new Set<string>();
+  const activityTypeIds = new Set<string>();
+
+  for (const record of enrichedRecords) {
+    const newData = record.new_data as Record<string, any> || {};
+    const oldData = record.old_data as Record<string, any> || {};
+    const changedFields = Object.keys(newData);
+    const fieldKey = changedFields[0] || '';
+    const extractUuid = (v: any) => {
+      const s = String(v ?? '');
+      return UUID_REGEX.test(s) ? s : null;
+    };
+    const oldUuid = extractUuid(oldData[fieldKey]);
+    const newUuid = extractUuid(newData[fieldKey]);
+
+    if (PROVIDER_FIELDS.has(fieldKey)) {
+      if (oldUuid) providerIds.add(oldUuid);
+      if (newUuid) providerIds.add(newUuid);
+    } else if (VENDOR_FIELDS.has(fieldKey)) {
+      if (oldUuid) vendorIds.add(oldUuid);
+      if (newUuid) vendorIds.add(newUuid);
+    } else if (CARD_FIELDS.has(fieldKey)) {
+      if (oldUuid) cardIds.add(oldUuid);
+      if (newUuid) cardIds.add(newUuid);
+    } else if (SOURCE_FIELDS.has(fieldKey)) {
+      if (oldUuid) sourceIds.add(oldUuid);
+      if (newUuid) sourceIds.add(newUuid);
+    } else if (GIFT_TYPE_FIELDS.has(fieldKey)) {
+      if (oldUuid) activityTypeIds.add(oldUuid);
+      if (newUuid) activityTypeIds.add(newUuid);
+    }
+  }
+
+  let providerMap: Record<string, string> = {};
+  let vendorMap: Record<string, string> = {};
+  let cardMap: Record<string, string> = {};
+  let sourceMap: Record<string, string> = {};
+  let activityTypeMap: Record<string, string> = {};
+
+  if (providerIds.size > 0) {
+    const { data: providers } = await supabase
+      .from('payment_providers')
+      .select('id, name')
+      .in('id', [...providerIds]);
+    if (providers) providerMap = Object.fromEntries(providers.map(p => [p.id, p.name]));
+  }
+  if (vendorIds.size > 0) {
+    const { data: vendors } = await supabase
+      .from('card_merchants')
+      .select('id, name')
+      .in('id', [...vendorIds]);
+    if (vendors) vendorMap = Object.fromEntries(vendors.map(v => [v.id, v.name]));
+  }
+  if (cardIds.size > 0) {
+    const { data: cards } = await supabase
+      .from('cards')
+      .select('id, name')
+      .in('id', [...cardIds]);
+    if (cards) cardMap = Object.fromEntries(cards.map(c => [c.id, c.name]));
+  }
+  if (sourceIds.size > 0) {
+    const { data: sources } = await supabase
+      .from('customer_sources')
+      .select('id, name')
+      .in('id', [...sourceIds]);
+    if (sources) sourceMap = Object.fromEntries(sources.map(s => [s.id, s.name]));
+  }
+  if (activityTypeIds.size > 0) {
+    const { data: types } = await supabase
+      .from('activity_types')
+      .select('id, label')
+      .in('id', [...activityTypeIds]);
+    if (types) activityTypeMap = Object.fromEntries(types.map(t => [t.id, t.label]));
+  }
+
+  const resolveMaps: ResolveMaps = { providerMap, vendorMap, cardMap, sourceMap, activityTypeMap };
+
+  // 批量获取目标可读标识：订单号、会员手机、赠送编号
+  const targetDisplayIdMap: Record<string, string> = {};
+  const orderIds = enrichedRecords.filter(r => r.target_table === 'orders').map(r => r.target_id);
+  const memberIds = enrichedRecords.filter(r => r.target_table === 'members').map(r => r.target_id);
+  const giftIds = enrichedRecords.filter(r => r.target_table === 'activity_gifts' || r.target_table === 'activity').map(r => r.target_id);
+
+  if (orderIds.length > 0) {
+    const { data: orders } = await supabase
+      .from('orders')
+      .select('id, order_number')
+      .in('id', [...new Set(orderIds)]);
+    if (orders) orders.forEach(o => { targetDisplayIdMap[o.id] = o.order_number || o.id; });
+  }
+  if (memberIds.length > 0) {
+    const { data: members } = await supabase
+      .from('members')
+      .select('id, phone_number, member_code')
+      .in('id', [...new Set(memberIds)]);
+    if (members) members.forEach(m => { targetDisplayIdMap[m.id] = m.phone_number || m.member_code || m.id; });
+  }
+  if (giftIds.length > 0) {
+    const { data: gifts, error: giftsErr } = await supabase
+      .from('activity_gifts')
+      .select('id, gift_number')
+      .in('id', [...new Set(giftIds)]);
+    if (!giftsErr && gifts && gifts.length > 0) {
+      gifts.forEach(g => {
+        const row = g as { id: string; gift_number?: string | null };
+        targetDisplayIdMap[row.id] = row.gift_number || row.id.substring(0, 8) + '...';
+      });
+    }
+    [...new Set(giftIds)].forEach(id => {
+      if (!targetDisplayIdMap[id]) targetDisplayIdMap[id] = id.substring(0, 8) + '...';
+    });
+  }
+
   return {
     records: enrichedRecords,
-    legacyItems: enrichedRecords.map(convertToLegacyItem),
+    legacyItems: enrichedRecords.map(r => convertToLegacyItem(r, resolveMaps, employeeMap, targetDisplayIdMap)),
     totalCount: count ?? 0,
   };
 }
@@ -249,9 +431,22 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
         return false;
       }
 
-      const newData = record.new_data as Record<string, any>;
+      const rawNewData = record.new_data as Record<string, any>;
       const targetTable = record.target_table;
       const targetId = record.target_id;
+
+      // 订单表字段映射：审核记录用 payment_provider/vendor，数据库用 vendor_id/card_merchant_id
+      const ORDER_FIELD_MAP: Record<string, string> = {
+        payment_provider: 'vendor_id',
+        payment_provider_id: 'vendor_id',
+        vendor: 'card_merchant_id',
+        sales_person: 'sales_user_id',
+      };
+      const newData: Record<string, any> = {};
+      for (const [k, v] of Object.entries(rawNewData)) {
+        const dbKey = targetTable === 'orders' && ORDER_FIELD_MAP[k] ? ORDER_FIELD_MAP[k] : k;
+        newData[dbKey] = v;
+      }
 
       const { error: updateError } = await supabase
         .from(targetTable as any)

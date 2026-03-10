@@ -8,8 +8,34 @@ import { logOperation } from '@/stores/auditLogStore';
 import { getEmployeeNameById, getActivityTypeLabelByValue } from '@/services/nameResolver';
 import { logGiftBalanceChange } from '@/services/balanceLogService';
 
+function generateGiftNumber(): string {
+  const now = new Date();
+  const datePart = `${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const numPart = Array.from({ length: 4 }, () => Math.floor(Math.random() * 10)).join('');
+  return `GIFT-${datePart}-${numPart}`;
+}
+
+export async function generateUniqueGiftNumber(maxRetries = 3): Promise<string> {
+  for (let i = 0; i < maxRetries; i++) {
+    const giftNumber = generateGiftNumber();
+    const { data, error } = await supabase
+      .from('activity_gifts')
+      .select('id')
+      .eq('gift_number', giftNumber)
+      .maybeSingle();
+    if (error) {
+      console.error('[generateUniqueGiftNumber] Check failed:', error);
+      continue;
+    }
+    if (!data) return giftNumber;
+    console.warn(`[generateUniqueGiftNumber] Collision detected for ${giftNumber}, retry ${i + 1}/${maxRetries}`);
+  }
+  return `${generateGiftNumber()}${Date.now().toString().slice(-4)}`;
+}
+
 export interface ActivityGift {
   id: string;
+  giftNumber?: string;
   currency: string;
   amount: number;
   rate: number;
@@ -42,6 +68,7 @@ function mapDbGiftToGift(dbGift: any): ActivityGift {
   
   return {
     id: dbGift.id,
+    giftNumber: dbGift.gift_number,
     currency: dbGift.currency,
     amount: Number(dbGift.amount),
     rate: Number(dbGift.rate),
@@ -101,7 +128,9 @@ export function useActivityGifts() {
 
   const addGift = async (giftData: Omit<ActivityGift, 'id' | 'createdAt'>, memberId?: string, employeeId?: string): Promise<ActivityGift | null> => {
     try {
+      const giftNumber = await generateUniqueGiftNumber();
       const dbGift = {
+        gift_number: giftNumber,
         currency: giftData.currency,
         amount: giftData.amount,
         rate: giftData.rate,

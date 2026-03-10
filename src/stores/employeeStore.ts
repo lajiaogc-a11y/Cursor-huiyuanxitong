@@ -489,16 +489,20 @@ export async function deleteEmployee(
     return { success: false, error_code: row?.error_code === 'NO_PERMISSION' ? 'CANNOT_DELETE_SUPER_ADMIN' : (row?.error_code || 'DELETE_FAILED') };
   }
 
-  const { error } = await supabase
-    .from('employees')
-    .delete()
-    .eq('id', id);
-
-  if (error) {
-    console.error('Error deleting employee:', error);
+  // 租户管理员删除本租户普通员工：使用 tenant_delete_employee（完整处理 FK，避免直接 delete 违反约束）
+  const { data: tenantRpcData, error: tenantRpcError } = await supabase.rpc('tenant_delete_employee', {
+    p_employee_id: id,
+  });
+  if (tenantRpcError) {
+    console.error('Error tenant_delete_employee:', tenantRpcError);
     return { success: false, error_code: 'DELETE_FAILED' };
   }
-  return { success: true };
+  const tenantRow = Array.isArray(tenantRpcData) ? tenantRpcData[0] : tenantRpcData;
+  if (tenantRow?.success) return { success: true };
+  return {
+    success: false,
+    error_code: tenantRow?.error_code === 'CANNOT_DELETE_SUPER_ADMIN' ? 'CANNOT_DELETE_SUPER_ADMIN' : (tenantRow?.error_code === 'NO_PERMISSION' ? 'NO_PERMISSION' : 'DELETE_FAILED'),
+  };
 }
 
 // 切换员工状态
@@ -558,16 +562,17 @@ export async function getEmployeeById(id: string): Promise<Employee | null> {
 
 // 获取活跃且可见的员工列表（用于下拉选择）
 // 使用安全 RPC 函数避免暴露敏感员工数据
-export async function getActiveEmployees(): Promise<{ id: string; real_name: string }[]> {
-  // 首先尝试使用安全 RPC 函数（活跃+可见）
+// tenantId: 平台超管查看某租户时传入，否则传 null 使用当前用户租户
+export async function getActiveEmployees(tenantId?: string | null): Promise<{ id: string; real_name: string }[]> {
+  // 首先尝试使用安全 RPC 函数（活跃+可见，按租户过滤）
   const { data: rpcData, error: rpcError } = await (supabase
-    .rpc as any)('get_active_visible_employees_safe');
+    .rpc as any)('get_active_visible_employees_safe', { p_tenant_id: tenantId || null });
 
   if (!rpcError && rpcData) {
     return rpcData;
   }
 
-  // 回退到直接查询（仅 admin/manager 可用）
+  // 回退到直接查询（RLS 会按租户过滤）
   const { data, error } = await supabase
     .from('employees')
     .select('id, real_name')

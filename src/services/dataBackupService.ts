@@ -195,6 +195,43 @@ export async function restoreBackup(backupId: string): Promise<{
   return { success: errors.length === 0, restored, errors };
 }
 
+/** 仅恢复员工相关表（employees + employee_permissions），用于员工数据误删后的恢复 */
+export async function restoreEmployeesOnly(backupId: string): Promise<{
+  success: boolean;
+  restored: Record<string, number>;
+  errors: string[];
+}> {
+  const restored: Record<string, number> = {};
+  const errors: string[] = [];
+  const tables = ['employees', 'employee_permissions'];
+
+  for (const table of tables) {
+    try {
+      const rows = await getBackupSnapshot(backupId, table);
+      if (!rows || rows.length === 0) {
+        restored[table] = 0;
+        continue;
+      }
+
+      for (let i = 0; i < rows.length; i += 200) {
+        const batch = rows.slice(i, i + 200);
+        const { error } = await supabase
+          .from(table as any)
+          .upsert(batch as any, { onConflict: 'id' });
+
+        if (error) {
+          errors.push(`${table} batch ${Math.floor(i / 200) + 1}: ${error.message}`);
+        }
+      }
+      restored[table] = rows.length;
+    } catch (err: any) {
+      errors.push(`${table}: ${err.message}`);
+    }
+  }
+
+  return { success: errors.length === 0, restored, errors };
+}
+
 // Export backup as JSON for download
 export async function exportBackupAsJson(backupId: string): Promise<{
   data: Record<string, any[]>;
