@@ -134,6 +134,11 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         });
 
         queryClient.invalidateQueries({ queryKey: ['orders'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
         return { order: newOrder, earnedPoints };
       } catch (error) {
         console.error('Failed to add order:', error);
@@ -241,6 +246,11 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         });
 
         fetchOrders();
+        queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
         return true;
       } catch (error) {
         console.error('Failed to cancel order:', error);
@@ -248,7 +258,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         return false;
       }
     },
-    [orders, setOrders, fetchOrders, viewingTenantId]
+    [orders, setOrders, fetchOrders, viewingTenantId, queryClient]
   );
 
   const restoreOrder = useCallback(
@@ -327,6 +337,11 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         });
 
         fetchOrders();
+        queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
         return true;
       } catch (error) {
         console.error('Failed to restore order:', error);
@@ -334,7 +349,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         return false;
       }
     },
-    [orders, setOrders, fetchOrders, viewingTenantId]
+    [orders, setOrders, fetchOrders, viewingTenantId, queryClient]
   );
 
   const deleteOrder = useCallback(
@@ -413,6 +428,11 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
 
         window.dispatchEvent(new CustomEvent('points-updated'));
         fetchOrders();
+        queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
         return true;
       } catch (error) {
         console.error('Failed to delete order:', error);
@@ -420,7 +440,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         return false;
       }
     },
-    [orders, setOrders, fetchOrders, viewingTenantId]
+    [orders, setOrders, fetchOrders, viewingTenantId, queryClient]
   );
 
   return {

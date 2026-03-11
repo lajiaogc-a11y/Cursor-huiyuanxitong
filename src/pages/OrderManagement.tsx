@@ -42,6 +42,7 @@ import { isUserTyping, trackRender } from "@/lib/performanceUtils";
 import { useAuditWorkflow } from "@/hooks/useAuditWorkflow";
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
 import { OrderFilters, OrderEditDialog, OrderUsdtEditDialog, OrderTable, OrderUsdtTable } from "@/components/orders";
+import { queryClient } from "@/lib/queryClient";
 
 // UUID 校验函数 - 防止把姓名字符串写入 uuid 字段
 const isUuid = (str: string): boolean => {
@@ -629,6 +630,11 @@ export default function OrderManagement() {
       );
         
       await refetchOrders();
+      queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+      queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+      queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+      window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+      window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
       window.dispatchEvent(new CustomEvent('ledger-updated'));
       window.dispatchEvent(new CustomEvent('points-updated'));
       toast.success("订单已更新");
@@ -761,6 +767,11 @@ export default function OrderManagement() {
       );
         
       await refetchOrders();
+      queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+      queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+      queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+      window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+      window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
       window.dispatchEvent(new CustomEvent('ledger-updated'));
       window.dispatchEvent(new CustomEvent('points-updated'));
       toast.success("订单已更新");
@@ -1001,6 +1012,11 @@ export default function OrderManagement() {
       );
         
       await refetchUsdtOrders();
+      queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+      queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+      queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+      window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+      window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
       window.dispatchEvent(new CustomEvent('ledger-updated'));
       window.dispatchEvent(new CustomEvent('points-updated'));
       toast.success("USDT订单已更新");
@@ -1116,6 +1132,11 @@ export default function OrderManagement() {
       );
         
       await refetchUsdtOrders();
+      queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+      queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+      queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+      window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+      window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
       window.dispatchEvent(new CustomEvent('ledger-updated'));
       window.dispatchEvent(new CustomEvent('points-updated'));
       toast.success("USDT订单已更新");
@@ -1196,7 +1217,15 @@ export default function OrderManagement() {
                     onToggleColumn={activeTab === 'normal' ? normalColumnVisibility.toggleColumn : usdtColumnVisibility.toggleColumn}
                     onReset={activeTab === 'normal' ? normalColumnVisibility.resetToDefault : usdtColumnVisibility.resetToDefault}
                   />
-                  <TableImportButton tableName="orders" onImportComplete={() => { refetchOrders(); refetchUsdtOrders(); }} />
+                  <TableImportButton tableName="orders" onImportComplete={() => {
+                    refetchOrders();
+                    refetchUsdtOrders();
+                    queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+                    queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+                    queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+                    window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+                    window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+                  }} />
                   <Button variant="outline" size="sm" onClick={() => exportTableToCSV('orders', false)}>
                     <Download className="h-4 w-4" />
                     <span className="ml-1">{t("导出", "Export")}</span>

@@ -100,6 +100,11 @@ export default function Dashboard() {
     salesPersonFilter
   );
 
+  // 进入数据统计页时强制刷新，确保显示最新数据（修复：修改订单后仍显示旧利润）
+  useEffect(() => {
+    refetchTrend?.();
+  }, [refetchTrend]);
+
   useEffect(() => {
     if (trendError && trendErrorDetail) {
       toast.error('仪表盘数据加载失败: ' + (trendErrorDetail as Error)?.message);

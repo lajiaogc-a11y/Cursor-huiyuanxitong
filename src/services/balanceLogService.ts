@@ -493,10 +493,28 @@ export async function syncMemberActivityOnOrderEdit(params: {
       }
     }
 
-    // Update profit
+    // Update profit - 按币种分流：USDT 更新 accumulated_profit_usdt，NGN/GHS 更新 accumulated_profit
     const profitDiff = newProfit - oldProfit;
     if (Math.abs(profitDiff) > 0.01) {
-      updateData.accumulated_profit = Math.max(0, (existingActivity.accumulated_profit || 0) + profitDiff);
+      if (oldCurrency === newCurrency) {
+        if (newCurrency === 'USDT') {
+          updateData.accumulated_profit_usdt = Math.max(0, (existingActivity.accumulated_profit_usdt || 0) + profitDiff);
+        } else {
+          updateData.accumulated_profit = Math.max(0, (existingActivity.accumulated_profit || 0) + profitDiff);
+        }
+      } else {
+        // 币种变更：从旧币种扣减，向新币种加回
+        if (oldCurrency === 'USDT') {
+          updateData.accumulated_profit_usdt = Math.max(0, (existingActivity.accumulated_profit_usdt || 0) - oldProfit);
+        } else {
+          updateData.accumulated_profit = Math.max(0, (existingActivity.accumulated_profit || 0) - oldProfit);
+        }
+        if (newCurrency === 'USDT') {
+          updateData.accumulated_profit_usdt = Math.max(0, (updateData.accumulated_profit_usdt as number ?? existingActivity.accumulated_profit_usdt ?? 0) + newProfit);
+        } else {
+          updateData.accumulated_profit = Math.max(0, (updateData.accumulated_profit as number ?? existingActivity.accumulated_profit ?? 0) + newProfit);
+        }
+      }
     }
 
     const { error: updateError } = await supabase

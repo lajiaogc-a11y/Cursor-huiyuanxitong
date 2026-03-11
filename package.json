@@ -31,6 +31,8 @@
     "db:task-posters-storage": "node scripts/run-task-posters-storage.mjs",
     "db:task-tables-platform-admin": "node scripts/run-task-tables-platform-admin.mjs",
     "db:restore-tenant-super-admin": "node scripts/run-restore-tenant-super-admin.mjs",
+    "db:realtime": "node scripts/run-realtime-migration.mjs",
+    "db:fix-order-profit": "node scripts/fix-order-profit-usdt.mjs",
     "restore-employees": "node scripts/restore-employees.mjs",
     "restore-full": "node scripts/restore-full.mjs"
   },

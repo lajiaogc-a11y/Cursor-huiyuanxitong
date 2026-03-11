@@ -161,6 +161,11 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         }
 
         queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
         return { order: newOrder as any, earnedPoints };
       } catch (error) {
         console.error('Failed to add USDT order:', error);
@@ -228,13 +233,18 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
           `取消USDT订单: ${order.id}`);
 
         fetchOrders();
+        queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
         return true;
       } catch (error) {
         console.error('Failed to cancel USDT order:', error);
         return false;
       }
     },
-    [orders, setOrders, fetchOrders, viewingTenantId]
+    [orders, setOrders, fetchOrders, viewingTenantId, queryClient]
   );
 
   const restoreOrder = useCallback(
@@ -310,13 +320,18 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         });
 
         fetchOrders();
+        queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
         return true;
       } catch (error) {
         console.error('Failed to restore USDT order:', error);
         return false;
       }
     },
-    [orders, setOrders, fetchOrders, viewingTenantId]
+    [orders, setOrders, fetchOrders, viewingTenantId, queryClient]
   );
 
   const deleteOrder = useCallback(
@@ -399,6 +414,11 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
 
         setOrders(prev => prev.filter(o => o.dbId !== dbId));
         fetchOrders();
+        queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
         return true;
       } catch (error) {
         console.error('Failed to delete USDT order:', error);
@@ -406,7 +426,7 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         return false;
       }
     },
-    [orders, setOrders, fetchOrders, viewingTenantId]
+    [orders, setOrders, fetchOrders, viewingTenantId, queryClient]
   );
 
   return {

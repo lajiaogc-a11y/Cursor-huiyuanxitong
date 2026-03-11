@@ -41,6 +41,7 @@ import { isProductionLocked } from "@/stores/productionLockStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { logOperation } from "@/stores/auditLogStore";
+import { queryClient } from "@/lib/queryClient";
 
 // Navigation Config
 interface NavigationConfig {
@@ -776,6 +777,15 @@ export default function DataManagementTab() {
           `数据删除成功，共删除 ${totalCount} 条记录`, 
           `Data deleted successfully, ${totalCount} records removed`
         ));
+        if (orderIdsToDelete.length > 0 || (memberIdsToDelete.length > 0 && !deleteSelections.orders)) {
+          queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+          queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+          queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+          queryClient.invalidateQueries({ queryKey: ['orders'] });
+          queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
+          window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+          window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+        }
         setIsDeleteDialogOpen(false);
         setDeletePassword("");
       }

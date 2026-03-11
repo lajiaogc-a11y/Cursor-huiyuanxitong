@@ -8,6 +8,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { logOperation } from '@/stores/auditLogStore';
 import { Json } from '@/integrations/supabase/types';
+import { calculateNormalOrderDerivedValues, calculateUsdtOrderDerivedValues } from '@/lib/orderCalculations';
+import { syncMemberActivityOnOrderEdit } from '@/services/balanceLogService';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -434,6 +436,7 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
       const rawNewData = record.new_data as Record<string, any>;
       const targetTable = record.target_table;
       const targetId = record.target_id;
+      let orderSyncParams: { memberId: string; phoneNumber: string; oldActualPaid: number; oldProfit: number; oldCurrency: string; newActualPaid: number; newProfit: number; newCurrency: string } | null = null;
 
       // 订单表字段映射：审核记录用 payment_provider/vendor，数据库用 vendor_id/card_merchant_id
       const ORDER_FIELD_MAP: Record<string, string> = {
@@ -441,11 +444,72 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
         payment_provider_id: 'vendor_id',
         vendor: 'card_merchant_id',
         sales_person: 'sales_user_id',
+        feeUsdt: 'fee',
+        actualPaidUsdt: 'actual_payment',
       };
       const newData: Record<string, any> = {};
       for (const [k, v] of Object.entries(rawNewData)) {
         const dbKey = targetTable === 'orders' && ORDER_FIELD_MAP[k] ? ORDER_FIELD_MAP[k] : k;
         newData[dbKey] = v;
+      }
+
+      if (targetTable === 'orders') {
+        const profitFields = ['fee', 'actual_payment', 'card_value', 'exchange_rate', 'foreign_rate', 'amount'];
+        const profitFieldKeys = ['fee', 'feeUsdt', 'actual_payment', 'actualPaidUsdt', 'card_value', 'exchange_rate', 'foreign_rate', 'amount'];
+        const affectsProfit = Object.keys(newData).some(k => profitFieldKeys.includes(k));
+        if (affectsProfit) {
+          const { data: currentOrder, error: fetchErr } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('id', targetId)
+            .single();
+          if (!fetchErr && currentOrder) {
+            const merged = { ...currentOrder, ...newData };
+            const currency = (merged.currency || 'NGN').toUpperCase();
+            if (currency === 'USDT') {
+              const derived = calculateUsdtOrderDerivedValues({
+                cardValue: Number(merged.card_value) || 0,
+                cardRate: Number(merged.exchange_rate) || 1,
+                usdtRate: Number(merged.foreign_rate) || 1,
+                actualPaidUsdt: Number(merged.actual_payment) || 0,
+                feeUsdt: Number(merged.fee) || 0,
+              });
+              newData.profit_usdt = derived.profit;
+              newData.profit_rate = derived.profitRate;
+              newData.payment_value = derived.paymentValue;
+              newData.amount = derived.cardWorth;
+            } else {
+              const derived = calculateNormalOrderDerivedValues({
+                cardValue: Number(merged.card_value) || 0,
+                cardRate: Number(merged.exchange_rate) || 1,
+                actualPaid: Number(merged.actual_payment) || 0,
+                foreignRate: Number(merged.foreign_rate) || 1,
+                fee: Number(merged.fee) || 0,
+                currency,
+              });
+              newData.profit_ngn = derived.profit;
+              newData.profit_rate = derived.profitRate;
+              newData.payment_value = derived.paymentValue;
+              newData.amount = derived.cardWorth;
+            }
+            const oldCur = (currentOrder.currency || 'NGN').toUpperCase();
+            const newCur = currency;
+            const oldProfit = oldCur === 'USDT' ? (Number(currentOrder.profit_usdt) || 0) : (Number(currentOrder.profit_ngn) || 0);
+            const newProfit = newCur === 'USDT' ? (Number(newData.profit_usdt) ?? 0) : (Number(newData.profit_ngn) ?? 0);
+            if ((currentOrder.member_id || currentOrder.phone_number) && (Math.abs(newProfit - oldProfit) > 0.01 || Math.abs(Number(merged.actual_payment) - Number(currentOrder.actual_payment)) > 0.01)) {
+              orderSyncParams = {
+                memberId: currentOrder.member_id || '',
+                phoneNumber: currentOrder.phone_number || '',
+                oldActualPaid: Number(currentOrder.actual_payment) || 0,
+                oldProfit,
+                oldCurrency: oldCur,
+                newActualPaid: Number(merged.actual_payment) || 0,
+                newProfit,
+                newCurrency: newCur,
+              };
+            }
+          }
+        }
       }
 
       const { error: updateError } = await supabase
@@ -479,6 +543,7 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
       if (!updatedRows || updatedRows.length === 0) {
         toast.error('该记录已被他人处理，请刷新后重试');
         await queryClient.invalidateQueries({ queryKey: ['audit-records'] });
+        await queryClient.invalidateQueries({ queryKey: ['audit-pending-count'] });
         return false;
       }
 
@@ -491,6 +556,23 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
 
       window.dispatchEvent(new CustomEvent(`${targetTable}-updated`));
       await queryClient.invalidateQueries({ queryKey: ['audit-records'] });
+      await queryClient.invalidateQueries({ queryKey: ['audit-pending-count'] });
+      if (targetTable === 'orders') {
+        queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+        queryClient.invalidateQueries({ queryKey: ['orders'] });
+        queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+        queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+        if (orderSyncParams) {
+          try {
+            await syncMemberActivityOnOrderEdit(orderSyncParams);
+          } catch (err) {
+            console.error('[Audit] Member activity sync failed:', err);
+          }
+        }
+      }
       toast.success('审核通过，修改已生效');
       return true;
     } catch (err) {
@@ -525,11 +607,13 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
       if (!updatedRows || updatedRows.length === 0) {
         toast.error('该记录已被他人处理，请刷新后重试');
         await queryClient.invalidateQueries({ queryKey: ['audit-records'] });
+        await queryClient.invalidateQueries({ queryKey: ['audit-pending-count'] });
         return false;
       }
 
       logOperation('audit_center', 'reject', recordId, { status: 'pending' }, { status: 'rejected', reason }, `审核拒绝`);
       await queryClient.invalidateQueries({ queryKey: ['audit-records'] });
+      await queryClient.invalidateQueries({ queryKey: ['audit-pending-count'] });
       toast.success('已拒绝');
       return true;
     } catch (err) {

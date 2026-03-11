@@ -407,6 +407,13 @@ export default function OperationLogs() {
             }
             
             window.dispatchEvent(new CustomEvent('points-updated'));
+            queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+            queryClient.invalidateQueries({ queryKey: ['orders'] });
+            queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
+            queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+            queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+            window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+            window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
           } else {
             const { data: currentOrder, error: fetchError } = await supabase
               .from('orders')
@@ -465,6 +472,13 @@ export default function OperationLogs() {
               }
               
               window.dispatchEvent(new CustomEvent('points-updated'));
+              queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+              queryClient.invalidateQueries({ queryKey: ['orders'] });
+              queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
+              queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+              queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+              window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+              window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
             } else {
               // 软删除的订单，恢复标记
               const { error: updateError } = await supabase
@@ -514,10 +528,17 @@ export default function OperationLogs() {
                   operatorName: employee?.real_name,
                 });
               } catch (e) {
-                console.error('[OperationLogs] Failed to log order restore balance change:', e);
-              }
+              console.error('[OperationLogs] Failed to log order restore balance change:', e);
+            }
               
               window.dispatchEvent(new CustomEvent('points-updated'));
+              queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+              queryClient.invalidateQueries({ queryKey: ['orders'] });
+              queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
+              queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+              queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+              window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
+              window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
             }
           }
           break;

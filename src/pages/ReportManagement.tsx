@@ -193,6 +193,27 @@ export default function ReportManagement() {
   // 加载代付商家列表
   const [paymentProviders, setPaymentProviders] = useState<any[]>([]);
 
+  // 实时数据刷新：订单/活动变更时自动失效缓存并重新加载
+  const [reportRefreshTrigger, setReportRefreshTrigger] = useState(0);
+  useEffect(() => {
+    const handler = () => {
+      reportBaseCache = null;
+      reportBaseCacheTime = 0;
+      reportFilteredCache = null;
+      reportFilteredCacheTime = 0;
+      setReportRefreshTrigger((t) => t + 1);
+    };
+    window.addEventListener("report-cache-invalidate", handler);
+    return () => window.removeEventListener("report-cache-invalidate", handler);
+  }, []);
+
+  // 进入报表页时强制清空缓存，确保显示最新数据（修复：修改订单后报表仍显示旧数据）
+  useEffect(() => {
+    reportFilteredCache = null;
+    reportFilteredCacheTime = 0;
+    setReportRefreshTrigger((t) => t + 1);
+  }, []);
+
   // USDT汇率 - 从汇率计算页面（usdtLiveRates 中价）获取，用于每日/每月报表总利润计算
   const [usdtRateForReport, setUsdtRateForReport] = useState<number>(7.2);
   useEffect(() => {
@@ -221,7 +242,7 @@ export default function ReportManagement() {
   // 加载基础数据（所有员工，包括管理员、主管、员工）
   useEffect(() => {
     const loadBaseData = async () => {
-      // 检查缓存
+      // 检查缓存（reportRefreshTrigger 变化时缓存已清空，会跳过）
       if (reportBaseCache && (Date.now() - reportBaseCacheTime) < REPORT_CACHE_TTL) {
         setEmployees(reportBaseCache.employees);
         setCards(reportBaseCache.cards);
@@ -255,7 +276,7 @@ export default function ReportManagement() {
       }
     };
     loadBaseData();
-  }, []);
+  }, [reportRefreshTrigger]);
 
   // 根据日期范围加载订单和活动数据 - 后端强制按员工过滤
   useEffect(() => {
@@ -343,7 +364,7 @@ export default function ReportManagement() {
     };
     
     loadFilteredData();
-  }, [dateRange, employee]);
+  }, [dateRange, employee, reportRefreshTrigger]);
 
   // 日期范围变化处理
   const handleDateRangeChange = (range: TimeRangeType, start?: Date, end?: Date) => {

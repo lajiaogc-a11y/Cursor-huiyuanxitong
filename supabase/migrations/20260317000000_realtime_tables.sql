@@ -4,7 +4,7 @@
 DO $$
 DECLARE
   t text;
-  tables text[] := ARRAY['shared_data_store', 'points_ledger', 'ledger_transactions', 'tasks', 'task_items'];
+  tables text[] := ARRAY['shared_data_store', 'points_ledger', 'ledger_transactions', 'tasks', 'task_items', 'audit_records'];
 BEGIN
   FOREACH t IN ARRAY tables
   LOOP

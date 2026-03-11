@@ -14,7 +14,9 @@ export type RealtimeEventType =
   | "balance_update"
   | "task_update"
   | "chat_message"
-  | "rate_update";
+  | "rate_update"
+  | "audit_update"
+  | "activity_gift_update";
 
 export interface RealtimeEventPayload {
   type: RealtimeEventType;
@@ -112,7 +114,11 @@ function mapTableChangeToEvent(
   switch (table) {
     case "orders":
       payload.type = "new_order";
-      scheduleInvalidation(["orders", "usdt-orders"]);
+      scheduleInvalidation(["orders", "usdt-orders", "dashboard-trend"]);
+      scheduleInvalidation(["profit-compare-current"]);
+      scheduleInvalidation(["profit-compare-previous"]);
+      window.dispatchEvent(new CustomEvent("report-cache-invalidate"));
+      window.dispatchEvent(new CustomEvent("leaderboard-refresh"));
       break;
     case "balance_change_logs":
     case "points_ledger":
@@ -134,8 +140,19 @@ function mapTableChangeToEvent(
       break;
     case "shared_data_store":
       payload.type = "rate_update";
-      scheduleInvalidation(["shared-config", "currency-rates", "fee-settings"]);
+      scheduleInvalidation(["shared-config", "currency-rates", "fee-settings", "dashboard-trend"]);
       window.dispatchEvent(new CustomEvent("shared-data-updated", { detail: payload }));
+      window.dispatchEvent(new CustomEvent("report-cache-invalidate"));
+      break;
+    case "audit_records":
+      payload.type = "audit_update";
+      scheduleInvalidation(["audit-records", "audit-pending-count"]);
+      window.dispatchEvent(new CustomEvent("audit-records-updated", { detail: payload }));
+      break;
+    case "activity_gifts":
+      payload.type = "activity_gift_update";
+      scheduleInvalidation(["activity-records", "activity-report-members-map"]);
+      window.dispatchEvent(new CustomEvent("report-cache-invalidate"));
       break;
     default:
       return null;
@@ -269,6 +286,32 @@ function subscribeRealtime() {
       (payload) => {
         const p = mapTableChangeToEvent(
           "shared_data_store",
+          payload.eventType,
+          payload.new as Record<string, unknown>,
+          payload.old as Record<string, unknown>
+        );
+        if (p) emitEvent(p);
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "audit_records" },
+      (payload) => {
+        const p = mapTableChangeToEvent(
+          "audit_records",
+          payload.eventType,
+          payload.new as Record<string, unknown>,
+          payload.old as Record<string, unknown>
+        );
+        if (p) emitEvent(p);
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "activity_gifts" },
+      (payload) => {
+        const p = mapTableChangeToEvent(
+          "activity_gifts",
           payload.eventType,
           payload.new as Record<string, unknown>,
           payload.old as Record<string, unknown>

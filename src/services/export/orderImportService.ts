@@ -5,7 +5,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { createPointsOnOrderCreate, type CreatePointsParams } from '@/services/pointsService';
 import { normalizeCurrencyCode } from '@/config/currencies';
-import { calculateNormalOrderDerivedValues } from '@/lib/orderCalculations';
+import { calculateNormalOrderDerivedValues, calculateUsdtOrderDerivedValues } from '@/lib/orderCalculations';
 import { logOrderBalanceChange } from '@/services/balanceLogService';
 import { cleanPhoneNumber } from './utils';
 
@@ -203,24 +203,30 @@ export async function batchImportOrders(
 
       record.data_version = 2;
 
-      const derived = calculateNormalOrderDerivedValues({
-        cardValue,
-        cardRate,
-        actualPaid: actualPayment,
-        foreignRate,
-        fee,
-        currency,
-      });
-
-      record.payment_value = derived.paymentValue;
-
       if (currency === 'USDT') {
-        record.profit_usdt = derived.profit;
+        const usdtDerived = calculateUsdtOrderDerivedValues({
+          cardValue,
+          cardRate,
+          usdtRate: foreignRate,
+          actualPaidUsdt: actualPayment,
+          feeUsdt: fee,
+        });
+        record.payment_value = usdtDerived.paymentValue;
+        record.profit_usdt = usdtDerived.profit;
+        record.profit_rate = usdtDerived.profitRate;
       } else {
+        const derived = calculateNormalOrderDerivedValues({
+          cardValue,
+          cardRate,
+          actualPaid: actualPayment,
+          foreignRate,
+          fee,
+          currency,
+        });
+        record.payment_value = derived.paymentValue;
         record.profit_ngn = derived.profit;
+        record.profit_rate = derived.profitRate;
       }
-
-      record.profit_rate = derived.profitRate;
 
       record.points_status = 'none';
       record.order_points = 0;

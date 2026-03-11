@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Medal, Award, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
@@ -26,56 +26,69 @@ export default function EmployeeLeaderboard() {
   // Only admin/manager can see leaderboard
   const canView = employee?.role === 'admin' || employee?.role === 'manager';
 
+  const loadLeaderboard = useCallback(async () => {
+    if (!canView) return;
+    setLoading(true);
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+      const [ordersRes, employeesRes] = await Promise.all([
+        supabase.from("orders").select("creator_id, profit_ngn, profit_usdt, currency, is_deleted")
+          .gte("created_at", startOfMonth.toISOString())
+          .eq("is_deleted", false),
+        supabase.from("employees").select("id, real_name, role, status")
+          .eq("status", "active"),
+      ]);
+
+      const orders = ordersRes.data || [];
+      const employees = employeesRes.data || [];
+
+      const entries: LeaderboardEntry[] = employees.map(emp => {
+        const empOrders = orders.filter(o => o.creator_id === emp.id);
+        const profitNgn = empOrders
+          .filter(o => o.currency !== "USDT" && (Number(o.profit_ngn) || 0) > 0)
+          .reduce((s, o) => s + (Number(o.profit_ngn) || 0), 0);
+        const profitUsdt = empOrders
+          .filter(o => o.currency === "USDT" && (Number(o.profit_usdt) || 0) > 0)
+          .reduce((s, o) => s + (Number(o.profit_usdt) || 0), 0);
+        return {
+          employeeId: emp.id,
+          employeeName: emp.real_name,
+          orderCount: empOrders.length,
+          profitNgn,
+          profitUsdt,
+        };
+      }).filter(e => e.orderCount > 0)
+        .sort((a, b) => b.orderCount - a.orderCount);
+
+      setData(entries);
+    } catch (err) {
+      console.error("Leaderboard load error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [canView]);
+
   useEffect(() => {
     if (!canView) {
       setLoading(false);
       return;
     }
+    loadLeaderboard();
+  }, [canView, loadLeaderboard]);
 
-    const load = async () => {
-      try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-        const [ordersRes, employeesRes] = await Promise.all([
-          supabase.from("orders").select("creator_id, profit_ngn, profit_usdt, currency, is_deleted")
-            .gte("created_at", startOfMonth.toISOString())
-            .eq("is_deleted", false),
-          supabase.from("employees").select("id, real_name, role, status")
-            .eq("status", "active"),
-        ]);
-
-        const orders = ordersRes.data || [];
-        const employees = employeesRes.data || [];
-
-        const entries: LeaderboardEntry[] = employees.map(emp => {
-          const empOrders = orders.filter(o => o.creator_id === emp.id);
-          const profitNgn = empOrders
-            .filter(o => o.currency !== "USDT" && (Number(o.profit_ngn) || 0) > 0)
-            .reduce((s, o) => s + (Number(o.profit_ngn) || 0), 0);
-          const profitUsdt = empOrders
-            .filter(o => o.currency === "USDT" && (Number(o.profit_usdt) || 0) > 0)
-            .reduce((s, o) => s + (Number(o.profit_usdt) || 0), 0);
-          return {
-            employeeId: emp.id,
-            employeeName: emp.real_name,
-            orderCount: empOrders.length,
-            profitNgn,
-            profitUsdt,
-          };
-        }).filter(e => e.orderCount > 0)
-          .sort((a, b) => b.orderCount - a.orderCount);
-
-        setData(entries);
-      } catch (err) {
-        console.error("Leaderboard load error:", err);
-      } finally {
-        setLoading(false);
-      }
+  useEffect(() => {
+    if (!canView) return;
+    const handler = () => loadLeaderboard();
+    window.addEventListener('leaderboard-refresh', handler);
+    window.addEventListener('report-cache-invalidate', handler);
+    return () => {
+      window.removeEventListener('leaderboard-refresh', handler);
+      window.removeEventListener('report-cache-invalidate', handler);
     };
-    load();
-  }, [canView]);
+  }, [canView, loadLeaderboard]);
 
   if (!canView) return null;
 
