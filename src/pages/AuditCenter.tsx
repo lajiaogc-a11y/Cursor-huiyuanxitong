@@ -64,6 +64,8 @@ const ORDER_AUDIT_FIELDS = [
   { key: 'cardType', label_zh: '卡片类型', label_en: 'Card Type' },
   { key: 'vendor', label_zh: '卡商', label_en: 'Card Vendor' },
   { key: 'paymentProvider', label_zh: '代付商家', label_en: 'Payment Provider' },
+  { key: 'fee', label_zh: '手续费', label_en: 'Fee' },
+  { key: 'currency', label_zh: '需求币种', label_en: 'Currency' },
   { key: 'remark', label_zh: '备注', label_en: 'Remark' },
 ];
 

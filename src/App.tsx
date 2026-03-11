@@ -8,6 +8,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { TenantViewProvider } from "@/contexts/TenantViewContext";
 import { SharedDataTenantProvider } from "@/contexts/SharedDataTenantContext";
+import { RealtimeProvider } from "@/contexts/RealtimeContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LayoutProvider } from "@/contexts/LayoutContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -59,6 +60,7 @@ const App = () => (
           <AuthProvider>
             <Sonner />
             <UpdatePrompt />
+            <RealtimeProvider>
             <AppRouter>
               <TenantViewProvider>
                 <SharedDataTenantProvider>
@@ -103,6 +105,7 @@ const App = () => (
                 </SharedDataTenantProvider>
               </TenantViewProvider>
             </AppRouter>
+            </RealtimeProvider>
           </AuthProvider>
         </LayoutProvider>
       </LanguageProvider>
