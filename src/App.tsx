@@ -12,6 +12,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LayoutProvider } from "@/contexts/LayoutContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
+import { UpdatePrompt } from "@/components/UpdatePrompt";
 
 // 礼品卡系统页面 - 大 chunk 页面使用 lazyWithRetry 防止 ChunkLoadError
 const Login = lazy(() => import("./pages/Login"));
@@ -57,6 +58,7 @@ const App = () => (
         <LayoutProvider>
           <AuthProvider>
             <Sonner />
+            <UpdatePrompt />
             <AppRouter>
               <TenantViewProvider>
                 <SharedDataTenantProvider>
