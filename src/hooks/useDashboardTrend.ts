@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenantView } from '@/contexts/TenantViewContext';
-import { getTenantDashboardTrend } from '@/services/tenantService';
+import { useAuth } from '@/contexts/AuthContext';
+import { getTenantDashboardTrend, getMyTenantDashboardTrend } from '@/services/tenantService';
 
 export interface DashboardTrendRow {
   date: string;
@@ -37,10 +38,13 @@ async function fetchTrendData(
   startDate: Date,
   endDate: Date,
   salesPerson: string | null,
-  tenantId: string | null
+  tenantId: string | null,
+  useMyTenantRpc?: boolean
 ) {
   if (tenantId) {
-    const { rows, summary } = await getTenantDashboardTrend(tenantId, startDate, endDate, salesPerson);
+    const { rows, summary } = useMyTenantRpc
+      ? await getMyTenantDashboardTrend(startDate, endDate, salesPerson)
+      : await getTenantDashboardTrend(tenantId, startDate, endDate, salesPerson);
     return { rows: rows as DashboardTrendRow[], summary };
   }
 
@@ -116,10 +120,13 @@ export function useDashboardTrend(
 ) {
   const queryClient = useQueryClient();
   const { viewingTenantId } = useTenantView() || {};
+  const { employee } = useAuth() || {};
+  const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
+  const useMyTenantRpc = !!(effectiveTenantId && employee?.tenant_id && effectiveTenantId === employee.tenant_id);
 
   const { data, isLoading, isFetching, isError, error } = useQuery({
-    queryKey: ['dashboard-trend', startDate?.toISOString(), endDate?.toISOString(), salesPerson, viewingTenantId],
-    queryFn: () => fetchTrendData(startDate!, endDate!, salesPerson, viewingTenantId || null),
+    queryKey: ['dashboard-trend', startDate?.toISOString(), endDate?.toISOString(), salesPerson, effectiveTenantId],
+    queryFn: () => fetchTrendData(startDate!, endDate!, salesPerson, effectiveTenantId, useMyTenantRpc),
     enabled: !!startDate && !!endDate,
     staleTime: 60_000, // 1 分钟内不重复请求
     retry: 2,

@@ -5,7 +5,7 @@
 
 export type { ExportFormat, TableConfig } from './types';
 export { EXPORTABLE_TABLES } from './tableConfig';
-export { exportTableToCSV, exportTableToXLSX, exportTable, exportAllTables } from './exportService';
+export { exportTableToCSV, exportTableToXLSX, exportTable, exportAllTables, type ExportOrdersOptions } from './exportService';
 export { validateImportData } from './validation';
 export {
   importTableFromCSV,

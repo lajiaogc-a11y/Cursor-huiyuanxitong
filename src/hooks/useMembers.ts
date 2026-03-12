@@ -8,6 +8,7 @@ import { logOperation } from '@/stores/auditLogStore';
 import { getEmployeeNameSync } from '@/hooks/useEmployees';
 import { isUserTyping, trackRender } from '@/lib/performanceUtils';
 import { useTenantView } from '@/contexts/TenantViewContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface Member {
   id: string;
@@ -76,41 +77,37 @@ function mapMemberToDb(member: Partial<Member>): any {
   };
 }
 
-// Standalone query function for react-query
-async function fetchMembersFromDb(tenantId: string | null): Promise<Member[]> {
-  if (tenantId) {
-    const { getTenantMembersFull } = await import('@/services/tenantService');
-    const data = await getTenantMembersFull(tenantId);
-    return (data || []).map((m: any) => mapDbMemberToMember(m));
-  }
+// Standalone query function for react-query - 一律使用 RPC，避免 RLS 拦截
+async function fetchMembersFromDb(tenantId: string | null, useMyTenantRpc?: boolean): Promise<Member[]> {
+  const { getTenantMembersFull, getMyTenantMembersFull } = await import('@/services/tenantService');
+  const data = (tenantId && !useMyTenantRpc)
+    ? await getTenantMembersFull(tenantId)
+    : await getMyTenantMembersFull();
+  const members = (data || []).map((m: any) => mapDbMemberToMember(m));
 
-  // Fetch referral relations first
+  // Fetch referral relations (referral_relations 通常无租户隔离)
   const { data: referrals } = await supabase
     .from('referral_relations')
     .select('referrer_phone, referrer_member_code, referee_phone');
-  
   referralRelationsCache = referrals || [];
-  
-  const { data, error } = await supabase
-    .from('members')
-    .select('*')
-    .order('created_at', { ascending: false });
 
-  if (error) throw error;
-  return (data || []).map(mapDbMemberToMember);
+  return members;
 }
 
 export function useMembers() {
   const queryClient = useQueryClient();
   const { viewingTenantId } = useTenantView() || {};
+  const { employee } = useAuth() || {};
+  const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
+  const useMyTenantRpc = !!(effectiveTenantId && employee?.tenant_id && effectiveTenantId === employee.tenant_id);
 
   useEffect(() => {
     trackRender('useMembers-mount');
   }, []);
 
   const { data: members = [], isLoading: loading } = useQuery({
-    queryKey: ['members', viewingTenantId],
-    queryFn: () => fetchMembersFromDb(viewingTenantId || null),
+    queryKey: ['members', effectiveTenantId],
+    queryFn: () => fetchMembersFromDb(effectiveTenantId, useMyTenantRpc),
   });
 
   // Smart refresh helpers for realtime

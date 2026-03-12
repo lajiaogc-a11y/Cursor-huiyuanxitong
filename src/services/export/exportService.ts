@@ -4,9 +4,15 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
+import { getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getMyTenantMembersFull, getTenantOrdersFull, getTenantUsdtOrdersFull, getTenantMembersFull } from '@/services/tenantService';
 import { EXPORTABLE_TABLES } from './tableConfig';
 import { escapeCSVField, formatDateForFilename } from './utils';
 import type { ExportFormat } from './types';
+
+export interface ExportOrdersOptions {
+  tenantId?: string | null;
+  useMyTenantRpc?: boolean;
+}
 
 /**
  * 获取会员导出所需的关联数据
@@ -42,16 +48,36 @@ async function getMemberExportData(): Promise<any[]> {
 }
 
 /**
- * 获取订单导出所需的关联数据
+ * 获取订单导出所需的关联数据 - 使用 RPC 避免 RLS 拦截
  */
-async function getOrderExportData(): Promise<any[]> {
-  const { data: orders, error: ordersError } = await supabase
-    .from('orders')
-    .select('*, members(member_code)')
-    .eq('is_deleted', false)
-    .order('created_at', { ascending: false });
+async function getOrderExportData(options?: ExportOrdersOptions): Promise<any[]> {
+  const tenantId = options?.tenantId ?? null;
+  const useMyTenantRpc = options?.useMyTenantRpc ?? true;
 
-  if (ordersError || !orders) return [];
+  let ordersData: any[];
+  let usdtOrdersData: any[];
+  let membersData: any[];
+
+  if (tenantId && !useMyTenantRpc) {
+    [ordersData, usdtOrdersData, membersData] = await Promise.all([
+      getTenantOrdersFull(tenantId),
+      getTenantUsdtOrdersFull(tenantId),
+      getTenantMembersFull(tenantId),
+    ]);
+  } else {
+    [ordersData, usdtOrdersData, membersData] = await Promise.all([
+      getMyTenantOrdersFull(),
+      getMyTenantUsdtOrdersFull(),
+      getMyTenantMembersFull(),
+    ]);
+  }
+
+  const orders = [...(ordersData || []), ...(usdtOrdersData || [])].filter((o: any) => !o.is_deleted);
+
+  const phoneToMemberCode = new Map<string, string>();
+  (membersData || []).forEach((m: any) => {
+    if (m.phone_number) phoneToMemberCode.set(m.phone_number, m.member_code || '');
+  });
 
   const { data: employees } = await supabase.from('employees').select('id, real_name');
   const employeeMap: Record<string, string> = {};
@@ -98,7 +124,7 @@ async function getOrderExportData(): Promise<any[]> {
     card_merchant_id: order.card_merchant_id ? (vendorMap[order.card_merchant_id] || order.card_merchant_id) : '',
     vendor_id: order.vendor_id ? (providerMap[order.vendor_id] || order.vendor_id) : '',
     creator_name: order.creator_id ? (employeeMap[order.creator_id] || '') : '',
-    member_code: (order.members as any)?.member_code || '',
+    member_code: order.phone_number ? (phoneToMemberCode.get(order.phone_number) || order.member_code_snapshot || '') : (order.member_code_snapshot || ''),
     status: statusMap[order.status] || order.status,
     profit_rate: order.profit_rate ? `${(Number(order.profit_rate) * 100).toFixed(2)}%` : '',
   }));
@@ -109,9 +135,10 @@ async function getOrderExportData(): Promise<any[]> {
  */
 export async function exportTableToCSV(
   tableName: string,
-  isEnglish: boolean = false
+  isEnglish: boolean = false,
+  options?: ExportOrdersOptions
 ): Promise<{ success: boolean; error?: string; filename?: string }> {
-  return exportTable(tableName, isEnglish, 'csv');
+  return exportTable(tableName, isEnglish, 'csv', options);
 }
 
 /**
@@ -119,9 +146,10 @@ export async function exportTableToCSV(
  */
 export async function exportTableToXLSX(
   tableName: string,
-  isEnglish: boolean = false
+  isEnglish: boolean = false,
+  options?: ExportOrdersOptions
 ): Promise<{ success: boolean; error?: string; filename?: string }> {
-  return exportTable(tableName, isEnglish, 'xlsx');
+  return exportTable(tableName, isEnglish, 'xlsx', options);
 }
 
 /**
@@ -130,7 +158,8 @@ export async function exportTableToXLSX(
 export async function exportTable(
   tableName: string,
   isEnglish: boolean = false,
-  format: ExportFormat = 'csv'
+  format: ExportFormat = 'csv',
+  options?: ExportOrdersOptions
 ): Promise<{ success: boolean; error?: string; filename?: string }> {
   try {
     const tableConfig = EXPORTABLE_TABLES.find(t => t.tableName === tableName);
@@ -143,7 +172,7 @@ export async function exportTable(
     if (tableName === 'members') {
       data = await getMemberExportData();
     } else if (tableName === 'orders') {
-      data = await getOrderExportData();
+      data = await getOrderExportData(options);
     } else {
       const { data: dbData, error } = await supabase
         .from(tableName as any)

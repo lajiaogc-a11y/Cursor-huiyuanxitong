@@ -2,6 +2,7 @@
 import { useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTenantView } from '@/contexts/TenantViewContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { trackRender } from '@/lib/performanceUtils';
 import { fetchUsdtOrdersFromDb } from './orderQueries';
 import { useOrderRealtime } from './useOrderRealtime';
@@ -12,17 +13,20 @@ export function useUsdtOrderList(options: UseUsdtOrdersOptions = {}) {
   const { page = 1, pageSize = PAGE_SIZE, filters } = options;
   const queryClient = useQueryClient();
   const { viewingTenantId } = useTenantView() || {};
+  const { employee } = useAuth() || {};
+  const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
+  const useMyTenantRpc = !!(effectiveTenantId && employee?.tenant_id && effectiveTenantId === employee.tenant_id);
 
   useEffect(() => {
     trackRender('useUsdtOrders-mount');
   }, []);
 
-  const queryKey = ['usdt-orders', viewingTenantId, page, filters] as const;
+  const queryKey = ['usdt-orders', effectiveTenantId, page, filters] as const;
   useOrderRealtime('usdt-orders');
 
   const { data, isLoading: loading } = useQuery({
     queryKey,
-    queryFn: () => fetchUsdtOrdersFromDb(viewingTenantId || null, page, pageSize, filters),
+    queryFn: () => fetchUsdtOrdersFromDb(effectiveTenantId, page, pageSize, filters, useMyTenantRpc),
     refetchInterval: 30_000,
   });
 
@@ -50,6 +54,7 @@ export function useUsdtOrderList(options: UseUsdtOrdersOptions = {}) {
     setOrders,
     fetchOrders,
     viewingTenantId,
+    effectiveTenantId,
     queryClient,
   };
 }

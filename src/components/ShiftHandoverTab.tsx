@@ -36,8 +36,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTenantView } from '@/contexts/TenantViewContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
+import { getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getTenantOrdersFull, getTenantUsdtOrdersFull } from '@/services/tenantService';
 import { safeToFixed } from '@/lib/safeCalc';
 import { isUserTyping, trackRender } from '@/lib/performanceUtils';
 import {
@@ -101,10 +103,11 @@ export const invalidateShiftHandoverCache = () => {
 };
 
 export default function ShiftHandoverTab() {
-  // Performance tracking
   trackRender('ShiftHandoverTab');
-  
   const { employee } = useAuth();
+  const { viewingTenantId } = useTenantView() || {};
+  const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
+  const useMyTenantRpc = !!(effectiveTenantId && employee?.tenant_id && effectiveTenantId === employee.tenant_id);
   const { t } = useLanguage();
   const isMobile = useIsMobile();
   
@@ -148,16 +151,16 @@ export default function ShiftHandoverTab() {
   const refreshBalancesOnly = useCallback(async () => {
     try {
       await forceRefreshSettlementCache();
-      
-      const [vendorsRes, providersRes, ordersRes] = await Promise.all([
+      const [normalOrders, usdtOrders] = (effectiveTenantId && !useMyTenantRpc)
+        ? await Promise.all([getTenantOrdersFull(effectiveTenantId), getTenantUsdtOrdersFull(effectiveTenantId)])
+        : await Promise.all([getMyTenantOrdersFull(), getMyTenantUsdtOrdersFull()]);
+      const ordersList = [...(normalOrders || []), ...(usdtOrders || [])].filter((o: any) => !o.is_deleted);
+      const [vendorsRes, providersRes] = await Promise.all([
         supabase.from('vendors').select('id, name, status').eq('status', 'active').order('sort_order', { ascending: true }),
         supabase.from('payment_providers').select('id, name, status').eq('status', 'active').order('sort_order', { ascending: true }),
-        supabase.from('orders').select('id, card_merchant_id, vendor_id, card_value, amount, payment_value, currency, exchange_rate, foreign_rate, status, is_deleted, created_at').eq('is_deleted', false),
       ]);
-      
       const vendorsList = vendorsRes.data || [];
       const providersList = providersRes.data || [];
-      const ordersList = ordersRes.data || [];
       
       const cardSettlements = getCardMerchantSettlements();
       const providerSettlements = getPaymentProviderSettlements();
@@ -200,7 +203,7 @@ export default function ShiftHandoverTab() {
     } catch (error) {
       console.error('[ShiftHandover] Failed to refresh balances:', error);
     }
-  }, [getVendorInput, getProviderInput, receivers]);
+  }, [getVendorInput, getProviderInput, receivers, effectiveTenantId, useMyTenantRpc]);
   
   // 🔧 加载数据 - 支持缓存和强制刷新
   const loadData = useCallback(async (forceRefresh = false) => {
@@ -229,17 +232,17 @@ export default function ShiftHandoverTab() {
         await initializeSettlementCache();
       }
       
-      // 并行加载数据
-      const [vendorsRes, providersRes, ordersRes, receiversData] = await Promise.all([
+      const [normalOrders, usdtOrders] = (effectiveTenantId && !useMyTenantRpc)
+        ? await Promise.all([getTenantOrdersFull(effectiveTenantId), getTenantUsdtOrdersFull(effectiveTenantId)])
+        : await Promise.all([getMyTenantOrdersFull(), getMyTenantUsdtOrdersFull()]);
+      const ordersList = [...(normalOrders || []), ...(usdtOrders || [])].filter((o: any) => !o.is_deleted);
+      const [vendorsRes, providersRes, receiversData] = await Promise.all([
         supabase.from('vendors').select('id, name, status').eq('status', 'active').order('sort_order', { ascending: true }),
         supabase.from('payment_providers').select('id, name, status').eq('status', 'active').order('sort_order', { ascending: true }),
-        supabase.from('orders').select('id, card_merchant_id, vendor_id, card_value, amount, payment_value, currency, exchange_rate, foreign_rate, status, is_deleted, created_at').eq('is_deleted', false),
         getShiftReceivers(),
       ]);
-      
       const vendorsList = vendorsRes.data || [];
       const providersList = providersRes.data || [];
-      const ordersList = ordersRes.data || [];
       
       setReceivers(receiversData);
       
@@ -296,7 +299,7 @@ export default function ShiftHandoverTab() {
     } finally {
       setLoading(false);
     }
-  }, [t, getVendorInput, getProviderInput]);
+  }, [t, getVendorInput, getProviderInput, effectiveTenantId, useMyTenantRpc]);
   
   // 🔧 Smart refresh - 只刷新余额，不清空输入
   const smartRefresh = useCallback(() => {

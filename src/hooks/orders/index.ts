@@ -25,7 +25,7 @@ export function useOrders(options: Parameters<typeof useOrderList>[0] = {}) {
     orders: list.orders,
     setOrders: list.setOrders,
     fetchOrders: list.fetchOrders,
-    viewingTenantId: list.viewingTenantId,
+    viewingTenantId: list.effectiveTenantId ?? list.viewingTenantId,
     queryClient,
   });
 
@@ -51,7 +51,7 @@ export function useUsdtOrders(options: Parameters<typeof useUsdtOrderList>[0] = 
     orders: list.orders,
     setOrders: list.setOrders,
     fetchOrders: list.fetchOrders,
-    viewingTenantId: list.viewingTenantId,
+    viewingTenantId: list.effectiveTenantId ?? list.viewingTenantId,
     queryClient,
   });
 

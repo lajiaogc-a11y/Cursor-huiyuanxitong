@@ -83,6 +83,8 @@ import VendorManagementDialog from "@/components/VendorManagementDialog";
 import ProviderManagementDialog from "@/components/ProviderManagementDialog";
 import { MerchantType } from "@/stores/merchantSettlementStore";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenantView } from "@/contexts/TenantViewContext";
+import { getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getTenantOrdersFull, getTenantUsdtOrdersFull } from "@/services/tenantService";
 import { useFieldPermissions } from "@/hooks/useFieldPermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { useMerchantNameResolver, getEmployeeNameById } from "@/hooks/useNameResolver";
@@ -144,6 +146,9 @@ if (typeof window !== 'undefined') {
 export default function MerchantSettlement() {
   trackRender('MerchantSettlement');
   const { employee } = useAuth();
+  const { viewingTenantId } = useTenantView() || {};
+  const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
+  const useMyTenantRpc = !!(effectiveTenantId && employee?.tenant_id && effectiveTenantId === employee.tenant_id);
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
@@ -346,12 +351,16 @@ export default function MerchantSettlement() {
   };
 
   const loadData = async () => {
-    // 从Supabase加载卡片、卡商、代付商、订单和赠送数据
-    const [cardsRes, vendorsRes, providersRes, ordersRes, giftsRes, cardSettlementsData, providerSettlementsData] = await Promise.all([
+    const [normalOrders, usdtOrders] = (effectiveTenantId && !useMyTenantRpc)
+      ? await Promise.all([getTenantOrdersFull(effectiveTenantId), getTenantUsdtOrdersFull(effectiveTenantId)])
+      : await Promise.all([getMyTenantOrdersFull(), getMyTenantUsdtOrdersFull()]);
+    const allOrders = [...(normalOrders || []), ...(usdtOrders || [])].sort(
+      (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    const [cardsRes, vendorsRes, providersRes, giftsRes, cardSettlementsData, providerSettlementsData] = await Promise.all([
       supabase.from("cards").select("*").eq("status", "active"),
       supabase.from("vendors").select("*").eq("status", "active"),
       supabase.from("payment_providers").select("*").eq("status", "active"),
-      supabase.from("orders").select("*").order("created_at", { ascending: false }),
       supabase.from("activity_gifts").select("*"),
       getCardMerchantSettlementsAsync(),
       getPaymentProviderSettlementsAsync(),
@@ -360,7 +369,7 @@ export default function MerchantSettlement() {
     setCards(cardsRes.data || []);
     setVendors(vendorsRes.data || []);
     setProviders(providersRes.data || []);
-    setDbOrders(ordersRes.data || []);
+    setDbOrders(allOrders);
     setActivityGifts(giftsRes.data || []);
     // 使用异步获取的结算数据（展开运算符创建新引用，确保 React 重渲染）
     setCardSettlements([...cardSettlementsData]);
@@ -368,7 +377,7 @@ export default function MerchantSettlement() {
     // Update module-level cache
     _msCache = {
       cards: cardsRes.data || [], vendors: vendorsRes.data || [], providers: providersRes.data || [],
-      dbOrders: ordersRes.data || [], activityGifts: giftsRes.data || [],
+      dbOrders: allOrders, activityGifts: giftsRes.data || [],
       cardSettlements: [...cardSettlementsData], providerSettlements: [...providerSettlementsData],
       employees: _msCache?.employees || [], loadedAt: Date.now(),
     };

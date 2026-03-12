@@ -126,6 +126,7 @@ export default function OrderManagement() {
   const { t, tr, formatDate } = useLanguage();
   const { isAdmin, employee: currentEmployee } = useAuth();
   const { viewingTenantId } = useTenantView() || {};
+  const effectiveTenantId = viewingTenantId || currentEmployee?.tenant_id || null;
   const [activeTab, setActiveTab] = useState("normal");
   
   // 检查当前用户是否为总管理员
@@ -223,7 +224,7 @@ export default function OrderManagement() {
   // 加载商家管理数据 + 检查总管理员身份
   useEffect(() => {
     // 加载员工列表用于销售员筛选（按租户过滤）
-    getActiveEmployees(viewingTenantId || null).then(employees => {
+    getActiveEmployees(effectiveTenantId).then(employees => {
       setEmployeeNames(employees.map(e => e.real_name));
       setAllEmployees(employees);
     });
@@ -296,7 +297,7 @@ export default function OrderManagement() {
       .channel('order-page-entity-sync')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'employees' }, () => {
         // 员工信息变更时刷新订单数据和员工名称列表
-        getActiveEmployees(viewingTenantId || null).then(employees => {
+        getActiveEmployees(effectiveTenantId).then(employees => {
           setEmployeeNames(employees.map(e => e.real_name));
         });
         debouncedRefresh(false);
@@ -318,7 +319,7 @@ export default function OrderManagement() {
         clearTimeout(refreshTimeoutId);
       }
     };
-  }, [refetchOrders, refetchUsdtOrders, viewingTenantId]);
+  }, [refetchOrders, refetchUsdtOrders, effectiveTenantId]);
 
   // 筛选下拉选项：使用商家管理数据（服务端分页后不从订单推导）
   const uniqueSalesPersons = useMemo(() => employeeNames.sort(), [employeeNames]);
@@ -1226,7 +1227,7 @@ export default function OrderManagement() {
                     window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
                     window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
                   }} />
-                  <Button variant="outline" size="sm" onClick={() => exportTableToCSV('orders', false)}>
+                  <Button variant="outline" size="sm" onClick={() => exportTableToCSV('orders', false, { tenantId: effectiveTenantId ?? undefined, useMyTenantRpc: !!(effectiveTenantId && currentEmployee?.tenant_id && effectiveTenantId === currentEmployee.tenant_id) })}>
                     <Download className="h-4 w-4" />
                     <span className="ml-1">{t("导出", "Export")}</span>
                   </Button>

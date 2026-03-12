@@ -70,6 +70,8 @@ import { getFinalRates } from "@/stores/exchangeRateStore";
 import { getExchangePreview, canExchange, getExchangeDisabledMessage, getActiveActivityType } from "@/services/exchangeService";
 import { isDateInRange, DateRange } from "@/lib/dateFilter";
 import { supabase } from "@/integrations/supabase/client";
+import { getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getTenantOrdersFull, getTenantUsdtOrdersFull } from "@/services/tenantService";
+import { useTenantView } from "@/contexts/TenantViewContext";
 import { useModulePermissions } from "@/hooks/useFieldPermissions";
 import { addGiftAmount, deductAccumulatedProfit } from "@/hooks/useMemberActivity";
 import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
@@ -249,7 +251,10 @@ export default function MemberActivityDataContent() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const { employee } = useAuth(); // 获取当前登录员工信息
+  const { employee } = useAuth();
+  const { viewingTenantId } = useTenantView() || {};
+  const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
+  const useMyTenantRpc = !!(effectiveTenantId && employee?.tenant_id && effectiveTenantId === employee.tenant_id);
   // 使用 useMembers 与会员管理保持一致（含租户过滤），避免活动数据与会员管理会员数量不一致
   const { members: membersFromHook } = useMembers();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -344,8 +349,13 @@ export default function MemberActivityDataContent() {
         setCachedRates(ratesData);
       }
       
-      const [ordersRes, giftsRes, providersRes, referralsRes, activitiesRes, pointsLedgerRes, pointsAccountsRes] = await Promise.all([
-        supabase.from("orders").select("*").order("created_at", { ascending: false }),
+      const [normalOrders, usdtOrders] = (effectiveTenantId && !useMyTenantRpc)
+        ? await Promise.all([getTenantOrdersFull(effectiveTenantId), getTenantUsdtOrdersFull(effectiveTenantId)])
+        : await Promise.all([getMyTenantOrdersFull(), getMyTenantUsdtOrdersFull()]);
+      const allOrders = [...(normalOrders || []), ...(usdtOrders || [])].sort(
+        (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      const [giftsRes, providersRes, referralsRes, activitiesRes, pointsLedgerRes, pointsAccountsRes] = await Promise.all([
         supabase.from("activity_gifts").select("*"),
         supabase.from("payment_providers").select("*").eq("status", "active").order("sort_order", { ascending: true }),
         supabase.from("referral_relations").select("*"),
@@ -354,7 +364,7 @@ export default function MemberActivityDataContent() {
         supabase.from("points_accounts").select("*"), // 加载积分账户数据（用于获取当前可兑换积分）
       ]);
       
-      setOrders(ordersRes.data || []);
+      setOrders(allOrders);
       setGifts(giftsRes.data || []);
       setPaymentProviders(providersRes.data || []);
       setReferrals(referralsRes.data || []);
@@ -365,7 +375,7 @@ export default function MemberActivityDataContent() {
       console.error("Failed to load data:", error);
       toast.error("数据加载失败");
     }
-  }, []);
+  }, [effectiveTenantId, useMyTenantRpc]);
 
   // Smart refresh - defers refresh when user is typing to prevent UI stutter
   const smartRefresh = useCallback(() => {

@@ -73,13 +73,13 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         const { data, error } = await supabase
           .from('orders')
           .insert(dbOrder)
-          .select('*, members(member_code)')
+          .select('*')
           .single();
 
         if (error) throw error;
 
         const dbUuid = data.id;
-        const memberCode = (data.members as any)?.member_code || orderData.memberCode;
+        const memberCode = (data as any).member_code_snapshot || orderData.memberCode;
 
         let earnedPoints = 0;
         if (orderPoints > 0 && memberCode && orderData.phoneNumber) {

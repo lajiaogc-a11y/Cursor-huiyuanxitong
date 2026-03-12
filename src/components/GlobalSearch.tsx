@@ -6,7 +6,10 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import { getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getTenantOrdersFull, getTenantUsdtOrdersFull } from '@/services/tenantService';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useTenantView } from '@/contexts/TenantViewContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +30,10 @@ const typeConfig = {
 export function GlobalSearch() {
   const { t, language } = useLanguage();
   const navigate = useNavigate();
+  const { viewingTenantId } = useTenantView() || {};
+  const { employee } = useAuth() || {};
+  const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
+  const useMyTenantRpc = !!(effectiveTenantId && employee?.tenant_id && effectiveTenantId === employee.tenant_id);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -77,14 +84,17 @@ export function GlobalSearch() {
         });
       });
 
-      // Search orders by order_number or phone
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('id, order_number, phone_number, status')
-        .eq('is_deleted', false)
-        .or(`order_number.ilike.%${q}%,phone_number.ilike.%${q}%`)
-        .limit(5);
-      orders?.forEach(o => {
+      // Search orders by order_number or phone - use RPC to avoid RLS
+      const [ngnOrders, usdtOrders] = effectiveTenantId && !useMyTenantRpc
+        ? await Promise.all([getTenantOrdersFull(effectiveTenantId), getTenantUsdtOrdersFull(effectiveTenantId)])
+        : await Promise.all([getMyTenantOrdersFull(), getMyTenantUsdtOrdersFull()]);
+      const allOrders = [...(ngnOrders || []), ...(usdtOrders || [])].filter(
+        (o: any) => !o.is_deleted && (
+          (o.order_number || '').toLowerCase().includes(q.toLowerCase()) ||
+          (o.phone_number || '').toLowerCase().includes(q.toLowerCase())
+        )
+      ).slice(0, 5);
+      allOrders.forEach((o: any) => {
         searchResults.push({
           type: 'order',
           id: o.id,
@@ -116,7 +126,7 @@ export function GlobalSearch() {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, effectiveTenantId, useMyTenantRpc]);
 
   const handleInputChange = (value: string) => {
     setQuery(value);

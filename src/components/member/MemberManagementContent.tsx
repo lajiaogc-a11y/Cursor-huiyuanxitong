@@ -44,7 +44,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { useMembers, Member } from "@/hooks/useMembers";
 import { logOperation } from "@/stores/auditLogStore";
@@ -54,6 +54,7 @@ import { useCards } from "@/hooks/useMerchantConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getDisplayPhone } from "@/lib/phoneMask";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuditWorkflow } from "@/hooks/useAuditWorkflow";
 import { useModulePermissions } from "@/hooks/useFieldPermissions";
 import {
@@ -109,6 +110,9 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [detailMember, setDetailMember] = useState<Member | null>(null);
+  const [setPasswordMember, setSetPasswordMember] = useState<Member | null>(null);
+  const [setPasswordValue, setSetPasswordValue] = useState("");
+  const [setPasswordLoading, setSetPasswordLoading] = useState(false);
   
   // 分页状态 - 默认20条
   const [currentPage, setCurrentPage] = useState(1);
@@ -313,6 +317,48 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
     setIsDetailDialogOpen(true);
   };
 
+  const handleOpenSetPassword = (member: Member) => {
+    setSetPasswordMember(member);
+    setSetPasswordValue("");
+  };
+
+  const handleSetPasswordSubmit = async () => {
+    if (!setPasswordMember) return;
+    const pwd = setPasswordValue.trim();
+    if (pwd.length < 6) {
+      toast.error(t("密码至少6位", "Password must be at least 6 characters"));
+      return;
+    }
+    setSetPasswordLoading(true);
+    try {
+      const { data, error } = await supabase.rpc("admin_set_member_initial_password", {
+        p_member_id: setPasswordMember.id,
+        p_new_password: pwd,
+      });
+      if (error) {
+        toast.error(t("设置失败", "Set failed") + ": " + error.message);
+        return;
+      }
+      const result = data as { success?: boolean; error?: string } | null;
+      if (result?.success) {
+        toast.success(t("密码已设置", "Password set successfully"));
+        setSetPasswordMember(null);
+      } else {
+        const msg =
+          result?.error === "PASSWORD_TOO_SHORT"
+            ? t("密码至少6位", "Password must be at least 6 characters")
+            : result?.error === "MEMBER_NOT_FOUND"
+              ? t("会员不存在", "Member not found")
+              : result?.error || t("设置失败", "Set failed");
+        toast.error(msg);
+      }
+    } catch (e: unknown) {
+      toast.error(t("设置失败", "Set failed") + ": " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setSetPasswordLoading(false);
+    }
+  };
+
   // 使用全局币种配置的Badge颜色
   const getCurrencyBadgeColorLocal = (currency: string) => {
     const normalizedCode = normalizeCurrencyCode(currency);
@@ -429,6 +475,9 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
                       <Button size="sm" variant="outline" className="flex-1 h-9" onClick={() => handleEdit(member)}>
                         <Pencil className="h-3.5 w-3.5 mr-1" />{t("编辑", "Edit")}
                       </Button>
+                      <Button size="sm" variant="outline" className="h-9" onClick={() => handleOpenSetPassword(member)} title={t("设置密码", "Set Password")}>
+                        <KeyRound className="h-3.5 w-3.5" />
+                      </Button>
                       {canDeleteField('delete_button') && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -479,7 +528,7 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
                   {canViewField('remark') && <TableHead className="text-center whitespace-nowrap px-1.5">{t("备注", "Remark")}</TableHead>}
                   <TableHead className="text-center whitespace-nowrap px-1.5">{t("添加时间", "Created")}</TableHead>
                   {canViewField('recorder') && <TableHead className="text-center whitespace-nowrap px-1.5">{t("录入人", "Recorder")}</TableHead>}
-                  <TableHead className="text-center whitespace-nowrap px-1.5 w-[100px] sticky right-0 z-20 bg-muted shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.15)]">{t("操作", "Actions")}</TableHead>
+                  <TableHead className="text-center whitespace-nowrap px-1.5 w-[130px] sticky right-0 z-20 bg-muted shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.15)]">{t("操作", "Actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -604,6 +653,15 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleOpenSetPassword(member)}
+                            title={t("设置密码", "Set Password")}
+                          >
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
                           {canDeleteField('delete_button') && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -657,6 +715,40 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
           )}
         </CardContent>
       </Card>
+
+      {/* 设置密码对话框 */}
+      <Dialog open={!!setPasswordMember} onOpenChange={(open) => !open && setSetPasswordMember(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("设置密码", "Set Password")}</DialogTitle>
+          </DialogHeader>
+          {setPasswordMember && (
+            <div className="space-y-4 py-4">
+              <p className="text-sm text-muted-foreground">
+                {t("为会员", "For member")} {getDisplayPhone(setPasswordMember.phoneNumber, isAdmin)} ({setPasswordMember.memberCode}) {t("设置初始密码", "set initial password")}
+              </p>
+              <div className="space-y-2">
+                <Label>{t("新密码", "New password")}</Label>
+                <Input
+                  type="password"
+                  value={setPasswordValue}
+                  onChange={(e) => setSetPasswordValue(e.target.value)}
+                  placeholder={t("至少6位", "At least 6 characters")}
+                  minLength={6}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSetPasswordMember(null)} disabled={setPasswordLoading}>
+              {t("取消", "Cancel")}
+            </Button>
+            <Button onClick={handleSetPasswordSubmit} disabled={setPasswordLoading || (setPasswordValue.trim().length < 6)}>
+              {setPasswordLoading ? t("设置中...", "Setting...") : t("确认设置", "Confirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 编辑会员对话框 - 横向布局 */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

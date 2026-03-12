@@ -5,6 +5,8 @@ import { Trophy, Medal, Award, TrendingUp, ChevronDown, ChevronUp } from "lucide
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenantView } from "@/contexts/TenantViewContext";
+import { getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getTenantOrdersFull, getTenantUsdtOrdersFull } from "@/services/tenantService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { safeToFixed } from "@/lib/safeCalc";
 
@@ -19,6 +21,9 @@ interface LeaderboardEntry {
 export default function EmployeeLeaderboard() {
   const { t } = useLanguage();
   const { employee } = useAuth();
+  const { viewingTenantId } = useTenantView() || {};
+  const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
+  const useMyTenantRpc = !!(effectiveTenantId && employee?.tenant_id && effectiveTenantId === employee.tenant_id);
   const [data, setData] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
@@ -34,16 +39,15 @@ export default function EmployeeLeaderboard() {
       today.setHours(0, 0, 0, 0);
       const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-      const [ordersRes, employeesRes] = await Promise.all([
-        supabase.from("orders").select("creator_id, profit_ngn, profit_usdt, currency, is_deleted")
-          .gte("created_at", startOfMonth.toISOString())
-          .eq("is_deleted", false),
-        supabase.from("employees").select("id, real_name, role, status")
-          .eq("status", "active"),
-      ]);
+      const [normalOrders, usdtOrders] = (effectiveTenantId && !useMyTenantRpc)
+        ? await Promise.all([getTenantOrdersFull(effectiveTenantId), getTenantUsdtOrdersFull(effectiveTenantId)])
+        : await Promise.all([getMyTenantOrdersFull(), getMyTenantUsdtOrdersFull()]);
+      const allOrders = [...(normalOrders || []), ...(usdtOrders || [])]
+        .filter((o: any) => !o.is_deleted && new Date(o.created_at) >= startOfMonth);
+      const { data: employeesData } = await supabase.from("employees").select("id, real_name, role, status").eq("status", "active");
 
-      const orders = ordersRes.data || [];
-      const employees = employeesRes.data || [];
+      const orders = allOrders;
+      const employees = employeesData || [];
 
       const entries: LeaderboardEntry[] = employees.map(emp => {
         const empOrders = orders.filter(o => o.creator_id === emp.id);
@@ -69,7 +73,7 @@ export default function EmployeeLeaderboard() {
     } finally {
       setLoading(false);
     }
-  }, [canView]);
+  }, [canView, effectiveTenantId, useMyTenantRpc]);
 
   useEffect(() => {
     if (!canView) {

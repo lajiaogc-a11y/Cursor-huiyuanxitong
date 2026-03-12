@@ -2,6 +2,7 @@
 import { useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTenantView } from '@/contexts/TenantViewContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { trackRender } from '@/lib/performanceUtils';
 import { fetchOrdersFromDb } from './orderQueries';
 import { useOrderRealtime } from './useOrderRealtime';
@@ -12,17 +13,20 @@ export function useOrderList(options: UseOrdersOptions = {}) {
   const { page = 1, pageSize = PAGE_SIZE, filters } = options;
   const queryClient = useQueryClient();
   const { viewingTenantId } = useTenantView() || {};
+  const { employee } = useAuth() || {};
+  const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
+  const useMyTenantRpc = !!(effectiveTenantId && employee?.tenant_id && effectiveTenantId === employee.tenant_id);
 
   useEffect(() => {
     trackRender('useOrders-mount');
   }, []);
 
-  const queryKey = ['orders', viewingTenantId, page, filters] as const;
+  const queryKey = ['orders', effectiveTenantId, page, filters] as const;
   useOrderRealtime('orders');
 
   const { data, isLoading: loading } = useQuery({
     queryKey,
-    queryFn: () => fetchOrdersFromDb(viewingTenantId || null, page, pageSize, filters),
+    queryFn: () => fetchOrdersFromDb(effectiveTenantId, page, pageSize, filters, useMyTenantRpc),
     refetchInterval: 30_000,
   });
 
@@ -50,6 +54,7 @@ export function useOrderList(options: UseOrdersOptions = {}) {
     setOrders,
     fetchOrders,
     viewingTenantId,
+    effectiveTenantId,
     queryClient,
   };
 }

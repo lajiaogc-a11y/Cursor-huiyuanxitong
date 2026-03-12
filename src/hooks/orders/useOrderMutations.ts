@@ -44,7 +44,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         const { data, error } = await supabase
           .from('orders')
           .insert(dbOrder)
-          .select('*, members(member_code)')
+          .select('*')
           .single();
 
         if (error) throw error;
@@ -52,7 +52,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         const dbUuid = data.id;
         const newOrder = {
           ...mapDbOrderToOrder(data),
-          memberCode: (data.members as any)?.member_code || memberCode || '',
+          memberCode: memberCode || (data as any).member_code_snapshot || '',
         };
 
         let earnedPoints = 0;

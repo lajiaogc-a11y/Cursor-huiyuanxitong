@@ -6,6 +6,8 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { AppRouter } from "@/components/AppRouter";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { MemberAuthProvider } from "@/contexts/MemberAuthContext";
+import { MemberProtectedRoute } from "@/components/MemberProtectedRoute";
 import { TenantViewProvider } from "@/contexts/TenantViewContext";
 import { SharedDataTenantProvider } from "@/contexts/SharedDataTenantContext";
 import { RealtimeProvider } from "@/contexts/RealtimeContext";
@@ -43,6 +45,14 @@ const TasksSettings = lazy(() => import("./pages/TasksSettings"));
 const TasksHistory = lazy(() => import("./pages/TasksHistory"));
 const TasksPosters = lazy(() => import("./pages/TasksPosters"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const MemberLogin = lazy(() => import("./pages/member/MemberLogin"));
+const MemberDashboard = lazy(() => import("./pages/member/MemberDashboard"));
+const MemberSpin = lazy(() => import("./pages/member/MemberSpin"));
+const MemberPoints = lazy(() => import("./pages/member/MemberPoints"));
+const MemberInvite = lazy(() => import("./pages/member/MemberInvite"));
+const MemberSettings = lazy(() => import("./pages/member/MemberSettings"));
+const InviteLanding = lazy(() => import("./pages/member/InviteLanding"));
+const MemberLayout = lazy(() => import("./components/member/MemberLayout").then((m) => ({ default: m.MemberLayout })));
 
 function PageLoader() {
   return (
@@ -58,6 +68,7 @@ const App = () => (
       <LanguageProvider>
         <LayoutProvider>
           <AuthProvider>
+            <MemberAuthProvider>
             <Sonner />
             <UpdatePrompt />
             <RealtimeProvider>
@@ -66,6 +77,16 @@ const App = () => (
                 <SharedDataTenantProvider>
                   <Suspense fallback={<PageLoader />}>
                     <Routes>
+                      {/* 会员端路由 */}
+                      <Route path="/member/login" element={<MemberLogin />} />
+                      <Route path="/member" element={<Navigate to="/member/dashboard" replace />} />
+                      <Route path="/member/dashboard" element={<MemberProtectedRoute><MemberLayout><MemberDashboard /></MemberLayout></MemberProtectedRoute>} />
+                      <Route path="/member/spin" element={<MemberProtectedRoute><MemberLayout><MemberSpin /></MemberLayout></MemberProtectedRoute>} />
+                      <Route path="/member/points" element={<MemberProtectedRoute><MemberLayout><MemberPoints /></MemberLayout></MemberProtectedRoute>} />
+                      <Route path="/member/invite" element={<MemberProtectedRoute><MemberLayout><MemberInvite /></MemberLayout></MemberProtectedRoute>} />
+                      <Route path="/member/settings" element={<MemberProtectedRoute><MemberLayout><MemberSettings /></MemberLayout></MemberProtectedRoute>} />
+                      <Route path="/invite/:code" element={<InviteLanding />} />
+                      
                       {/* 公开路由 */}
                       <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<Signup />} />
@@ -106,6 +127,7 @@ const App = () => (
               </TenantViewProvider>
             </AppRouter>
             </RealtimeProvider>
+            </MemberAuthProvider>
           </AuthProvider>
         </LayoutProvider>
       </LanguageProvider>

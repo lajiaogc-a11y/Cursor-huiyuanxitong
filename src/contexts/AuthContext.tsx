@@ -673,7 +673,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // 从 RPC 返回结果构建 emp 对象
+      // 从 RPC 返回结果构建 emp 对象（含 tenant_id，供租户员工登录后立即显示数据）
       const emp = {
         employee_id: result.employee_id,
         username: result.username,
@@ -681,6 +681,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: result.role,
         status: result.status,
         is_super_admin: result.is_super_admin ?? false,
+        tenant_id: result.tenant_id ?? null,
       };
       
       // 检查账号状态
@@ -805,14 +806,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Update employee info
+      // Update employee info（含 tenant_id，租户员工登录后立即有 effectiveTenantId）
       const employeeInfo: EmployeeInfo = {
         id: emp.employee_id,
         username: emp.username,
         real_name: emp.real_name,
         role: emp.role,
         status: emp.status,
-        is_super_admin: emp.is_super_admin ?? false, // RPC 暂不返回此字段，将在 fetchEmployeeInfo 中更新
+        is_super_admin: emp.is_super_admin ?? false,
+        tenant_id: emp.tenant_id ?? null,
       };
       setEmployee(employeeInfo);
       

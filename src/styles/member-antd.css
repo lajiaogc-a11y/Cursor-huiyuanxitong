@@ -1,0 +1,16 @@
+/* 会员端 Ant Design 样式隔离 - 电商风格 */
+.member-antd-wrap {
+  --ant-primary-color: #f59e0b;
+  --ant-primary-color-hover: #d97706;
+  --ant-primary-color-active: #b45309;
+  --ant-border-radius: 12px;
+}
+.member-antd-wrap .ant-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+.member-antd-wrap .ant-btn-primary {
+  border-radius: 10px;
+  height: 44px;
+  font-weight: 500;
+}

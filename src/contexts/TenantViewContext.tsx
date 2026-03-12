@@ -1,7 +1,7 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { preloadTenantEmployeesIntoCache } from "@/hooks/useEmployees";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface TenantViewContextType {
   viewingTenantId: string | null;
@@ -18,9 +18,21 @@ const STORAGE_KEY = "platform_viewing_tenant";
 
 export function TenantViewProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const { employee } = useAuth() || {};
   const [viewingTenantId, setViewingTenantId] = useState<string | null>(null);
   const [viewingTenantName, setViewingTenantName] = useState<string | null>(null);
   const [viewingTenantCode, setViewingTenantCode] = useState<string | null>(null);
+  const autoSetRef = useRef(false);
+
+  // 租户员工：直接设置 viewingTenantId = employee.tenant_id，不查 tenants 表（避免 RLS 拦截）
+  useEffect(() => {
+    if (!employee?.tenant_id || viewingTenantId || autoSetRef.current) return;
+    const tid = employee.tenant_id;
+    autoSetRef.current = true;
+    setViewingTenantId(tid);
+    setViewingTenantName(null);
+    setViewingTenantCode(null);
+  }, [employee?.tenant_id, viewingTenantId]);
 
   const enterTenant = useCallback(
     async (tenantId: string, tenantName: string, tenantCode: string) => {

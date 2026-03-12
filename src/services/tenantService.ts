@@ -231,6 +231,90 @@ export async function getTenantMembersFull(tenantId: string): Promise<any[]> {
   return data || [];
 }
 
+/** 租户员工专用：根据当前用户 employee.tenant_id 获取本租户数据，无需传参，避免 platform RPC 鉴权失败 */
+export async function getMyTenantOrdersFull(): Promise<any[]> {
+  const { data, error } = await (supabase.rpc as any)("get_my_tenant_orders_full", {});
+  if (error) throw new Error(error.message || "Failed to get my tenant orders");
+  return data || [];
+}
+
+export async function getMyTenantUsdtOrdersFull(): Promise<any[]> {
+  const { data, error } = await (supabase.rpc as any)("get_my_tenant_usdt_orders_full", {});
+  if (error) throw new Error(error.message || "Failed to get my tenant USDT orders");
+  return data || [];
+}
+
+export async function getMyTenantMembersFull(): Promise<any[]> {
+  const { data, error } = await (supabase.rpc as any)("get_my_tenant_members_full", {});
+  if (error) throw new Error(error.message || "Failed to get my tenant members");
+  return data || [];
+}
+
+export async function getMyTenantDashboardTrend(
+  startDate: Date,
+  endDate: Date,
+  salesPerson: string | null
+): Promise<{ rows: any[]; summary: any }> {
+  const { data, error } = await (supabase.rpc as any)("get_my_tenant_dashboard_trend", {
+    p_start_date: startDate.toISOString(),
+    p_end_date: endDate.toISOString(),
+    p_sales_person: salesPerson || null,
+  });
+  if (error) throw new Error(error.message || "Failed to get my tenant dashboard trend");
+  const raw = (data || []).map((row: any) => {
+    const dayDate = row.day_date;
+    const d = dayDate ? new Date(dayDate) : null;
+    return {
+      date: d ? `${d.getMonth() + 1}/${d.getDate()}` : '',
+      orders: Number(row.order_count) || 0,
+      profit: parseFloat((Number(row.profit) || 0).toFixed(2)),
+      users: Number(row.trading_users) || 0,
+      ngnVolume: Number(row.ngn_volume) || 0,
+      ghsVolume: Number(row.ghs_volume) || 0,
+      usdtVolume: Number(row.usdt_volume) || 0,
+      ngnProfit: Number(row.ngn_profit) || 0,
+      ghsProfit: Number(row.ghs_profit) || 0,
+      usdtProfit: Number(row.usdt_profit) || 0,
+      _isSummary: !dayDate,
+    };
+  });
+  const summaryRow = raw.find((r: any) => r._isSummary);
+  const rows = raw.filter((r: any) => !r._isSummary);
+  const emptySummary = {
+    totalOrders: 0, tradingUsers: 0,
+    ngnVolume: 0, ghsVolume: 0, usdtVolume: 0,
+    ngnProfit: 0, ghsProfit: 0, usdtProfit: 0,
+  };
+  const summary = summaryRow
+    ? {
+        totalOrders: summaryRow.orders,
+        tradingUsers: summaryRow.users,
+        ngnVolume: summaryRow.ngnVolume,
+        ghsVolume: summaryRow.ghsVolume,
+        usdtVolume: summaryRow.usdtVolume,
+        ngnProfit: summaryRow.ngnProfit,
+        ghsProfit: summaryRow.ghsProfit,
+        usdtProfit: summaryRow.usdtProfit,
+      }
+    : (() => {
+        const reduced = rows.reduce(
+          (acc: any, r: any) => ({
+            ...acc,
+            totalOrders: acc.totalOrders + r.orders,
+            ngnVolume: acc.ngnVolume + r.ngnVolume,
+            ghsVolume: acc.ghsVolume + r.ghsVolume,
+            usdtVolume: acc.usdtVolume + r.usdtVolume,
+            ngnProfit: acc.ngnProfit + r.ngnProfit,
+            ghsProfit: acc.ghsProfit + r.ghsProfit,
+            usdtProfit: acc.usdtProfit + r.usdtProfit,
+          }),
+          { ...emptySummary }
+        );
+        return { ...reduced, tradingUsers: 0 };
+      })();
+  return { rows, summary };
+}
+
 export async function getTenantDashboardTrend(
   tenantId: string,
   startDate: Date,
