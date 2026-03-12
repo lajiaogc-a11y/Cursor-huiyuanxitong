@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobileCardActions, MobilePagination } from "@/components/ui/mobile-data-card";
@@ -70,14 +70,14 @@ import { getFinalRates } from "@/stores/exchangeRateStore";
 import { getExchangePreview, canExchange, getExchangeDisabledMessage, getActiveActivityType } from "@/services/exchangeService";
 import { isDateInRange, DateRange } from "@/lib/dateFilter";
 import { supabase } from "@/integrations/supabase/client";
-import { getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getTenantOrdersFull, getTenantUsdtOrdersFull } from "@/services/tenantService";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useModulePermissions } from "@/hooks/useFieldPermissions";
 import { addGiftAmount, deductAccumulatedProfit } from "@/hooks/useMemberActivity";
 import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
-import { loadSharedData } from "@/services/sharedDataService";
-import { isUserTyping, trackRender } from "@/lib/performanceUtils";
+import { trackRender } from "@/lib/performanceUtils";
 import { useMembers } from "@/hooks/useMembers";
+import { useActivityDataContent } from "@/hooks/useActivityDataContent";
+import { TablePageSkeleton } from "@/components/skeletons/TablePageSkeleton";
 import { generateEnglishCopyText, refreshCopySettings } from "@/components/CopySettingsTab";
 import { getMemberPointsSummary } from "@/services/pointsCalculationService";
 
@@ -257,12 +257,19 @@ export default function MemberActivityDataContent() {
   const useMyTenantRpc = !!(effectiveTenantId && employee?.tenant_id && effectiveTenantId === employee.tenant_id);
   // 使用 useMembers 与会员管理保持一致（含租户过滤），避免活动数据与会员管理会员数量不一致
   const { members: membersFromHook } = useMembers();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [gifts, setGifts] = useState<ActivityGift[]>([]);
-  const [referrals, setReferrals] = useState<ReferralRelation[]>([]);
-  const [memberActivities, setMemberActivities] = useState<any[]>([]); // 永久累积数据
-  const [pointsLedgerData, setPointsLedgerData] = useState<any[]>([]); // 积分明细数据（从数据库实时读取）
-  const [pointsAccountsData, setPointsAccountsData] = useState<any[]>([]); // 积分账户数据（用于获取当前积分）
+  // react-query 缓存，页面切换秒开
+  const {
+    orders,
+    gifts,
+    paymentProviders,
+    referrals,
+    memberActivities,
+    pointsLedgerData,
+    pointsAccountsData,
+    cachedRates,
+    isLoading: activityDataLoading,
+    refetch: refetchActivityData,
+  } = useActivityDataContent(effectiveTenantId, useMyTenantRpc);
   const [timeRange, setTimeRange] = useState<TimeRange>("today");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -314,140 +321,17 @@ export default function MemberActivityDataContent() {
   const [redeemingRow, setRedeemingRow] = useState<MemberActivityRow | null>(null);
   const [selectedPaymentProvider, setSelectedPaymentProvider] = useState("");
   const [redeemRemark, setRedeemRemark] = useState("");
-  const [paymentProviders, setPaymentProviders] = useState<PaymentProvider[]>([]);
   
   // 兑换确认对话框状态
   const [isRedeemConfirmOpen, setIsRedeemConfirmOpen] = useState(false);
-  
-  // 汇率缓存状态
-  const [cachedRates, setCachedRates] = useState<{
-    nairaRate: number;
-    cediRate: number;
-    usdtRate: number;
-    lastUpdated: string;
-  } | null>(null);
   
   // 分页状态 - 默认20条
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const pageSizeOptions = [10, 20, 50, 100];
 
-  // Smart refresh refs for typing-aware updates
-  const pendingRefreshRef = useRef(false);
-  const refreshCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  const loadData = useCallback(async () => {
-    try {
-      // 预加载汇率配置，确保 getSharedDataSync 有缓存，并更新组件状态
-      const ratesData = await loadSharedData<{
-        nairaRate: number;
-        cediRate: number;
-        usdtRate: number;
-        lastUpdated: string;
-      }>('calculatorInputRates');
-      if (ratesData) {
-        setCachedRates(ratesData);
-      }
-      
-      const [normalOrders, usdtOrders] = (effectiveTenantId && !useMyTenantRpc)
-        ? await Promise.all([getTenantOrdersFull(effectiveTenantId), getTenantUsdtOrdersFull(effectiveTenantId)])
-        : await Promise.all([getMyTenantOrdersFull(), getMyTenantUsdtOrdersFull()]);
-      const allOrders = [...(normalOrders || []), ...(usdtOrders || [])].sort(
-        (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-      const [giftsRes, providersRes, referralsRes, activitiesRes, pointsLedgerRes, pointsAccountsRes] = await Promise.all([
-        supabase.from("activity_gifts").select("*"),
-        supabase.from("payment_providers").select("*").eq("status", "active").order("sort_order", { ascending: true }),
-        supabase.from("referral_relations").select("*"),
-        supabase.from("member_activity").select("*"), // 加载永久累积数据
-        supabase.from("points_ledger").select("*").order("created_at", { ascending: false }), // 直接从数据库加载积分明细
-        supabase.from("points_accounts").select("*"), // 加载积分账户数据（用于获取当前可兑换积分）
-      ]);
-      
-      setOrders(allOrders);
-      setGifts(giftsRes.data || []);
-      setPaymentProviders(providersRes.data || []);
-      setReferrals(referralsRes.data || []);
-      setMemberActivities(activitiesRes.data || []);
-      setPointsLedgerData(pointsLedgerRes.data || []); // 保存积分明细数据
-      setPointsAccountsData(pointsAccountsRes.data || []); // 保存积分账户数据
-    } catch (error) {
-      console.error("Failed to load data:", error);
-      toast.error("数据加载失败");
-    }
-  }, [effectiveTenantId, useMyTenantRpc]);
-
-  // Smart refresh - defers refresh when user is typing to prevent UI stutter
-  const smartRefresh = useCallback(() => {
-    if (isUserTyping()) {
-      pendingRefreshRef.current = true;
-      if (!refreshCheckIntervalRef.current) {
-        refreshCheckIntervalRef.current = setInterval(() => {
-          if (!isUserTyping() && pendingRefreshRef.current) {
-            pendingRefreshRef.current = false;
-            loadData();
-            if (refreshCheckIntervalRef.current) {
-              clearInterval(refreshCheckIntervalRef.current);
-              refreshCheckIntervalRef.current = null;
-            }
-          }
-        }, 500);
-      }
-    } else {
-      loadData();
-    }
-  }, [loadData]);
-
-  // 加载数据 - 从Supabase数据库加载
-  useEffect(() => {
-    loadData();
-    
-    // 订阅多个表的实时更新 - 使用 smartRefresh 避免输入时的UI卡顿
-    const channel = supabase
-      .channel('member-activity-data-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_gifts' }, () => {
-        console.log('[MemberActivityData] activity_gifts changed, smart refreshing...');
-        smartRefresh();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'member_activity' }, () => {
-        console.log('[MemberActivityData] member_activity changed, smart refreshing...');
-        smartRefresh();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'points_ledger' }, () => {
-        console.log('[MemberActivityData] points_ledger changed, smart refreshing...');
-        smartRefresh();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        console.log('[MemberActivityData] orders changed, smart refreshing...');
-        smartRefresh();
-      })
-      .subscribe();
-    
-    // 监听活动赠送更新事件
-    const handleGiftsUpdated = () => {
-      smartRefresh();
-    };
-    
-    // 监听积分更新事件（订单删除、兑换成功等）
-    const handlePointsUpdated = () => {
-      smartRefresh();
-    };
-    
-    window.addEventListener('activity-gifts-updated', handleGiftsUpdated);
-    window.addEventListener('points-updated', handlePointsUpdated);
-    
-    return () => {
-      supabase.removeChannel(channel);
-      window.removeEventListener('activity-gifts-updated', handleGiftsUpdated);
-      window.removeEventListener('points-updated', handlePointsUpdated);
-      if (refreshCheckIntervalRef.current) {
-        clearInterval(refreshCheckIntervalRef.current);
-      }
-    };
-  }, [loadData, smartRefresh]);
-
   const handleRefresh = () => {
-    loadData();
+    refetchActivityData();
     toast.success("数据已刷新");
   };
 
@@ -1249,6 +1133,10 @@ export default function MemberActivityDataContent() {
       window.removeEventListener('activity-gifts-updated', handleGiftsUpdated);
     };
   }, []);
+
+  if (activityDataLoading) {
+    return <TablePageSkeleton columns={8} rows={6} showTitle={false} />;
+  }
 
   return (
     <div className="space-y-4">

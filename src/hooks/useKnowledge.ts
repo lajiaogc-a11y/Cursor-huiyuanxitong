@@ -45,6 +45,9 @@ export function useKnowledgeCategories(currentEmployeeId?: string, isSuperAdmin?
 
   const { data: categories = [], isLoading: loading } = useQuery({
     queryKey: ['knowledge-categories', currentEmployeeId, isSuperAdmin, viewingTenantId ?? ''],
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (viewingTenantId) {
         const { data, error } = await supabase.rpc('platform_get_tenant_knowledge_categories', {
@@ -227,6 +230,9 @@ export function useKnowledgeArticles(categoryId?: string, currentEmployeeId?: st
 
   const { data: articles = [], isLoading: loading } = useQuery({
     queryKey: ['knowledge-articles', categoryId, currentEmployeeId, isSuperAdmin, viewingTenantId ?? ''],
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (viewingTenantId && categoryId) {
         const { data, error } = await supabase.rpc('platform_get_tenant_knowledge_articles', {

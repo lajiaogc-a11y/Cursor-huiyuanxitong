@@ -158,10 +158,15 @@ export default function UsdtRatePanel({ onRateUpdate, compact = false }: Props) 
   const updateConfig = async (partial: Partial<UsdtLiveRateConfig>) => {
     const updated = { ...config, ...partial };
     setConfig(updated);
-    const ok = await saveSharedData('usdtLiveRateConfig' as any, updated);
+    let ok = await saveSharedData('usdtLiveRateConfig' as any, updated);
+    if (!ok) {
+      // 租户上下文可能尚未就绪，延迟重试一次
+      await new Promise((r) => setTimeout(r, 600));
+      ok = await saveSharedData('usdtLiveRateConfig' as any, updated);
+    }
     if (!ok) {
       setConfig(config);
-      toast.error(t('保存失败', 'Save failed'));
+      toast.error(t('保存失败，请刷新页面后重试', 'Save failed, please refresh and retry'));
     }
   };
 
@@ -208,7 +213,7 @@ export default function UsdtRatePanel({ onRateUpdate, compact = false }: Props) 
         <Switch
           checked={config.enabled}
           onCheckedChange={(v) => updateConfig({ enabled: v })}
-          className="scale-75"
+          className="scale-75 shrink-0"
         />
         {/* Refresh */}
         <Button

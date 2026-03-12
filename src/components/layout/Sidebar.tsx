@@ -88,6 +88,7 @@ const allMenuItems: MenuItem[] = [
       { labelZh: "维护设置", labelEn: "Settings", path: "/tasks/settings" },
       { labelZh: "维护历史", labelEn: "History", path: "/tasks/history" },
       { labelZh: "发动态(海报库)", labelEn: "Posters", path: "/tasks/posters" },
+      { labelZh: "提取设置", labelEn: "Extract Settings", path: "/tasks/phone-extract" },
     ],
   },
   {

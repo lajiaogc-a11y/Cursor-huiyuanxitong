@@ -337,17 +337,8 @@ export default function RateCalculator({
     if (cleanedValue.length >= 8) {
       phoneSearchTimeoutRef.current = setTimeout(async () => {
         try {
-          const { supabase } = await import('@/integrations/supabase/client');
-          const { data: dbMember, error } = await supabase
-            .from('members')
-            .select('*')
-            .eq('phone_number', cleanedValue)
-            .maybeSingle();
-          
-          if (error) {
-            console.error('查询会员失败:', error);
-            return;
-          }
+          const { getMemberByPhoneForMyTenant } = await import('@/services/memberLookupService');
+          const dbMember = await getMemberByPhoneForMyTenant(cleanedValue);
           
         if (dbMember) {
             updateFields({
@@ -542,14 +533,11 @@ export default function RateCalculator({
     const giftValue = calculateRedeemGiftValue(exchangeCurrency, exchangeAmount, rate, fee);
     
     let existingMember = findMemberByPhone(formData.phoneNumber);
-    // 内存中未找到时，直接查数据库兜底
+    // 内存中未找到时，用 RPC 查数据库兜底（避免 RLS 拦截）
     if (!existingMember?.id) {
       try {
-        const { data: dbMember } = await supabase
-          .from('members')
-          .select('id, phone_number, member_code')
-          .eq('phone_number', formData.phoneNumber)
-          .maybeSingle();
+        const { getMemberByPhoneForMyTenant } = await import('@/services/memberLookupService');
+        const dbMember = await getMemberByPhoneForMyTenant(formData.phoneNumber);
         if (dbMember) {
           existingMember = { id: dbMember.id, phoneNumber: dbMember.phone_number, memberCode: dbMember.member_code } as any;
         }
@@ -883,7 +871,14 @@ export default function RateCalculator({
       let memberId: string | undefined;
       let finalMemberCode = formData.memberCode;
 
-      const existingMember = findMemberByPhone(formData.phoneNumber);
+      let existingMember = findMemberByPhone(formData.phoneNumber);
+      if (!existingMember?.id) {
+        const { getMemberByPhoneForMyTenant } = await import('@/services/memberLookupService');
+        const dbMember = await getMemberByPhoneForMyTenant(formData.phoneNumber);
+        if (dbMember) {
+          existingMember = { id: dbMember.id, phoneNumber: dbMember.phone_number, memberCode: dbMember.member_code, level: dbMember.member_level || 'D', commonCards: dbMember.common_cards || [], customerFeature: dbMember.customer_feature || '', bankCard: dbMember.bank_card || '', remark: dbMember.remark || '', preferredCurrency: dbMember.currency_preferences || [], sourceId: dbMember.source_id || '' } as any;
+        }
+      }
       if (existingMember) {
         memberId = existingMember.id;
         finalMemberCode = existingMember.memberCode;

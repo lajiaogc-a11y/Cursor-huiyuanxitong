@@ -97,30 +97,45 @@ function getSharedCacheKey(dataKey: SharedDataKey, tenantId?: string | null): st
 // ============= 核心读写函数 =============
 
 // 从数据库读取共享数据（按当前租户）
+// 无 tenant 或直接 SELECT 失败时使用 RPC（服务端解析 tenant_id，含 email 兜底）
 export async function loadSharedData<T>(dataKey: SharedDataKey): Promise<T | null> {
+  const tenantId = getEffectiveTenantId();
+  const cacheKey = getSharedCacheKey(dataKey, tenantId);
+  const cached = getCache<T>(cacheKey);
+  if (cached !== null) {
+    return cached;
+  }
+
   try {
-    const tenantId = getEffectiveTenantId();
-    if (!tenantId) {
+    if (tenantId) {
+      const { data, error } = await supabase
+        .from('shared_data_store')
+        .select('data_value')
+        .eq('data_key', dataKey)
+        .eq('tenant_id', tenantId)
+        .maybeSingle();
+
+      if (!error && data) {
+        const result = data.data_value as T;
+        setCache(cacheKey, result, CACHE_CONFIG.SHARED_DATA_TTL);
+        return result;
+      }
+    }
+
+    // tenant 为空或直接 SELECT 失败时，使用 RPC（服务端解析 tenant_id）
+    const { data: rpcVal, error: rpcError } = await supabase.rpc('get_shared_data_for_my_tenant', {
+      p_data_key: dataKey,
+    });
+
+    if (rpcError) {
+      console.error(`[SharedData] RPC failed for ${dataKey}:`, rpcError);
       return null;
     }
-    const cacheKey = getSharedCacheKey(dataKey, tenantId);
-    
-    const cached = getCache<T>(cacheKey);
-    if (cached !== null) {
-      return cached;
+    if (rpcVal === null || rpcVal === undefined) {
+      return null;
     }
 
-    const { data, error } = await supabase
-      .from('shared_data_store')
-      .select('data_value')
-      .eq('data_key', dataKey)
-      .eq('tenant_id', tenantId)
-      .maybeSingle();
-
-    if (error) throw error;
-    if (!data) return null;
-
-    const result = data.data_value as T;
+    const result = rpcVal as T;
     setCache(cacheKey, result, CACHE_CONFIG.SHARED_DATA_TTL);
     return result;
   } catch (error) {
@@ -130,27 +145,45 @@ export async function loadSharedData<T>(dataKey: SharedDataKey): Promise<T | nul
 }
 
 // 保存共享数据到数据库（按当前租户）
+// 无 tenant 或直接 upsert 失败时使用 RPC（服务端解析 tenant_id）
 export async function saveSharedData<T>(dataKey: SharedDataKey, value: T): Promise<boolean> {
+  const tenantId = getEffectiveTenantId();
+
   try {
-    const tenantId = getEffectiveTenantId();
-    if (!tenantId) {
-      console.warn('[SharedData] No tenant context, skip save');
-      return false;
+    if (tenantId) {
+      const { error } = await supabase
+        .from('shared_data_store')
+        .upsert(
+          {
+            tenant_id: tenantId,
+            data_key: dataKey,
+            data_value: value as any,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'tenant_id,data_key' }
+        );
+
+      if (!error) {
+        const cacheKey = getSharedCacheKey(dataKey, tenantId);
+        setCache(cacheKey, value, CACHE_CONFIG.SHARED_DATA_TTL);
+        return true;
+      }
     }
 
-    const { error } = await supabase
-      .from('shared_data_store')
-      .upsert(
-        {
-          tenant_id: tenantId,
-          data_key: dataKey,
-          data_value: value as any,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'tenant_id,data_key' }
-      );
+    // 无 tenant 或 RLS 导致直接 upsert 失败时，使用 RPC
+    const { data: ok, error: rpcError } = await supabase.rpc('upsert_shared_data_for_my_tenant', {
+      p_data_key: dataKey,
+      p_data_value: value as any,
+    });
 
-    if (error) throw error;
+    if (rpcError) {
+      console.error(`[SharedData] RPC fallback failed for ${dataKey}:`, rpcError);
+      return false;
+    }
+    if (!ok) {
+      console.warn(`[SharedData] RPC returned false for ${dataKey} (tenant not resolved)`);
+      return false;
+    }
 
     const cacheKey = getSharedCacheKey(dataKey, tenantId);
     setCache(cacheKey, value, CACHE_CONFIG.SHARED_DATA_TTL);
@@ -185,6 +218,7 @@ export async function deleteSharedData(dataKey: SharedDataKey): Promise<boolean>
 // ============= 同步版本（带缓存）=============
 
 // 同步获取（优先使用缓存，异步加载更新缓存）
+// 无 tenant 时也会触发 loadSharedData，由 RPC 在服务端解析 tenant
 export function getSharedDataSync<T>(dataKey: SharedDataKey, defaultValue: T): T {
   const tenantId = getEffectiveTenantId();
   const cacheKey = getSharedCacheKey(dataKey, tenantId);
@@ -194,16 +228,17 @@ export function getSharedDataSync<T>(dataKey: SharedDataKey, defaultValue: T): T
     loadSharedData<T>(dataKey).catch(console.error);
     return cached;
   }
-  if (tenantId) loadSharedData<T>(dataKey).catch(console.error);
+  loadSharedData<T>(dataKey).catch(console.error);
   return defaultValue;
 }
 
 // 同步保存（立即更新缓存，异步写入数据库）
+// 无 tenant 时也会调用 saveSharedData，由 RPC 在服务端解析 tenant
 export function saveSharedDataSync<T>(dataKey: SharedDataKey, value: T): void {
   const tenantId = getEffectiveTenantId();
   const cacheKey = getSharedCacheKey(dataKey, tenantId);
   setCache(cacheKey, value, CACHE_CONFIG.SHARED_DATA_TTL);
-  if (tenantId) saveSharedData(dataKey, value).catch(console.error);
+  saveSharedData(dataKey, value).catch(console.error);
 }
 
 // ============= 批量操作 =============

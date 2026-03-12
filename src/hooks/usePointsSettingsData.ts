@@ -1,0 +1,32 @@
+/**
+ * 积分设置 Hook - react-query 缓存，切换秒开
+ */
+import { useQuery } from '@tanstack/react-query';
+import { getPointsSettingsAsync, PointsSettings } from '@/stores/pointsSettingsStore';
+import { getPointsSettings } from '@/stores/pointsSettingsStore';
+
+const STALE_TIME = 5 * 60 * 1000;
+
+async function fetchPointsSettings(): Promise<PointsSettings> {
+  try {
+    return await getPointsSettingsAsync();
+  } catch {
+    return getPointsSettings();
+  }
+}
+
+export function usePointsSettingsData() {
+  const query = useQuery({
+    queryKey: ['points-settings'],
+    queryFn: fetchPointsSettings,
+    staleTime: STALE_TIME,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+
+  return {
+    settings: query.data ?? null,
+    loading: query.isLoading,
+    refetch: query.refetch,
+  };
+}

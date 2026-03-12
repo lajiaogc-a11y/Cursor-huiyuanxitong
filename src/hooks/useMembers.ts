@@ -77,8 +77,8 @@ function mapMemberToDb(member: Partial<Member>): any {
   };
 }
 
-// Standalone query function for react-query - 一律使用 RPC，避免 RLS 拦截
-async function fetchMembersFromDb(tenantId: string | null, useMyTenantRpc?: boolean): Promise<Member[]> {
+// Standalone query function for react-query - 一律使用 RPC，避免 RLS 拦截（供 prefetch 使用）
+export async function fetchMembersFromDb(tenantId: string | null, useMyTenantRpc?: boolean): Promise<Member[]> {
   const { getTenantMembersFull, getMyTenantMembersFull } = await import('@/services/tenantService');
   const data = (tenantId && !useMyTenantRpc)
     ? await getTenantMembersFull(tenantId)

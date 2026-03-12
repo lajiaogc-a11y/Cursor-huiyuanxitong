@@ -6,6 +6,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* NProgress 细进度条覆盖：2px 高、主题色、隐藏旋转图标 */
+#nprogress .bar {
+  height: 2px !important;
+  background: hsl(var(--primary)) !important;
+}
+#nprogress .peg {
+  box-shadow: 0 0 10px hsl(var(--primary)), 0 0 5px hsl(var(--primary)) !important;
+}
+#nprogress .spinner {
+  display: none !important;
+}
+
 @layer base {
   :root {
     /* 浅色主题 - 现代 SaaS 风格，简洁专业 */

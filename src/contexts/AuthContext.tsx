@@ -17,6 +17,7 @@ import { queryClient } from '@/lib/queryClient';
 import { fetchEmployeesFromDb } from '@/hooks/useEmployees';
 import { fetchCardsFromDb, fetchVendorsFromDb, fetchPaymentProvidersFromDb } from '@/hooks/useMerchantConfig';
 import { fetchActivityTypesFromDb } from '@/hooks/useActivityTypes';
+import { fetchMembersFromDb } from '@/hooks/useMembers';
 
 // IP 国家校验间隔时间（毫秒）- 每5分钟检查一次
 const IP_VALIDATION_INTERVAL = 5 * 60 * 1000;
@@ -375,11 +376,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // 预热 react-query 缓存（后台并行，不阻塞）
       Promise.all([
-        queryClient.prefetchQuery({ queryKey: ['employees'], queryFn: fetchEmployeesFromDb }),
+        queryClient.prefetchQuery({ queryKey: ['employees'], queryFn: () => fetchEmployeesFromDb(null) }),
         queryClient.prefetchQuery({ queryKey: ['cards'], queryFn: fetchCardsFromDb }),
         queryClient.prefetchQuery({ queryKey: ['vendors'], queryFn: fetchVendorsFromDb }),
         queryClient.prefetchQuery({ queryKey: ['payment-providers'], queryFn: fetchPaymentProvidersFromDb }),
         queryClient.prefetchQuery({ queryKey: ['activity-types'], queryFn: fetchActivityTypesFromDb }),
+        queryClient.prefetchQuery({ queryKey: ['members', null], queryFn: () => fetchMembersFromDb(null, true) }),
       ]).catch(err => console.error('Prefetch failed:', err));
     } finally {
       clearTimeout(timeoutId);

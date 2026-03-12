@@ -7,54 +7,20 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { 
-  getGiftDistributionSettingsAsync, 
-  saveGiftDistributionSettingsAsync,
-  GiftDistributionSettings 
-} from "@/stores/systemSettings";
+import { saveGiftDistributionSettingsAsync } from "@/stores/systemSettings";
+import { useGiftDistributionSettings } from "@/hooks/useGiftDistributionSettings";
 import { Percent, PieChart, Info, Save, Loader2 } from "lucide-react";
 
 export default function GiftDistributionSettingsTab() {
   const { t } = useLanguage();
-  const [loading, setLoading] = useState(true);
+  const { settings: hookSettings, totalGiftValue, loading, refetch } = useGiftDistributionSettings();
   const [saving, setSaving] = useState(false);
-  const [settings, setSettings] = useState<GiftDistributionSettings>({
-    enabled: false,
-    distributionRatio: 100,
-  });
-  
-  // 活动赠送总额（gift_value 总和）
-  const [totalGiftValue, setTotalGiftValue] = useState(0);
+  const [settings, setSettings] = useState(hookSettings);
 
-  // 加载设置和活动赠送总额
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        // 并行加载设置和活动赠送数据
-        const [settingsData, giftsRes] = await Promise.all([
-          getGiftDistributionSettingsAsync(),
-          supabase.from('activity_gifts').select('gift_value'),
-        ]);
-        
-        setSettings(settingsData);
-        
-        // 计算活动赠送总价值
-        const gifts = giftsRes.data || [];
-        const total = gifts.reduce((sum, g) => sum + (Number(g.gift_value) || 0), 0);
-        setTotalGiftValue(total);
-      } catch (error) {
-        console.error('Failed to load gift distribution settings:', error);
-        toast.error(t('加载设置失败', 'Failed to load settings'));
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadData();
-  }, [t]);
+    setSettings(hookSettings);
+  }, [hookSettings]);
 
   // 处理开关变化
   const handleEnabledChange = (checked: boolean) => {
@@ -79,6 +45,7 @@ export default function GiftDistributionSettingsTab() {
       const success = await saveGiftDistributionSettingsAsync(settings);
       if (success) {
         toast.success(t('设置已保存', 'Settings saved'));
+        refetch();
       } else {
         toast.error(t('保存失败', 'Save failed'));
       }

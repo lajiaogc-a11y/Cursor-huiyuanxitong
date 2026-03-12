@@ -65,6 +65,7 @@ const PAGE_TITLES: Record<string, { zh: string; en: string }> = {
   "/tasks/settings": { zh: "维护设置", en: "Maintenance Settings" },
   "/tasks/history": { zh: "维护历史", en: "Maintenance History" },
   "/tasks/posters": { zh: "发动态", en: "Posters" },
+  "/tasks/phone-extract": { zh: "提取设置", en: "Extract Settings" },
 };
 
 // 带 tab 的页面：根据 tab 显示子页面标题（不显示父级如「会员管理」「商家管理」）

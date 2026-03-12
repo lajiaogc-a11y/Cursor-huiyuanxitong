@@ -30,16 +30,15 @@ export function MainLayout({ children }: MainLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 平台总管理员（系统总账号）未在查看租户时：仅当访问非平台专属路由时重定向到公司管理
-  // 允许的平台专属路由：租户管理、租户数据查看、平台设置
-  const platformSuperAdminPaths = ["/company-management", "/platform-tenant-view", "/platform-settings"];
+  // 平台总管理员未在查看租户时：重定向到独立管理后台 /admin
+  const adminPaths = ["/admin", "/admin/tenants", "/admin/tenant-view", "/admin/settings"];
   useEffect(() => {
     if (
       employee?.is_platform_super_admin &&
       !isViewingTenant &&
-      !platformSuperAdminPaths.includes(location.pathname)
+      !adminPaths.some((p) => location.pathname.startsWith(p))
     ) {
-      navigate("/company-management", { replace: true });
+      navigate("/admin/tenants", { replace: true });
     }
   }, [employee?.is_platform_super_admin, isViewingTenant, location.pathname, navigate]);
   const { layoutMode, forceDesktopLayout } = useLayout();

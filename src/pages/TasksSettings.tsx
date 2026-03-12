@@ -2,7 +2,7 @@
  * 工作任务 - 维护设置（管理员：生成名单、分配）
  * 支持上周/上月/近三月未交易生成名单
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -29,11 +29,10 @@ import {
   generateCustomerList,
   createCustomerMaintenanceTask,
   getDateRangeForPreset,
-  getOpenTasks,
   closeTask,
   type DateRangePreset,
 } from "@/services/taskService";
-import { supabase } from "@/integrations/supabase/client";
+import { useOpenTasks, useTaskSettingsEmployees } from "@/hooks/useOpenTasks";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,29 +59,15 @@ export default function TasksSettings() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [phones, setPhones] = useState<string[]>([]);
-  const [employees, setEmployees] = useState<{ id: string; real_name: string }[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [sample, setSample] = useState<{ phone: string }[]>([]);
-  const [openTasks, setOpenTasks] = useState<{ id: string; title: string; created_at: string; total_items: number }[]>([]);
-  const [tasksLoading, setTasksLoading] = useState(true);
   const [closingId, setClosingId] = useState<string | null>(null);
   const [confirmCloseId, setConfirmCloseId] = useState<string | null>(null);
 
-  const loadOpenTasks = useCallback(async () => {
-    if (!tenantId) return;
-    setTasksLoading(true);
-    try {
-      const data = await getOpenTasks(tenantId);
-      setOpenTasks(data);
-    } catch (e) {
-      console.error(e);
-      toast.error(t("加载任务列表失败", "Load tasks failed"));
-    } finally {
-      setTasksLoading(false);
-    }
-  }, [tenantId, t]);
+  const { openTasks, loading: tasksLoading, refetch: refetchOpenTasks } = useOpenTasks(tenantId ?? null);
+  const { employees } = useTaskSettingsEmployees(tenantId ?? null, dialogOpen);
 
   const handleCloseTask = async (taskId: string) => {
     if (!tenantId) return;
@@ -91,29 +76,13 @@ export default function TasksSettings() {
       await closeTask(taskId, tenantId);
       toast.success(t("已取消任务", "Task cancelled"));
       setConfirmCloseId(null);
-      loadOpenTasks();
+      refetchOpenTasks();
     } catch (e) {
       console.error(e);
       toast.error(t("取消失败", "Cancel failed"));
     } finally {
       setClosingId(null);
     }
-  };
-
-  useEffect(() => {
-    if (tenantId) loadOpenTasks();
-    else setTasksLoading(false);
-  }, [tenantId, loadOpenTasks]);
-
-  const loadEmployees = async () => {
-    if (!tenantId) return;
-    const { data } = await supabase
-      .from("employees")
-      .select("id, real_name")
-      .eq("tenant_id", tenantId)
-      .eq("status", "active")
-      .order("real_name");
-    setEmployees(data || []);
   };
 
   const handleGenerate = async () => {
@@ -163,7 +132,7 @@ export default function TasksSettings() {
       setDialogOpen(false);
       setPhones([]);
       setSample([]);
-      loadOpenTasks();
+      refetchOpenTasks();
     } catch (e) {
       console.error(e);
       toast.error(t("创建失败", "Create failed"));
@@ -316,7 +285,6 @@ export default function TasksSettings() {
               onClick={() => {
                 setPreviewOpen(false);
                 setDialogOpen(true);
-                loadEmployees();
               }}
             >
               {t("分配员工", "Assign Employees")}

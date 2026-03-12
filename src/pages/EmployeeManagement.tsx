@@ -78,8 +78,11 @@ export default function EmployeeManagement() {
   const { t, tr, language } = useLanguage();
   const queryClient = useQueryClient();
   const { data: employees = [], isLoading } = useQuery({
-    queryKey: ['employees-management', viewingTenantId ?? ''],
-    queryFn: () => (viewingTenantId ? getEmployeesForTenant(viewingTenantId) : getEmployees()),
+    queryKey: ['employees-management', viewingTenantId ?? '', currentEmployee?.tenant_id ?? ''],
+    queryFn: () =>
+      viewingTenantId
+        ? getEmployeesForTenant(viewingTenantId)
+        : getEmployees(currentEmployee?.tenant_id),
   });
   const refetch = () => queryClient.invalidateQueries({ queryKey: ['employees-management'] });
   const [searchTerm, setSearchTerm] = useState("");

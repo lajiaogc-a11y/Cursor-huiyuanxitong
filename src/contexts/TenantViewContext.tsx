@@ -59,7 +59,7 @@ export function TenantViewProvider({ children }: { children: ReactNode }) {
     try {
       sessionStorage.removeItem(STORAGE_KEY);
     } catch (_) {}
-    navigate("/company-management", { replace: true });
+    navigate("/admin/tenants", { replace: true });
   }, [navigate]);
 
   useEffect(() => {

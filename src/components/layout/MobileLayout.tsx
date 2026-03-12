@@ -40,6 +40,7 @@ const pageTitles: Record<string, { zh: string; en: string }> = {
   "/tasks/settings": { zh: "维护设置", en: "Maintenance Settings" },
   "/tasks/history": { zh: "维护历史", en: "Maintenance History" },
   "/tasks/posters": { zh: "发动态", en: "Posters" },
+  "/tasks/phone-extract": { zh: "提取设置", en: "Extract Settings" },
   "/customer-query": { zh: "客户查询", en: "Customer Query" },
   "/pending-authorization": { zh: "待审批", en: "Pending" },
 };

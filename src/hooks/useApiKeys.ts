@@ -1,7 +1,10 @@
 // ============= API Keys 管理 Hook =============
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+const STALE_TIME = 5 * 60 * 1000;
 
 export interface ApiKey {
   id: string;
@@ -54,45 +57,46 @@ async function hashApiKey(key: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+async function fetchApiKeys(): Promise<ApiKey[]> {
+  const { data, error } = await supabase
+    .from('api_keys')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((k: Record<string, unknown>) => ({
+    id: k.id as string,
+    name: k.name as string,
+    keyPrefix: k.key_prefix as string,
+    status: k.status as 'active' | 'disabled' | 'expired',
+    permissions: k.permissions as string[],
+    ipWhitelist: k.ip_whitelist as string[] | null,
+    rateLimit: k.rate_limit as number,
+    expiresAt: k.expires_at as string | null,
+    lastUsedAt: k.last_used_at as string | null,
+    totalRequests: Number(k.total_requests),
+    createdBy: k.created_by as string | null,
+    createdAt: k.created_at as string,
+    updatedAt: k.updated_at as string,
+    remark: k.remark as string | null,
+  }));
+}
+
 export function useApiKeys() {
-  
-  const [keys, setKeys] = useState<ApiKey[]>([]);
+  const queryClient = useQueryClient();
   const [logs, setLogs] = useState<ApiRequestLog[]>([]);
-  const [loading, setLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(false);
 
-  const fetchKeys = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('api_keys')
-        .select('*')
-        .order('created_at', { ascending: false });
+  const keysQuery = useQuery({
+    queryKey: ['api-keys'],
+    queryFn: fetchApiKeys,
+    staleTime: STALE_TIME,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
 
-      if (error) throw error;
-
-      setKeys((data || []).map(k => ({
-        id: k.id,
-        name: k.name,
-        keyPrefix: k.key_prefix,
-        status: k.status as 'active' | 'disabled' | 'expired',
-        permissions: k.permissions as string[],
-        ipWhitelist: k.ip_whitelist,
-        rateLimit: k.rate_limit,
-        expiresAt: k.expires_at,
-        lastUsedAt: k.last_used_at,
-        totalRequests: Number(k.total_requests),
-        createdBy: k.created_by,
-        createdAt: k.created_at,
-        updatedAt: k.updated_at,
-        remark: k.remark,
-      })));
-    } catch (error) {
-      console.error('Failed to fetch API keys:', error);
-      toast.error('获取 API Keys 失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  const keys = keysQuery.data ?? [];
+  const loading = keysQuery.isLoading;
+  const invalidateKeys = () => queryClient.invalidateQueries({ queryKey: ['api-keys'] });
 
   const fetchLogs = useCallback(async (keyId?: string, limit = 100) => {
     setLogsLoading(true);
@@ -130,11 +134,7 @@ export function useApiKeys() {
     } finally {
       setLogsLoading(false);
     }
-  }, [toast]);
-
-  useEffect(() => {
-    fetchKeys();
-  }, [fetchKeys]);
+  }, []);
 
   // 创建新的 API Key（返回明文 key，只显示一次）
   const createKey = async (
@@ -165,7 +165,7 @@ export function useApiKeys() {
 
       if (error) throw error;
 
-      await fetchKeys();
+      invalidateKeys();
       toast.success('API Key 创建成功');
 
       return { success: true, key: plainKey };
@@ -186,7 +186,7 @@ export function useApiKeys() {
 
       if (error) throw error;
 
-      await fetchKeys();
+      invalidateKeys();
       toast.success(status === 'active' ? 'API Key 已启用' : 'API Key 已禁用');
       return true;
     } catch (error) {
@@ -223,7 +223,7 @@ export function useApiKeys() {
 
       if (error) throw error;
 
-      await fetchKeys();
+      invalidateKeys();
       toast.success('API Key 更新成功');
       return true;
     } catch (error) {
@@ -243,7 +243,7 @@ export function useApiKeys() {
 
       if (error) throw error;
 
-      await fetchKeys();
+      invalidateKeys();
       toast.success('API Key 已删除');
       return true;
     } catch (error) {
@@ -270,7 +270,7 @@ export function useApiKeys() {
 
       if (error) throw error;
 
-      await fetchKeys();
+      invalidateKeys();
       toast.success('API Key 已重新生成');
       return { success: true, key: plainKey };
     } catch (error) {
@@ -285,7 +285,6 @@ export function useApiKeys() {
     logs,
     loading,
     logsLoading,
-    fetchKeys,
     fetchLogs,
     createKey,
     updateKey,

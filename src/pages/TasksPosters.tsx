@@ -1,7 +1,7 @@
 /**
  * 工作任务 - 发动态（海报库）
  */
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,14 +36,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import {
-  getTaskPosters,
   createPosterTask,
   deleteTaskPoster,
   updateTaskPoster,
   type TaskPoster,
 } from "@/services/taskService";
+import { useTaskPosters, useTaskPostersEmployees } from "@/hooks/useTaskPosters";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -54,14 +53,10 @@ export default function TasksPosters() {
   const { viewingTenantId } = useTenantView() || {};
   const { t } = useLanguage();
   const isMobile = useIsMobile();
-  const [loading, setLoading] = useState(true);
-  const [posters, setPosters] = useState<TaskPoster[]>([]);
-  const [employees, setEmployees] = useState<{ id: string; real_name: string }[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [assignSelected, setAssignSelected] = useState<string[]>([]);
-  const [employeesLoading, setEmployeesLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editPoster, setEditPoster] = useState<TaskPoster | null>(null);
@@ -69,39 +64,8 @@ export default function TasksPosters() {
   const [savingEdit, setSavingEdit] = useState(false);
 
   const tenantId = viewingTenantId || employee?.tenant_id;
-  const loadPosters = async () => {
-    if (!tenantId) return;
-    setLoading(true);
-    try {
-      const data = await getTaskPosters(tenantId);
-      setPosters(data);
-    } catch (e) {
-      console.error(e);
-      toast.error(t("加载失败", "Load failed"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadEmployees = async () => {
-    if (!tenantId) return;
-    setEmployeesLoading(true);
-    try {
-      const { data } = await supabase
-        .from("employees")
-        .select("id, real_name")
-        .eq("tenant_id", tenantId)
-        .eq("status", "active")
-        .order("real_name");
-      setEmployees(data || []);
-    } finally {
-      setEmployeesLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadPosters();
-  }, [tenantId]);
+  const { posters, loading, refetch } = useTaskPosters(tenantId ?? null);
+  const { employees, loading: employeesLoading } = useTaskPostersEmployees(tenantId ?? null, dialogOpen);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -125,7 +89,6 @@ export default function TasksPosters() {
       toast.error(t("请选择至少一张海报", "Select at least one poster"));
       return;
     }
-    loadEmployees();
     setAssignSelected([]);
     setDialogOpen(true);
   };
@@ -152,7 +115,7 @@ export default function TasksPosters() {
       toast.success(t("创建成功", "Created"));
       setDialogOpen(false);
       setSelectedIds(new Set());
-      loadPosters();
+      refetch();
     } catch (e: any) {
       console.error("Create poster task failed:", e);
       const msg = e?.message || e?.error_description || e?.error?.message || e?.details || t("创建失败", "Create failed");
@@ -174,7 +137,7 @@ export default function TasksPosters() {
       await updateTaskPoster(editPoster.id, tenantId, { title: editTitle.trim() || undefined });
       toast.success(t("已保存", "Saved"));
       setEditPoster(null);
-      loadPosters();
+      refetch();
     } catch (e: any) {
       const msg = e?.message || e?.error_description || e?.error?.message || e?.details || t("保存失败", "Save failed");
       toast.error(msg);
@@ -190,7 +153,7 @@ export default function TasksPosters() {
       await deleteTaskPoster(id, tenantId);
       toast.success(t("已删除", "Deleted"));
       setConfirmDeleteId(null);
-      loadPosters();
+      refetch();
     } catch (e: any) {
       const msg = e?.message || e?.error_description || e?.error?.message || e?.details || t("删除失败", "Delete failed");
       toast.error(msg);
@@ -229,7 +192,8 @@ export default function TasksPosters() {
         </Link>
       </div>
 
-      <Card>
+      <div className="space-y-6">
+        <Card>
         <CardContent className="pt-4">
           {loading ? (
             <div className="flex items-center justify-center py-12">
@@ -462,6 +426,7 @@ export default function TasksPosters() {
           )}
         </CardContent>
       </Card>
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>

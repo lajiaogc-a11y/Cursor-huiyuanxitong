@@ -18,9 +18,9 @@ export function ApiStatsDashboard() {
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
-  const { dailyStats, endpointStats, loading, refetch } = useApiStats();
-  const { keys } = useApiKeys();
   const [days, setDays] = useState('7');
+  const { dailyStats, endpointStats, loading, refetch } = useApiStats(parseInt(days));
+  const { keys } = useApiKeys();
 
   // Calculate summary data
   const totalRequests = dailyStats.reduce((sum, d) => sum + d.totalRequests, 0);
@@ -42,7 +42,7 @@ export function ApiStatsDashboard() {
   }));
 
   const handleRefresh = () => {
-    refetch(parseInt(days));
+    refetch();
   };
 
   // Bilingual legend names
@@ -58,7 +58,7 @@ export function ApiStatsDashboard() {
       {/* Top Control Bar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Select value={days} onValueChange={(v) => { setDays(v); refetch(parseInt(v)); }}>
+            <Select value={days} onValueChange={setDays}>
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>

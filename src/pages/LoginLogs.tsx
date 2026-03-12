@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { TablePageSkeleton } from "@/components/skeletons/TablePageSkeleton";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,9 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, RefreshCw, Shield, Loader2, CheckCircle, XCircle, MapPin } from "lucide-react";
+import { Search, RefreshCw, Shield, CheckCircle, XCircle, MapPin } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackRender } from "@/lib/performanceUtils";
@@ -24,204 +23,23 @@ import { StickyScrollTableContainer } from "@/components/ui/sticky-scroll-table"
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobilePagination } from "@/components/ui/mobile-data-card";
-
-interface LoginLog {
-  id: string;
-  employee_id: string;
-  employee_name: string;
-  login_time: string;
-  ip_address: string | null;
-  ip_location: string | null;
-  user_agent: string | null;
-  success: boolean;
-  failure_reason: string | null;
-}
-
-// IP 位置缓存
-const ipLocationCache = new Map<string, string>();
-
-// 模块级数据缓存 - 避免重复加载
-let cachedLogs: LoginLog[] | null = null;
-let cacheTimestamp: number = 0;
-const CACHE_TTL = 60000; // 缓存有效期 60 秒
+import { useLoginLogs } from "@/hooks/useLoginLogs";
 
 export default function LoginLogs() {
   trackRender('LoginLogs');
-  
+
   const { t, language } = useLanguage();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
   const { employee: currentEmployee } = useAuth();
-  const [logs, setLogs] = useState<LoginLog[]>(() => cachedLogs || []);
+  const { logs, isLoading, refetch } = useLoginLogs(language);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isLoading, setIsLoading] = useState(!cachedLogs);
-  const [isLoadingLocations, setIsLoadingLocations] = useState(false);
-  // 使用 useRef 追踪加载状态，避免触发重渲染导致 useCallback 重建
-  const hasLoadedRef = useRef(!!cachedLogs);
-  
+
   // Pagination
   const { currentPage, setCurrentPage, pageSize, setPageSize, resetPage } = usePagination(20);
-  
+
   const isAdminOrManager = currentEmployee?.role === 'admin' || currentEmployee?.role === 'manager';
-
-  // 获取 IP 地理位置
-  const fetchIpLocation = useCallback(async (ip: string): Promise<string> => {
-    if (!ip || ip === 'unknown' || ip === '127.0.0.1') {
-      return '-';
-    }
-
-    // 检查缓存
-    if (ipLocationCache.has(ip)) {
-      return ipLocationCache.get(ip)!;
-    }
-
-    try {
-      const langParam = language === 'zh' ? '&lang=zh-CN' : '';
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-ip-location?ip=${encodeURIComponent(ip)}${langParam}`
-      );
-      const data = await response.json();
-      
-      const location = data.location || '-';
-      ipLocationCache.set(ip, location);
-      return location;
-    } catch (error) {
-      console.error('Failed to fetch IP location:', error);
-      return '-';
-    }
-  }, [language]);
-
-  // 批量加载 IP 地理位置
-  const loadIpLocations = useCallback(async (logsToUpdate: LoginLog[]) => {
-    setIsLoadingLocations(true);
-    
-    // 获取所有唯一的 IP 地址
-    const uniqueIps = [...new Set(logsToUpdate
-      .map(log => log.ip_address)
-      .filter((ip): ip is string => !!ip && ip !== 'unknown' && !ipLocationCache.has(ip))
-    )];
-
-    if (uniqueIps.length === 0) {
-      // 所有 IP 都在缓存中，直接更新
-      const updatedLogs = logsToUpdate.map(log => ({
-        ...log,
-        ip_location: log.ip_address ? (ipLocationCache.get(log.ip_address) || '-') : '-'
-      }));
-      setLogs(updatedLogs);
-      cachedLogs = updatedLogs;
-      setIsLoadingLocations(false);
-      return;
-    }
-
-    // 并行获取所有位置（限制并发数）
-    const BATCH_SIZE = 5;
-    for (let i = 0; i < uniqueIps.length; i += BATCH_SIZE) {
-      const batch = uniqueIps.slice(i, i + BATCH_SIZE);
-      await Promise.all(batch.map(ip => fetchIpLocation(ip)));
-    }
-
-    // 更新日志的位置信息
-    const updatedLogs = logsToUpdate.map(log => ({
-      ...log,
-      ip_location: log.ip_address ? (ipLocationCache.get(log.ip_address) || '-') : '-'
-    }));
-    setLogs(updatedLogs);
-    cachedLogs = updatedLogs;
-    cacheTimestamp = Date.now();
-
-    setIsLoadingLocations(false);
-  }, [fetchIpLocation]);
-
-  const loadLogs = useCallback(async (forceLoading = false) => {
-    // 检查缓存是否有效
-    const cacheValid = cachedLogs && (Date.now() - cacheTimestamp) < CACHE_TTL;
-    
-    if (cacheValid && !forceLoading) {
-      // 使用缓存数据，不重新加载
-      setLogs(cachedLogs!);
-      setIsLoading(false);
-      hasLoadedRef.current = true;
-      return;
-    }
-    
-    // 如果已加载过，不显示loading（避免切换页面时闪烁）
-    if (!hasLoadedRef.current || forceLoading) {
-      setIsLoading(true);
-    }
-    try {
-      // 获取登录日志
-      const { data: logsData, error: logsError } = await supabase
-        .from('employee_login_logs')
-        .select('*')
-        .order('login_time', { ascending: false })
-        .limit(500);
-
-      if (logsError) throw logsError;
-
-      // 获取员工信息用于显示姓名
-      const { data: employeesData } = await supabase
-        .from('employees')
-        .select('id, real_name');
-
-      const employeeMap = new Map<string, string>();
-      (employeesData || []).forEach(emp => {
-        employeeMap.set(emp.id, emp.real_name);
-      });
-
-      const initialLogs = (logsData || []).map(log => ({
-        id: log.id,
-        employee_id: log.employee_id,
-        employee_name: employeeMap.get(log.employee_id) || '-',
-        login_time: log.login_time,
-        ip_address: log.ip_address,
-        ip_location: log.ip_address ? (ipLocationCache.get(log.ip_address) || null) : null,
-        user_agent: log.user_agent,
-        success: log.success,
-        failure_reason: log.failure_reason,
-      }));
-
-      setLogs(initialLogs);
-      cachedLogs = initialLogs;
-      cacheTimestamp = Date.now();
-      hasLoadedRef.current = true;
-      
-      // 异步加载 IP 地理位置
-      loadIpLocations(initialLogs);
-    } catch (error) {
-      console.error('Failed to load login logs:', error);
-      toast.error(t('加载登录日志失败', 'Failed to load login logs'));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [loadIpLocations, t]);
-
-  useEffect(() => {
-    // 首次挂载或缓存过期时加载数据
-    const cacheValid = cachedLogs && (Date.now() - cacheTimestamp) < CACHE_TTL;
-    if (!cacheValid) {
-      loadLogs();
-    } else {
-      // 使用缓存数据
-      setLogs(cachedLogs!);
-      setIsLoading(false);
-      hasLoadedRef.current = true;
-    }
-
-    // 🔧 账号切换稳定性：监听 userDataSynced 事件，清除缓存并重新加载
-    const handleUserSynced = () => {
-      console.log('[LoginLogs] User data synced, clearing cache and reloading');
-      cachedLogs = null;
-      cacheTimestamp = 0;
-      hasLoadedRef.current = false;
-      loadLogs(true);
-    };
-    window.addEventListener('userDataSynced', handleUserSynced);
-
-    return () => {
-      window.removeEventListener('userDataSynced', handleUserSynced);
-    };
-  }, []); // 空依赖，只在首次挂载时执行
 
   // Reset page when search changes
   useEffect(() => {
@@ -243,11 +61,8 @@ export default function LoginLogs() {
     return filteredLogs.slice(start, start + pageSize);
   }, [filteredLogs, currentPage, pageSize]);
 
-  const handleRefresh = () => {
-    ipLocationCache.clear(); // 清除缓存以获取最新位置
-    cachedLogs = null; // 清除数据缓存
-    cacheTimestamp = 0;
-    loadLogs(true); // 强制显示 loading
+  const handleRefresh = async () => {
+    await refetch();
     toast.success(t("已刷新", "Refreshed"));
   };
 
@@ -262,9 +77,9 @@ export default function LoginLogs() {
   // 解析User-Agent获取浏览器信息
   const parseUserAgent = (ua: string | null): string => {
     if (!ua) return '-';
-    
+
     const isZh = language === 'zh';
-    
+
     if (ua.includes('Chrome') && !ua.includes('Edge')) {
       const match = ua.match(/Chrome\/(\d+)/);
       const ver = match ? ` ${match[1]}` : '';
@@ -285,7 +100,7 @@ export default function LoginLogs() {
       const ver = match ? ` ${match[1]}` : '';
       return isZh ? `Edge 浏览器${ver}` : `Edge${ver}`;
     }
-    
+
     return ua.substring(0, 30) + (ua.length > 30 ? '...' : '');
   };
 
@@ -392,16 +207,9 @@ export default function LoginLogs() {
                             {log.ip_address || '-'}
                           </TableCell>
                           <TableCell className="text-center whitespace-nowrap px-1.5">
-                            {isLoadingLocations && !log.ip_location ? (
-                              <span className="text-muted-foreground flex items-center justify-center gap-1">
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                                {t("加载中...", "Loading...")}
-                              </span>
-                            ) : (
-                              <span className={log.ip_location && log.ip_location !== '-' ? 'text-foreground' : 'text-muted-foreground'}>
-                                {log.ip_location || '-'}
-                              </span>
-                            )}
+                            <span className={log.ip_location && log.ip_location !== '-' ? 'text-foreground' : 'text-muted-foreground'}>
+                              {log.ip_location || '-'}
+                            </span>
                           </TableCell>
                           <TableCell className="text-center text-muted-foreground whitespace-nowrap px-1.5">
                             {parseUserAgent(log.user_agent)}
@@ -428,7 +236,7 @@ export default function LoginLogs() {
                   </TableBody>
                 </Table>
               </StickyScrollTableContainer>
-              
+
               {/* Pagination */}
               <TablePagination
                 currentPage={currentPage}

@@ -274,6 +274,14 @@ export interface TaskItemWithPoster extends TaskItem {
 export async function getMyTaskItems(employeeId: string): Promise<
   { task: Task; items: TaskItemWithPoster[]; doneCount: number }[]
 > {
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc("get_my_task_items");
+    if (!rpcError && rpcData != null) {
+      const arr = Array.isArray(rpcData) ? rpcData : [];
+      return arr as { task: Task; items: TaskItemWithPoster[]; doneCount: number }[];
+    }
+  } catch (_) {}
+
   const { data: items, error } = await supabase
     .from("task_items")
     .select("*")

@@ -65,6 +65,7 @@ import RatePosterGenerator from "@/components/RatePosterGenerator";
 import RateSettingsTab from "@/components/exchange-rate/RateSettingsTab";
 import ShiftHandoverTab from "@/components/ShiftHandoverTab";
 import TasksQuickPanel from "@/components/TasksQuickPanel";
+import { PhoneExtractPanel } from "@/components/PhoneExtractPanel";
 import { useOrders, useUsdtOrders } from "@/hooks/useOrders";
 import { useMembers } from "@/hooks/useMembers";
 import { useActivityGifts } from "@/hooks/useActivityGifts";
@@ -1005,26 +1006,16 @@ export default function ExchangeRate() {
     }
   }, [cardType, cardMerchant, paymentAgent, phoneNumber, memberCode, memberLevel, selectedCommonCards, customerFeature, remarkOrder, remarkMember, bankCard, cardValue, cardRate, payNaira, payCedi, payUsdt, nairaRate, cediRate, currencyPreferenceList, customerSource]);
   // 电话号码自动匹配会员 - 只允许阿拉伯数字，最长18位
-  // 重要：必须从数据库实时查询，禁止使用缓存
+  // 使用 RPC 避免 profiles.employee_id 为空时 RLS 拦截
   const handlePhoneNumberChange = useCallback(async (value: string) => {
     // 只保留阿拉伯数字 (0-9)，自动去除空格和其他字符，最长18位
     const cleanedValue = value.replace(/[^0-9]/g, '').slice(0, 18);
     setPhoneNumber(cleanedValue);
     
     if (cleanedValue.length >= 8) {
-      // 从数据库实时查询会员（禁止使用缓存）
       try {
-        const { supabase } = await import('@/integrations/supabase/client');
-        const { data: dbMember, error } = await supabase
-          .from('members')
-          .select('*')
-          .eq('phone_number', cleanedValue)
-          .maybeSingle();
-        
-        if (error) {
-          console.error('查询会员失败:', error);
-          return;
-        }
+        const { getMemberByPhoneForMyTenant } = await import('@/services/memberLookupService');
+        const dbMember = await getMemberByPhoneForMyTenant(cleanedValue);
         
         if (dbMember) {
           // 会员存在 - 填充只读和可编辑字段
@@ -1495,18 +1486,8 @@ export default function ExchangeRate() {
 
     // ===== 第一步：用 phone 再查一次会员（保证是最新）=====
     // 禁止使用缓存，必须从数据库实时查询
-    const { supabase } = await import('@/integrations/supabase/client');
-    const { data: dbMember, error: queryError } = await supabase
-      .from('members')
-      .select('*')
-      .eq('phone_number', phoneNumber)
-      .maybeSingle();
-    
-    if (queryError) {
-      console.error('查询会员失败:', queryError);
-      showSubmissionError('查询会员信息失败');
-      return;
-    }
+    const { getMemberByPhoneForMyTenant } = await import('@/services/memberLookupService');
+    const dbMember = await getMemberByPhoneForMyTenant(phoneNumber);
 
     let memberId: string | undefined;
     let finalMemberCode = memberCode;
@@ -2086,15 +2067,17 @@ export default function ExchangeRate() {
         </CardContent>
       </Card>
 
-      {/* 移动端：工作任务面板（主内容下方，点击打开弹窗） */}
-      <div className="lg:hidden">
+      {/* 移动端：号码提取 + 工作任务（主内容下方） */}
+      <div className="lg:hidden space-y-4">
+        <PhoneExtractPanel />
         <TasksQuickPanel />
       </div>
 
       </div>
 
-      {/* 右侧：工作任务快捷面板（展示分配给当前员工的任务及发布内容，点击打开弹窗） */}
+      {/* 右侧：号码提取 + 工作任务 */}
       <div className="hidden lg:block space-y-4">
+        <PhoneExtractPanel />
         <TasksQuickPanel />
       </div>
 

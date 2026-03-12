@@ -21,13 +21,13 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
   getPointsSettings, 
-  getPointsSettingsAsync,
   savePointsSettings,
   updateAutoRates,
   PointsSettings,
   ReferralMode,
   POINTS_AUTO_UPDATE_INTERVAL,
 } from "@/stores/pointsSettingsStore";
+import { usePointsSettingsData } from "@/hooks/usePointsSettingsData";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CURRENCIES } from "@/config/currencies";
 import { format } from "date-fns";
@@ -35,8 +35,8 @@ import { format } from "date-fns";
 export default function PointsSettingsTab() {
   const { t } = useLanguage();
   const { employee } = useAuth();
-  const [settings, setSettings] = useState<PointsSettings | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { settings: hookSettings, loading: isLoading, refetch } = usePointsSettingsData();
+  const [settings, setSettings] = useState<PointsSettings | null>(hookSettings);
   const [isAutoUpdating, setIsAutoUpdating] = useState(false);
   
   // 清空积分对话框状态
@@ -44,23 +44,9 @@ export default function PointsSettingsTab() {
   const [clearUsername, setClearUsername] = useState("");
   const [clearPassword, setClearPassword] = useState("");
 
-  // 从数据库加载设置（组件挂载时）
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        setIsLoading(true);
-        const dbSettings = await getPointsSettingsAsync();
-        setSettings(dbSettings);
-      } catch (error) {
-        console.error('[PointsSettingsTab] Failed to load settings:', error);
-        // 加载失败时使用同步缓存
-        setSettings(getPointsSettings());
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadSettings();
-  }, []);
+    setSettings(hookSettings);
+  }, [hookSettings]);
 
   const isAutoMode = settings?.mode === 'auto';
 
@@ -96,6 +82,7 @@ export default function PointsSettingsTab() {
     };
     setSettings(newSettings);
     savePointsSettings(newSettings);
+    refetch();
     toast.success(checked 
       ? t("已切换为自动模式", "Switched to auto mode")
       : t("已切换为手动模式", "Switched to manual mode")
@@ -110,6 +97,7 @@ export default function PointsSettingsTab() {
     };
     savePointsSettings(newSettings);
     setSettings(newSettings);
+    refetch();
     toast.success(t("积分设置已保存", "Points settings saved"));
   };
 
@@ -118,6 +106,7 @@ export default function PointsSettingsTab() {
     try {
       const result = await updateAutoRates();
       setSettings(result.settings);
+      refetch();
       if (result.hasChange) {
         toast.success(t("汇率已更新（检测到波动）", "Rates updated (fluctuation detected)"));
       } else {

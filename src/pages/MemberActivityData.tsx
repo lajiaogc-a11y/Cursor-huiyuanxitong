@@ -284,6 +284,9 @@ export default function MemberActivityData() {
 
   const { data: activityPageData } = useQuery({
     queryKey: ['member-activity-page-data'],
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       await refreshPointsLedgerCache();
       const giftsData = await loadActivityGiftsFromDB();

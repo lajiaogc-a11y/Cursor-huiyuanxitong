@@ -1,7 +1,10 @@
 // ============= Webhook 管理 Hook =============
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+const STALE_TIME = 5 * 60 * 1000;
 
 export interface Webhook {
   id: string;
@@ -66,47 +69,49 @@ export const WEBHOOK_EVENT_TYPES = [
   { value: 'gift.created', label: '活动赠送', description: '当有活动赠送记录时触发' },
 ];
 
+async function fetchWebhooksData(): Promise<Webhook[]> {
+  const { data, error } = await supabase
+    .from('webhooks')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((w: Record<string, unknown>) => ({
+    id: w.id as string,
+    name: w.name as string,
+    url: w.url as string,
+    secret: w.secret as string | null,
+    events: (w.events as string[]) || [],
+    status: w.status as 'active' | 'disabled',
+    headers: (w.headers as Record<string, string>) || {},
+    retryCount: w.retry_count as number,
+    timeoutMs: w.timeout_ms as number,
+    lastTriggeredAt: w.last_triggered_at as string | null,
+    totalDeliveries: Number(w.total_deliveries),
+    successfulDeliveries: Number(w.successful_deliveries),
+    failedDeliveries: Number(w.failed_deliveries),
+    createdBy: w.created_by as string | null,
+    createdAt: w.created_at as string,
+    updatedAt: w.updated_at as string,
+    remark: w.remark as string | null,
+  }));
+}
+
 export function useWebhooks() {
-  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
+  const queryClient = useQueryClient();
   const [deliveryLogs, setDeliveryLogs] = useState<WebhookDeliveryLog[]>([]);
-  const [loading, setLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(false);
 
-  const fetchWebhooks = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('webhooks')
-        .select('*')
-        .order('created_at', { ascending: false });
+  const webhooksQuery = useQuery({
+    queryKey: ['webhooks'],
+    queryFn: fetchWebhooksData,
+    staleTime: STALE_TIME,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
 
-      if (error) throw error;
-
-      setWebhooks((data || []).map(w => ({
-        id: w.id,
-        name: w.name,
-        url: w.url,
-        secret: w.secret,
-        events: w.events || [],
-        status: w.status as 'active' | 'disabled',
-        headers: (w.headers as Record<string, string>) || {},
-        retryCount: w.retry_count,
-        timeoutMs: w.timeout_ms,
-        lastTriggeredAt: w.last_triggered_at,
-        totalDeliveries: Number(w.total_deliveries),
-        successfulDeliveries: Number(w.successful_deliveries),
-        failedDeliveries: Number(w.failed_deliveries),
-        createdBy: w.created_by,
-        createdAt: w.created_at,
-        updatedAt: w.updated_at,
-        remark: w.remark,
-      })));
-    } catch (error) {
-      console.error('Failed to fetch webhooks:', error);
-      toast.error('获取 Webhook 失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  const webhooks = webhooksQuery.data ?? [];
+  const loading = webhooksQuery.isLoading;
+  const invalidateWebhooks = () => queryClient.invalidateQueries({ queryKey: ['webhooks'] });
 
   const fetchDeliveryLogs = useCallback(async (webhookId?: string, limit = 50) => {
     setLogsLoading(true);
@@ -143,11 +148,7 @@ export function useWebhooks() {
     } finally {
       setLogsLoading(false);
     }
-  }, [toast]);
-
-  useEffect(() => {
-    fetchWebhooks();
-  }, [fetchWebhooks]);
+  }, []);
 
   const createWebhook = async (
     name: string,
@@ -175,7 +176,7 @@ export function useWebhooks() {
 
       if (error) throw error;
 
-      await fetchWebhooks();
+      invalidateWebhooks();
       toast.success('Webhook 创建成功');
       return true;
     } catch (error) {
@@ -217,7 +218,7 @@ export function useWebhooks() {
 
       if (error) throw error;
 
-      await fetchWebhooks();
+      invalidateWebhooks();
       toast.success('Webhook 更新成功');
       return true;
     } catch (error) {
@@ -236,7 +237,7 @@ export function useWebhooks() {
 
       if (error) throw error;
 
-      await fetchWebhooks();
+      invalidateWebhooks();
       toast.success('Webhook 已删除');
       return true;
     } catch (error) {
@@ -276,54 +277,49 @@ export function useWebhooks() {
 }
 
 // API 统计 Hook
-export function useApiStats() {
-  const [dailyStats, setDailyStats] = useState<ApiDailyStats[]>([]);
-  const [endpointStats, setEndpointStats] = useState<ApiEndpointStats[]>([]);
-  const [loading, setLoading] = useState(true);
+const STALE_TIME_STATS = 5 * 60 * 1000;
 
-  const fetchStats = useCallback(async (days = 7) => {
-    setLoading(true);
-    try {
-      const [dailyRes, endpointRes] = await Promise.all([
-        supabase.rpc('get_api_daily_stats', { p_days: days }),
-        supabase.rpc('get_api_endpoint_stats', { p_days: days }),
-      ]);
+async function fetchApiStats(days: number): Promise<{ dailyStats: ApiDailyStats[]; endpointStats: ApiEndpointStats[] }> {
+  const [dailyRes, endpointRes] = await Promise.all([
+    supabase.rpc('get_api_daily_stats', { p_days: days }),
+    supabase.rpc('get_api_endpoint_stats', { p_days: days }),
+  ]);
+  if (dailyRes.error) throw dailyRes.error;
+  if (endpointRes.error) throw endpointRes.error;
+  const dailyStats = (dailyRes.data || []).map((d: Record<string, unknown>) => ({
+    statDate: d.stat_date as string,
+    totalRequests: Number(d.total_requests),
+    successfulRequests: Number(d.successful_requests),
+    failedRequests: Number(d.failed_requests),
+    errorRate: Number(d.error_rate) || 0,
+    avgResponseTime: Number(d.avg_response_time) || 0,
+  }));
+  const endpointStats = (endpointRes.data || []).map((e: Record<string, unknown>) => ({
+    endpoint: e.endpoint as string,
+    totalRequests: Number(e.total_requests),
+    successfulRequests: Number(e.successful_requests),
+    failedRequests: Number(e.failed_requests),
+    avgResponseTime: Number(e.avg_response_time) || 0,
+  }));
+  return { dailyStats, endpointStats };
+}
 
-      if (dailyRes.error) throw dailyRes.error;
-      if (endpointRes.error) throw endpointRes.error;
+export function useApiStats(days = 7) {
+  const query = useQuery({
+    queryKey: ['api-stats', days],
+    queryFn: () => fetchApiStats(days),
+    staleTime: STALE_TIME_STATS,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
 
-      setDailyStats((dailyRes.data || []).map((d: Record<string, unknown>) => ({
-        statDate: d.stat_date as string,
-        totalRequests: Number(d.total_requests),
-        successfulRequests: Number(d.successful_requests),
-        failedRequests: Number(d.failed_requests),
-        errorRate: Number(d.error_rate) || 0,
-        avgResponseTime: Number(d.avg_response_time) || 0,
-      })));
-
-      setEndpointStats((endpointRes.data || []).map((e: Record<string, unknown>) => ({
-        endpoint: e.endpoint as string,
-        totalRequests: Number(e.total_requests),
-        successfulRequests: Number(e.successful_requests),
-        failedRequests: Number(e.failed_requests),
-        avgResponseTime: Number(e.avg_response_time) || 0,
-      })));
-    } catch (error) {
-      console.error('Failed to fetch API stats:', error);
-      toast.error('获取统计数据失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+  const dailyStats = query.data?.dailyStats ?? [];
+  const endpointStats = query.data?.endpointStats ?? [];
 
   return {
     dailyStats,
     endpointStats,
-    loading,
-    refetch: fetchStats,
+    loading: query.isLoading,
+    refetch: (d?: number) => query.refetch(),
   };
 }

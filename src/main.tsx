@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
+import "nprogress/nprogress.css";
 import "./index.css";
 import { initWebVitals } from "./services/webVitalsService";
 

@@ -2,7 +2,7 @@
  * 工作任务 - 维护历史
  * 显示已完成/未完成、分配员工完成情况、完成进度统计
  */
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +28,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { getTaskProgressList, type TaskProgressOverview } from "@/services/taskService";
+import { type TaskProgressOverview } from "@/services/taskService";
+import { useTaskHistory, useTaskHistoryEmployees } from "@/hooks/useTaskHistory";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow } from "@/components/ui/mobile-data-card";
 import { cn } from "@/lib/utils";
@@ -40,56 +40,18 @@ export default function TasksHistory() {
   const { t } = useLanguage();
   const isMobile = useIsMobile();
   const tenantId = viewingTenantId || employee?.tenant_id;
-  const [loading, setLoading] = useState(true);
-  const [overviews, setOverviews] = useState<TaskProgressOverview[]>([]);
-  const [employees, setEmployees] = useState<{ id: string; real_name: string }[]>([]);
   const [employeeId, setEmployeeId] = useState<string>("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [selectedEmpInTask, setSelectedEmpInTask] = useState<string | null>(null);
 
-  const loadEmployees = async () => {
-    if (!tenantId) return;
-    const { data } = await supabase
-      .from("employees")
-      .select("id, real_name")
-      .eq("tenant_id", tenantId)
-      .eq("status", "active")
-      .order("real_name");
-    setEmployees(data || []);
-  };
-
-  const loadHistory = async () => {
-    if (!tenantId) return;
-    setLoading(true);
-    try {
-      const data = await getTaskProgressList({
-        tenantId,
-        employeeId: employeeId && employeeId !== "all" ? employeeId : undefined,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-      });
-      setOverviews(data);
-    } catch (e) {
-      console.error(e);
-      toast.error(t("加载失败", "Load failed"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadEmployees();
-  }, [tenantId]);
-
-  useEffect(() => {
-    if (tenantId) {
-      loadHistory();
-    } else {
-      setLoading(false);
-    }
-  }, [tenantId, employeeId, startDate, endDate]);
+  const { employees } = useTaskHistoryEmployees(tenantId ?? null);
+  const { overviews, loading, refetch } = useTaskHistory(tenantId ?? null, {
+    employeeId,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+  });
 
   const formatDate = (iso: string | null) => {
     if (!iso) return "-";
@@ -149,7 +111,7 @@ export default function TasksHistory() {
                 className="w-[140px]"
               />
             </div>
-            <Button variant="outline" size="sm" onClick={loadHistory}>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
               <Search className="h-4 w-4 mr-2" />
               {t("查询", "Search")}
             </Button>

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -18,9 +18,10 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobilePagination } from "@/components/ui/mobile-data-card";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useMerchantNameResolver } from "@/hooks/useNameResolver";
 import { useActivityTypes } from "@/hooks/useActivityTypes";
+import { useReportBaseData, useReportFilteredData } from "@/hooks/useReportData";
 import { ReportFilters, ReportTabsList } from "@/components/report";
 import {
   TimeRangeType,
@@ -129,26 +130,21 @@ interface ActivityReportData {
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 const DEFAULT_PAGE_SIZE = 20;
 
-// 模块级缓存 - 避免页面切换时重复加载
-let reportBaseCache: { employees: any[]; cards: any[]; vendors: any[]; providers: any[] } | null = null;
-let reportBaseCacheTime = 0;
-let reportFilteredCache: { orders: any[]; gifts: any[]; key: string } | null = null;
-let reportFilteredCacheTime = 0;
-const REPORT_CACHE_TTL = 60000; // 60秒
-
 export default function ReportManagement() {
   // Performance tracking
   trackRender('ReportManagement');
   
   const { t } = useLanguage();
   const { employee } = useAuth();
+  const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
   const [activeTab, setActiveTab] = useState("employee");
   const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(!reportBaseCache);
-  const hasLoadedRef = useRef(!!reportBaseCache);
+  // 日期筛选 - 需在 useReportFilteredData 之前定义
+  const [selectedRange, setSelectedRange] = useState<TimeRangeType>("全部");
+  const [dateRange, setDateRange] = useState<DateRange>(() => getTimeRangeDates("全部"));
   
   // 商家名称解析器 - 实时获取最新商家名称
   const { resolveCardName, resolveVendorName, resolveProviderName } = useMerchantNameResolver();
@@ -156,16 +152,10 @@ export default function ReportManagement() {
   // 活动类型列表 - 用于活动报表类型名称解析
   const { activityTypes } = useActivityTypes();
   
-  // 数据状态
-  const [orders, setOrders] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [cards, setCards] = useState<any[]>([]);
-  const [vendors, setVendors] = useState<any[]>([]);
-  const [activityGifts, setActivityGifts] = useState<any[]>([]);
-  
-  // 日期筛选 - 默认全部，显示所有数据
-  const [selectedRange, setSelectedRange] = useState<TimeRangeType>("全部");
-  const [dateRange, setDateRange] = useState<DateRange>(() => getTimeRangeDates("全部"));
+  // react-query 缓存数据，页面切换秒开；订单/活动变更时 report-cache-invalidate 自动 invalidate
+  const { employees, cards, vendors, providers: paymentProviders, isLoading: baseLoading } = useReportBaseData();
+  const { orders, activityGifts, isLoading: filteredLoading } = useReportFilteredData(dateRange, employee);
+  const loading = baseLoading || filteredLoading;
   
   // 手动占比数据状态
   const [manualRatios, setManualRatios] = useState<Record<string, number>>({});
@@ -189,30 +179,6 @@ export default function ReportManagement() {
   // 判断当前用户是否有权编辑手动设置占比（总管理员或管理员）
   const isSuperAdmin = employee?.is_super_admin === true;
   const canEditManualRatio = isSuperAdmin || employee?.role === 'admin';
-  
-  // 加载代付商家列表
-  const [paymentProviders, setPaymentProviders] = useState<any[]>([]);
-
-  // 实时数据刷新：订单/活动变更时自动失效缓存并重新加载
-  const [reportRefreshTrigger, setReportRefreshTrigger] = useState(0);
-  useEffect(() => {
-    const handler = () => {
-      reportBaseCache = null;
-      reportBaseCacheTime = 0;
-      reportFilteredCache = null;
-      reportFilteredCacheTime = 0;
-      setReportRefreshTrigger((t) => t + 1);
-    };
-    window.addEventListener("report-cache-invalidate", handler);
-    return () => window.removeEventListener("report-cache-invalidate", handler);
-  }, []);
-
-  // 进入报表页时强制清空缓存，确保显示最新数据（修复：修改订单后报表仍显示旧数据）
-  useEffect(() => {
-    reportFilteredCache = null;
-    reportFilteredCacheTime = 0;
-    setReportRefreshTrigger((t) => t + 1);
-  }, []);
 
   // USDT汇率 - 从汇率计算页面（usdtLiveRates 中价）获取，用于每日/每月报表总利润计算
   const [usdtRateForReport, setUsdtRateForReport] = useState<number>(7.2);
@@ -238,133 +204,6 @@ export default function ReportManagement() {
     const ratios = getEmployeeManualGiftRatios();
     setManualRatios(ratios);
   }, []);
-
-  // 加载基础数据（所有员工，包括管理员、主管、员工）
-  useEffect(() => {
-    const loadBaseData = async () => {
-      // 检查缓存（reportRefreshTrigger 变化时缓存已清空，会跳过）
-      if (reportBaseCache && (Date.now() - reportBaseCacheTime) < REPORT_CACHE_TTL) {
-        setEmployees(reportBaseCache.employees);
-        setCards(reportBaseCache.cards);
-        setVendors(reportBaseCache.vendors);
-        setPaymentProviders(reportBaseCache.providers);
-        return;
-      }
-      try {
-        const [empRes, cardRes, vendorRes, providerRes] = await Promise.all([
-          supabase.from("employees").select("id, real_name, username, role"),
-          supabase.from("cards").select("id, name, type").eq("status", "active"),
-          supabase.from("vendors").select("id, name").eq("status", "active"),
-          supabase.from("payment_providers").select("id, name").eq("status", "active"),
-        ]);
-        
-        const base = {
-          employees: empRes.data || [],
-          cards: cardRes.data || [],
-          vendors: vendorRes.data || [],
-          providers: providerRes.data || [],
-        };
-        reportBaseCache = base;
-        reportBaseCacheTime = Date.now();
-        
-        setEmployees(base.employees);
-        setCards(base.cards);
-        setVendors(base.vendors);
-        setPaymentProviders(base.providers);
-      } catch (error) {
-        console.error("Failed to load base data:", error);
-      }
-    };
-    loadBaseData();
-  }, [reportRefreshTrigger]);
-
-  // 根据日期范围加载订单和活动数据 - 后端强制按员工过滤
-  useEffect(() => {
-    const loadFilteredData = async () => {
-      // 构建缓存键
-      const cacheKey = `${dateRange.start?.toISOString() || 'all'}_${dateRange.end?.toISOString() || 'all'}_${employee?.id || ''}`;
-      
-      // 检查缓存
-      if (reportFilteredCache && reportFilteredCache.key === cacheKey && (Date.now() - reportFilteredCacheTime) < REPORT_CACHE_TTL) {
-        setOrders(reportFilteredCache.orders);
-        setActivityGifts(reportFilteredCache.gifts);
-        setLoading(false);
-        hasLoadedRef.current = true;
-        return;
-      }
-      
-      // 只在首次加载时显示loading
-      if (!hasLoadedRef.current) {
-        setLoading(true);
-      }
-      
-      try {
-        const isStaff = employee?.role === 'staff';
-        const staffId = employee?.id || '';
-        
-        if (!dateRange.start || !dateRange.end) {
-          let ordersQuery = supabase
-            .from("orders")
-            .select("*")
-            .order("created_at", { ascending: false });
-          let giftsQuery = supabase.from("activity_gifts").select("*");
-          
-          if (isStaff && staffId) {
-            ordersQuery = ordersQuery.eq("creator_id", staffId);
-            giftsQuery = giftsQuery.eq("creator_id", staffId);
-          }
-          
-          const [ordersRes, giftsRes] = await Promise.all([ordersQuery, giftsQuery]);
-          const ordersData = ordersRes.data || [];
-          const giftsData = giftsRes.data || [];
-          
-          reportFilteredCache = { orders: ordersData, gifts: giftsData, key: cacheKey };
-          reportFilteredCacheTime = Date.now();
-          
-          setOrders(ordersData);
-          setActivityGifts(giftsData);
-        } else {
-          // 使用 toISOString 确保与数据库 timestamptz 正确比较（今日/昨日等按本地时区计算）
-          const startStr = dateRange.start!.toISOString();
-          const endStr = dateRange.end!.toISOString();
-          
-          let ordersQuery = supabase
-            .from("orders")
-            .select("*")
-            .gte("created_at", startStr)
-            .lte("created_at", endStr)
-            .order("created_at", { ascending: false });
-          let giftsQuery = supabase
-            .from("activity_gifts")
-            .select("*")
-            .gte("created_at", startStr)
-            .lte("created_at", endStr);
-          
-          if (isStaff && staffId) {
-            ordersQuery = ordersQuery.eq("creator_id", staffId);
-            giftsQuery = giftsQuery.eq("creator_id", staffId);
-          }
-          
-          const [ordersRes, giftsRes] = await Promise.all([ordersQuery, giftsQuery]);
-          const ordersData = ordersRes.data || [];
-          const giftsData = giftsRes.data || [];
-          
-          reportFilteredCache = { orders: ordersData, gifts: giftsData, key: cacheKey };
-          reportFilteredCacheTime = Date.now();
-          
-          setOrders(ordersData);
-          setActivityGifts(giftsData);
-        }
-      } catch (error) {
-        console.error("Failed to load filtered data:", error);
-      } finally {
-        setLoading(false);
-        hasLoadedRef.current = true;
-      }
-    };
-    
-    loadFilteredData();
-  }, [dateRange, employee, reportRefreshTrigger]);
 
   // 日期范围变化处理
   const handleDateRangeChange = (range: TimeRangeType, start?: Date, end?: Date) => {
@@ -1003,78 +842,11 @@ export default function ReportManagement() {
   }
 
   const handleRefresh = async () => {
-    // 清除缓存
-    reportBaseCache = null;
-    reportBaseCacheTime = 0;
-    reportFilteredCache = null;
-    reportFilteredCacheTime = 0;
-    
-    setLoading(true);
-    try {
-      // 员工只能看到自己的数据 - 后端强制过滤
-      const isStaff = employee?.role === 'staff';
-      const staffId = employee?.id || '';
-      
-      // 并行重新加载所有数据
-      const [empRes, cardRes, vendorRes] = await Promise.all([
-        supabase.from("employees").select("id, real_name, username, role"),
-        supabase.from("cards").select("id, name, type").eq("status", "active"),
-        supabase.from("vendors").select("id, name").eq("status", "active"),
-      ]);
-      
-      setEmployees(empRes.data || []);
-      setCards(cardRes.data || []);
-      setVendors(vendorRes.data || []);
-      
-      // 重新加载订单和活动数据
-      if (!dateRange.start || !dateRange.end) {
-        let ordersQuery = supabase
-          .from("orders")
-          .select("*")
-          .order("created_at", { ascending: false });
-        let giftsQuery = supabase.from("activity_gifts").select("*");
-        
-        if (isStaff && staffId) {
-          ordersQuery = ordersQuery.eq("creator_id", staffId);
-          giftsQuery = giftsQuery.eq("creator_id", staffId);
-        }
-        
-        const [ordersRes, giftsRes] = await Promise.all([ordersQuery, giftsQuery]);
-        setOrders(ordersRes.data || []);
-        setActivityGifts(giftsRes.data || []);
-      } else {
-        const startStr = dateRange.start!.toISOString();
-        const endStr = dateRange.end!.toISOString();
-        
-        let ordersQuery = supabase
-          .from("orders")
-          .select("*")
-          .gte("created_at", startStr)
-          .lte("created_at", endStr)
-          .order("created_at", { ascending: false });
-        let giftsQuery = supabase
-          .from("activity_gifts")
-          .select("*")
-          .gte("created_at", startStr)
-          .lte("created_at", endStr);
-        
-        if (isStaff && staffId) {
-          ordersQuery = ordersQuery.eq("creator_id", staffId);
-          giftsQuery = giftsQuery.eq("creator_id", staffId);
-        }
-        
-        const [ordersRes, giftsRes] = await Promise.all([ordersQuery, giftsQuery]);
-        setOrders(ordersRes.data || []);
-        setActivityGifts(giftsRes.data || []);
-      }
-      
-      toast.success("数据已刷新");
-    } catch (error) {
-      console.error("Failed to refresh data:", error);
-      toast.error("刷新失败");
-    } finally {
-      setLoading(false);
-    }
+    await Promise.all([
+      queryClient.refetchQueries({ queryKey: ['report-base'] }),
+      queryClient.refetchQueries({ queryKey: ['report-filtered'] }),
+    ]);
+    toast.success("数据已刷新");
   };
 
   // 汇总统计数据（使用空值安全过滤）

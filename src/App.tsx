@@ -14,8 +14,10 @@ import { RealtimeProvider } from "@/contexts/RealtimeContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LayoutProvider } from "@/contexts/LayoutContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminProtectedRoute } from "@/components/AdminProtectedRoute";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
+import { TopProgressBar } from "@/components/TopProgressBar";
 
 // 礼品卡系统页面 - 大 chunk 页面使用 lazyWithRetry 防止 ChunkLoadError
 const Login = lazy(() => import("./pages/Login"));
@@ -44,6 +46,7 @@ const PlatformSettingsPage = lazy(() => import("./pages/PlatformSettingsPage"));
 const TasksSettings = lazy(() => import("./pages/TasksSettings"));
 const TasksHistory = lazy(() => import("./pages/TasksHistory"));
 const TasksPosters = lazy(() => import("./pages/TasksPosters"));
+const TasksPhoneExtract = lazy(() => import("./pages/TasksPhoneExtract"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const MemberLogin = lazy(() => import("./pages/member/MemberLogin"));
 const MemberDashboard = lazy(() => import("./pages/member/MemberDashboard"));
@@ -54,13 +57,7 @@ const MemberSettings = lazy(() => import("./pages/member/MemberSettings"));
 const InviteLanding = lazy(() => import("./pages/member/InviteLanding"));
 const MemberLayout = lazy(() => import("./components/member/MemberLayout").then((m) => ({ default: m.MemberLayout })));
 
-function PageLoader() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary"></div>
-    </div>
-  );
-}
+/** 懒加载时显示顶部细进度条，替代页面中心大 loading */
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -75,7 +72,7 @@ const App = () => (
             <AppRouter>
               <TenantViewProvider>
                 <SharedDataTenantProvider>
-                  <Suspense fallback={<PageLoader />}>
+                  <Suspense fallback={<TopProgressBar />}>
                     <Routes>
                       {/* 会员端路由 */}
                       <Route path="/member/login" element={<MemberLogin />} />
@@ -110,13 +107,21 @@ const App = () => (
                   <Route path="/audit-center" element={<ProtectedRoute><AuditCenter /></ProtectedRoute>} />
                   <Route path="/pending-authorization" element={<ProtectedRoute><PendingAuthorization /></ProtectedRoute>} />
                   <Route path="/knowledge" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
-                  <Route path="/company-management" element={<ProtectedRoute requirePlatformSuperAdmin><CompanyManagement /></ProtectedRoute>} />
-                  <Route path="/platform-tenant-view" element={<ProtectedRoute requirePlatformSuperAdmin><PlatformTenantView /></ProtectedRoute>} />
-                  <Route path="/platform-settings" element={<ProtectedRoute requirePlatformSuperAdmin><PlatformSettingsPage /></ProtectedRoute>} />
+                  {/* 平台管理后台 - 独立路由，使用 AdminLayout */}
+                  <Route path="/admin" element={<Navigate to="/admin/tenants" replace />} />
+                  <Route path="/admin/tenants" element={<AdminProtectedRoute><CompanyManagement /></AdminProtectedRoute>} />
+                  <Route path="/admin/tenant-view" element={<AdminProtectedRoute><PlatformTenantView /></AdminProtectedRoute>} />
+                  <Route path="/admin/settings" element={<Navigate to="/admin/settings/ip-control" replace />} />
+                  <Route path="/admin/settings/:tab" element={<AdminProtectedRoute><PlatformSettingsPage /></AdminProtectedRoute>} />
+                  {/* 旧路径重定向到新后台 */}
+                  <Route path="/company-management" element={<Navigate to="/admin/tenants" replace />} />
+                  <Route path="/platform-tenant-view" element={<Navigate to="/admin/tenant-view" replace />} />
+                  <Route path="/platform-settings" element={<Navigate to="/admin/settings" replace />} />
                   <Route path="/tasks/dashboard" element={<ProtectedRoute><Navigate to="/exchange-rate" replace /></ProtectedRoute>} />
                   <Route path="/tasks/settings" element={<ProtectedRoute><TasksSettings /></ProtectedRoute>} />
                   <Route path="/tasks/history" element={<ProtectedRoute><TasksHistory /></ProtectedRoute>} />
                   <Route path="/tasks/posters" element={<ProtectedRoute><TasksPosters /></ProtectedRoute>} />
+                  <Route path="/tasks/phone-extract" element={<ProtectedRoute><TasksPhoneExtract /></ProtectedRoute>} />
                   
                   {/* 404 */}
                   <Route path="/404" element={<NotFound />} />

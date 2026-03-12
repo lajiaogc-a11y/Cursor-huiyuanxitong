@@ -72,13 +72,25 @@ function mapToEmployees(data: any[]): Employee[] {
 }
 
 // 获取所有员工（当前租户，受 RLS 约束）
-export async function getEmployees(): Promise<Employee[]> {
+// myTenantId：租户员工的本租户 ID，传入时优先用 RPC 避免 RLS 拦截
+export async function getEmployees(myTenantId?: string | null): Promise<Employee[]> {
+  if (myTenantId) {
+    const { data, error } = await supabase.rpc('get_my_tenant_employees_full');
+    if (!error && data) {
+      return mapToEmployees(Array.isArray(data) ? data : []);
+    }
+  }
+
   const { data, error } = await supabase
     .from('employees')
     .select('id, username, real_name, role, status, visible, is_super_admin, created_at, updated_at')
     .order('created_at', { ascending: false });
 
   if (error) {
+    if (myTenantId) {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_my_tenant_employees_full');
+      if (!rpcError && rpcData) return mapToEmployees(Array.isArray(rpcData) ? rpcData : []);
+    }
     console.error('Error fetching employees:', error);
     return [];
   }

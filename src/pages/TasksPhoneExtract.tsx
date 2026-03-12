@@ -1,0 +1,34 @@
+/**
+ * 工作任务 - 提取设置
+ * 号码提取器：批量导入、参数配置、清空池
+ */
+import { PhoneExtractSettingsSection } from "@/components/PhoneExtractSettingsSection";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Link } from "react-router-dom";
+import { ExternalLink } from "lucide-react";
+
+export default function TasksPhoneExtract() {
+  const { t } = useLanguage();
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{t("提取设置", "Extract Settings")}</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {t("批量导入号码、配置提取参数。提取功能请在汇率计算页面右侧使用。", "Bulk import numbers, configure settings. Use extraction on Exchange Rate page.")}
+          </p>
+        </div>
+        <Link
+          to="/exchange-rate"
+          className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+        >
+          <ExternalLink className="h-4 w-4" />
+          {t("去汇率页提取", "Go to Exchange Rate")}
+        </Link>
+      </div>
+
+      <PhoneExtractSettingsSection />
+    </div>
+  );
+}

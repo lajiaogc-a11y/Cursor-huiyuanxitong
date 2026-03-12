@@ -234,10 +234,16 @@ export default function ActivityReports() {
   const { data: records = [] } = useQuery({
     queryKey: ['activity-records'],
     queryFn: loadActivityRecordsFromDB,
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   const { data: employeeList = [] } = useQuery({
     queryKey: ['activity-report-employees'],
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('employees')
@@ -251,6 +257,9 @@ export default function ActivityReports() {
 
   const { data: membersMap = new Map<string, string>() } = useQuery({
     queryKey: ['activity-report-members-map'],
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data } = await supabase.from('members').select('phone_number, member_code');
       const map = new Map<string, string>();

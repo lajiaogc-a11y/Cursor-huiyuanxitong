@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SettingsPageContainer } from "@/components/SettingsSection";
 import { Button } from "@/components/ui/button";
@@ -36,20 +36,11 @@ import { Plus, Pencil, Trash2, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
-
-interface Currency {
-  id: string;
-  code: string;
-  name_zh: string;
-  badge_color: string;
-  sort_order: number;
-  is_active: boolean;
-}
+import { useCurrencies, type Currency } from "@/hooks/useCurrencies";
 
 export default function CurrencySettingsTab() {
   const { t } = useLanguage();
-  const [currencies, setCurrencies] = useState<Currency[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { currencies, loading, refetch } = useCurrencies();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCurrency, setEditingCurrency] = useState<Currency | null>(null);
   const [formData, setFormData] = useState({
@@ -59,27 +50,6 @@ export default function CurrencySettingsTab() {
     sort_order: 0,
     is_active: true,
   });
-
-  useEffect(() => {
-    fetchCurrencies();
-  }, []);
-
-  const fetchCurrencies = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("currencies")
-        .select("*")
-        .order("sort_order", { ascending: true });
-
-      if (error) throw error;
-      setCurrencies(data || []);
-    } catch (error) {
-      console.error("Failed to fetch currencies:", error);
-      toast.error(t("加载币种失败", "Failed to load currencies"));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleAdd = () => {
     setEditingCurrency(null);
@@ -160,7 +130,7 @@ export default function CurrencySettingsTab() {
       }
 
       setIsDialogOpen(false);
-      fetchCurrencies();
+      refetch();
     } catch (error: any) {
       console.error("Failed to save currency:", error);
       const msg = error?.code === "23505" || error?.message?.includes("duplicate")
@@ -184,7 +154,7 @@ export default function CurrencySettingsTab() {
       logOperation('currency_settings', 'delete', currency.id, currency, null, `删除币种: ${currency.code}`);
       
       toast.success(t("币种已删除", "Currency deleted"));
-      fetchCurrencies();
+      refetch();
     } catch (error: any) {
       console.error("Failed to delete currency:", error);
       toast.error(error.message || t("删除失败", "Failed to delete"));
@@ -215,7 +185,7 @@ export default function CurrencySettingsTab() {
         if (error) throw error;
       }
       toast.success(t("已清理 {n} 个重复项", "Cleaned {n} duplicates").replace("{n}", String(toDelete.length)));
-      fetchCurrencies();
+      refetch();
     } catch (error: any) {
       console.error("Failed to clean duplicates:", error);
       toast.error(error.message || t("清理失败", "Failed to clean"));
@@ -230,7 +200,7 @@ export default function CurrencySettingsTab() {
         .eq("id", currency.id);
 
       if (error) throw error;
-      fetchCurrencies();
+      refetch();
     } catch (error) {
       console.error("Failed to toggle currency status:", error);
       toast.error(t("更新失败", "Failed to update"));
