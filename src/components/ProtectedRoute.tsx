@@ -24,7 +24,7 @@ interface ProtectedRouteProps {
 const EMPLOYEE_LOAD_TIMEOUT = 15000;
 
 export function ProtectedRoute({ children, requireAdmin, requireManager, requirePlatformSuperAdmin }: ProtectedRouteProps) {
-  const { isAuthenticated, isAdmin, isManager, loading, employee, permissionsLoaded, refreshEmployee, signOut } = useAuth();
+  const { session, isAdmin, isManager, loading, employee, refreshEmployee, signOut } = useAuth();
   const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
@@ -33,7 +33,8 @@ export function ProtectedRoute({ children, requireAdmin, requireManager, require
 
   // 员工信息加载超时检测
   useEffect(() => {
-    if (!loading && isAuthenticated && !employee) {
+    // 以 session 为准：session 有效但 employee 拉取失败时，仍要触发超时兜底，避免永久骨架屏
+    if (!loading && !!session && !employee) {
       const timer = setTimeout(() => {
         setEmployeeLoadTimeout(true);
       }, EMPLOYEE_LOAD_TIMEOUT);
@@ -42,7 +43,7 @@ export function ProtectedRoute({ children, requireAdmin, requireManager, require
     } else {
       setEmployeeLoadTimeout(false);
     }
-  }, [loading, isAuthenticated, employee]);
+  }, [loading, session, employee]);
 
   // 重试加载员工信息（不刷新页面）
   const handleRetry = async () => {
@@ -58,7 +59,7 @@ export function ProtectedRoute({ children, requireAdmin, requireManager, require
   // 退出登录
   const handleLogout = async () => {
     await signOut();
-    navigate('/login', { replace: true });
+    navigate('/staff/login', { replace: true });
   };
 
   // 初始加载状态 - 显示完整的布局骨架屏，而不是白屏
@@ -66,12 +67,16 @@ export function ProtectedRoute({ children, requireAdmin, requireManager, require
     return <LayoutSkeleton />;
   }
 
-  // 用户未登录
-  if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  // 有缓存员工信息但 session 尚未从 Supabase 返回：乐观渲染，等待后台确认
+  // （onAuthStateChange / getSession 完成后若无 session 会清缓存并重定向）
+  if (!session && employee) {
+    // 直接继续往下走，让页面正常渲染；若 session 无效 onAuthStateChange 会清状态
+  } else if (!session) {
+    // 彻底未登录（无 session，无缓存）才跳登录页
+    return <Navigate to="/staff/login" state={{ from: location }} replace />;
   }
 
-  // 用户已登录但员工信息加载超时
+  // 有 session 但员工信息加载超时
   if (!employee && employeeLoadTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -103,14 +108,14 @@ export function ProtectedRoute({ children, requireAdmin, requireManager, require
     );
   }
 
-  // 用户已登录但员工信息还在加载中 - 显示布局骨架屏
+  // 有 session 但员工信息还在加载中 - 显示布局骨架屏
   if (!employee) {
     return <LayoutSkeleton />;
   }
 
   // 检查用户状态是否为 pending（等待审批）
   if (employee.status === 'pending') {
-    return <Navigate to="/pending" replace />;
+    return <Navigate to="/staff/pending" replace />;
   }
 
   // 检查用户状态是否为非活跃
@@ -132,9 +137,14 @@ export function ProtectedRoute({ children, requireAdmin, requireManager, require
     );
   }
 
+  // 平台总管理员硬锁定：任何非 /staff/admin/* 路径强制回平台后台
+  if (employee.is_platform_super_admin && !location.pathname.startsWith('/staff/admin')) {
+    return <Navigate to="/staff/admin/tenants" replace />;
+  }
+
   // 平台总管理员专属页面：非平台总管理员重定向到首页，避免出现 404
   if (requirePlatformSuperAdmin && !employee?.is_platform_super_admin) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/staff" replace />;
   }
 
   // 权限检查

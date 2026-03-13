@@ -37,6 +37,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLayout } from "@/contexts/LayoutContext";
 import { useIsTablet } from "@/hooks/use-mobile";
+import { useTenantView } from "@/contexts/TenantViewContext";
 import { updateEmployee, ROLE_LABELS, getRoleLabel } from "@/stores/employeeStore";
 import PerformanceDashboard from "@/components/PerformanceDashboard";
 import { NotificationCenter } from "@/components/NotificationCenter";
@@ -44,45 +45,46 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 
 // 路由到页面标题的映射
 const PAGE_TITLES: Record<string, { zh: string; en: string }> = {
-  "/": { zh: "数据统计", en: "Statistics" },
-  "/exchange-rate": { zh: "汇率计算", en: "Exchange Rate" },
-  "/orders": { zh: "订单管理", en: "Order Management" },
-  "/reports": { zh: "报表管理", en: "Report Management" },
-  "/members": { zh: "会员管理", en: "Member Management" },
-  "/employees": { zh: "员工管理", en: "Employee Management" },
-  "/merchant-settlement": { zh: "商家结算", en: "Merchant Settlement" },
-  "/merchants": { zh: "商家管理", en: "Merchant Management" },
-  "/settings": { zh: "系统设置", en: "System Settings" },
-  "/audit-center": { zh: "审核中心", en: "Audit Center" },
-  "/operation-logs": { zh: "操作日志", en: "Operation Logs" },
-  "/knowledge": { zh: "公司文档", en: "Company Docs" },
-  "/company-management": { zh: "租户管理", en: "Tenant Management" },
-  "/platform-tenant-view": { zh: "租户数据查看", en: "View Tenant Data" },
-  "/platform-settings": { zh: "平台设置", en: "Platform Settings" },
-  "/member-management": { zh: "会员管理", en: "Member Management" },
-  "/member-activity": { zh: "会员活动数据", en: "Member Activity Data" },
-  "/login-logs": { zh: "登录日志", en: "Login Logs" },
-  "/tasks/dashboard": { zh: "任务看板", en: "Task Dashboard" },
-  "/tasks/settings": { zh: "维护设置", en: "Maintenance Settings" },
-  "/tasks/history": { zh: "维护历史", en: "Maintenance History" },
-  "/tasks/posters": { zh: "发动态", en: "Posters" },
-  "/tasks/phone-extract": { zh: "提取设置", en: "Extract Settings" },
+  "/staff": { zh: "数据统计", en: "Statistics" },
+  "/staff/exchange-rate": { zh: "汇率计算", en: "Exchange Rate" },
+  "/staff/orders": { zh: "订单管理", en: "Order Management" },
+  "/staff/reports": { zh: "报表管理", en: "Report Management" },
+  "/staff/members": { zh: "会员管理", en: "Member Management" },
+  "/staff/employees": { zh: "员工管理", en: "Employee Management" },
+  "/staff/merchant-settlement": { zh: "商家结算", en: "Merchant Settlement" },
+  "/staff/merchants": { zh: "商家管理", en: "Merchant Management" },
+  "/staff/settings": { zh: "系统设置", en: "System Settings" },
+  "/staff/audit-center": { zh: "审核中心", en: "Audit Center" },
+  "/staff/operation-logs": { zh: "操作日志", en: "Operation Logs" },
+  "/staff/knowledge": { zh: "公司文档", en: "Company Docs" },
+  "/staff/admin/tenants": { zh: "租户管理", en: "Tenant Management" },
+  "/staff/admin/tenant-view": { zh: "租户数据查看", en: "View Tenant Data" },
+  "/staff/admin/settings": { zh: "平台设置", en: "Platform Settings" },
+  "/staff/member-management": { zh: "会员管理", en: "Member Management" },
+  "/staff/member-activity": { zh: "会员活动数据", en: "Member Activity Data" },
+  "/staff/login-logs": { zh: "登录日志", en: "Login Logs" },
+  "/staff/tasks/dashboard": { zh: "任务看板", en: "Task Dashboard" },
+  "/staff/tasks/settings": { zh: "维护设置", en: "Maintenance Settings" },
+  "/staff/tasks/history": { zh: "维护历史", en: "Maintenance History" },
+  "/staff/tasks/posters": { zh: "发动态", en: "Posters" },
+  "/staff/tasks/phone-extract": { zh: "提取设置", en: "Extract Settings" },
+  "/staff/member-portal": { zh: "会员系统", en: "Member Portal" },
 };
 
 // 带 tab 的页面：根据 tab 显示子页面标题（不显示父级如「会员管理」「商家管理」）
 const TAB_PAGE_TITLES: Record<string, Record<string, { zh: string; en: string }>> = {
-  "/members": {
+  "/staff/members": {
     members: { zh: "会员数据", en: "Member Data" },
     activity: { zh: "活动数据", en: "Activity Data" },
     gifts: { zh: "活动赠送", en: "Activity Gifts" },
     points: { zh: "积分明细", en: "Points Ledger" },
   },
-  "/merchants": {
+  "/staff/merchants": {
     cards: { zh: "卡片管理", en: "Cards" },
     vendors: { zh: "卡商管理", en: "Vendors" },
     "payment-providers": { zh: "代付商家", en: "Payment Providers" },
   },
-  "/settings": {
+  "/staff/settings": {
     fee: { zh: "手续费设置", en: "Fee" },
     exchange: { zh: "汇率设置", en: "Exchange" },
     currency: { zh: "币种设置", en: "Currency" },
@@ -105,6 +107,7 @@ export function Header() {
   const { language, setLanguage, t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
   const { employee, signOut, isAdmin, updateEmployeeLocal } = useAuth();
+  const { isViewingTenant } = useTenantView() || {};
   const { layoutMode, toggleLayoutMode, toggleTabletSidebar, forceDesktopLayout, toggleForceDesktopLayout } = useLayout();
   const isTablet = useIsTablet();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
@@ -120,9 +123,9 @@ export function Header() {
     const tabTitles = TAB_PAGE_TITLES[location.pathname];
     const tab = searchParams.get("tab") || "";
     const defaultTab: Record<string, string> = {
-      "/members": "members",
-      "/merchants": "cards",
-      "/settings": "fee",
+      "/staff/members": "members",
+      "/staff/merchants": "cards",
+      "/staff/settings": "fee",
     };
     const effectiveTab = tab || defaultTab[location.pathname] || "";
     if (tabTitles && effectiveTab && tabTitles[effectiveTab]) {
@@ -140,7 +143,7 @@ export function Header() {
     await signOut();
     setShowLogoutDialog(false);
     toast.success(t("已退出登录", "Logged out successfully"));
-    navigate('/login');
+    navigate('/staff/login');
   };
 
   const handleOpenSettings = () => {
@@ -213,6 +216,25 @@ export function Header() {
     return <Badge variant={variant} className="ml-2">{roleLabel}</Badge>;
   };
 
+  const getSystemBadge = () => {
+    if (!employee) return null;
+
+    // 平台总管理员在“查看租户”模式下，仍属于租户上下文
+    if (employee.is_platform_super_admin && !isViewingTenant) {
+      return (
+        <Badge variant="outline" className="ml-2 border-violet-300 text-violet-700 dark:border-violet-700 dark:text-violet-300">
+          {t("平台后台", "Platform")}
+        </Badge>
+      );
+    }
+
+    return (
+      <Badge variant="outline" className="ml-2 border-slate-300 text-slate-700 dark:border-slate-700 dark:text-slate-300">
+        {t("租户后台", "Tenant")}
+      </Badge>
+    );
+  };
+
   return (
     <>
       <header className={cn(
@@ -232,8 +254,9 @@ export function Header() {
               <Menu className="h-5 w-5" />
             </Button>
           )}
-          <div className="font-semibold text-foreground text-lg tracking-tight truncate">
+          <div className="font-semibold text-foreground text-lg tracking-tight truncate flex items-center">
             {getPageTitle()}
+            {!isTablet && getSystemBadge()}
           </div>
         </div>
         

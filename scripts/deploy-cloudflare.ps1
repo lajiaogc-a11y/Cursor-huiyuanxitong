@@ -18,6 +18,22 @@ if (Test-Path ".env") {
     }
 }
 
+Write-Host "Run database migrations..." -ForegroundColor Cyan
+$migrationScripts = @(
+    ".\scripts\run-member-spin-wheel-prizes-migration.mjs",
+    ".\scripts\run-member-points-mall-migration.mjs",
+    ".\scripts\run-member-points-mall-redemption-admin-migration.mjs",
+    ".\scripts\run-member-tenant-resolution-fix-migration.mjs",
+    ".\scripts\run-member-portal-settings-by-account-migration.mjs"
+)
+foreach ($script in $migrationScripts) {
+    if (Test-Path $script) {
+        Write-Host " - $script"
+        node $script
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+    }
+}
+
 Write-Host "Build..." -ForegroundColor Cyan
 npm run build
 if ($LASTEXITCODE -ne 0) { exit 1 }

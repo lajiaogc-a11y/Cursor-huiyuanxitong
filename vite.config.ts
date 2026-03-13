@@ -9,7 +9,25 @@ import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig(({ mode }) => {
   const buildTarget = process.env.VITE_BUILD_TARGET || 'web';
   const useRelativeBase = buildTarget === 'electron' || buildTarget === 'capacitor';
+  const enablePwa = buildTarget !== "web";
   const buildTime = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const emitVersionPlugin = {
+    name: "emit-version-json",
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "version.json",
+        source: JSON.stringify(
+          {
+            buildTime,
+            buildTarget,
+          },
+          null,
+          2
+        ),
+      });
+    },
+  };
   return {
   base: useRelativeBase ? './' : '/',
   define: {
@@ -21,8 +39,9 @@ export default defineConfig(({ mode }) => {
   },
   plugins: [
     react(),
+    emitVersionPlugin,
     mode === "development" && componentTagger(),
-    VitePWA({
+    enablePwa && VitePWA({
       registerType: "prompt", // 新版本时弹窗提示用户确认后刷新
       includeAssets: ["favicon.ico", "pwa-192x192.png", "pwa-512x512.png"],
       manifest: false, // use public/manifest.json

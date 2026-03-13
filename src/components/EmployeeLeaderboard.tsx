@@ -86,11 +86,19 @@ export default function EmployeeLeaderboard() {
   useEffect(() => {
     if (!canView) return;
     const handler = () => loadLeaderboard();
+    const onDataRefresh = (event: Event) => {
+      const detail = (event as CustomEvent<{ table?: string }>).detail;
+      if (detail?.table === 'orders') {
+        handler();
+      }
+    };
     window.addEventListener('leaderboard-refresh', handler);
     window.addEventListener('report-cache-invalidate', handler);
+    window.addEventListener('data-refresh', onDataRefresh as EventListener);
     return () => {
       window.removeEventListener('leaderboard-refresh', handler);
       window.removeEventListener('report-cache-invalidate', handler);
+      window.removeEventListener('data-refresh', onDataRefresh as EventListener);
     };
   }, [canView, loadLeaderboard]);
 

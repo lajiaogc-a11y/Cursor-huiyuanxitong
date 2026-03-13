@@ -17,7 +17,7 @@ export default function PendingAuthorization() {
 
   const handleLogout = async () => {
     await signOut();
-    navigate('/login');
+    navigate('/staff/login');
   };
 
   const handleRefresh = async () => {
@@ -38,7 +38,7 @@ export default function PendingAuthorization() {
       
       if (emp?.status === 'active') {
         toast.success(t('pending.approved'));
-        navigate('/', { replace: true });
+        navigate('/staff', { replace: true });
       } else {
         toast.info(t('pending.stillPending'));
       }

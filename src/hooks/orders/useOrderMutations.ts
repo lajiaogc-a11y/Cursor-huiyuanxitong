@@ -13,6 +13,7 @@ import { getEmployeeNameById, resolveVendorName, resolveProviderName } from '@/s
 import { logOrderBalanceChange, logOrderCancelBalanceChange, logOrderRestoreBalanceChange } from '@/services/balanceLogService';
 import { mapDbOrderToOrder, mapOrderToDbAsync, calculateOrderPointsAsync } from './utils';
 import type { Order, OrderResult } from './types';
+import { notifyDataMutation } from '@/services/dataRefreshManager';
 
 export interface UseOrderMutationsParams {
   orders: Order[];
@@ -137,8 +138,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+        notifyDataMutation({ table: 'orders', operation: 'INSERT', source: 'mutation' }).catch(console.error);
         return { order: newOrder, earnedPoints };
       } catch (error) {
         console.error('Failed to add order:', error);
@@ -249,8 +249,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+        notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
         return true;
       } catch (error) {
         console.error('Failed to cancel order:', error);
@@ -340,8 +339,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+        notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
         return true;
       } catch (error) {
         console.error('Failed to restore order:', error);
@@ -426,13 +424,11 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
           `删除订单: ${order.id} - ${order.cardType} ¥${order.cardValue}`
         );
 
-        window.dispatchEvent(new CustomEvent('points-updated'));
         fetchOrders();
         queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+        notifyDataMutation({ table: 'orders', operation: 'DELETE', source: 'mutation' }).catch(console.error);
         return true;
       } catch (error) {
         console.error('Failed to delete order:', error);

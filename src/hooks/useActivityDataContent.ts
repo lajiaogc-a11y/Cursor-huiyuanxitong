@@ -83,13 +83,29 @@ export function useActivityDataContent(effectiveTenantId: string | null, useMyTe
 
     const handleGiftsUpdated = () => queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
     const handlePointsUpdated = () => queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
+    const onDataRefresh = (event: Event) => {
+      const detail = (event as CustomEvent<{ table?: string }>).detail;
+      const table = detail?.table;
+      if (
+        table === 'orders' ||
+        table === 'activity_gifts' ||
+        table === 'member_activity' ||
+        table === 'points_ledger' ||
+        table === 'points_accounts' ||
+        table === 'payment_providers'
+      ) {
+        queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
+      }
+    };
     window.addEventListener('activity-gifts-updated', handleGiftsUpdated);
     window.addEventListener('points-updated', handlePointsUpdated);
+    window.addEventListener('data-refresh', onDataRefresh as EventListener);
 
     return () => {
       supabase.removeChannel(channel);
       window.removeEventListener('activity-gifts-updated', handleGiftsUpdated);
       window.removeEventListener('points-updated', handlePointsUpdated);
+      window.removeEventListener('data-refresh', onDataRefresh as EventListener);
     };
   }, [queryClient]);
 

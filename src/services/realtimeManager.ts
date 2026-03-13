@@ -114,17 +114,16 @@ function mapTableChangeToEvent(
   switch (table) {
     case "orders":
       payload.type = "new_order";
-      scheduleInvalidation(["orders", "usdt-orders", "dashboard-trend"]);
-      scheduleInvalidation(["profit-compare-current"]);
-      scheduleInvalidation(["profit-compare-previous"]);
-      window.dispatchEvent(new CustomEvent("report-cache-invalidate"));
-      window.dispatchEvent(new CustomEvent("leaderboard-refresh"));
+      // 关键表刷新统一交给 dataRefreshManager，避免重复失效与双事件触发
       break;
     case "balance_change_logs":
+      payload.type = "balance_update";
+      scheduleInvalidation(["points-ledger", "merchant-settlement", "dashboard"]);
+      break;
     case "points_ledger":
     case "ledger_transactions":
       payload.type = "balance_update";
-      scheduleInvalidation(["points-ledger", "merchant-settlement", "dashboard"]);
+      // 关键表刷新统一交给 dataRefreshManager，避免重复失效与双事件触发
       break;
     case "tasks":
     case "task_items":
@@ -151,8 +150,7 @@ function mapTableChangeToEvent(
       break;
     case "activity_gifts":
       payload.type = "activity_gift_update";
-      scheduleInvalidation(["activity-records", "activity-report-members-map"]);
-      window.dispatchEvent(new CustomEvent("report-cache-invalidate"));
+      // 关键表刷新统一交给 dataRefreshManager，避免重复失效与双事件触发
       break;
     default:
       return null;

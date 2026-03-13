@@ -1385,7 +1385,7 @@ export default function MerchantManagement() {
     <div className="space-y-4">
       <div className="flex items-center justify-end">
         <Link
-          to="/tasks/settings"
+          to="/staff/tasks/settings"
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           {t("进入维护设置", "Maintenance Settings")} →

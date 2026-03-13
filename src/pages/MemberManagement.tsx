@@ -272,6 +272,9 @@ export default function MemberManagement() {
                     setSearchError("");
                   }}
                   className={`pl-9 ${isMobile ? 'w-full' : 'w-64'} ${searchError ? 'border-destructive' : ''}`}
+                  autoComplete="off"
+                  name="member-search"
+                  data-lpignore="true"
                 />
                 {searchError && <span className="text-xs text-destructive whitespace-nowrap">{searchError}</span>}
               </div>
@@ -801,6 +804,9 @@ export default function MemberManagement() {
                   onChange={(e) => setSetPasswordValue(e.target.value)}
                   placeholder={t('至少6位', 'At least 6 characters')}
                   minLength={6}
+                  autoComplete="new-password"
+                  name="member-initial-password"
+                  data-lpignore="true"
                 />
               </div>
             </div>

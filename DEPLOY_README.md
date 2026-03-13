@@ -1,5 +1,21 @@
 # 发布指南
 
+## 域名与入口说明
+
+| 域名 | 用途 | 根路径 / 行为 |
+|------|------|---------------|
+| **https://crm.fastgc.cc** | 会员端 | `/` 直接进入会员登录页 |
+| **https://admin.crm.fastgc.cc** | 员工后台 | `/` 进入员工仪表盘，`/login` 员工登录 |
+
+**配置员工子域名（Cloudflare）：**
+
+1. 打开 [Cloudflare Dashboard](https://dash.cloudflare.com) → Pages → 选择 `gift-system` 项目
+2. 进入 **Custom domains** → **Set up a custom domain**
+3. 添加 `admin.crm.fastgc.cc`，按提示完成 DNS 验证
+4. 两个域名指向同一部署，应用会根据访问域名自动分流
+
+---
+
 ## 当前状态
 
 - **构建**：已成功

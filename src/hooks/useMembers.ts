@@ -9,6 +9,7 @@ import { getEmployeeNameSync } from '@/hooks/useEmployees';
 import { isUserTyping, trackRender } from '@/lib/performanceUtils';
 import { useTenantView } from '@/contexts/TenantViewContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { notifyDataMutation } from '@/services/dataRefreshManager';
 
 export interface Member {
   id: string;
@@ -198,6 +199,8 @@ export function useMembers() {
         }).catch(err => console.error('[useMembers] Webhook trigger failed:', err));
       });
 
+      notifyDataMutation({ table: 'members', operation: 'INSERT', source: 'mutation' }).catch(console.error);
+
       return newMember;
     } catch (error) {
       console.error('Failed to add member:', error);
@@ -238,6 +241,8 @@ export function useMembers() {
           level: updatedMember.level, updatedAt: data.updated_at,
         }).catch(err => console.error('[useMembers] Webhook trigger failed:', err));
       });
+
+      notifyDataMutation({ table: 'members', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
       
       return updatedMember;
     } catch (error: any) {
@@ -278,6 +283,8 @@ export function useMembers() {
           level: updatedMember.level, updatedAt: data.updated_at,
         }).catch(err => console.error('[useMembers] Webhook trigger failed:', err));
       });
+
+      notifyDataMutation({ table: 'members', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
       
       return updatedMember;
     } catch (error: any) {
@@ -317,6 +324,7 @@ export function useMembers() {
       if (memberToDelete) {
         logOperation('member_management', 'delete', memberId, memberToDelete, null, `删除会员: ${memberToDelete.phoneNumber}`);
       }
+      notifyDataMutation({ table: 'members', operation: 'DELETE', source: 'mutation' }).catch(console.error);
       return true;
     } catch (error) {
       console.error('Failed to delete member:', error);

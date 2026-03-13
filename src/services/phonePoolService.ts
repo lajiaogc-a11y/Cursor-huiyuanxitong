@@ -8,7 +8,10 @@ const CHUNK_SIZE = 5000;
 export interface PhoneStats {
   total_available: number;
   total_reserved: number;
+  /** 今日净提取号码数（提取 - 归还），归还后减少 */
   user_today_extracted: number;
+  /** 今日已用提取次数（用于每日上限判断） */
+  user_today_extract_actions: number;
 }
 
 export interface ExtractSettings {
@@ -126,6 +129,7 @@ export async function getPhoneStats(tenantId: string): Promise<PhoneStats> {
     total_available: row?.total_available ?? 0,
     total_reserved: row?.total_reserved ?? 0,
     user_today_extracted: row?.user_today_extracted ?? 0,
+    user_today_extract_actions: row?.user_today_extract_actions ?? 0,
   };
 }
 

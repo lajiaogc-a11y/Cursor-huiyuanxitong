@@ -24,6 +24,17 @@ export function TenantViewProvider({ children }: { children: ReactNode }) {
   const [viewingTenantCode, setViewingTenantCode] = useState<string | null>(null);
   const autoSetRef = useRef(false);
 
+  // 平台总管理员：登录后默认固定为平台总后台，不自动恢复历史租户查看态
+  useEffect(() => {
+    if (!employee?.is_platform_super_admin) return;
+    setViewingTenantId(null);
+    setViewingTenantName(null);
+    setViewingTenantCode(null);
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch (_) {}
+  }, [employee?.is_platform_super_admin]);
+
   // 租户员工：直接设置 viewingTenantId = employee.tenant_id，不查 tenants 表（避免 RLS 拦截）
   useEffect(() => {
     if (!employee?.tenant_id || viewingTenantId || autoSetRef.current) return;
@@ -47,7 +58,7 @@ export function TenantViewProvider({ children }: { children: ReactNode }) {
       try {
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ tenantId, tenantName, tenantCode }));
       } catch (_) {}
-      navigate("/", { replace: true });
+      navigate("/staff", { replace: true });
     },
     [navigate]
   );
@@ -59,10 +70,12 @@ export function TenantViewProvider({ children }: { children: ReactNode }) {
     try {
       sessionStorage.removeItem(STORAGE_KEY);
     } catch (_) {}
-    navigate("/admin/tenants", { replace: true });
+    navigate("/staff/admin/tenants", { replace: true });
   }, [navigate]);
 
   useEffect(() => {
+    // 平台总管理员不从 sessionStorage 恢复租户查看态，避免刷新后漂移到租户视图
+    if (employee?.is_platform_super_admin) return;
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY);
       if (raw) {
@@ -74,7 +87,7 @@ export function TenantViewProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (_) {}
-  }, []);
+  }, [employee?.is_platform_super_admin]);
 
   return (
     <TenantViewContext.Provider

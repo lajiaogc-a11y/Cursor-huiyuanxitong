@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,6 +47,8 @@ export default function TenantManagementTab() {
   const [deleteHasData, setDeleteHasData] = useState(false);
   const [deleteDataDetail, setDeleteDataDetail] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirmCode, setDeleteConfirmCode] = useState("");
+  const [superAdminConfirmName, setSuperAdminConfirmName] = useState("");
   const [editTenantCode, setEditTenantCode] = useState("");
   const [editTenantName, setEditTenantName] = useState("");
   const [editTenantStatus, setEditTenantStatus] = useState("active");
@@ -262,10 +264,31 @@ export default function TenantManagementTab() {
     setDeleteHasData(false);
     setDeleteDataDetail("");
   };
-  const closeDeleteDialog = () => { setDeletingTenant(null); setDeleteHasData(false); setDeleteDataDetail(""); setDeletePassword(""); };
+  const closeDeleteDialog = () => {
+    setDeletingTenant(null);
+    setDeleteHasData(false);
+    setDeleteDataDetail("");
+    setDeletePassword("");
+    setDeleteConfirmCode("");
+  };
+
+  const selectedEmployee = useMemo(
+    () => tenantEmployees.find((emp) => emp.id === selectedEmployeeId),
+    [tenantEmployees, selectedEmployeeId]
+  );
+
+  const canSubmitDelete = !!(
+    deletingTenant &&
+    deletePassword.trim() &&
+    deleteConfirmCode.trim() === deletingTenant.tenant_code
+  );
 
   const handleDeleteTenant = async (force: boolean) => {
     if (!deletingTenant) return;
+    if (deleteConfirmCode.trim() !== deletingTenant.tenant_code) {
+      toast.error(t("请正确输入租户编码后再删除", "Please enter the exact tenant code before deleting"));
+      return;
+    }
     if (!employee?.username || !deletePassword.trim()) {
       toast.error(t("请输入当前账号密码以确认删除", "Please enter your password to confirm deletion"));
       return;
@@ -311,6 +334,7 @@ export default function TenantManagementTab() {
   const openSetSuperAdminDialog = async (tenant: TenantItem) => {
     setSuperAdminTenant(tenant);
     setSelectedEmployeeId(tenant.admin_employee_id || "");
+    setSuperAdminConfirmName("");
     setLoadingEmployees(true);
     try {
       const emps = await getTenantEmployeesFull(tenant.id);
@@ -333,12 +357,21 @@ export default function TenantManagementTab() {
 
   const handleSetSuperAdmin = async () => {
     if (!superAdminTenant || !selectedEmployeeId) return;
+    if (!selectedEmployee) {
+      toast.error(t("请选择员工", "Please select an employee"));
+      return;
+    }
+    if (superAdminConfirmName.trim() !== selectedEmployee.username) {
+      toast.error(t("确认输入不一致，请输入目标员工账号", "Confirmation mismatch, please input target employee username"));
+      return;
+    }
     setSettingSuperAdmin(superAdminTenant.id);
     try {
       const result = await setTenantSuperAdmin(selectedEmployeeId);
       if (result.success) {
         toast.success(t("已设为总管理员", "Set as super admin"));
         setSuperAdminTenant(null);
+        setSuperAdminConfirmName("");
         await loadTenants();
       } else {
         toast.error(result.errorCode === "NO_PERMISSION" ? t("权限不足", "No permission") : t("设置失败", "Failed"));
@@ -557,6 +590,18 @@ export default function TenantManagementTab() {
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
+              <Label>{t("确认租户编码", "Confirm Tenant Code")}</Label>
+              <Input
+                value={deleteConfirmCode}
+                onChange={(e) => setDeleteConfirmCode(e.target.value)}
+                placeholder={deletingTenant?.tenant_code || ""}
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("请输入租户编码进行二次确认：", "Type tenant code for second confirmation:")}{" "}
+                <span className="font-mono text-foreground">{deletingTenant?.tenant_code}</span>
+              </p>
+            </div>
+            <div className="space-y-1.5">
               <Label>{t("当前账号密码", "Your Password")}</Label>
               <Input
                 type="password"
@@ -593,11 +638,11 @@ export default function TenantManagementTab() {
           <DialogFooter>
             <Button variant="outline" onClick={closeDeleteDialog}>{t("取消", "Cancel")}</Button>
             {!deleteHasData ? (
-              <Button variant="destructive" onClick={() => handleDeleteTenant(false)} disabled={deleting}>
+              <Button variant="destructive" onClick={() => handleDeleteTenant(false)} disabled={deleting || !canSubmitDelete}>
                 {deleting ? t("删除中...", "Deleting...") : t("确认删除", "Confirm Delete")}
               </Button>
             ) : (
-              <Button variant="destructive" onClick={() => handleDeleteTenant(true)} disabled={deleting}>
+              <Button variant="destructive" onClick={() => handleDeleteTenant(true)} disabled={deleting || !canSubmitDelete}>
                 {deleting ? t("删除中...", "Deleting...") : t("强制删除所有数据", "Force Delete All Data")}
               </Button>
             )}
@@ -635,12 +680,29 @@ export default function TenantManagementTab() {
                 </Select>
               )}
             </div>
+            <div className="space-y-1.5">
+              <Label>{t("二次确认（输入目标员工账号）", "Second Confirmation (input target username)")}</Label>
+              <Input
+                value={superAdminConfirmName}
+                onChange={(e) => setSuperAdminConfirmName(e.target.value)}
+                placeholder={selectedEmployee?.username || t("请输入目标员工账号", "Enter target username")}
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("请准确输入将被设置为总管理员的员工账号", "Please input the exact username to be promoted as super admin")}
+              </p>
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSuperAdminTenant(null)}>{t("取消", "Cancel")}</Button>
+            <Button variant="outline" onClick={() => { setSuperAdminTenant(null); setSuperAdminConfirmName(""); }}>{t("取消", "Cancel")}</Button>
             <Button
               onClick={handleSetSuperAdmin}
-              disabled={!selectedEmployeeId || tenantEmployees.length === 0 || settingSuperAdmin === superAdminTenant?.id}
+              disabled={
+                !selectedEmployeeId ||
+                tenantEmployees.length === 0 ||
+                settingSuperAdmin === superAdminTenant?.id ||
+                !selectedEmployee ||
+                superAdminConfirmName.trim() !== selectedEmployee.username
+              }
             >
               {settingSuperAdmin === superAdminTenant?.id ? t("设置中...", "Setting...") : t("确认设为总管理员", "Confirm Set Super Admin")}
             </Button>

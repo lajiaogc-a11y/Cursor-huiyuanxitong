@@ -22,14 +22,14 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const PLATFORM_SETTINGS_CHILDREN = [
-  { path: "/admin/settings/ip-control", icon: Shield, labelZh: "IP访问控制", labelEn: "IP Access Control" },
-  { path: "/admin/settings/system-health", icon: Activity, labelZh: "系统健康", labelEn: "System Health" },
-  { path: "/admin/settings/resource-monitor", icon: Gauge, labelZh: "资源监控", labelEn: "Resource Monitor" },
-  { path: "/admin/settings/risk-dashboard", icon: ShieldAlert, labelZh: "风险评分", labelEn: "Risk Scoring" },
-  { path: "/admin/settings/data-archive", icon: Archive, labelZh: "数据归档", labelEn: "Data Archive" },
-  { path: "/admin/settings/data-backup", icon: HardDrive, labelZh: "数据备份", labelEn: "Data Backup" },
-  { path: "/admin/settings/data-repair", icon: Wrench, labelZh: "数据修复", labelEn: "Data Repair" },
-  { path: "/admin/settings/invitation-codes", icon: Ticket, labelZh: "邀请码", labelEn: "Invitation Codes" },
+  { path: "/staff/admin/settings/ip-control", icon: Shield, labelZh: "IP访问控制", labelEn: "IP Access Control" },
+  { path: "/staff/admin/settings/system-health", icon: Activity, labelZh: "系统健康", labelEn: "System Health" },
+  { path: "/staff/admin/settings/resource-monitor", icon: Gauge, labelZh: "资源监控", labelEn: "Resource Monitor" },
+  { path: "/staff/admin/settings/risk-dashboard", icon: ShieldAlert, labelZh: "风险评分", labelEn: "Risk Scoring" },
+  { path: "/staff/admin/settings/data-archive", icon: Archive, labelZh: "数据归档", labelEn: "Data Archive" },
+  { path: "/staff/admin/settings/data-backup", icon: HardDrive, labelZh: "数据备份", labelEn: "Data Backup" },
+  { path: "/staff/admin/settings/data-repair", icon: Wrench, labelZh: "数据修复", labelEn: "Data Repair" },
+  { path: "/staff/admin/settings/invitation-codes", icon: Ticket, labelZh: "邀请码", labelEn: "Invitation Codes" },
 ];
 
 export function AdminSidebar() {
@@ -38,7 +38,7 @@ export function AdminSidebar() {
   const navigate = useNavigate();
   const [settingsExpanded, setSettingsExpanded] = useState(false);
 
-  const isSettingsActive = location.pathname.startsWith("/admin/settings");
+  const isSettingsActive = location.pathname.startsWith("/staff/admin/settings");
 
   useEffect(() => {
     if (isSettingsActive) setSettingsExpanded(true);
@@ -55,7 +55,7 @@ export function AdminSidebar() {
       </div>
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         <NavLink
-          to="/admin/tenants"
+          to="/staff/admin/tenants"
           className={({ isActive }) =>
             cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
@@ -67,7 +67,7 @@ export function AdminSidebar() {
           {language === "zh" ? "租户管理" : "Tenant Management"}
         </NavLink>
         <NavLink
-          to="/admin/tenant-view"
+          to="/staff/admin/tenant-view"
           className={({ isActive }) =>
             cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
@@ -86,13 +86,13 @@ export function AdminSidebar() {
             tabIndex={0}
             onClick={() => {
               setSettingsExpanded((v) => !v);
-              if (!isSettingsActive) navigate("/admin/settings/ip-control");
+              if (!isSettingsActive) navigate("/staff/admin/settings/ip-control");
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
                 setSettingsExpanded((v) => !v);
-                if (!isSettingsActive) navigate("/admin/settings/ip-control");
+                if (!isSettingsActive) navigate("/staff/admin/settings/ip-control");
               }
             }}
             className={cn(

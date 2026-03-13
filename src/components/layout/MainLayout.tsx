@@ -26,21 +26,20 @@ interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   const { dataSynced, employee } = useAuth();
-  const { isViewingTenant } = useTenantView() || {};
+  useTenantView();
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 平台总管理员未在查看租户时：重定向到独立管理后台 /admin
-  const adminPaths = ["/admin", "/admin/tenants", "/admin/tenant-view", "/admin/settings"];
+  // 平台总管理员：任何非 /staff/admin/* 路径都强制回平台后台（硬锁定）
+  const adminPaths = ["/staff/admin", "/staff/admin/tenants", "/staff/admin/tenant-view", "/staff/admin/settings"];
   useEffect(() => {
     if (
       employee?.is_platform_super_admin &&
-      !isViewingTenant &&
       !adminPaths.some((p) => location.pathname.startsWith(p))
     ) {
-      navigate("/admin/tenants", { replace: true });
+      navigate("/staff/admin/tenants", { replace: true });
     }
-  }, [employee?.is_platform_super_admin, isViewingTenant, location.pathname, navigate]);
+  }, [employee?.is_platform_super_admin, location.pathname, navigate]);
   const { layoutMode, forceDesktopLayout } = useLayout();
   const { t } = useLanguage();
   const isMobile = useIsMobile();

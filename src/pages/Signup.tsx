@@ -161,7 +161,7 @@ export default function Signup() {
       } else {
         toast.success(t('signup.signupSuccessPending'));
       }
-      navigate('/login');
+      navigate('/staff/login');
     } catch (error: any) {
       console.error('Signup error:', error);
       toast.error(error.message || t('signup.signupFailed'));
@@ -352,7 +352,7 @@ export default function Signup() {
           </form>
           <div className="mt-6 text-center">
             <span className="text-muted-foreground">{t('signup.haveAccount')}</span>
-            <Link to="/login" className="text-primary hover:underline ml-2">
+            <Link to="/staff/login" className="text-primary hover:underline ml-2">
               {t('signup.goLogin')}
             </Link>
           </div>

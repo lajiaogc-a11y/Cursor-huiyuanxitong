@@ -12,6 +12,7 @@ import { getEmployeeNameById, getVendorId, getProviderId, getCardIdByName, resol
 import { logOrderBalanceChange, logOrderCancelBalanceChange, logOrderRestoreBalanceChange } from '@/services/balanceLogService';
 import { formatBeijingTime, calculateOrderPointsAsync, generateUniqueOrderNumber } from './utils';
 import type { UsdtOrder, OrderResult } from './types';
+import { notifyDataMutation } from '@/services/dataRefreshManager';
 
 export interface UseUsdtOrderMutationsParams {
   orders: UsdtOrder[];
@@ -164,8 +165,7 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+        notifyDataMutation({ table: 'orders', operation: 'INSERT', source: 'mutation' }).catch(console.error);
         return { order: newOrder as any, earnedPoints };
       } catch (error) {
         console.error('Failed to add USDT order:', error);
@@ -236,8 +236,7 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+        notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
         return true;
       } catch (error) {
         console.error('Failed to cancel USDT order:', error);
@@ -323,8 +322,7 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+        notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
         return true;
       } catch (error) {
         console.error('Failed to restore USDT order:', error);
@@ -410,15 +408,12 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
           `删除USDT订单: ${order.id} - ${order.cardType} ¥${order.cardValue}`
         );
 
-        window.dispatchEvent(new CustomEvent('points-updated'));
-
         setOrders(prev => prev.filter(o => o.dbId !== dbId));
         fetchOrders();
         queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+        notifyDataMutation({ table: 'orders', operation: 'DELETE', source: 'mutation' }).catch(console.error);
         return true;
       } catch (error) {
         console.error('Failed to delete USDT order:', error);

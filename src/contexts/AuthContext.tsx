@@ -185,10 +185,23 @@ interface RolePermissionRecord {
   can_delete: boolean;
 }
 
+type UserType = 'member' | 'employee' | null;
+
+function getEmployeeUsernameFromAuthEmail(email?: string | null): string | null {
+  if (!email) return null;
+  const suffix = '@system.local';
+  if (!email.endsWith(suffix)) return null;
+  const username = email.slice(0, -suffix.length).trim();
+  return username || null;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   employee: EmployeeInfo | null;
+  userType: UserType;
+  profileMemberId: string | null;
+  profileEmployeeId: string | null;
   permissions: RolePermissionRecord[];
   loading: boolean;
   permissionsLoaded: boolean;
@@ -199,6 +212,8 @@ interface AuthContextType {
   updateEmployeeLocal: (patch: Partial<EmployeeInfo>) => void;
   refreshEmployee: () => Promise<void>;
   isAuthenticated: boolean;
+  isEmployeeAuthenticated: boolean;
+  isMemberAuthenticated: boolean;
   isAdmin: boolean;
   isManager: boolean;
 }
@@ -210,21 +225,54 @@ const DATA_SYNC_TIMEOUT = 10000;
 // 初始化最大超时时间（防止永久卡死）
 const AUTH_INIT_TIMEOUT = 8000;
 
+// ─── Employee sessionStorage 缓存 ────────────────────────────────────────────
+const EMPLOYEE_CACHE_KEY = 'auth_employee_cache';
+
+function readEmployeeCache(): EmployeeInfo | null {
+  try {
+    const raw = sessionStorage.getItem(EMPLOYEE_CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as EmployeeInfo;
+  } catch {
+    return null;
+  }
+}
+function writeEmployeeCache(emp: EmployeeInfo | null) {
+  try {
+    if (emp) {
+      sessionStorage.setItem(EMPLOYEE_CACHE_KEY, JSON.stringify(emp));
+    } else {
+      sessionStorage.removeItem(EMPLOYEE_CACHE_KEY);
+    }
+  } catch { /* ignore */ }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [employee, setEmployee] = useState<EmployeeInfo | null>(null);
+  // 启动时先从 sessionStorage 读取缓存，实现刷新即时恢复
+  const [employee, setEmployee] = useState<EmployeeInfo | null>(() => readEmployeeCache());
+  const [userType, setUserType] = useState<UserType>(null);
+  const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
+  const [profileEmployeeId, setProfileEmployeeId] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<RolePermissionRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  // 有缓存时 loading 直接从 false 开始，避免骨架屏闪烁
+  const [loading, setLoading] = useState(() => !readEmployeeCache());
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const [dataSynced, setDataSynced] = useState(false);
   const [authStep, setAuthStep] = useState<string | null>(null);
   const dataSyncAttemptRef = useRef(0);
   const lastSyncedUserIdRef = useRef<string | null>(null);
   const isSyncingRef = useRef(false);
-  const initCompletedRef = useRef(false);
+  const initCompletedRef = useRef(!!readEmployeeCache()); // 有缓存则视为已完成初始化
   const ipValidationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isValidatingIpRef = useRef(false);
+
+  // 统一的 employee 更新：同步写缓存
+  const setAndCacheEmployee = useCallback((emp: EmployeeInfo | null) => {
+    writeEmployeeCache(emp);
+    setEmployee(emp);
+  }, []);
 
   // IP 国家校验 - 失败时强制登出
   const performIpValidation = useCallback(async (forceLogout: boolean = true): Promise<boolean> => {
@@ -264,11 +312,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await supabase.auth.signOut();
           setUser(null);
           setSession(null);
+          writeEmployeeCache(null);
           setEmployee(null);
           clearOperatorCache();
           
-          // 跳转到登录页
-          window.location.href = '/login';
+          // 跳转到员工登录页
+          window.location.href = '/staff/login';
         }
         
         return false;
@@ -282,7 +331,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (forceLogout && session) {
         toast.error('IP验证服务异常，请重新登录');
         await supabase.auth.signOut();
-        window.location.href = '/login';
+        window.location.href = '/staff/login';
       }
       return false;
     } finally {
@@ -408,22 +457,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // 获取员工信息 - 返回成功/失败状态
-  const fetchEmployeeInfo = useCallback(async (userId: string): Promise<boolean> => {
-    try {
-      // Get profile with employee_id
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('employee_id')
-        .eq('id', userId)
-        .maybeSingle();
+  // 识别当前 Supabase 用户绑定类型（member / employee）
+  const resolveEmployeeIdByEmailFallback = useCallback(async (email?: string | null): Promise<string | null> => {
+    const username = getEmployeeUsernameFromAuthEmail(email);
+    if (!username) return null;
 
-      if (profileError) {
-        console.error('Profile query error:', profileError);
-        return false;
+    const { data, error } = await supabase
+      .from('employees')
+      .select('id')
+      .eq('username', username)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('[AuthContext] Employee fallback lookup failed:', error);
+      return null;
+    }
+    return data?.id ?? null;
+  }, []);
+
+  const fetchProfileAssociation = useCallback(async (userId: string, email?: string | null) => {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('member_id, employee_id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[AuthContext] Profile association query error:', error);
+    }
+
+    const memberId = profile?.member_id ?? null;
+    let employeeId = profile?.employee_id ?? null;
+
+    // 兜底：若 profile 未关联 employee_id，则尝试通过 auth email 反查员工
+    if (!employeeId) {
+      const fallbackEmployeeId = await resolveEmployeeIdByEmailFallback(email);
+      if (fallbackEmployeeId) {
+        employeeId = fallbackEmployeeId;
+        // 尝试回写 profiles，后续刷新即可走正常链路（失败不阻塞）
+        supabase
+          .from('profiles')
+          .upsert({ id: userId, employee_id: fallbackEmployeeId, email: email ?? null }, { onConflict: 'id' })
+          .catch((upsertErr) => {
+            console.warn('[AuthContext] Backfill profile employee_id failed:', upsertErr);
+          });
       }
-      
-      if (!profile?.employee_id) {
+    }
+
+    setProfileMemberId(memberId);
+    setProfileEmployeeId(employeeId);
+
+    if (employeeId) setUserType('employee');
+    else if (memberId) setUserType('member');
+    else setUserType(null);
+
+    return { member_id: memberId, employee_id: employeeId };
+  }, [resolveEmployeeIdByEmailFallback]);
+
+  // 获取员工信息 - 返回成功/失败状态
+  const fetchEmployeeInfo = useCallback(async (
+    userId: string,
+    employeeIdFromProfile?: string | null,
+    emailFromAuth?: string | null
+  ): Promise<boolean> => {
+    try {
+      let employeeId = employeeIdFromProfile ?? null;
+      if (!employeeId) {
+        const profile = await fetchProfileAssociation(userId, emailFromAuth);
+        employeeId = profile.employee_id;
+      }
+
+      if (!employeeId) {
+        employeeId = await resolveEmployeeIdByEmailFallback(emailFromAuth);
+      }
+
+      if (!employeeId) {
         console.warn('[AuthContext] No employee_id in profile, user may need re-login');
         return false;
       }
@@ -438,7 +546,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data: empData, error: empError } = await supabase
           .from('employees')
           .select('id, username, real_name, role, status, is_super_admin, tenant_id')
-          .eq('id', profile.employee_id)
+          .eq('id', employeeId)
           .single();
         if (empError || !empData) {
           console.error('Error fetching employee:', empError);
@@ -458,7 +566,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tenant_id: emp.tenant_id ?? null,
       };
       
-      setEmployee(empInfo);
+      setAndCacheEmployee(empInfo);
       
       // Update web vitals employee tracking
       import('@/services/webVitalsService').then(m => m.setWebVitalsEmployee(emp.id)).catch(() => {});
@@ -476,14 +584,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Error in fetchEmployeeInfo:', error);
       return false;
     }
-  }, []);
+  }, [fetchProfileAssociation, resolveEmployeeIdByEmailFallback]);
 
   // 刷新员工信息（供外部调用）
   const refreshEmployee = useCallback(async () => {
     if (user?.id) {
-      await fetchEmployeeInfo(user.id);
+      await fetchEmployeeInfo(user.id, profileEmployeeId, user.email);
     }
-  }, [user?.id, fetchEmployeeInfo]);
+  }, [user?.id, user?.email, profileEmployeeId, fetchEmployeeInfo]);
 
   // 初始化认证状态和订阅
   useEffect(() => {
@@ -512,13 +620,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // 使用 setTimeout 延迟数据库调用，避免死锁
           setTimeout(() => {
             if (isMounted) {
-              fetchEmployeeInfo(session.user.id);
-              syncUserData(session.user.id);
+              fetchProfileAssociation(session.user.id, session.user.email).then((profile) => {
+                if (!isMounted) return;
+                if (profile.employee_id) {
+                  fetchEmployeeInfo(session.user.id, profile.employee_id, session.user.email);
+                  syncUserData(session.user.id);
+                } else {
+                  setEmployee(null);
+                  setDataSynced(true);
+                }
+              });
             }
           }, 0);
         } else {
-          // 清空状态
+          // 清空状态（登出或 session 失效，清缓存）
+          writeEmployeeCache(null);
           setEmployee(null);
+          setUserType(null);
+          setProfileMemberId(null);
+          setProfileEmployeeId(null);
           setPermissions([]);
           setPermissionsLoaded(false);
           setDataSynced(false);
@@ -537,16 +657,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        // 异步获取员工信息，但不阻塞 loading 状态
-        fetchEmployeeInfo(session.user.id).finally(() => {
-          if (isMounted && !initCompletedRef.current) {
-            setLoading(false);
-            initCompletedRef.current = true;
+        fetchProfileAssociation(session.user.id, session.user.email).then((profile) => {
+          if (!isMounted) return;
+          if (profile.employee_id) {
+            // 异步获取员工信息，但不阻塞 loading 状态
+            fetchEmployeeInfo(session.user.id, profile.employee_id, session.user.email).finally(() => {
+              if (isMounted && !initCompletedRef.current) {
+                setLoading(false);
+                initCompletedRef.current = true;
+              }
+            });
+            syncUserData(session.user.id);
+          } else {
+            setEmployee(null);
+            setDataSynced(true);
+            if (!initCompletedRef.current) {
+              setLoading(false);
+              initCompletedRef.current = true;
+            }
           }
         });
-        syncUserData(session.user.id);
       } else {
-        // 无会话时立即完成初始化
+        // 无会话时：清除可能残留的缓存，避免下次刷新误用过期缓存
+        writeEmployeeCache(null);
+        setEmployee(null);
         setDataSynced(true);
         if (!initCompletedRef.current) {
           setLoading(false);
@@ -567,7 +701,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(initTimeoutId);
       subscription.unsubscribe();
     };
-  }, [fetchEmployeeInfo, syncUserData]);
+  }, [fetchEmployeeInfo, fetchProfileAssociation, syncUserData]);
 
   // 订阅权限变更 (Realtime)
   useEffect(() => {
@@ -816,9 +950,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: emp.role,
         status: emp.status,
         is_super_admin: emp.is_super_admin ?? false,
+        is_platform_super_admin: emp.is_platform_super_admin ?? false,
         tenant_id: emp.tenant_id ?? null,
       };
-      setEmployee(employeeInfo);
+      setAndCacheEmployee(employeeInfo);
+      setUserType('employee');
+      setProfileEmployeeId(emp.employee_id);
+      setProfileMemberId(null);
       
       // 更新全局操作员缓存
       setOperatorCache({
@@ -834,6 +972,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // 记录登录日志（包含IP）
       logLoginAttempt(emp.employee_id, true, undefined, clientIp).catch(console.error);
+
+      // 二次拉取员工信息，确保拿到 is_platform_super_admin 等精确字段，避免登录后路由分流错误
+      if (signInData.user?.id) {
+        await fetchEmployeeInfo(signInData.user.id, emp.employee_id, signInData.user.email);
+      }
 
       setAuthStep(null);
       return { success: true, message: `欢迎回来，${emp.real_name}！` };
@@ -855,10 +998,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 2. 退出认证
     await supabase.auth.signOut();
     
-    // 3. 清空组件状态
+    // 3. 清空组件状态 + 清除员工缓存
     setUser(null);
     setSession(null);
-    setEmployee(null);
+    setAndCacheEmployee(null);
+    setUserType(null);
+    setProfileMemberId(null);
+    setProfileEmployeeId(null);
     setPermissions([]);
     setPermissionsLoaded(false);
     setDataSynced(false);
@@ -881,7 +1027,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updateEmployeeLocal = (patch: Partial<EmployeeInfo>) => {
-    setEmployee((prev) => (prev ? { ...prev, ...patch } : prev));
+    setEmployee((prev) => {
+      const next = prev ? { ...prev, ...patch } : prev;
+      writeEmployeeCache(next);
+      return next;
+    });
   };
 
   return (
@@ -890,6 +1040,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         session,
         employee,
+        userType,
+        profileMemberId,
+        profileEmployeeId,
         permissions,
         loading,
         permissionsLoaded,
@@ -900,6 +1053,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updateEmployeeLocal,
         refreshEmployee,
         isAuthenticated: !!session && !!employee,
+        isEmployeeAuthenticated: !!session && userType === 'employee' && !!employee,
+        isMemberAuthenticated: !!session && userType === 'member',
         isAdmin: employee?.role === 'admin',
         isManager: employee?.role === 'admin' || employee?.role === 'manager',
       }}

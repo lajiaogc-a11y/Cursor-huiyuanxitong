@@ -21,6 +21,7 @@ import {
   type RealtimeEventPayload,
   type RealtimeConnectionStatus,
 } from "@/services/realtimeManager";
+import { initDataRefreshManager } from "@/services/dataRefreshManager";
 
 interface RealtimeContextValue {
   /** 连接状态 */
@@ -41,8 +42,12 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!employee) return;
-    const cleanup = initRealtimeManager();
-    return cleanup;
+    const cleanupRealtime = initRealtimeManager();
+    const cleanupRefresh = initDataRefreshManager();
+    return () => {
+      cleanupRealtime();
+      cleanupRefresh();
+    };
   }, [employee]);
 
   useEffect(() => {

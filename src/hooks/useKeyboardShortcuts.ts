@@ -31,7 +31,7 @@ export function useKeyboardShortcuts() {
       description: '新建订单',
       descriptionEn: 'New Order',
       action: () => {
-        navigate('/orders');
+        navigate('/staff/orders');
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('shortcut-new-order'));
         }, 300);

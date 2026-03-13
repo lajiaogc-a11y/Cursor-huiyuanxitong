@@ -4,6 +4,7 @@
 import { logOperation } from './auditLogStore';
 import { loadSharedData, saveSharedData } from '@/services/sharedDataService';
 import { createLedgerEntry, createAdjustmentEntry, softDeleteLedgerEntry, setInitialBalanceLedger, reverseAllEntriesForSource, reverseInitialBalanceEntry } from '@/services/ledgerTransactionService';
+import { notifyDataMutation } from '@/services/dataRefreshManager';
 
 // 获取当前用户信息的辅助函数
 let currentOperatorId: string | null = null;
@@ -115,6 +116,12 @@ export async function forceRefreshSettlementCache(): Promise<void> {
   clearSharedCacheKey('cardMerchantSettlements');
   clearSharedCacheKey('paymentProviderSettlements');
   await initializeSettlementCacheInternal();
+}
+
+export function resetSettlementCache(): void {
+  cardSettlementsCache = [];
+  providerSettlementsCache = [];
+  cacheInitialized = false;
 }
 
 // ==================== Card Merchant Settlement ====================
@@ -331,7 +338,7 @@ export async function undoLastAction(vendorName: string, currentBalance?: number
     operatorId: currentOperatorId || undefined,
     operatorName: currentOperatorName || undefined,
   });
-  window.dispatchEvent(new CustomEvent('ledger-updated'));
+  notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
   
   return { success: true, description: lastAction.description };
 }
@@ -562,7 +569,7 @@ export async function undoProviderLastAction(providerName: string, currentBalanc
     operatorId: currentOperatorId || undefined,
     operatorName: currentOperatorName || undefined,
   });
-  window.dispatchEvent(new CustomEvent('ledger-updated'));
+  notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
   
   return { success: true, description: lastAction.description };
 }
@@ -655,7 +662,7 @@ export async function updateWithdrawal(
     });
   }
   
-  window.dispatchEvent(new CustomEvent('ledger-updated'));
+  notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
   
   return true;
 }
@@ -720,8 +727,7 @@ export async function deleteWithdrawal(
     });
   }
   
-  window.dispatchEvent(new CustomEvent('ledger-updated'));
-  window.dispatchEvent(new CustomEvent('balance-log-updated'));
+  notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
   return true;
 }
 
@@ -786,7 +792,7 @@ export async function updateRecharge(
     });
   }
   
-  window.dispatchEvent(new CustomEvent('ledger-updated'));
+  notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
   
   return true;
 }
@@ -851,8 +857,7 @@ export async function deleteRecharge(
     });
   }
   
-  window.dispatchEvent(new CustomEvent('ledger-updated'));
-  window.dispatchEvent(new CustomEvent('balance-log-updated'));
+  notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
   return true;
 }
 

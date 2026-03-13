@@ -33,7 +33,7 @@ export default function PlatformSettings() {
   const { tab } = useParams<{ tab: string }>();
 
   if (!tab || !VALID_TABS.has(tab)) {
-    return <Navigate to="/admin/settings/ip-control" replace />;
+    return <Navigate to="/staff/admin/settings/ip-control" replace />;
   }
 
   return (

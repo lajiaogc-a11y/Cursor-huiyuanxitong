@@ -34,7 +34,7 @@ export default function SystemSettings() {
   // 非管理员误入权限/API 时重定向
   useEffect(() => {
     if (!isAdmin && (tabFromUrl === "permission" || tabFromUrl === "api")) {
-      navigate("/settings?tab=data", { replace: true });
+      navigate("/staff/settings?tab=data", { replace: true });
     }
   }, [isAdmin, tabFromUrl, navigate]);
 

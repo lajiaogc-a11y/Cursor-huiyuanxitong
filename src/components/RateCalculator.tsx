@@ -67,6 +67,7 @@ import { getExchangeRateFormData } from "@/stores/exchangeRateFormStore";
 import { CurrencyCode } from "@/config/currencies";
 import { supabase } from "@/integrations/supabase/client";
 import { getMemberPointsSummary, MemberPointsSummary } from "@/services/pointsCalculationService";
+import { notifyDataMutation } from "@/services/dataRefreshManager";
 
 // 会员等级选项
 const memberLevels = ["A", "B", "C", "D"];
@@ -200,12 +201,26 @@ export default function RateCalculator({
           .catch(console.error);
       }
     };
+    const onDataRefresh = (event: Event) => {
+      const detail = (event as CustomEvent<{ table?: string }>).detail;
+      const table = detail?.table;
+      if (
+        table === 'points_ledger' ||
+        table === 'points_accounts' ||
+        table === 'activity_gifts' ||
+        table === 'member_activity'
+      ) {
+        handlePointsUpdated();
+      }
+    };
     
     window.addEventListener('activity-gifts-updated', handlePointsUpdated);
     window.addEventListener('points-updated', handlePointsUpdated);
+    window.addEventListener('data-refresh', onDataRefresh as EventListener);
     return () => {
       window.removeEventListener('activity-gifts-updated', handlePointsUpdated);
       window.removeEventListener('points-updated', handlePointsUpdated);
+      window.removeEventListener('data-refresh', onDataRefresh as EventListener);
     };
   }, [formData.phoneNumber, formData.memberCode]);
 
@@ -615,7 +630,7 @@ export default function RateCalculator({
             operatorId: employee?.id || undefined,
             operatorName: employee?.real_name || undefined,
           });
-          window.dispatchEvent(new CustomEvent('ledger-updated'));
+          notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'manual' }).catch(console.error);
         } catch (e) {
           console.error('[RateCalculator] Failed to log gift balance change:', e);
         }
@@ -645,9 +660,9 @@ export default function RateCalculator({
         setMemberPointsSummary(summary);
       }
       
-      // 触发积分更新事件
-      window.dispatchEvent(new CustomEvent('points-updated'));
-      window.dispatchEvent(new CustomEvent('activity-gifts-updated'));
+      // 触发统一刷新
+      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+      notifyDataMutation({ table: 'activity_gifts', operation: 'INSERT', source: 'manual' }).catch(console.error);
       
       setIsRedeemConfirmOpen(false);
       setIsRedeemDialogOpen(false);

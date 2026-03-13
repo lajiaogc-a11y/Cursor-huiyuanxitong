@@ -2,6 +2,7 @@
 
 import { logOperation } from './auditLogStore';
 import { supabase } from '@/integrations/supabase/client';
+import { notifyDataMutation } from '@/services/dataRefreshManager';
 
 export interface PointsAccount {
   member_code: string;
@@ -186,6 +187,8 @@ export async function redeemPoints(
       `会员${member_code}兑换积分${currentPoints}，积分清零，周期从${oldCycleId}更新为${newCycleId}`
     );
 
+    notifyDataMutation({ table: 'points_accounts', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
+
     return {
       success: true,
       redeemedPoints: currentPoints,
@@ -216,6 +219,11 @@ export function getPointsAccounts(): PointsAccount[] {
     initializePointsAccountCache();
   }
   return Array.from(accountsCache.values());
+}
+
+export function resetPointsAccountCache(): void {
+  accountsCache = new Map();
+  cacheInitialized = false;
 }
 
 /** @deprecated */

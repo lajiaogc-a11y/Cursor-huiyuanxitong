@@ -1,9 +1,11 @@
 import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function MemberProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, loading } = useMemberAuth();
+  const { isAuthenticated: isEmployeeAuthenticated } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -14,7 +16,10 @@ export function MemberProtectedRoute({ children }: { children: ReactNode }) {
     );
   }
   if (!isAuthenticated) {
-    return <Navigate to="/member/login" state={{ from: location }} replace />;
+    return <Navigate to="/" state={{ from: location }} replace />;
+  }
+  if (isEmployeeAuthenticated) {
+    return <Navigate to="/staff" replace />;
   }
   return <>{children}</>;
 }

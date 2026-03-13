@@ -47,6 +47,7 @@ const toast = (opts: { title: string; variant?: string; description?: string }) 
 };
 import { showSubmissionError } from "@/services/submissionErrorService";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { notifyDataMutation } from "@/services/dataRefreshManager";
 import { safeNumber, safeToFixed } from "@/lib/safeCalc";
 import {
   getCardMerchantSettlements,
@@ -828,7 +829,7 @@ export default function MerchantSettlement() {
       setEditingWithdrawal(null);
       toast({ title: "提款记录已更新" });
       // 通知变动明细对话框刷新
-      window.dispatchEvent(new CustomEvent('balance-log-updated'));
+      notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
     } finally {
       setIsSaving(false);
     }
@@ -1051,7 +1052,7 @@ export default function MerchantSettlement() {
       setEditingRecharge(null);
       toast({ title: "充值记录已更新" });
       // 通知变动明细对话框刷新
-      window.dispatchEvent(new CustomEvent('balance-log-updated'));
+      notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
     } finally {
       setIsSaving(false);
     }
@@ -1863,7 +1864,7 @@ export default function MerchantSettlement() {
             const withdrawals = getWithdrawalsForVendor(currentVendor);
             setCurrentWithdrawals([...withdrawals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
             toast({ title: t("提款记录已更新", "Withdrawal updated") });
-            window.dispatchEvent(new CustomEvent('balance-log-updated'));
+            notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           } finally { setIsSaving(false); }
         }}
         onDeleteWithdrawal={async (withdrawalId) => {
@@ -1876,7 +1877,7 @@ export default function MerchantSettlement() {
             const withdrawals = getWithdrawalsForVendor(currentVendor);
             setCurrentWithdrawals([...withdrawals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
             toast({ title: t("提款记录已删除", "Withdrawal deleted") });
-            window.dispatchEvent(new CustomEvent('balance-log-updated'));
+            notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           } finally { setIsSaving(false); }
         }}
       />
@@ -1926,7 +1927,7 @@ export default function MerchantSettlement() {
             const recharges = getRechargesForProvider(currentProvider);
             setCurrentRecharges([...recharges].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
             toast({ title: t("充值记录已更新", "Recharge updated") });
-            window.dispatchEvent(new CustomEvent('balance-log-updated'));
+            notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           } finally { setIsSaving(false); }
         }}
         onDeleteRecharge={async (rechargeId) => {
@@ -1939,7 +1940,7 @@ export default function MerchantSettlement() {
             const recharges = getRechargesForProvider(currentProvider);
             setCurrentRecharges([...recharges].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
             toast({ title: t("充值记录已删除", "Recharge deleted") });
-            window.dispatchEvent(new CustomEvent('balance-log-updated'));
+            notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           } finally { setIsSaving(false); }
         }}
       />

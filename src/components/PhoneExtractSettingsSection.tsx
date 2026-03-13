@@ -135,8 +135,12 @@ export function PhoneExtractSettingsSection() {
     if (effectiveTenantId) {
       loadStats();
       loadRecords();
-      const interval = setInterval(loadStats, 10000);
-      return () => clearInterval(interval);
+      const statsInterval = setInterval(loadStats, 10000);
+      const recordsInterval = setInterval(loadRecords, 10000);
+      return () => {
+        clearInterval(statsInterval);
+        clearInterval(recordsInterval);
+      };
     }
   }, [effectiveTenantId, loadStats, loadRecords]);
 

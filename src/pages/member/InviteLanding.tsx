@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Gift, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { getMemberPortalSettingsByInviteCode } from "@/services/memberPortalSettingsService";
 
 export default function InviteLanding() {
   const { t } = useLanguage();
@@ -15,6 +16,20 @@ export default function InviteLanding() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [brandName, setBrandName] = useState("Spin & Win");
+  const [inviteReward, setInviteReward] = useState(3);
+  const [inviteEnabled, setInviteEnabled] = useState(true);
+
+  useEffect(() => {
+    if (!code) return;
+    (async () => {
+      const data = await getMemberPortalSettingsByInviteCode(code);
+      if (!data) return;
+      setBrandName(data.settings.company_name || "Spin & Win");
+      setInviteReward(Number(data.settings.invite_reward_spins || 3));
+      setInviteEnabled(!!data.settings.enable_invite);
+    })();
+  }, [code]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +54,7 @@ export default function InviteLanding() {
       if (!r.success) {
         if (r.error === "INVALID_CODE") toast.error(t("邀请码无效", "Invalid invite code"));
         else if (r.error === "ALREADY_INVITED") toast.error(t("您已被该邀请人邀请过", "You have already been invited by this person"));
+        else if (r.error === "INVITE_DISABLED") toast.error(t("该租户已关闭邀请活动", "Invite activity is disabled"));
         else if (r.error?.includes("invitee") || r.error?.includes("unique")) toast.error(t("该手机号已提交过", "This phone has already been submitted"));
         else toast.error(r.error || t("失败", "Failed"));
         setLoading(false);
@@ -58,8 +74,12 @@ export default function InviteLanding() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-100 p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-amber-900">Spin & Win</h1>
-          <p className="text-amber-700 mt-1">{t("您被邀请了！邀请即得 3 次免费抽奖。", "You're invited! Get 3 free spins when you join.")}</p>
+          <h1 className="text-2xl font-bold text-amber-900">{brandName}</h1>
+          <p className="text-amber-700 mt-1">
+            {inviteEnabled
+              ? t(`您被邀请了！邀请即得 ${inviteReward} 次免费抽奖。`, `You're invited! Get ${inviteReward} free spins when you join.`)
+              : t("当前邀请活动未开放", "Invite activity is currently disabled")}
+          </p>
         </div>
 
         <Card className="bg-white/90 border-amber-200">
@@ -69,10 +89,19 @@ export default function InviteLanding() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {submitted ? (
+            {!inviteEnabled ? (
+              <div className="text-center space-y-3">
+                <p className="text-amber-800 font-medium">{t("邀请活动已关闭", "Invite activity disabled")}</p>
+                <Link to="/member/login">
+                  <Button variant="outline" className="border-amber-300 text-amber-900">
+                    {t("去登录", "Go to Login")}
+                  </Button>
+                </Link>
+              </div>
+            ) : submitted ? (
               <div className="text-center space-y-4">
                 <p className="text-amber-800 font-medium">{t("感谢提交！", "Thanks for joining!")}</p>
-                <p className="text-amber-700 text-sm">{t("我们已收到您的信息。管理员将为您创建账号，创建后您将获得 3 次免费抽奖机会。请联系管理员获取登录密码。", "We've received your info. An admin will create your account and you'll get 3 free spins. Contact admin to get your login password.")}</p>
+                <p className="text-amber-700 text-sm">{t(`我们已收到您的信息。管理员将为您创建账号，创建后您将获得 ${inviteReward} 次免费抽奖机会。请联系管理员获取登录密码。`, `We've received your info. An admin will create your account and you'll get ${inviteReward} free spins. Contact admin to get your login password.`)}</p>
                 <Link to="/member/login">
                   <Button variant="outline" className="border-amber-300 text-amber-900">
                     {t("去登录", "Go to Login")}

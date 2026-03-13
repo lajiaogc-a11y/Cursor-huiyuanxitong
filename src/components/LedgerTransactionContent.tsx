@@ -108,8 +108,18 @@ export default function LedgerTransactionContent({
   useEffect(() => {
     if (!active) return;
     const handler = () => loadTransactions();
+    const onDataRefresh = (event: Event) => {
+      const detail = (event as CustomEvent<{ table?: string }>).detail;
+      if (detail?.table === 'ledger_transactions') {
+        handler();
+      }
+    };
     window.addEventListener('ledger-updated', handler);
-    return () => window.removeEventListener('ledger-updated', handler);
+    window.addEventListener('data-refresh', onDataRefresh as EventListener);
+    return () => {
+      window.removeEventListener('ledger-updated', handler);
+      window.removeEventListener('data-refresh', onDataRefresh as EventListener);
+    };
   }, [active, loadTransactions]);
 
   // Realtime subscription for ledger_transactions table changes (covers order cancellations, etc.)

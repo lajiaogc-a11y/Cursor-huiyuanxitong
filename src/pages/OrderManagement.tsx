@@ -43,6 +43,7 @@ import { useAuditWorkflow } from "@/hooks/useAuditWorkflow";
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
 import { OrderFilters, OrderEditDialog, OrderUsdtEditDialog, OrderTable, OrderUsdtTable } from "@/components/orders";
 import { queryClient } from "@/lib/queryClient";
+import { notifyDataMutation } from "@/services/dataRefreshManager";
 
 // UUID 校验函数 - 防止把姓名字符串写入 uuid 字段
 const isUuid = (str: string): boolean => {
@@ -634,10 +635,9 @@ export default function OrderManagement() {
       queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-      window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-      window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
-      window.dispatchEvent(new CustomEvent('ledger-updated'));
-      window.dispatchEvent(new CustomEvent('points-updated'));
+      notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+      notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
       toast.success("订单已更新");
     } else {
       // 非管理员：按字段判断，需审核的只提交审核不直接更新，可直接编辑的才更新
@@ -771,10 +771,9 @@ export default function OrderManagement() {
       queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-      window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-      window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
-      window.dispatchEvent(new CustomEvent('ledger-updated'));
-      window.dispatchEvent(new CustomEvent('points-updated'));
+      notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+      notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
       toast.success("订单已更新");
     }
     
@@ -1016,10 +1015,9 @@ export default function OrderManagement() {
       queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-      window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-      window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
-      window.dispatchEvent(new CustomEvent('ledger-updated'));
-      window.dispatchEvent(new CustomEvent('points-updated'));
+      notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+      notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
       toast.success("USDT订单已更新");
     } else {
       // 非管理员：按字段判断，需审核的只提交审核不直接更新
@@ -1136,10 +1134,9 @@ export default function OrderManagement() {
       queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-      window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-      window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
-      window.dispatchEvent(new CustomEvent('ledger-updated'));
-      window.dispatchEvent(new CustomEvent('points-updated'));
+      notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+      notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
       toast.success("USDT订单已更新");
     }
     
@@ -1224,8 +1221,7 @@ export default function OrderManagement() {
                     queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
                     queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
                     queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-                    window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-                    window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+                    notifyDataMutation({ table: 'orders', operation: '*', source: 'manual' }).catch(console.error);
                   }} />
                   <Button variant="outline" size="sm" onClick={() => exportTableToCSV('orders', false, { tenantId: effectiveTenantId ?? undefined, useMyTenantRpc: !!(effectiveTenantId && currentEmployee?.tenant_id && effectiveTenantId === currentEmployee.tenant_id) })}>
                     <Download className="h-4 w-4" />

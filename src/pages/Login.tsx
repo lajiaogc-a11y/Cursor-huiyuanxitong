@@ -28,7 +28,7 @@ const MODULE_ITEMS = [
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signIn, isAuthenticated, loading: authLoading } = useAuth();
+  const { signIn, isAuthenticated, loading: authLoading, employee } = useAuth();
   const { t, language, setLanguage } = useLanguage();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -47,13 +47,26 @@ export default function Login() {
     UNKNOWN: { icon: AlertCircle, message: t('login.unknownError') },
   };
 
+  const resolveAfterLoginPath = (fromPath?: string) => {
+    const from = fromPath || "";
+    const isAdminPath = from.startsWith("/staff/admin");
+    const isPlatformSuperAdmin = !!employee?.is_platform_super_admin;
+
+    // 平台总管理员：无条件锁定到平台后台
+    if (isPlatformSuperAdmin) return "/staff/admin/tenants";
+
+    // 非平台账号：禁止落到平台后台路径
+    if (isAdminPath) return "/staff";
+    if (from === "/404" || !from || from === "/" || from === "") return "/staff";
+    return from;
+  };
+
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
-      let from = (location.state as any)?.from?.pathname || "/";
-      if (from === "/404" || !from || from === "") from = "/";
-      navigate(from, { replace: true });
+      const fromPath = (location.state as any)?.from?.pathname || "";
+      navigate(resolveAfterLoginPath(fromPath), { replace: true });
     }
-  }, [isAuthenticated, authLoading, navigate, location]);
+  }, [isAuthenticated, authLoading, navigate, location, employee?.is_platform_super_admin]);
 
   useEffect(() => {
     if (error) setError(null);
@@ -86,9 +99,8 @@ export default function Login() {
       const result = await withTimeout(signIn(username.trim(), password), TIMEOUT.AUTH, t('login.timeout'));
       if (result.success) {
         toast.success(result.message);
-        let from = (location.state as any)?.from?.pathname || "/";
-        if (from === "/404" || !from || from === "") from = "/";
-        navigate(from, { replace: true });
+        const fromPath = (location.state as any)?.from?.pathname || "";
+        navigate(resolveAfterLoginPath(fromPath), { replace: true });
       } else {
         const errorCode = parseErrorCode(result.message);
         const errorConfig = ERROR_CONFIG[errorCode] || ERROR_CONFIG.UNKNOWN;
@@ -230,7 +242,7 @@ export default function Login() {
               {t('login.submit')}
             </span>
             <Link
-              to="/signup"
+              to="/staff/signup"
               className="flex-1 py-2.5 text-center text-sm font-medium text-[#64748B] dark:text-slate-400 hover:text-[#334155] dark:hover:text-slate-200 rounded-md transition-colors"
             >
               {t('login.goSignup')}
@@ -320,7 +332,7 @@ export default function Login() {
 
           <p className="mt-6 text-center text-sm text-[#64748B] dark:text-slate-400">
             {t('login.noAccount')}{" "}
-            <Link to="/signup" className="text-[#2563EB] font-medium hover:underline">
+            <Link to="/staff/signup" className="text-[#2563EB] font-medium hover:underline">
               {t('login.goSignup')}
             </Link>
           </p>

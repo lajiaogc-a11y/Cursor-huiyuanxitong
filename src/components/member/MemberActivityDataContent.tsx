@@ -1002,7 +1002,7 @@ export default function MemberActivityDataContent() {
     const isUsdt = currency === 'USDT';
     sessionStorage.setItem("orderSearchMemberCode", memberCode);
     sessionStorage.setItem("orderSearchTab", isUsdt ? "usdt" : "normal");
-    navigate("/orders");
+    navigate("/staff/orders");
     setIsReferralDialogOpen(false);
   };
 

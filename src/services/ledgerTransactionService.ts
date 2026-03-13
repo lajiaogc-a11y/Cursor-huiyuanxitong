@@ -5,6 +5,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { notifyDataMutation } from '@/services/dataRefreshManager';
 
 export type AccountType = 'card_vendor' | 'payment_provider';
 
@@ -81,8 +82,7 @@ export async function createLedgerEntry(params: CreateLedgerEntryParams): Promis
     return null;
   }
 
-  // Emit event for UI refresh
-  window.dispatchEvent(new CustomEvent('ledger-updated'));
+  notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'mutation' }).catch(console.error);
   return data as LedgerTransaction;
 }
 
@@ -114,7 +114,7 @@ export async function softDeleteLedgerEntry(params: {
     return null;
   }
 
-  window.dispatchEvent(new CustomEvent('ledger-updated'));
+  notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
   return data as LedgerTransaction;
 }
 
@@ -177,7 +177,7 @@ export async function setInitialBalanceLedger(params: {
     return null;
   }
 
-  window.dispatchEvent(new CustomEvent('ledger-updated'));
+  notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'mutation' }).catch(console.error);
   return data as LedgerTransaction;
 }
 
@@ -348,6 +348,8 @@ export async function deleteLedgerTransactions(
     return false;
   }
 
+  notifyDataMutation({ table: 'ledger_transactions', operation: 'DELETE', source: 'mutation' }).catch(console.error);
+
   return true;
 }
 
@@ -448,7 +450,7 @@ export async function reverseAllEntriesForSource(params: {
     return null;
   }
 
-  window.dispatchEvent(new CustomEvent('ledger-updated'));
+  notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'mutation' }).catch(console.error);
   return data as LedgerTransaction;
 }
 

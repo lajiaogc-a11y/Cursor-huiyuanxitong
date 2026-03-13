@@ -5,7 +5,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Phone, Copy, RotateCcw, Trash2, Loader2, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,11 +34,9 @@ export function PhoneExtractPanel() {
   const [stats, setStats] = useState<PhoneStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [settings, setSettings] = useState({ per_extract_limit: 100, per_user_daily_limit: 5 });
-  const [extractCount, setExtractCount] = useState(100);
   const [copyFormat, setCopyFormat] = useState<"comma" | "newline">("comma");
   const [extracting, setExtracting] = useState(false);
   const [returning, setReturning] = useState(false);
-  const [dailyLimitReached, setDailyLimitReached] = useState(false);
 
   const loadStats = useCallback(async () => {
     if (!effectiveTenantId) return;
@@ -47,20 +44,18 @@ export function PhoneExtractPanel() {
     try {
       const s = await getPhoneStats(effectiveTenantId);
       setStats(s);
-      setDailyLimitReached(s.user_today_extracted >= settings.per_user_daily_limit);
     } catch (e) {
       console.error("Phone stats load failed:", e);
       setStats(null);
     } finally {
       setStatsLoading(false);
     }
-  }, [effectiveTenantId, settings.per_user_daily_limit]);
+  }, [effectiveTenantId]);
 
   const loadSettings = useCallback(async () => {
     try {
       const s = await getExtractSettings();
       setSettings(s);
-      setExtractCount(s.per_extract_limit || 100);
     } catch (e) {
       console.error(e);
     }
@@ -97,19 +92,30 @@ export function PhoneExtractPanel() {
 
   const handleExtract = async () => {
     if (!effectiveTenantId) return;
-    const n = Math.min(Math.max(1, extractCount), settings.per_extract_limit);
-    if (dailyLimitReached || (stats && stats.user_today_extracted >= settings.per_user_daily_limit)) {
-      toast.error(t("今日提取次数已达上限", "Daily extract limit reached"));
-      return;
-    }
     if (stats && stats.total_available === 0) {
       toast.error(t("号码池已耗尽", "Phone pool exhausted"));
       return;
     }
     setExtracting(true);
     try {
+      // 每次提取前读取最新设置，确保汇率页执行与“提取设置”完全一致
+      let latestSettings = settings;
+      try {
+        latestSettings = await getExtractSettings();
+        setSettings(latestSettings);
+      } catch (e) {
+        console.error("Load latest extract settings failed, fallback to local settings:", e);
+      }
+      const n = Math.max(1, latestSettings.per_extract_limit || 1);
+
       const result = await extractPhones(effectiveTenantId, n);
       setExtractedList((prev) => [...result, ...prev]);
+      // 默认选中本次提取结果，便于一键归还
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        result.forEach((item) => next.add(item.id));
+        return next;
+      });
       if (result.length < n) {
         toast.success(
           t(`已提取 ${result.length} 个（请求 ${n}，池已不足）`, `Extracted ${result.length} (requested ${n}, pool exhausted)`)
@@ -120,7 +126,6 @@ export function PhoneExtractPanel() {
       await loadStats();
     } catch (e: any) {
       if (e?.message === "DAILY_LIMIT_EXCEEDED") {
-        setDailyLimitReached(true);
         toast.error(t("今日提取次数已达上限", "Daily extract limit reached"));
       } else if (e?.message === "NOT_AUTHENTICATED") {
         toast.error(
@@ -154,15 +159,47 @@ export function PhoneExtractPanel() {
   };
 
   const handleReturn = async () => {
-    if (selectedIds.size === 0) return;
+    if (extractedList.length === 0) {
+      toast.error(t("暂无可归还号码", "No numbers to return"));
+      return;
+    }
     if (!effectiveTenantId) return;
+    const targetIds = selectedIds.size > 0 ? [...selectedIds] : extractedList.map((p) => p.id);
     setReturning(true);
     try {
-      await returnPhones([...selectedIds]);
-      setExtractedList((prev) => prev.filter((p) => !selectedIds.has(p.id)));
-      setSelectedIds(new Set());
-      toast.success(t("已归还选中号码", "Returned selected numbers"));
+      const returnedIds = await returnPhones(targetIds);
+      const returnedSet = new Set(returnedIds);
+
+      setExtractedList((prev) => prev.filter((p) => !returnedSet.has(p.id)));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        returnedIds.forEach((id) => next.delete(id));
+        return next;
+      });
+
+      if (returnedIds.length === 0) {
+        toast.error(
+          t(
+            "未归还成功：号码可能已被归还或无权限",
+            "No numbers returned: already returned or no permission"
+          )
+        );
+      } else if (returnedIds.length < targetIds.length) {
+        toast.warning(
+          t(
+            `部分归还成功：${returnedIds.length}/${targetIds.length}`,
+            `Partially returned: ${returnedIds.length}/${targetIds.length}`
+          )
+        );
+      } else {
+        toast.success(
+          selectedIds.size > 0
+            ? t(`已归还选中号码（${returnedIds.length}）`, `Returned selected numbers (${returnedIds.length})`)
+            : t(`已归还全部号码（${returnedIds.length}）`, `Returned all numbers (${returnedIds.length})`)
+        );
+      }
       await loadStats();
+      await loadReservedPhones();
     } catch (e) {
       toast.error(t("归还失败", "Return failed"));
     } finally {
@@ -238,42 +275,32 @@ export function PhoneExtractPanel() {
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-1.5 text-sm">
-          <div className="rounded border p-1.5 text-center">
-            <p className="text-muted-foreground text-[10px]">{t("可用", "Avail")}</p>
-            <p className="font-mono text-xs font-semibold">
-              {statsLoading ? "…" : (stats ? stats.total_available : "-")}
-            </p>
-          </div>
-          <div className="rounded border p-1.5 text-center">
-            <p className="text-muted-foreground text-[10px]">{t("今日", "Today")}</p>
-            <p className="font-mono text-xs font-semibold">
-              {statsLoading ? "…" : (stats ? `${stats.user_today_extracted}/${settings.per_user_daily_limit}` : "-")}
-            </p>
-          </div>
-          <div className="rounded border p-1.5 text-center">
-            <p className="text-muted-foreground text-[10px]">{t("已提取", "Got")}</p>
-            <p className="font-mono text-xs font-semibold">
-              {statsLoading ? "…" : extractedList.length}
-            </p>
-          </div>
+        <div className="grid grid-cols-3 gap-1.5">
+          {[
+            { label: t("可用", "Avail"),  value: statsLoading ? "…" : (stats ? stats.total_available : "-") },
+            {
+              label: t("净提取/次数", "Net/Acts"),
+              value: statsLoading ? "…" : (stats ? `${stats.user_today_extracted} / ${stats.user_today_extract_actions}次` : "-"),
+            },
+            { label: t("持有", "Hold"),   value: statsLoading ? "…" : extractedList.length },
+          ].map(({ label, value }) => (
+            <div key={label} className="rounded border bg-muted/30 py-1.5 px-1 text-center">
+              <p className="text-[10px] text-muted-foreground">{label}</p>
+              <p className="font-mono text-xs font-semibold mt-0.5 tabular-nums">{value}</p>
+            </div>
+          ))}
         </div>
 
         {/* Extract */}
         <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            min={1}
-            max={settings.per_extract_limit}
-            value={extractCount}
-            onChange={(e) => setExtractCount(Math.min(settings.per_extract_limit, Math.max(1, Number(e.target.value) || 1)))}
-            className="w-20 h-8 text-xs"
-          />
+          <div className="h-8 px-2 rounded border bg-muted/30 text-xs flex items-center whitespace-nowrap">
+            {t("每次提取", "Per extract")} {settings.per_extract_limit}
+          </div>
           <Button
             size="sm"
             className="flex-1 h-8"
             onClick={handleExtract}
-            disabled={extracting || dailyLimitReached || (stats?.total_available ?? 0) === 0}
+            disabled={extracting || (stats?.total_available ?? 0) === 0}
           >
             {extracting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
             {t("提取", "Extract")}
@@ -296,7 +323,7 @@ export function PhoneExtractPanel() {
                 <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={handleCopy}>
                   <Copy className="h-3 w-3" />
                 </Button>
-                <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={handleReturn} disabled={returning || selectedIds.size === 0}>
+                <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={handleReturn} disabled={returning || extractedList.length === 0}>
                   {returning ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
                 </Button>
                 <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={handleClearList}>
@@ -323,6 +350,9 @@ export function PhoneExtractPanel() {
                 <p className="text-[10px] text-muted-foreground">... {extractedList.length}</p>
               )}
             </div>
+            <p className="text-[10px] text-muted-foreground">
+              {t("提示：不勾选时点击归还将归还全部号码", "Tip: If none selected, Return will return all numbers")}
+            </p>
           </div>
         )}
 

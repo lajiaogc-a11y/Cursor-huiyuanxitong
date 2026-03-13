@@ -41,26 +41,27 @@ interface MobileMenuProps {
 }
 
 const tenantMenuItems = [
-  { icon: Calculator, labelZh: "汇率计算", labelEn: "Exchange Rate", path: "/exchange-rate" },
-  { icon: LayoutDashboard, labelZh: "数据统计", labelEn: "Statistics", path: "/" },
-  { icon: ClipboardList, labelZh: "订单管理", labelEn: "Orders", path: "/orders" },
-  { icon: Star, labelZh: "会员管理", labelEn: "Members", path: "/members" },
-  { icon: Building2, labelZh: "商家结算", labelEn: "Settlement", path: "/merchant-settlement" },
-  { icon: BookOpen, labelZh: "公司文档", labelEn: "Company Docs", path: "/knowledge", badge: "unread" },
-  { icon: BarChart3, labelZh: "报表管理", labelEn: "Reports", path: "/reports" },
-  { icon: ListTodo, labelZh: "工作任务", labelEn: "Tasks", path: "/tasks/settings" },
-  { icon: Store, labelZh: "商家管理", labelEn: "Merchants", path: "/merchants" },
-  { icon: Shield, labelZh: "审核中心", labelEn: "Audit", path: "/audit-center", badge: "pending" },
-  { icon: UserCog, labelZh: "员工管理", labelEn: "Employees", path: "/employees" },
-  { icon: History, labelZh: "操作日志", labelEn: "Logs", path: "/operation-logs" },
-  { icon: LogIn, labelZh: "登录日志", labelEn: "Login Logs", path: "/login-logs" },
-  { icon: Settings, labelZh: "系统设置", labelEn: "Settings", path: "/settings" },
+  { icon: Calculator, labelZh: "汇率计算", labelEn: "Exchange Rate", path: "/staff/exchange-rate" },
+  { icon: LayoutDashboard, labelZh: "数据统计", labelEn: "Statistics", path: "/staff" },
+  { icon: ClipboardList, labelZh: "订单管理", labelEn: "Orders", path: "/staff/orders" },
+  { icon: Star, labelZh: "会员管理", labelEn: "Members", path: "/staff/members" },
+  { icon: Building2, labelZh: "商家结算", labelEn: "Settlement", path: "/staff/merchant-settlement" },
+  { icon: BookOpen, labelZh: "公司文档", labelEn: "Company Docs", path: "/staff/knowledge", badge: "unread" },
+  { icon: BarChart3, labelZh: "报表管理", labelEn: "Reports", path: "/staff/reports" },
+  { icon: ListTodo, labelZh: "工作任务", labelEn: "Tasks", path: "/staff/tasks/settings" },
+  { icon: Store, labelZh: "商家管理", labelEn: "Merchants", path: "/staff/merchants" },
+  { icon: Shield, labelZh: "审核中心", labelEn: "Audit", path: "/staff/audit-center", badge: "pending" },
+  { icon: UserCog, labelZh: "员工管理", labelEn: "Employees", path: "/staff/employees" },
+  { icon: Monitor, labelZh: "会员系统", labelEn: "Member Portal", path: "/staff/member-portal" },
+  { icon: History, labelZh: "操作日志", labelEn: "Logs", path: "/staff/operation-logs" },
+  { icon: LogIn, labelZh: "登录日志", labelEn: "Login Logs", path: "/staff/login-logs" },
+  { icon: Settings, labelZh: "系统设置", labelEn: "Settings", path: "/staff/settings" },
 ];
 
 const platformMenuItems = [
-  { icon: Building2, labelZh: "租户管理", labelEn: "Tenant Management", path: "/company-management" },
-  { icon: Users, labelZh: "租户数据查看", labelEn: "View Tenant Data", path: "/platform-tenant-view" },
-  { icon: Settings, labelZh: "平台设置", labelEn: "Platform Settings", path: "/platform-settings" },
+  { icon: Building2, labelZh: "租户管理", labelEn: "Tenant Management", path: "/staff/admin/tenants" },
+  { icon: Users, labelZh: "租户数据查看", labelEn: "View Tenant Data", path: "/staff/admin/tenant-view" },
+  { icon: Settings, labelZh: "平台设置", labelEn: "Platform Settings", path: "/staff/admin/settings" },
 ];
 
 export function MobileMenu({ open, onClose }: MobileMenuProps) {

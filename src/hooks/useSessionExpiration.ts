@@ -27,14 +27,14 @@ export function useSessionExpiration() {
           setTimeout(() => {
             // 兼容 HashRouter：pathname 可能在 hash 中
             const path = window.location.hash ? window.location.hash.slice(1) || '/' : window.location.pathname;
-            if (path !== '/login' && path !== '/signup' && path !== '/pending') {
+            if (path !== '/staff/login' && path !== '/staff/signup' && path !== '/staff/pending') {
               toast.error('会话已过期，请重新登录', {
                 duration: 8000,
                 description: 'Your session has expired. Please log in again.',
                 action: {
                   label: '重新登录',
                   onClick: () => {
-                    navigate('/login', { replace: true });
+                    navigate('/staff/login', { replace: true });
                   },
                 },
               });

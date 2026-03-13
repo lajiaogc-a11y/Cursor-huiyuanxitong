@@ -42,6 +42,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { logOperation } from "@/stores/auditLogStore";
 import { queryClient } from "@/lib/queryClient";
+import { notifyDataMutation } from "@/services/dataRefreshManager";
 
 // Navigation Config
 interface NavigationConfig {
@@ -783,8 +784,7 @@ export default function DataManagementTab() {
           queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
           queryClient.invalidateQueries({ queryKey: ['orders'] });
           queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
-          window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-          window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+          notifyDataMutation({ table: 'orders', operation: 'DELETE', source: 'manual' }).catch(console.error);
         }
         setIsDeleteDialogOpen(false);
         setDeletePassword("");

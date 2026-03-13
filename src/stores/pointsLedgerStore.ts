@@ -110,6 +110,11 @@ export async function refreshPointsLedgerCache(): Promise<void> {
   await initializePointsLedgerCache();
 }
 
+export function resetPointsLedgerCache(): void {
+  ledgerCache = [];
+  cacheInitialized = false;
+}
+
 // ============= 积分操作函数 =============
 
 export interface AppendPointsParams {

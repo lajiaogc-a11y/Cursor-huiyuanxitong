@@ -735,6 +735,9 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
                   onChange={(e) => setSetPasswordValue(e.target.value)}
                   placeholder={t("至少6位", "At least 6 characters")}
                   minLength={6}
+                  autoComplete="new-password"
+                  name="member-initial-password"
+                  data-lpignore="true"
                 />
               </div>
             </div>

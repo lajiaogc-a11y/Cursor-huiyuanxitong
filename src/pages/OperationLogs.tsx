@@ -77,6 +77,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { exportToCSV, formatDateTimeForExport } from "@/lib/exportUtils";
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobileCardActions, MobilePagination } from "@/components/ui/mobile-data-card";
+import { notifyDataMutation } from "@/services/dataRefreshManager";
 
 // Legacy support
 export interface OperationLog {
@@ -406,14 +407,13 @@ export default function OperationLogs() {
               console.error('[OperationLogs] Failed to log order restore balance change:', e);
             }
             
-            window.dispatchEvent(new CustomEvent('points-updated'));
             queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
             queryClient.invalidateQueries({ queryKey: ['orders'] });
             queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
             queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
             queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-            window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-            window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+            notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+            notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           } else {
             const { data: currentOrder, error: fetchError } = await supabase
               .from('orders')
@@ -471,14 +471,13 @@ export default function OperationLogs() {
                 console.error('[OperationLogs] Failed to log order restore balance change:', e);
               }
               
-              window.dispatchEvent(new CustomEvent('points-updated'));
               queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
               queryClient.invalidateQueries({ queryKey: ['orders'] });
               queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
               queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
               queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-              window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-              window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+              notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+              notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
             } else {
               // 软删除的订单，恢复标记
               const { error: updateError } = await supabase
@@ -531,14 +530,13 @@ export default function OperationLogs() {
               console.error('[OperationLogs] Failed to log order restore balance change:', e);
             }
               
-              window.dispatchEvent(new CustomEvent('points-updated'));
               queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
               queryClient.invalidateQueries({ queryKey: ['orders'] });
               queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
               queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
               queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-              window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-              window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+              notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+              notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
             }
           }
           break;
@@ -665,9 +663,9 @@ export default function OperationLogs() {
               console.error('[OperationLogs] Failed to log gift restore balance change:', e);
             }
             
-            // 触发活动赠送更新事件
-            window.dispatchEvent(new CustomEvent('activity-gifts-updated'));
-            window.dispatchEvent(new CustomEvent('points-updated'));
+            // 触发统一数据刷新（活动赠送与积分）
+            notifyDataMutation({ table: 'activity_gifts', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+            notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           } else {
             // 编辑恢复场景：记录存在，恢复到之前的状态
             const { error: updateError } = await supabase
@@ -729,8 +727,8 @@ export default function OperationLogs() {
             logOperation('activity_gift', 'restore', log.objectId, currentGift, log.beforeData,
               `恢复活动赠送数据: ${log.objectDescription || log.objectId}`);
             
-            // 触发活动赠送更新事件
-            window.dispatchEvent(new CustomEvent('activity-gifts-updated'));
+            // 触发统一数据刷新（活动赠送）
+            notifyDataMutation({ table: 'activity_gifts', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           }
           break;
         }
@@ -1127,7 +1125,7 @@ export default function OperationLogs() {
             logOperation('merchant_settlement', 'restore', objectId, null, beforeData,
               `恢复已删除的卡商提款: ${vendorName} - ¥${beforeData.settlementTotal}`);
             
-            window.dispatchEvent(new CustomEvent('ledger-updated'));
+            notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           } else if (objectId.startsWith('RC_')) {
             // Extract provider name from description: "删除代付商家充值: ProviderName"
             const providerMatch = description.match(/[:：]\s*(.+?)(?:\s*-|$)/);
@@ -1168,7 +1166,7 @@ export default function OperationLogs() {
             logOperation('merchant_settlement', 'restore', objectId, null, beforeData,
               `恢复已删除的代付商家充值: ${providerName} - ¥${beforeData.settlementTotal}`);
             
-            window.dispatchEvent(new CustomEvent('ledger-updated'));
+            notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           } else {
             // Handle update operations (initial balance, withdrawal edits, recharge edits)
             // beforeData contains the previous state of the settlement
@@ -1249,13 +1247,13 @@ export default function OperationLogs() {
                     operatorId: employee?.id,
                     operatorName: employee?.real_name,
                   });
-                  window.dispatchEvent(new CustomEvent('balance-log-updated'));
+                  notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
                 }
               }
               
               logOperation('merchant_settlement', 'restore', objectId, null, beforeData,
                 `恢复卡商结算数据: ${vendorName}`);
-              window.dispatchEvent(new CustomEvent('ledger-updated'));
+              notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
             } else if (isProviderOp || beforeData.providerName) {
               // Payment provider settlement restore
               const providerName = beforeData.providerName || objectId;
@@ -1323,13 +1321,13 @@ export default function OperationLogs() {
                     operatorId: employee?.id,
                     operatorName: employee?.real_name,
                   });
-                  window.dispatchEvent(new CustomEvent('balance-log-updated'));
+                  notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
                 }
               }
               
               logOperation('merchant_settlement', 'restore', objectId, null, beforeData,
                 `恢复代付商家结算数据: ${providerName}`);
-              window.dispatchEvent(new CustomEvent('ledger-updated'));
+              notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
             } else {
               toast.error(t('此类型的商家结算操作暂不支持恢复', 'This type of settlement operation cannot be restored'));
               return;

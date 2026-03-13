@@ -79,8 +79,19 @@ export function useReportBaseData() {
     const handler = () => {
       queryClient.invalidateQueries({ queryKey: ['report-base'] });
     };
+    const onDataRefresh = (event: Event) => {
+      const detail = (event as CustomEvent<{ table?: string }>).detail;
+      const table = detail?.table;
+      if (table === 'members' || table === 'payment_providers' || table === 'vendors' || table === 'cards') {
+        handler();
+      }
+    };
     window.addEventListener('report-cache-invalidate', handler);
-    return () => window.removeEventListener('report-cache-invalidate', handler);
+    window.addEventListener('data-refresh', onDataRefresh as EventListener);
+    return () => {
+      window.removeEventListener('report-cache-invalidate', handler);
+      window.removeEventListener('data-refresh', onDataRefresh as EventListener);
+    };
   }, [queryClient]);
 
   return {
@@ -121,8 +132,19 @@ export function useReportFilteredData(
     const handler = () => {
       queryClient.invalidateQueries({ queryKey: ['report-filtered'] });
     };
+    const onDataRefresh = (event: Event) => {
+      const detail = (event as CustomEvent<{ table?: string }>).detail;
+      const table = detail?.table;
+      if (table === 'orders' || table === 'activity_gifts' || table === 'members') {
+        handler();
+      }
+    };
     window.addEventListener('report-cache-invalidate', handler);
-    return () => window.removeEventListener('report-cache-invalidate', handler);
+    window.addEventListener('data-refresh', onDataRefresh as EventListener);
+    return () => {
+      window.removeEventListener('report-cache-invalidate', handler);
+      window.removeEventListener('data-refresh', onDataRefresh as EventListener);
+    };
   }, [queryClient]);
 
   return {

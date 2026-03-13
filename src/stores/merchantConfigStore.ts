@@ -493,6 +493,14 @@ export async function deletePaymentProvider(id: string): Promise<boolean> {
   }
 }
 
+export function resetMerchantConfigCache(): void {
+  cardsCache = [];
+  vendorsCache = [];
+  paymentProvidersCache = [];
+  cardTypesCache = [];
+  cacheInitialized = false;
+}
+
 // ============= 辅助函数 =============
 
 export function getCardById(id: string): CardItem | undefined {

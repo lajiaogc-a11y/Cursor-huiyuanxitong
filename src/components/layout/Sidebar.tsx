@@ -21,6 +21,7 @@ import {
   ListTodo,
   Landmark,
   SlidersHorizontal,
+  MonitorSmartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -62,78 +63,79 @@ interface MenuItem {
 // 所有菜单项配置 - navKey 对应 navigation_config 表中的 nav_key
 // 排序：数据统计 汇率计算 订单管理 会员管理 商家结算 公司文档 报表管理 工作任务 商家管理 审核中心 员工管理 操作日志 登录日志 系统设置
 const allMenuItems: MenuItem[] = [
-  { icon: LayoutDashboard, labelZh: "数据统计", labelEn: "Statistics", path: "/", navKey: "dashboard" },
-  { icon: Calculator, labelZh: "汇率计算", labelEn: "Exchange Rate", path: "/exchange-rate", navKey: "exchange_rate" },
-  { icon: ClipboardList, labelZh: "订单管理", labelEn: "Orders", path: "/orders", navKey: "orders" },
+  { icon: LayoutDashboard, labelZh: "数据统计", labelEn: "Statistics", path: "/staff", navKey: "dashboard" },
+  { icon: Calculator, labelZh: "汇率计算", labelEn: "Exchange Rate", path: "/staff/exchange-rate", navKey: "exchange_rate" },
+  { icon: ClipboardList, labelZh: "订单管理", labelEn: "Orders", path: "/staff/orders", navKey: "orders" },
   {
     icon: Star,
     labelZh: "会员管理",
     labelEn: "Members",
-    path: "/members",
+    path: "/staff/members",
     navKey: "members",
     children: [
-      { labelZh: "会员数据", labelEn: "Member Data", path: "/members?tab=members" },
-      { labelZh: "活动数据", labelEn: "Activity Data", path: "/members?tab=activity" },
-      { labelZh: "活动赠送", labelEn: "Activity Gifts", path: "/members?tab=gifts" },
-      { labelZh: "积分明细", labelEn: "Points Ledger", path: "/members?tab=points" },
+      { labelZh: "会员数据", labelEn: "Member Data", path: "/staff/members?tab=members" },
+      { labelZh: "活动数据", labelEn: "Activity Data", path: "/staff/members?tab=activity" },
+      { labelZh: "活动赠送", labelEn: "Activity Gifts", path: "/staff/members?tab=gifts" },
+      { labelZh: "积分明细", labelEn: "Points Ledger", path: "/staff/members?tab=points" },
     ],
   },
-  { icon: Landmark, labelZh: "商家结算", labelEn: "Settlement", path: "/merchant-settlement", navKey: "merchant_settlement" },
-  { icon: BookOpen, labelZh: "公司文档", labelEn: "Company Docs", path: "/knowledge", navKey: "knowledge_base", badgeType: "unread" as const },
-  { icon: BarChart3, labelZh: "报表管理", labelEn: "Reports", path: "/reports", navKey: "reports" },
+  { icon: Landmark, labelZh: "商家结算", labelEn: "Settlement", path: "/staff/merchant-settlement", navKey: "merchant_settlement" },
+  { icon: BookOpen, labelZh: "公司文档", labelEn: "Company Docs", path: "/staff/knowledge", navKey: "knowledge_base", badgeType: "unread" as const },
+  { icon: BarChart3, labelZh: "报表管理", labelEn: "Reports", path: "/staff/reports", navKey: "reports" },
   {
     icon: ListTodo,
     labelZh: "工作任务",
     labelEn: "Tasks",
-    path: "/tasks/settings",
+    path: "/staff/tasks/settings",
     navKey: "work_tasks",
     children: [
-      { labelZh: "维护设置", labelEn: "Settings", path: "/tasks/settings" },
-      { labelZh: "维护历史", labelEn: "History", path: "/tasks/history" },
-      { labelZh: "动态任务", labelEn: "Post Tasks", path: "/tasks/posters" },
-      { labelZh: "提取设置", labelEn: "Extract Settings", path: "/tasks/phone-extract" },
+      { labelZh: "维护设置", labelEn: "Settings", path: "/staff/tasks/settings" },
+      { labelZh: "维护历史", labelEn: "History", path: "/staff/tasks/history" },
+      { labelZh: "动态任务", labelEn: "Post Tasks", path: "/staff/tasks/posters" },
+      { labelZh: "提取设置", labelEn: "Extract Settings", path: "/staff/tasks/phone-extract" },
     ],
   },
   {
     icon: Store,
     labelZh: "商家管理",
     labelEn: "Merchants",
-    path: "/merchants",
+    path: "/staff/merchants",
     navKey: "merchant_management",
     children: [
-      { labelZh: "卡片管理", labelEn: "Cards", path: "/merchants?tab=cards" },
-      { labelZh: "卡商管理", labelEn: "Vendors", path: "/merchants?tab=vendors" },
-      { labelZh: "代付商家", labelEn: "Payment Providers", path: "/merchants?tab=payment-providers" },
+      { labelZh: "卡片管理", labelEn: "Cards", path: "/staff/merchants?tab=cards" },
+      { labelZh: "卡商管理", labelEn: "Vendors", path: "/staff/merchants?tab=vendors" },
+      { labelZh: "代付商家", labelEn: "Payment Providers", path: "/staff/merchants?tab=payment-providers" },
     ],
   },
-  { icon: Shield, labelZh: "审核中心", labelEn: "Audit", path: "/audit-center", navKey: "audit_center", badgeType: "pending" as const },
-  { icon: UserCog, labelZh: "员工管理", labelEn: "Employees", path: "/employees", navKey: "employees" },
-  { icon: History, labelZh: "操作日志", labelEn: "Logs", path: "/operation-logs", navKey: "operation_logs" },
-  { icon: LogIn, labelZh: "登录日志", labelEn: "Login Logs", path: "/login-logs", navKey: "login_logs" },
+  { icon: Shield, labelZh: "审核中心", labelEn: "Audit", path: "/staff/audit-center", navKey: "audit_center", badgeType: "pending" as const },
+  { icon: UserCog, labelZh: "员工管理", labelEn: "Employees", path: "/staff/employees", navKey: "employees" },
+  { icon: MonitorSmartphone, labelZh: "会员系统", labelEn: "Member Portal", path: "/staff/member-portal", navKey: "member_portal_settings" },
+  { icon: History, labelZh: "操作日志", labelEn: "Logs", path: "/staff/operation-logs", navKey: "operation_logs" },
+  { icon: LogIn, labelZh: "登录日志", labelEn: "Login Logs", path: "/staff/login-logs", navKey: "login_logs" },
   {
     icon: Settings,
     labelZh: "系统设置",
     labelEn: "Settings",
-    path: "/settings",
+    path: "/staff/settings",
     navKey: "system_settings",
     children: [
-      { labelZh: "手续费设置", labelEn: "Fee", path: "/settings?tab=fee", sectionLabel: "业务配置" },
-      { labelZh: "汇率设置", labelEn: "Exchange", path: "/settings?tab=exchange" },
-      { labelZh: "币种设置", labelEn: "Currency", path: "/settings?tab=currency" },
-      { labelZh: "积分设置", labelEn: "Points", path: "/settings?tab=points", sectionLabel: "会员配置" },
-      { labelZh: "活动设置", labelEn: "Activity", path: "/settings?tab=activity" },
-      { labelZh: "活动类型", labelEn: "Activity Type", path: "/settings?tab=activityType" },
-      { labelZh: "活动分配", labelEn: "Gift Distribution", path: "/settings?tab=giftDistribution" },
-      { labelZh: "客户来源", labelEn: "Customer Source", path: "/settings?tab=source" },
-      { labelZh: "数据管理", labelEn: "Data", path: "/settings?tab=data", sectionLabel: "系统管理" },
-      { labelZh: "复制设置", labelEn: "Copy", path: "/settings?tab=copy" },
-      { labelZh: "权限设置", labelEn: "Permissions", path: "/settings?tab=permission" },
-      { labelZh: "API管理", labelEn: "API", path: "/settings?tab=api" },
+      { labelZh: "手续费设置", labelEn: "Fee", path: "/staff/settings?tab=fee", sectionLabel: "业务配置" },
+      { labelZh: "汇率设置", labelEn: "Exchange", path: "/staff/settings?tab=exchange" },
+      { labelZh: "币种设置", labelEn: "Currency", path: "/staff/settings?tab=currency" },
+      { labelZh: "积分设置", labelEn: "Points", path: "/staff/settings?tab=points", sectionLabel: "会员配置" },
+      { labelZh: "活动设置", labelEn: "Activity", path: "/staff/settings?tab=activity" },
+      { labelZh: "活动类型", labelEn: "Activity Type", path: "/staff/settings?tab=activityType" },
+      { labelZh: "活动分配", labelEn: "Gift Distribution", path: "/staff/settings?tab=giftDistribution" },
+      { labelZh: "客户来源", labelEn: "Customer Source", path: "/staff/settings?tab=source" },
+      { labelZh: "数据管理", labelEn: "Data", path: "/staff/settings?tab=data", sectionLabel: "系统管理" },
+      { labelZh: "复制设置", labelEn: "Copy", path: "/staff/settings?tab=copy" },
+      { labelZh: "权限设置", labelEn: "Permissions", path: "/staff/settings?tab=permission" },
+      { labelZh: "API管理", labelEn: "API", path: "/staff/settings?tab=api" },
     ],
   },
-  { icon: Building2, labelZh: "租户管理", labelEn: "Tenant Management", path: "/company-management", navKey: "platform_tenant_management" },
-  { icon: Users, labelZh: "租户数据查看", labelEn: "View Tenant Data", path: "/platform-tenant-view", navKey: "platform_tenant_view" },
-  { icon: SlidersHorizontal, labelZh: "平台设置", labelEn: "Platform Settings", path: "/platform-settings", navKey: "platform_settings" },
+  { icon: Building2, labelZh: "租户管理", labelEn: "Tenant Management", path: "/staff/admin/tenants", navKey: "platform_tenant_management" },
+  { icon: Users, labelZh: "租户数据查看", labelEn: "View Tenant Data", path: "/staff/admin/tenant-view", navKey: "platform_tenant_view" },
+  { icon: SlidersHorizontal, labelZh: "平台设置", labelEn: "Platform Settings", path: "/staff/admin/settings", navKey: "platform_settings" },
 ];
 
 interface NavPermission {
@@ -175,10 +177,10 @@ export function Sidebar() {
   useEffect(() => {
     setExpandedMenus((prev) => {
       const next = new Set(prev);
-      if (location.pathname.startsWith("/tasks")) next.add("工作任务");
-      if (location.pathname === "/members") next.add("会员管理");
-      if (location.pathname === "/merchants") next.add("商家管理");
-      if (location.pathname === "/settings") next.add("系统设置");
+      if (location.pathname.startsWith("/staff/tasks")) next.add("工作任务");
+      if (location.pathname === "/staff/members") next.add("会员管理");
+      if (location.pathname === "/staff/merchants") next.add("商家管理");
+      if (location.pathname === "/staff/settings") next.add("系统设置");
       return next;
     });
   }, [location.pathname]);

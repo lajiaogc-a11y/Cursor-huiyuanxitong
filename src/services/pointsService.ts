@@ -7,6 +7,7 @@ import { CurrencyCode } from '@/config/currencies';
 import { getPointsSettingsAsync, PointsSettings } from '@/stores/pointsSettingsStore';
 import { logOperation } from '@/stores/auditLogStore';
 import { loadSharedData } from '@/services/sharedDataService';
+import { notifyDataMutation } from '@/services/dataRefreshManager';
 
 // ============= 积分类型 =============
 // 系统内仅存在三种积分类型
@@ -319,6 +320,8 @@ export async function createPointsOnOrderCreate(params: CreatePointsParams): Pro
 
     result.success = true;
     console.log('[PointsService] Points creation completed:', result);
+    notifyDataMutation({ table: 'points_ledger', operation: 'INSERT', source: 'mutation' }).catch(console.error);
+    notifyDataMutation({ table: 'member_activity', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
     return result;
   } catch (error) {
     console.error('[PointsService] Failed to create points on order:', error);
@@ -809,6 +812,8 @@ export async function reversePointsOnOrderCancel(orderId: string): Promise<boole
     // 活动数据回收已在函数开头执行，此处不再重复
 
     console.log('[PointsService] Points reversal completed for order:', orderId);
+    notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
+    notifyDataMutation({ table: 'member_activity', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
     return true;
   } catch (error) {
     console.error('[PointsService] Failed to reverse points:', error);
@@ -947,6 +952,8 @@ export async function restorePointsOnOrderRestore(params: CreatePointsParams): P
 
       result.success = true;
       console.log('[PointsService] Points restoration completed:', result);
+      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
+      notifyDataMutation({ table: 'member_activity', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
       return result;
     }
 
@@ -1151,6 +1158,8 @@ export async function adjustPointsOnOrderEdit(params: AdjustPointsOnEditParams):
     );
 
     console.warn('[PointsService] ===== Points adjustment COMPLETED =====', { delta, newPoints, currentNetPoints });
+    notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
+    notifyDataMutation({ table: 'member_activity', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
     return { delta, success: true };
   } catch (error) {
     console.error('[PointsService] adjustPointsOnOrderEdit FAILED:', error);

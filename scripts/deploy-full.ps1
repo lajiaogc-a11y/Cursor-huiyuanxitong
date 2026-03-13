@@ -45,6 +45,22 @@ if (Test-Path ".git") {
 
 # Step 2: Build + Cloudflare deploy
 Write-Host "`n=== Step 2: Build + Cloudflare ===" -ForegroundColor Cyan
+Write-Host "Run database migrations..." -ForegroundColor Cyan
+$migrationScripts = @(
+    ".\scripts\run-member-spin-wheel-prizes-migration.mjs",
+    ".\scripts\run-member-points-mall-migration.mjs",
+    ".\scripts\run-member-points-mall-redemption-admin-migration.mjs",
+    ".\scripts\run-member-tenant-resolution-fix-migration.mjs",
+    ".\scripts\run-member-portal-settings-by-account-migration.mjs"
+)
+foreach ($script in $migrationScripts) {
+    if (Test-Path $script) {
+        Write-Host " - $script"
+        node $script
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+    }
+}
+
 npm run build
 if ($LASTEXITCODE -ne 0) { Write-Host "Build failed" -ForegroundColor Red; exit 1 }
 

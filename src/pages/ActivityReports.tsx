@@ -60,6 +60,7 @@ import { useCurrencies } from "@/components/CurrencySelect";
 import { usePaymentProviders } from "@/hooks/useMerchantConfig";
 import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
 import { useAuditWorkflow } from "@/hooks/useAuditWorkflow";
+import { notifyDataMutation } from "@/services/dataRefreshManager";
 
 interface ActivityRecord {
   id: string;
@@ -358,7 +359,7 @@ const [editFormData, setEditFormData] = useState({
   };
 
   const handleMemberRefresh = () => {
-    window.dispatchEvent(new CustomEvent('member-refresh'));
+    notifyDataMutation({ table: 'members', operation: '*', source: 'manual' }).catch(console.error);
   };
 
 
@@ -448,7 +449,8 @@ const [editFormData, setEditFormData] = useState({
             );
             
             await queryClient.invalidateQueries({ queryKey: ['activity-records'] });
-            window.dispatchEvent(new CustomEvent('activity-gifts-updated'));
+            notifyDataMutation({ table: 'activity_gifts', operation: 'DELETE', source: 'manual' }).catch(console.error);
+            notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
             // 显示退回积分信息
             const restoredPoints = rpcResult?.restored_points || 0;
             if (restoredPoints > 0) {
@@ -566,7 +568,7 @@ const [editFormData, setEditFormData] = useState({
         }
         
         await queryClient.invalidateQueries({ queryKey: ['activity-records'] });
-        window.dispatchEvent(new CustomEvent('activity-gifts-updated'));
+        notifyDataMutation({ table: 'activity_gifts', operation: 'UPDATE', source: 'manual' }).catch(console.error);
         toast.success(t("已更新", "Updated"));
       } else {
         toast.error(t("更新失败", "Update failed"));
@@ -645,6 +647,9 @@ const [editFormData, setEditFormData] = useState({
                       setMemberSearchError("");
                     }}
                     className={`pl-9 ${isMobile ? 'w-full' : 'w-64'} ${memberSearchError ? 'border-destructive' : ''}`}
+                    autoComplete="off"
+                    name="members-search"
+                    data-lpignore="true"
                   />
                   {memberSearchError && <span className="text-xs text-destructive whitespace-nowrap">{memberSearchError}</span>}
                 </div>
@@ -701,6 +706,9 @@ const [editFormData, setEditFormData] = useState({
                       setSearchError("");
                     }}
                     className={`pl-9 ${isMobile ? 'w-full' : 'w-64'} ${searchError ? 'border-destructive' : ''}`}
+                    autoComplete="off"
+                    name="gifts-search"
+                    data-lpignore="true"
                   />
                   {searchError && <span className="text-xs text-destructive whitespace-nowrap">{searchError}</span>}
                 </div>

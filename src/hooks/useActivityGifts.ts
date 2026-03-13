@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { logOperation } from '@/stores/auditLogStore';
 import { getEmployeeNameById, getActivityTypeLabelByValue } from '@/services/nameResolver';
 import { logGiftBalanceChange } from '@/services/balanceLogService';
+import { notifyDataMutation } from '@/services/dataRefreshManager';
 
 function generateGiftNumber(): string {
   const now = new Date();
@@ -189,7 +190,7 @@ export function useActivityGifts() {
 
       await queryClient.invalidateQueries({ queryKey: ['activity-gifts'] });
       
-      window.dispatchEvent(new CustomEvent('activity-gifts-updated'));
+      notifyDataMutation({ table: 'activity_gifts', operation: 'INSERT', source: 'mutation' }).catch(console.error);
       
       return newGift;
     } catch (error) {

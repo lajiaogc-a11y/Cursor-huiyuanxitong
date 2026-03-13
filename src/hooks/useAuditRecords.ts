@@ -10,6 +10,7 @@ import { logOperation } from '@/stores/auditLogStore';
 import { Json } from '@/integrations/supabase/types';
 import { calculateNormalOrderDerivedValues, calculateUsdtOrderDerivedValues } from '@/lib/orderCalculations';
 import { syncMemberActivityOnOrderEdit } from '@/services/balanceLogService';
+import { notifyDataMutation } from '@/services/dataRefreshManager';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -563,8 +564,7 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
         queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        window.dispatchEvent(new CustomEvent('report-cache-invalidate'));
-        window.dispatchEvent(new CustomEvent('leaderboard-refresh'));
+        notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
         if (orderSyncParams) {
           try {
             await syncMemberActivityOnOrderEdit(orderSyncParams);
