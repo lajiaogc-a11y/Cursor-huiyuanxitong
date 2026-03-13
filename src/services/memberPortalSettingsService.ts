@@ -103,8 +103,10 @@ function normalizeSettings(raw: any): MemberPortalSettings {
   };
 }
 
-export async function getMyMemberPortalSettings(): Promise<MemberPortalSettingsPayload> {
-  const { data, error } = await (supabase.rpc as any)("get_my_member_portal_settings");
+export async function getMyMemberPortalSettings(tenantId?: string | null): Promise<MemberPortalSettingsPayload> {
+  const { data, error } = await (supabase.rpc as any)("get_my_member_portal_settings", {
+    p_tenant_id: tenantId || null,
+  });
   if (error) throw new Error(error.message || "Load settings failed");
   const r = (data || {}) as any;
   if (!r.success) throw new Error(r.error || "Load settings failed");
@@ -225,12 +227,14 @@ export async function uploadMemberPortalBannerImage(tenantId: string, file: File
 export async function createMyMemberPortalSettingsVersion(
   payload: MemberPortalSettings,
   note?: string,
-  effectiveAt?: string | null
+  effectiveAt?: string | null,
+  tenantId?: string | null
 ): Promise<{ success: boolean; version_id?: string; version_no?: number; is_applied?: boolean; error?: string }> {
   const { data, error } = await (supabase.rpc as any)("create_my_member_portal_settings_version", {
     p_payload: payload,
     p_note: note || null,
     p_effective_at: effectiveAt || null,
+    p_tenant_id: tenantId || null,
   });
   if (error) return { success: false, error: error.message || "Create version failed" };
   const r = (data || {}) as any;
@@ -243,9 +247,10 @@ export async function createMyMemberPortalSettingsVersion(
   };
 }
 
-export async function listMyMemberPortalSettingsVersions(limit = 20): Promise<MemberPortalVersionItem[]> {
+export async function listMyMemberPortalSettingsVersions(limit = 20, tenantId?: string | null): Promise<MemberPortalVersionItem[]> {
   const { data, error } = await (supabase.rpc as any)("list_my_member_portal_settings_versions", {
     p_limit: limit,
+    p_tenant_id: tenantId || null,
   });
   if (error) throw new Error(error.message || "Load versions failed");
   const r = (data || {}) as any;
@@ -253,9 +258,10 @@ export async function listMyMemberPortalSettingsVersions(limit = 20): Promise<Me
   return (r.versions || []) as MemberPortalVersionItem[];
 }
 
-export async function rollbackMyMemberPortalSettingsVersion(versionId: string): Promise<boolean> {
+export async function rollbackMyMemberPortalSettingsVersion(versionId: string, tenantId?: string | null): Promise<boolean> {
   const { data, error } = await (supabase.rpc as any)("rollback_my_member_portal_settings_version", {
     p_version_id: versionId,
+    p_tenant_id: tenantId || null,
   });
   if (error) throw new Error(error.message || "Rollback failed");
   const r = (data || {}) as any;
@@ -266,12 +272,14 @@ export async function rollbackMyMemberPortalSettingsVersion(versionId: string): 
 export async function submitMyMemberPortalSettingsForApproval(
   payload: MemberPortalSettings,
   note?: string,
-  effectiveAt?: string | null
+  effectiveAt?: string | null,
+  tenantId?: string | null
 ): Promise<{ success: boolean; version_id?: string; version_no?: number; error?: string }> {
   const { data, error } = await (supabase.rpc as any)("submit_my_member_portal_settings_for_approval", {
     p_payload: payload,
     p_note: note || null,
     p_effective_at: effectiveAt || null,
+    p_tenant_id: tenantId || null,
   });
   if (error) return { success: false, error: error.message || "Submit approval failed" };
   const r = (data || {}) as any;
@@ -286,12 +294,14 @@ export async function submitMyMemberPortalSettingsForApproval(
 export async function approveMyMemberPortalSettingsVersion(
   versionId: string,
   reviewNote?: string,
-  approve = true
+  approve = true,
+  tenantId?: string | null
 ): Promise<{ success: boolean; approved?: boolean; error?: string }> {
   const { data, error } = await (supabase.rpc as any)("approve_my_member_portal_settings_version", {
     p_version_id: versionId,
     p_review_note: reviewNote || null,
     p_approve: approve,
+    p_tenant_id: tenantId || null,
   });
   if (error) return { success: false, error: error.message || "Approve failed" };
   const r = (data || {}) as any;

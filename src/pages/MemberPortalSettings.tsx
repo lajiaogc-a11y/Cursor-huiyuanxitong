@@ -183,7 +183,7 @@ export default function MemberPortalSettingsPage() {
   const refreshVersions = async () => {
     setLoadingVersions(true);
     try {
-      setVersions(await listMyMemberPortalSettingsVersions(30));
+      setVersions(await listMyMemberPortalSettingsVersions(30, tenantId));
     } catch (e: any) {
       toast.error(e?.message || "版本列表加载失败");
     } finally {
@@ -224,7 +224,7 @@ export default function MemberPortalSettingsPage() {
     const run = async () => {
       setLoading(true);
       try {
-        const data = await getMyMemberPortalSettings();
+        const data = await getMyMemberPortalSettings(tenantId);
         let initialSnapshot = data.settings;
         try {
           const raw = localStorage.getItem(workingDraftKey);
@@ -257,7 +257,7 @@ export default function MemberPortalSettingsPage() {
       }
     };
     run();
-  }, [workingDraftKey]);
+  }, [workingDraftKey, tenantId]);
 
   useEffect(() => {
     void refreshOnlineVersion();
@@ -479,8 +479,8 @@ export default function MemberPortalSettingsPage() {
     if (!canPublish) { toast.error("仅管理员可回滚"); return; }
     setSaving(true);
     try {
-      await rollbackMyMemberPortalSettingsVersion(versionId);
-      const data = await getMyMemberPortalSettings();
+      await rollbackMyMemberPortalSettingsVersion(versionId, tenantId);
+      const data = await getMyMemberPortalSettings(tenantId);
       applySettingsSnapshot(data.settings);
       await refreshVersions();
       void emitPortalSettingsUpdated(tenantId);
@@ -496,7 +496,7 @@ export default function MemberPortalSettingsPage() {
     if (!canPublish) { toast.error("仅管理员可审核"); return; }
     setSaving(true);
     try {
-      const result = await approveMyMemberPortalSettingsVersion(versionId, reviewNote.trim() || undefined, approve);
+      const result = await approveMyMemberPortalSettingsVersion(versionId, reviewNote.trim() || undefined, approve, tenantId);
       if (!result.success) { toast.error(result.error || "审核失败"); return; }
       if (approve) {
         void emitPortalSettingsUpdated(tenantId);
@@ -533,7 +533,7 @@ export default function MemberPortalSettingsPage() {
         }
         toast.success(result.is_applied ? `已发布版本 V${result.version_no}` : `已创建定时版本 V${result.version_no}`);
       } else {
-        const submitResult = await submitMyMemberPortalSettingsForApproval(payload, publishNote.trim() || undefined, scheduleAt || null);
+        const submitResult = await submitMyMemberPortalSettingsForApproval(payload, publishNote.trim() || undefined, scheduleAt || null, tenantId);
         if (!submitResult.success) { toast.error(submitResult.error || "提交审批失败"); return; }
         toast.success(`已提交审核 V${submitResult.version_no}`);
       }
