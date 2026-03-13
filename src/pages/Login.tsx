@@ -29,7 +29,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { signIn, isAuthenticated, loading: authLoading } = useAuth();
-  const { tr, language, setLanguage } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -37,14 +37,14 @@ export default function Login() {
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
 
   const ERROR_CONFIG: Record<string, { icon: typeof AlertCircle; message: string }> = {
-    USER_NOT_FOUND: { icon: User, message: tr('login.userNotFound') },
-    WRONG_PASSWORD: { icon: KeyRound, message: tr('login.wrongPassword') },
-    ACCOUNT_DISABLED: { icon: ShieldX, message: tr('login.accountDisabled') },
-    IP_COUNTRY_NOT_ALLOWED: { icon: MapPinOff, message: tr('login.ipNotAllowed') },
-    NETWORK_ERROR: { icon: WifiOff, message: tr('login.networkError') },
-    TIMEOUT: { icon: WifiOff, message: tr('login.timeout') },
-    PASSWORD_SYNC_ERROR: { icon: KeyRound, message: tr('login.passwordSyncError') },
-    UNKNOWN: { icon: AlertCircle, message: tr('login.unknownError') },
+    USER_NOT_FOUND: { icon: User, message: t('login.userNotFound') },
+    WRONG_PASSWORD: { icon: KeyRound, message: t('login.wrongPassword') },
+    ACCOUNT_DISABLED: { icon: ShieldX, message: t('login.accountDisabled') },
+    IP_COUNTRY_NOT_ALLOWED: { icon: MapPinOff, message: t('login.ipNotAllowed') },
+    NETWORK_ERROR: { icon: WifiOff, message: t('login.networkError') },
+    TIMEOUT: { icon: WifiOff, message: t('login.timeout') },
+    PASSWORD_SYNC_ERROR: { icon: KeyRound, message: t('login.passwordSyncError') },
+    UNKNOWN: { icon: AlertCircle, message: t('login.unknownError') },
   };
 
   useEffect(() => {
@@ -74,16 +74,16 @@ export default function Login() {
     e.preventDefault();
     setError(null);
     if (!username.trim()) {
-      setError({ code: 'VALIDATION', message: tr('login.validationUsername') });
+      setError({ code: 'VALIDATION', message: t('login.validationUsername') });
       return;
     }
     if (!password.trim()) {
-      setError({ code: 'VALIDATION', message: tr('login.validationPassword') });
+      setError({ code: 'VALIDATION', message: t('login.validationPassword') });
       return;
     }
     setLoading(true);
     try {
-      const result = await withTimeout(signIn(username.trim(), password), TIMEOUT.AUTH, tr('login.timeout'));
+      const result = await withTimeout(signIn(username.trim(), password), TIMEOUT.AUTH, t('login.timeout'));
       if (result.success) {
         toast.success(result.message);
         let from = (location.state as any)?.from?.pathname || "/";
@@ -158,15 +158,15 @@ export default function Login() {
             <div className="flex items-center gap-3 mb-10">
               <GCLogo size={44} variant="light" />
               <div>
-                <p className="text-white font-semibold text-lg">{tr('login.title')}</p>
-                <p className="text-slate-400 text-sm">{tr('login.titleAlt')}</p>
+                <p className="text-white font-semibold text-lg">{t('login.title')}</p>
+                <p className="text-slate-400 text-sm">{t('login.titleAlt')}</p>
               </div>
             </div>
             <h1 className="text-2xl xl:text-3xl font-bold text-white mb-4 leading-tight">
-              {tr('login.heroTitle')}
+              {t('login.heroTitle')}
             </h1>
             <p className="text-slate-300 text-sm xl:text-base leading-relaxed">
-              {tr('login.heroSlogan')}
+              {t('login.heroSlogan')}
             </p>
             <div className="grid grid-cols-2 gap-3 mt-8">
               {MODULE_ITEMS.map(({ key, icon: Icon, color }) => (
@@ -175,13 +175,13 @@ export default function Login() {
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl border bg-white/5 backdrop-blur-sm transition-all hover:bg-white/10 ${color}`}
                 >
                   <Icon className="h-5 w-5 shrink-0" />
-                  <span className="font-medium text-sm">{tr(`login.${key}`)}</span>
+                  <span className="font-medium text-sm">{t(`login.${key}`)}</span>
                 </div>
               ))}
             </div>
           </div>
           <p className="text-slate-500 text-xs mt-auto pt-6">
-            {tr('login.copyright')}
+            {t('login.copyright')}
           </p>
         </div>
 
@@ -194,12 +194,12 @@ export default function Login() {
             <div className="flex items-center gap-3 mb-4">
               <GCLogo size={40} />
               <div>
-                <h1 className="text-xl font-bold text-[#1e293b] dark:text-white">{tr('login.title')}</h1>
-                <p className="text-[#64748B] dark:text-slate-400 text-sm">{tr('login.subtitle')}</p>
+                <h1 className="text-xl font-bold text-[#1e293b] dark:text-white">{t('login.title')}</h1>
+                <p className="text-[#64748B] dark:text-slate-400 text-sm">{t('login.subtitle')}</p>
               </div>
             </div>
             <p className="text-slate-600 dark:text-slate-300 text-sm mb-4 leading-relaxed">
-              {tr('login.heroSlogan')}
+              {t('login.heroSlogan')}
             </p>
             <div className="grid grid-cols-2 gap-2">
               {MODULE_ITEMS.map(({ key, icon: Icon, color }) => (
@@ -208,7 +208,7 @@ export default function Login() {
                   className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border bg-slate-50 dark:bg-slate-800/50 transition-all ${color}`}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
-                  <span className="font-medium text-xs">{tr(`login.${key}`)}</span>
+                  <span className="font-medium text-xs">{t(`login.${key}`)}</span>
                 </div>
               ))}
             </div>
@@ -217,23 +217,23 @@ export default function Login() {
           {/* 桌面端标题 */}
           <div className="hidden lg:block mb-8">
             <h1 className="text-2xl font-bold text-[#1e293b] dark:text-white">
-              {tr('login.title')}
+              {t('login.title')}
             </h1>
             <p className="text-[#64748B] dark:text-slate-400 text-sm mt-1">
-              {tr('login.subtitle')}
+              {t('login.subtitle')}
             </p>
           </div>
 
           {/* 登录/注册 Tab */}
           <div className="flex gap-1 p-1 rounded-lg bg-[#f1f5f9] dark:bg-slate-700/50 mb-6">
             <span className="flex-1 py-2.5 text-center text-sm font-medium text-[#1e293b] dark:text-white bg-white dark:bg-slate-600/50 rounded-md shadow-sm">
-              {tr('login.submit')}
+              {t('login.submit')}
             </span>
             <Link
               to="/signup"
               className="flex-1 py-2.5 text-center text-sm font-medium text-[#64748B] dark:text-slate-400 hover:text-[#334155] dark:hover:text-slate-200 rounded-md transition-colors"
             >
-              {tr('login.goSignup')}
+              {t('login.goSignup')}
             </Link>
           </div>
 
@@ -255,7 +255,7 @@ export default function Login() {
 
             <div className="space-y-2">
               <Label htmlFor="username" className="text-sm font-medium text-[#334155] dark:text-slate-300">
-                {tr('login.username')}
+                {t('login.username')}
               </Label>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94a3b8] dark:text-slate-500" />
@@ -264,7 +264,7 @@ export default function Login() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder={tr('login.usernamePlaceholder')}
+                  placeholder={t('login.usernamePlaceholder')}
                   className="pl-10 h-11 rounded-lg border-[#e2e8f0] dark:border-slate-600 dark:bg-slate-700/50 dark:text-white dark:placeholder:text-slate-500 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
                   style={{ height: 44 }}
                   autoComplete="username"
@@ -275,7 +275,7 @@ export default function Login() {
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-medium text-[#334155] dark:text-slate-300">
-                {tr('login.password')}
+                {t('login.password')}
               </Label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94a3b8] dark:text-slate-500" />
@@ -284,7 +284,7 @@ export default function Login() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={tr('login.passwordPlaceholder')}
+                  placeholder={t('login.passwordPlaceholder')}
                   className="pl-10 pr-11 h-11 rounded-lg border-[#e2e8f0] dark:border-slate-600 dark:bg-slate-700/50 dark:text-white dark:placeholder:text-slate-500 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
                   style={{ height: 44 }}
                   autoComplete="current-password"
@@ -310,18 +310,18 @@ export default function Login() {
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  {tr('login.loggingIn')}
+                  {t('login.loggingIn')}
                 </span>
               ) : (
-                tr('login.submit')
+                t('login.submit')
               )}
             </Button>
           </form>
 
           <p className="mt-6 text-center text-sm text-[#64748B] dark:text-slate-400">
-            {tr('login.noAccount')}{" "}
+            {t('login.noAccount')}{" "}
             <Link to="/signup" className="text-[#2563EB] font-medium hover:underline">
-              {tr('login.goSignup')}
+              {t('login.goSignup')}
             </Link>
           </p>
         </div>

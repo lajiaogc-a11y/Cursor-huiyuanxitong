@@ -54,7 +54,7 @@ export function MobileNavbar({ onMenuOpen, memoUnreadCount = 0, knowledgeUnreadC
     { icon: <Home className="h-5 w-5" />, labelZh: "首页", labelEn: "Home", to: "/" },
     { icon: <Calculator className="h-5 w-5" />, labelZh: "汇率", labelEn: "Rate", to: "/exchange-rate" },
     { icon: <ClipboardList className="h-5 w-5" />, labelZh: "订单", labelEn: "Orders", to: "/orders" },
-    { icon: <Star className="h-5 w-5" />, labelZh: "会员", labelEn: "Members", to: "/activity-reports" },
+    { icon: <Star className="h-5 w-5" />, labelZh: "会员", labelEn: "Members", to: "/members" },
     { icon: <Building2 className="h-5 w-5" />, labelZh: "结算", labelEn: "Settle", to: "/merchant-settlement" },
   ];
 

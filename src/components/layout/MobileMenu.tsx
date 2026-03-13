@@ -44,7 +44,7 @@ const tenantMenuItems = [
   { icon: Calculator, labelZh: "汇率计算", labelEn: "Exchange Rate", path: "/exchange-rate" },
   { icon: LayoutDashboard, labelZh: "数据统计", labelEn: "Statistics", path: "/" },
   { icon: ClipboardList, labelZh: "订单管理", labelEn: "Orders", path: "/orders" },
-  { icon: Star, labelZh: "会员管理", labelEn: "Members", path: "/activity-reports" },
+  { icon: Star, labelZh: "会员管理", labelEn: "Members", path: "/members" },
   { icon: Building2, labelZh: "商家结算", labelEn: "Settlement", path: "/merchant-settlement" },
   { icon: BookOpen, labelZh: "公司文档", labelEn: "Company Docs", path: "/knowledge", badge: "unread" },
   { icon: BarChart3, labelZh: "报表管理", labelEn: "Reports", path: "/reports" },

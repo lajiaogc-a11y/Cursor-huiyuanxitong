@@ -19,6 +19,8 @@ import {
   BookOpen,
   X,
   ListTodo,
+  Landmark,
+  SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,6 +38,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { GCLogo } from "@/components/GCLogo";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface NavConfig {
   id: string;
@@ -52,30 +55,30 @@ interface MenuItem {
   labelEn: string;
   path: string;
   navKey: string;
-  children?: { labelZh: string; labelEn: string; path: string }[];
+  children?: { labelZh: string; labelEn: string; path: string; sectionLabel?: string }[];
   badgeType?: 'unread' | 'pending';
 }
 
 // 所有菜单项配置 - navKey 对应 navigation_config 表中的 nav_key
-// 排序：汇率计算 数据统计 订单管理 会员管理 商家结算 公司文档 报表管理 商家管理 审核中心 员工管理 操作日志 登录日志 系统设置
+// 排序：数据统计 汇率计算 订单管理 会员管理 商家结算 公司文档 报表管理 工作任务 商家管理 审核中心 员工管理 操作日志 登录日志 系统设置
 const allMenuItems: MenuItem[] = [
-  { icon: Calculator, labelZh: "汇率计算", labelEn: "Exchange Rate", path: "/exchange-rate", navKey: "exchange_rate" },
   { icon: LayoutDashboard, labelZh: "数据统计", labelEn: "Statistics", path: "/", navKey: "dashboard" },
+  { icon: Calculator, labelZh: "汇率计算", labelEn: "Exchange Rate", path: "/exchange-rate", navKey: "exchange_rate" },
   { icon: ClipboardList, labelZh: "订单管理", labelEn: "Orders", path: "/orders", navKey: "orders" },
   {
     icon: Star,
     labelZh: "会员管理",
     labelEn: "Members",
-    path: "/activity-reports",
+    path: "/members",
     navKey: "members",
     children: [
-      { labelZh: "会员数据", labelEn: "Member Data", path: "/activity-reports?tab=members" },
-      { labelZh: "活动数据", labelEn: "Activity Data", path: "/activity-reports?tab=activity" },
-      { labelZh: "活动赠送", labelEn: "Activity Gifts", path: "/activity-reports?tab=gifts" },
-      { labelZh: "积分明细", labelEn: "Points Ledger", path: "/activity-reports?tab=points" },
+      { labelZh: "会员数据", labelEn: "Member Data", path: "/members?tab=members" },
+      { labelZh: "活动数据", labelEn: "Activity Data", path: "/members?tab=activity" },
+      { labelZh: "活动赠送", labelEn: "Activity Gifts", path: "/members?tab=gifts" },
+      { labelZh: "积分明细", labelEn: "Points Ledger", path: "/members?tab=points" },
     ],
   },
-  { icon: Building2, labelZh: "商家结算", labelEn: "Settlement", path: "/merchant-settlement", navKey: "merchant_settlement" },
+  { icon: Landmark, labelZh: "商家结算", labelEn: "Settlement", path: "/merchant-settlement", navKey: "merchant_settlement" },
   { icon: BookOpen, labelZh: "公司文档", labelEn: "Company Docs", path: "/knowledge", navKey: "knowledge_base", badgeType: "unread" as const },
   { icon: BarChart3, labelZh: "报表管理", labelEn: "Reports", path: "/reports", navKey: "reports" },
   {
@@ -87,7 +90,7 @@ const allMenuItems: MenuItem[] = [
     children: [
       { labelZh: "维护设置", labelEn: "Settings", path: "/tasks/settings" },
       { labelZh: "维护历史", labelEn: "History", path: "/tasks/history" },
-      { labelZh: "发动态(海报库)", labelEn: "Posters", path: "/tasks/posters" },
+      { labelZh: "动态任务", labelEn: "Post Tasks", path: "/tasks/posters" },
       { labelZh: "提取设置", labelEn: "Extract Settings", path: "/tasks/phone-extract" },
     ],
   },
@@ -114,15 +117,15 @@ const allMenuItems: MenuItem[] = [
     path: "/settings",
     navKey: "system_settings",
     children: [
-      { labelZh: "手续费设置", labelEn: "Fee", path: "/settings?tab=fee" },
+      { labelZh: "手续费设置", labelEn: "Fee", path: "/settings?tab=fee", sectionLabel: "业务配置" },
       { labelZh: "汇率设置", labelEn: "Exchange", path: "/settings?tab=exchange" },
       { labelZh: "币种设置", labelEn: "Currency", path: "/settings?tab=currency" },
-      { labelZh: "积分设置", labelEn: "Points", path: "/settings?tab=points" },
+      { labelZh: "积分设置", labelEn: "Points", path: "/settings?tab=points", sectionLabel: "会员配置" },
       { labelZh: "活动设置", labelEn: "Activity", path: "/settings?tab=activity" },
       { labelZh: "活动类型", labelEn: "Activity Type", path: "/settings?tab=activityType" },
       { labelZh: "活动分配", labelEn: "Gift Distribution", path: "/settings?tab=giftDistribution" },
       { labelZh: "客户来源", labelEn: "Customer Source", path: "/settings?tab=source" },
-      { labelZh: "数据管理", labelEn: "Data", path: "/settings?tab=data" },
+      { labelZh: "数据管理", labelEn: "Data", path: "/settings?tab=data", sectionLabel: "系统管理" },
       { labelZh: "复制设置", labelEn: "Copy", path: "/settings?tab=copy" },
       { labelZh: "权限设置", labelEn: "Permissions", path: "/settings?tab=permission" },
       { labelZh: "API管理", labelEn: "API", path: "/settings?tab=api" },
@@ -130,7 +133,7 @@ const allMenuItems: MenuItem[] = [
   },
   { icon: Building2, labelZh: "租户管理", labelEn: "Tenant Management", path: "/company-management", navKey: "platform_tenant_management" },
   { icon: Users, labelZh: "租户数据查看", labelEn: "View Tenant Data", path: "/platform-tenant-view", navKey: "platform_tenant_view" },
-  { icon: Settings, labelZh: "平台设置", labelEn: "Platform Settings", path: "/platform-settings", navKey: "platform_settings" },
+  { icon: SlidersHorizontal, labelZh: "平台设置", labelEn: "Platform Settings", path: "/platform-settings", navKey: "platform_settings" },
 ];
 
 interface NavPermission {
@@ -173,7 +176,7 @@ export function Sidebar() {
     setExpandedMenus((prev) => {
       const next = new Set(prev);
       if (location.pathname.startsWith("/tasks")) next.add("工作任务");
-      if (location.pathname === "/activity-reports") next.add("会员管理");
+      if (location.pathname === "/members") next.add("会员管理");
       if (location.pathname === "/merchants") next.add("商家管理");
       if (location.pathname === "/settings") next.add("系统设置");
       return next;
@@ -368,8 +371,14 @@ export function Sidebar() {
                 ?.map((child) => {
                 const isSubActive = fullPath === child.path;
                 const childLabel = language === 'zh' ? child.labelZh : child.labelEn;
+                const sectionLabel = language === 'zh' ? child.sectionLabel : undefined;
                 return (
                   <li key={child.path}>
+                    {sectionLabel && (
+                      <div className="px-3 pt-2 pb-0.5 text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-wider select-none">
+                        {sectionLabel}
+                      </div>
+                    )}
                     <NavLink
                       to={child.path}
                       className={cn(
@@ -482,9 +491,22 @@ export function Sidebar() {
           className="flex-1 overflow-y-auto py-4"
           onScroll={(e) => setNavScrollTop(e.currentTarget.scrollTop)}
         >
-            <ul className="space-y-1 px-3">
-              {menuItems.map(item => renderNavItem(item, true))}
-            </ul>
+            {!permissionsLoaded ? (
+              <ul className="space-y-1 px-3">
+                {[...Array(7)].map((_, i) => (
+                  <li key={i} className="px-3 py-3">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-5 w-5 rounded flex-shrink-0" />
+                      <Skeleton className="h-4 w-24 rounded" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <ul className="space-y-1 px-3">
+                {menuItems.map(item => renderNavItem(item, true))}
+              </ul>
+            )}
           </nav>
         </aside>
       </>
@@ -518,9 +540,22 @@ export function Sidebar() {
           className="flex-1 overflow-y-auto overflow-x-visible py-4"
           onScroll={(e) => setNavScrollTop(e.currentTarget.scrollTop)}
         >
-          <ul className="space-y-1 px-2">
-            {menuItems.map(item => renderNavItem(item))}
-          </ul>
+          {!permissionsLoaded ? (
+            <ul className="space-y-1 px-2">
+              {[...Array(7)].map((_, i) => (
+                <li key={i} className={cn("px-3 py-2.5", collapsed && "flex justify-center px-0")}>
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-5 w-5 rounded flex-shrink-0" />
+                    {!collapsed && <Skeleton className="h-4 w-20 rounded" />}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <ul className="space-y-1 px-2">
+              {menuItems.map(item => renderNavItem(item))}
+            </ul>
+          )}
         </nav>
 
         {/* Collapse Button */}

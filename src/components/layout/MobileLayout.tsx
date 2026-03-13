@@ -22,8 +22,8 @@ const pageTitles: Record<string, { zh: string; en: string }> = {
   "/exchange-rate": { zh: "汇率计算", en: "Exchange Rate" },
   "/orders": { zh: "订单管理", en: "Orders" },
   "/reports": { zh: "报表管理", en: "Reports" },
-  "/activity-reports": { zh: "会员管理", en: "Members" },
-  "/members": { zh: "会员列表", en: "Member List" },
+  "/members": { zh: "会员管理", en: "Members" },
+  "/member-management": { zh: "会员列表", en: "Member List" },
   "/member-activity": { zh: "会员活动", en: "Activity" },
   "/employees": { zh: "员工管理", en: "Employees" },
   "/merchant-settlement": { zh: "商家结算", en: "Settlement" },
@@ -47,7 +47,7 @@ const pageTitles: Record<string, { zh: string; en: string }> = {
 
 // 带 tab 的页面：根据 tab 显示子页面标题
 const tabPageTitles: Record<string, Record<string, { zh: string; en: string }>> = {
-  "/activity-reports": {
+  "/members": {
     members: { zh: "会员数据", en: "Member Data" },
     activity: { zh: "活动数据", en: "Activity Data" },
     gifts: { zh: "活动赠送", en: "Activity Gifts" },
@@ -75,7 +75,7 @@ const tabPageTitles: Record<string, Record<string, { zh: string; en: string }>> 
 };
 
 // Primary pages (shown in bottom navbar) - no back button needed
-const primaryPaths = new Set(["/", "/exchange-rate", "/orders", "/activity-reports", "/merchant-settlement"]);
+const primaryPaths = new Set(["/", "/exchange-rate", "/orders", "/members", "/merchant-settlement"]);
 
 export function MobileLayout({ children }: MobileLayoutProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -97,7 +97,7 @@ export function MobileLayout({ children }: MobileLayoutProps) {
   const [searchParams] = useSearchParams();
   const tab = searchParams.get("tab") || "";
   const defaultTab: Record<string, string> = {
-    "/activity-reports": "members",
+    "/members": "members",
     "/merchants": "cards",
     "/settings": "fee",
   };

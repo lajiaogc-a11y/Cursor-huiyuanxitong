@@ -18,6 +18,7 @@ import {
   returnPhones,
   getPhoneStats,
   getExtractSettings,
+  getMyReservedPhones,
   type ExtractedPhone,
   type PhoneStats,
 } from "@/services/phonePoolService";
@@ -65,6 +66,20 @@ export function PhoneExtractPanel() {
     }
   }, []);
 
+  const loadReservedPhones = useCallback(async () => {
+    if (!effectiveTenantId) return;
+    try {
+      const reserved = await getMyReservedPhones(effectiveTenantId);
+      setExtractedList((prev) => {
+        const map = new Map<number, ExtractedPhone>();
+        [...reserved, ...prev].forEach((p) => map.set(p.id, p));
+        return [...map.values()];
+      });
+    } catch (e) {
+      console.error("Load reserved phones failed:", e);
+    }
+  }, [effectiveTenantId]);
+
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
@@ -72,12 +87,13 @@ export function PhoneExtractPanel() {
   useEffect(() => {
     if (effectiveTenantId) {
       loadStats();
+      loadReservedPhones();
       const interval = setInterval(loadStats, 10000);
       return () => clearInterval(interval);
     } else {
       setStatsLoading(false);
     }
-  }, [effectiveTenantId, loadStats]);
+  }, [effectiveTenantId, loadStats, loadReservedPhones]);
 
   const handleExtract = async () => {
     if (!effectiveTenantId) return;
@@ -113,12 +129,22 @@ export function PhoneExtractPanel() {
             "Session expired, please refresh and sign in again"
           )
         );
-      } else {
-        console.error("Phone extract failed:", e);
+      } else if (e?.message === "FORBIDDEN_TENANT_MISMATCH") {
         toast.error(
           t(
-            "提取失败，请稍后重试或联系管理员",
-            "Extract failed, please retry later or contact admin"
+            "当前租户与操作租户不一致，请退出租户视图后重试",
+            "Tenant mismatch. Exit tenant view and retry"
+          )
+        );
+      } else if (e?.message === "TENANT_REQUIRED") {
+        toast.error(t("未识别到租户，请重新登录后重试", "Tenant not found, please sign in again"));
+      } else {
+        console.error("Phone extract failed:", e);
+        const detail = e?.message ? ` (${e.message})` : "";
+        toast.error(
+          t(
+            `提取失败，请稍后重试或联系管理员${detail}`,
+            `Extract failed, please retry later or contact admin${detail}`
           )
         );
       }

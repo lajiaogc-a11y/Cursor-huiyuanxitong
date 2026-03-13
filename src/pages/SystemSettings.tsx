@@ -24,7 +24,7 @@ const SETTINGS_TAB_MAP: Record<string, string> = {
 export default function SystemSettings() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { tr, t } = useLanguage();
+  const { t } = useLanguage();
   const { employee } = useAuth();
   const isAdmin = employee?.role === "admin";
 
@@ -39,17 +39,17 @@ export default function SystemSettings() {
   }, [isAdmin, tabFromUrl, navigate]);
 
   const tabLabels: Record<string, string> = {
-    fee: tr("settings.feeSettings"),
-    exchange: tr("settings.exchangeRate"),
-    currency: tr("settings.currencySettings"),
-    points: tr("settings.pointsSettings"),
-    activity: tr("settings.activitySettings"),
-    activityType: tr("settings.activityType"),
-    giftDistribution: tr("settings.giftDistribution"),
-    source: tr("settings.customerSource"),
-    data: tr("settings.dataManagement"),
-    copy: tr("settings.copySettings"),
-    permission: tr("settings.permissions"),
+    fee: t("settings.feeSettings"),
+    exchange: t("settings.exchangeRate"),
+    currency: t("settings.currencySettings"),
+    points: t("settings.pointsSettings"),
+    activity: t("settings.activitySettings"),
+    activityType: t("settings.activityType"),
+    giftDistribution: t("settings.giftDistribution"),
+    source: t("settings.customerSource"),
+    data: t("settings.dataManagement"),
+    copy: t("settings.copySettings"),
+    permission: t("settings.permissions"),
     api: t("API管理", "API Management"),
   };
 

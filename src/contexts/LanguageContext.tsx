@@ -6,7 +6,10 @@ export type Language = 'zh' | 'en';
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (zhText: string, enText: string) => string;
+  t: {
+    (zhText: string, enText: string): string;
+    (key: string): string;
+  };
   tr: (key: string) => string;
 }
 
@@ -27,13 +30,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(lang);
   };
 
-  // Simple inline translation helper
-  const t = (zhText: string, enText: string): string => {
-    return language === 'zh' ? zhText : enText;
-  };
-
-  // Translation key lookup helper
-  const tr = (key: string): string => {
+  // Unified key resolver shared by both t()/tr()
+  const resolveByKey = (key: string): string => {
     const keys = key.split('.');
     let value: any = translations;
     
@@ -44,6 +42,19 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     
     return value?.[language] || key;
   };
+
+  // Unified translator:
+  // - t(zh, en): inline text mode
+  // - t('module.key'): dictionary key mode
+  const t: LanguageContextType['t'] = (arg1: string, arg2?: string): string => {
+    if (typeof arg2 === 'string') {
+      return language === 'zh' ? arg1 : arg2;
+    }
+    return resolveByKey(arg1);
+  };
+
+  // Keep tr() for backward compatibility, but route to same translator core
+  const tr: LanguageContextType['tr'] = (key: string): string => t(key);
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t, tr }}>

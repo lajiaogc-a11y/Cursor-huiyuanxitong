@@ -111,7 +111,7 @@ function SortableCategoryItem({
   const [editName, setEditName] = useState(category.name);
   const [editType, setEditType] = useState<'text' | 'phrase' | 'image'>(category.content_type);
   
-  const { t, tr } = useLanguage();
+  const { t } = useLanguage();
   
   const {
     attributes,
@@ -129,7 +129,7 @@ function SortableCategoryItem({
   
   const handleSave = async () => {
     if (!editName.trim()) {
-      toast.error(tr('knowledge.categoryNameEmpty'));
+      toast.error(t('knowledge.categoryNameEmpty'));
       return;
     }
     const success = await onUpdate(category.id, { 
@@ -172,9 +172,9 @@ function SortableCategoryItem({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="text">{tr('knowledge.text')}</SelectItem>
-            <SelectItem value="phrase">{tr('knowledge.phrase')}</SelectItem>
-            <SelectItem value="image">{tr('knowledge.image')}</SelectItem>
+            <SelectItem value="text">{t('knowledge.text')}</SelectItem>
+            <SelectItem value="phrase">{t('knowledge.phrase')}</SelectItem>
+            <SelectItem value="image">{t('knowledge.image')}</SelectItem>
           </SelectContent>
         </Select>
         <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={handleSave}>
@@ -244,18 +244,18 @@ function SortableCategoryItem({
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{tr('knowledge.confirmDeleteCategory')}</AlertDialogTitle>
+              <AlertDialogTitle>{t('knowledge.confirmDeleteCategory')}</AlertDialogTitle>
               <AlertDialogDescription>
-                {tr('knowledge.deleteCategoryWarning')}
+                {t('knowledge.deleteCategoryWarning')}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>{tr('common.cancel')}</AlertDialogCancel>
+              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => onDelete(category.id)}
                 className="bg-destructive text-destructive-foreground"
               >
-                {tr('common.delete')}
+                {t('common.delete')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -268,7 +268,7 @@ function SortableCategoryItem({
 export default function KnowledgeBase() {
   trackRender('KnowledgeBase');
   const { employee } = useAuth();
-  const { t, tr, language, formatDate } = useLanguage();
+  const { t, language, formatDate } = useLanguage();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
@@ -278,6 +278,7 @@ export default function KnowledgeBase() {
   
   // 权限检查：总管理员始终有全部权限
   const isSuperAdmin = employee?.is_super_admin === true;
+  const isPlatformSuperAdmin = employee?.is_platform_super_admin === true;
   const canViewArticles = isSuperAdmin || canViewField('view_articles');
   const canCreateArticles = isSuperAdmin || canEditField('create_articles');
   const canEditArticles = isSuperAdmin || canEditField('edit_articles');
@@ -285,9 +286,18 @@ export default function KnowledgeBase() {
   const canManageCategories = isSuperAdmin || canEditField('manage_categories');
   const canCreatePublicCategories = isSuperAdmin || canEditField('create_public_categories');
 
-  const { categories, loading: categoriesLoading, addCategory, updateCategory, deleteCategory, reorderCategories } = useKnowledgeCategories(employee?.id, isSuperAdmin);
+  const { categories, loading: categoriesLoading, addCategory, updateCategory, deleteCategory, reorderCategories } = useKnowledgeCategories(
+    employee?.id,
+    isSuperAdmin,
+    isPlatformSuperAdmin
+  );
   const [activeCategory, setActiveCategory] = useState<string>("");
-  const { articles, loading: articlesLoading, fetchArticles, addArticle, updateArticle, deleteArticle, updateArticleSortOrders } = useKnowledgeArticles(activeCategory, employee?.id, isSuperAdmin);
+  const { articles, loading: articlesLoading, fetchArticles, addArticle, updateArticle, deleteArticle, updateArticleSortOrders } = useKnowledgeArticles(
+    activeCategory,
+    employee?.id,
+    isSuperAdmin,
+    isPlatformSuperAdmin
+  );
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -399,7 +409,7 @@ export default function KnowledgeBase() {
 
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) {
-      toast.error(tr('knowledge.enterCategoryName'));
+      toast.error(t('knowledge.enterCategoryName'));
       return;
     }
     // Only users with create_public_categories permission can create public categories
@@ -414,7 +424,7 @@ export default function KnowledgeBase() {
 
   const handleAddArticle = async () => {
     if (!articleForm.title_zh.trim()) {
-      toast.error(tr('knowledge.enterTitleZh'));
+      toast.error(t('knowledge.enterTitleZh'));
       return;
     }
     
@@ -500,11 +510,11 @@ export default function KnowledgeBase() {
     if (!file) return;
 
     setIsUploading(true);
-    toast.info(tr('knowledge.uploadConverting'));
+    toast.info(t('knowledge.uploadConverting'));
     const url = await uploadKnowledgeImage(file);
     if (url) {
       setArticleForm(prev => ({ ...prev, image_url: url }));
-      toast.success(tr('knowledge.uploadSuccess'));
+      toast.success(t('knowledge.uploadSuccess'));
     }
     setIsUploading(false);
   };
@@ -512,7 +522,7 @@ export default function KnowledgeBase() {
   const handleCopyContent = (content: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     navigator.clipboard.writeText(content);
-    toast.success(tr('knowledge.copiedToClipboard'));
+    toast.success(t('knowledge.copiedToClipboard'));
   };
 
   const renderArticleForm = () => {
@@ -523,22 +533,22 @@ export default function KnowledgeBase() {
     return (
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label className="text-sm font-medium">{tr('knowledge.titleZh')} <span className="text-destructive">*</span></Label>
+          <Label className="text-sm font-medium">{t('knowledge.titleZh')} <span className="text-destructive">*</span></Label>
           <Input
             value={articleForm.title_zh}
             onChange={(e) => setArticleForm(prev => ({ ...prev, title_zh: e.target.value }))}
-            placeholder={tr('knowledge.titlePlaceholder')}
+            placeholder={t('knowledge.titlePlaceholder')}
             className="h-10"
           />
         </div>
 
         {contentType === 'phrase' && (
           <div className="space-y-2">
-            <Label className="text-sm font-medium">{tr('knowledge.titleEn')}</Label>
+            <Label className="text-sm font-medium">{t('knowledge.titleEn')}</Label>
             <Input
               value={articleForm.title_en}
               onChange={(e) => setArticleForm(prev => ({ ...prev, title_en: e.target.value }))}
-              placeholder={tr('knowledge.titleEnPlaceholder')}
+              placeholder={t('knowledge.titleEnPlaceholder')}
               className="h-10"
             />
           </div>
@@ -547,12 +557,12 @@ export default function KnowledgeBase() {
         {(contentType === 'text' || contentType === 'phrase') && (
           <div className="space-y-2">
             <Label className="text-sm font-medium">
-              {contentType === 'phrase' ? tr('knowledge.phraseContent') : tr('knowledge.textContent')}
+              {contentType === 'phrase' ? t('knowledge.phraseContent') : t('knowledge.textContent')}
             </Label>
             <Textarea
               value={articleForm.content}
               onChange={(e) => setArticleForm(prev => ({ ...prev, content: e.target.value }))}
-              placeholder={contentType === 'phrase' ? tr('knowledge.phrasePlaceholder') : tr('knowledge.contentPlaceholder')}
+              placeholder={contentType === 'phrase' ? t('knowledge.phrasePlaceholder') : t('knowledge.contentPlaceholder')}
               rows={8}
               className="resize-none"
             />
@@ -562,17 +572,17 @@ export default function KnowledgeBase() {
         {contentType === 'image' && (
           <>
             <div className="space-y-2">
-              <Label className="text-sm font-medium">{tr('knowledge.description')}</Label>
+              <Label className="text-sm font-medium">{t('knowledge.description')}</Label>
               <Textarea
                 value={articleForm.description}
                 onChange={(e) => setArticleForm(prev => ({ ...prev, description: e.target.value }))}
-                placeholder={tr('knowledge.descPlaceholder')}
+                placeholder={t('knowledge.descPlaceholder')}
                 rows={3}
                 className="resize-none"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-medium">{tr('knowledge.imageUpload')}</Label>
+              <Label className="text-sm font-medium">{t('knowledge.imageUpload')}</Label>
               <div className="space-y-3">
                 {articleForm.image_url ? (
                   <div className="relative rounded-lg border overflow-hidden bg-muted">
@@ -603,10 +613,10 @@ export default function KnowledgeBase() {
                     <div className="border-2 border-dashed rounded-lg p-8 text-center hover:bg-muted/50 transition-colors">
                       <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                       <p className="text-sm text-muted-foreground">
-                        {isUploading ? tr('knowledge.uploading') : tr('knowledge.uploadHint')}
+                        {isUploading ? t('knowledge.uploading') : t('knowledge.uploadHint')}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {tr('knowledge.uploadNote')}
+                        {t('knowledge.uploadNote')}
                       </p>
                     </div>
                   </Label>
@@ -619,7 +629,7 @@ export default function KnowledgeBase() {
         {/* Visibility selector - only for Super Admin */}
         {isSuperAdmin && (
           <div className="space-y-2">
-            <Label className="text-sm font-medium">{tr('knowledge.visibility')}</Label>
+            <Label className="text-sm font-medium">{t('knowledge.visibility')}</Label>
             <Select 
               value={articleForm.visibility} 
               onValueChange={(v: 'public' | 'private') => setArticleForm(prev => ({ ...prev, visibility: v }))}
@@ -628,14 +638,14 @@ export default function KnowledgeBase() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="public">{tr('knowledge.visibilityPublic')}</SelectItem>
-                <SelectItem value="private">{tr('knowledge.visibilityPrivate')}</SelectItem>
+                <SelectItem value="public">{t('knowledge.visibilityPublic')}</SelectItem>
+                <SelectItem value="private">{t('knowledge.visibilityPrivate')}</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
               {articleForm.visibility === 'public' 
-                ? tr('knowledge.visibilityPublicDesc')
-                : tr('knowledge.visibilityPrivateDesc')
+                ? t('knowledge.visibilityPublicDesc')
+                : t('knowledge.visibilityPrivateDesc')
               }
             </p>
           </div>
@@ -644,7 +654,7 @@ export default function KnowledgeBase() {
         {/* Notice for non-Super Admin */}
         {!isSuperAdmin && (
           <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
-            {tr('knowledge.privateOnlyNotice')}
+            {t('knowledge.privateOnlyNotice')}
           </div>
         )}
       </div>
@@ -660,10 +670,10 @@ export default function KnowledgeBase() {
         <div className="col-span-1 w-10"></div>
         <div className="col-span-1 text-center">{t('序号', 'No.')}</div>
         <div className="col-span-2">{t('标题', 'Title')}</div>
-        <div className={contentType === 'image' ? 'col-span-4' : 'col-span-5'}>{tr('knowledge.content')}</div>
-        {contentType === 'image' && <div className="col-span-1">{tr('knowledge.imageUpload')}</div>}
+        <div className={contentType === 'image' ? 'col-span-4' : 'col-span-5'}>{t('knowledge.content')}</div>
+        {contentType === 'image' && <div className="col-span-1">{t('knowledge.imageUpload')}</div>}
         <div className="col-span-1">{t('发布时间', 'Published')}</div>
-        <div className="col-span-2 text-right">{tr('common.actions')}</div>
+        <div className="col-span-2 text-right">{t('common.actions')}</div>
       </div>
     );
   };
@@ -784,7 +794,7 @@ export default function KnowledgeBase() {
               onClick={(e) => handleCopyContent(article.content || '', e)}
             >
               <Copy className="h-3 w-3 mr-1" />
-              {tr('common.copy')}
+              {t('common.copy')}
             </Button>
           )}
           <Button
@@ -824,13 +834,13 @@ export default function KnowledgeBase() {
                   </AlertDialogTrigger>
                   <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>{tr('knowledge.confirmDeleteArticle')}</AlertDialogTitle>
+                      <AlertDialogTitle>{t('knowledge.confirmDeleteArticle')}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        {tr('knowledge.deleteArticleWarning')}
+                        {t('knowledge.deleteArticleWarning')}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>{tr('common.cancel')}</AlertDialogCancel>
+                      <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={(e) => {
                           e.stopPropagation();
@@ -838,7 +848,7 @@ export default function KnowledgeBase() {
                         }}
                         className="bg-destructive text-destructive-foreground"
                       >
-                        {tr('common.delete')}
+                        {t('common.delete')}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -853,10 +863,10 @@ export default function KnowledgeBase() {
 
   const getContentTypeLabel = (type: string) => {
     switch (type) {
-      case 'text': return tr('knowledge.text');
-      case 'phrase': return tr('knowledge.phrase');
-      case 'image': return tr('knowledge.image');
-      default: return tr('knowledge.text');
+      case 'text': return t('knowledge.text');
+      case 'phrase': return t('knowledge.phrase');
+      case 'image': return t('knowledge.image');
+      default: return t('knowledge.text');
     }
   };
 
@@ -865,7 +875,7 @@ export default function KnowledgeBase() {
       <div className="flex items-center justify-center h-64">
         <div className="flex items-center gap-2 text-muted-foreground">
           <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
-          <span>{tr('common.loading')}</span>
+          <span>{t('common.loading')}</span>
         </div>
       </div>
     );
@@ -919,7 +929,7 @@ export default function KnowledgeBase() {
                     className="h-8 text-xs"
                   >
                     <Check className="h-3.5 w-3.5 mr-1" />
-                    {!isMobile && tr('knowledge.markAllRead')}
+                    {!isMobile && t('knowledge.markAllRead')}
                   </Button>
                   {canManageCategories && (
                     <Button 
@@ -929,7 +939,7 @@ export default function KnowledgeBase() {
                       className="h-8 text-xs"
                     >
                       <Settings className="h-3.5 w-3.5 mr-1" />
-                      {!isMobile && tr('knowledge.manageCategories')}
+                      {!isMobile && t('knowledge.manageCategories')}
                     </Button>
                   )}
                 </div>
@@ -962,7 +972,7 @@ export default function KnowledgeBase() {
                     <Input
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder={tr('knowledge.searchPlaceholder')}
+                      placeholder={t('knowledge.searchPlaceholder')}
                       className="h-9 pl-9 pr-8"
                     />
                     {searchQuery && (
@@ -994,7 +1004,7 @@ export default function KnowledgeBase() {
                 <div className="flex items-center justify-center py-16">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
-                    <span>{tr('common.loading')}</span>
+                    <span>{t('common.loading')}</span>
                   </div>
                 </div>
               ) : filteredArticles.length === 0 ? (
@@ -1003,7 +1013,7 @@ export default function KnowledgeBase() {
                     <FileText className="h-8 w-8 text-muted-foreground" />
                   </div>
                   <p className="text-muted-foreground font-medium">
-                    {searchQuery ? t('未找到匹配内容', 'No matching content found') : tr('knowledge.noArticles')}
+                    {searchQuery ? t('未找到匹配内容', 'No matching content found') : t('knowledge.noArticles')}
                   </p>
                   {searchQuery ? (
                     <Button variant="link" size="sm" className="mt-2" onClick={() => setSearchQuery("")}>
@@ -1119,7 +1129,7 @@ export default function KnowledgeBase() {
       <Dialog open={isManageCategoryOpen} onOpenChange={setIsManageCategoryOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{tr('knowledge.manageCategories')}</DialogTitle>
+            <DialogTitle>{t('knowledge.manageCategories')}</DialogTitle>
             <DialogDescription>
               {t('添加或删除知识库分类', 'Add or remove knowledge base categories')}
             </DialogDescription>
@@ -1128,12 +1138,12 @@ export default function KnowledgeBase() {
           <div className="space-y-6 py-4">
             {/* Add New Category */}
             <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
-              <Label className="text-sm font-medium">{tr('knowledge.addCategory')}</Label>
+              <Label className="text-sm font-medium">{t('knowledge.addCategory')}</Label>
               <div className="flex gap-2">
                 <Input
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
-                  placeholder={tr('knowledge.categoryName')}
+                  placeholder={t('knowledge.categoryName')}
                   className="flex-1 h-9"
                 />
                 <Select value={newCategoryType} onValueChange={(v) => setNewCategoryType(v as any)}>
@@ -1141,9 +1151,9 @@ export default function KnowledgeBase() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="text">{tr('knowledge.text')}</SelectItem>
-                    <SelectItem value="phrase">{tr('knowledge.phrase')}</SelectItem>
-                    <SelectItem value="image">{tr('knowledge.image')}</SelectItem>
+                    <SelectItem value="text">{t('knowledge.text')}</SelectItem>
+                    <SelectItem value="phrase">{t('knowledge.phrase')}</SelectItem>
+                    <SelectItem value="image">{t('knowledge.image')}</SelectItem>
                   </SelectContent>
                 </Select>
                 {canCreatePublicCategories ? (
@@ -1219,7 +1229,7 @@ export default function KnowledgeBase() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsManageCategoryOpen(false)}>
-              {tr('common.close')}
+              {t('common.close')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1239,7 +1249,7 @@ export default function KnowledgeBase() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddArticleOpen(false)}>
-              {tr('common.cancel')}
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleAddArticle}>{t('发布', 'Publish')}</Button>
           </DialogFooter>
@@ -1250,16 +1260,16 @@ export default function KnowledgeBase() {
       <Dialog open={isEditArticleOpen} onOpenChange={setIsEditArticleOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{tr('knowledge.editArticle')}</DialogTitle>
+            <DialogTitle>{t('knowledge.editArticle')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             {renderArticleForm()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditArticleOpen(false)}>
-              {tr('common.cancel')}
+              {t('common.cancel')}
             </Button>
-            <Button onClick={handleUpdateArticle}>{tr('common.save')}</Button>
+            <Button onClick={handleUpdateArticle}>{t('common.save')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1320,7 +1330,7 @@ export default function KnowledgeBase() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsViewArticleOpen(false)}>
-                  {tr('common.close')}
+                  {t('common.close')}
                 </Button>
               </DialogFooter>
             </>

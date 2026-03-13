@@ -129,7 +129,7 @@ function SortableRow({ id, children, disabled }: { id: string; children: React.R
 
 // Card Management Tab Component
 function CardTab() {
-  const { t, tr } = useLanguage();
+  const { t } = useLanguage();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
@@ -166,7 +166,7 @@ function CardTab() {
       const updates = newOrder.map((card, index) => ({ id: card.id, sortOrder: index + 1 }));
       const success = await updateCardSortOrders(updates);
       if (success) {
-        toast({ title: tr('merchants.sortUpdated') });
+        toast({ title: t('merchants.sortUpdated') });
       }
     }
   };
@@ -202,7 +202,7 @@ function CardTab() {
 
   const handleSave = async () => {
     if (!formName) {
-      toast({ title: tr('merchants.fillCardName'), variant: "destructive" });
+      toast({ title: t('merchants.fillCardName'), variant: "destructive" });
       return;
     }
 
@@ -217,10 +217,10 @@ function CardTab() {
           cardVendors: formCardVendors,
         });
         if (success) {
-          toast({ title: tr('merchants.cardUpdated') });
+          toast({ title: t('merchants.cardUpdated') });
           setEditingCard(null);
         } else {
-          toast({ title: tr('merchants.updateFailed'), variant: "destructive" });
+          toast({ title: t('merchants.updateFailed'), variant: "destructive" });
         }
       } else {
         const result = await addCard({
@@ -231,10 +231,10 @@ function CardTab() {
           cardVendors: formCardVendors,
         });
         if (result) {
-          toast({ title: tr('merchants.cardAdded') });
+          toast({ title: t('merchants.cardAdded') });
           setIsAddDialogOpen(false);
         } else {
-          toast({ title: tr('merchants.addFailed'), variant: "destructive" });
+          toast({ title: t('merchants.addFailed'), variant: "destructive" });
         }
       }
       resetForm();
@@ -246,9 +246,9 @@ function CardTab() {
   const handleDelete = async (id: string) => {
     const success = await deleteCard(id);
     if (success) {
-      toast({ title: tr('merchants.cardDeleted') });
+      toast({ title: t('merchants.cardDeleted') });
     } else {
-      toast({ title: tr('merchants.deleteFailed'), variant: "destructive" });
+      toast({ title: t('merchants.deleteFailed'), variant: "destructive" });
     }
   };
 
@@ -258,7 +258,7 @@ function CardTab() {
       const newStatus = card.status === "active" ? "inactive" : "active";
       const success = await updateCard(id, { status: newStatus });
       if (success) {
-        toast({ title: tr('merchants.statusUpdated') });
+        toast({ title: t('merchants.statusUpdated') });
       }
     }
   };
@@ -274,16 +274,16 @@ function CardTab() {
   const cardFormContent = (
     <div className="space-y-4 py-4">
       <div className="space-y-2">
-        <Label>{tr('merchants.cardName')} *</Label>
+        <Label>{t('merchants.cardName')} *</Label>
         <Input
-          placeholder={tr('merchants.namePlaceholder')}
+          placeholder={t('merchants.namePlaceholder')}
           value={formName}
           onChange={(e) => setFormName(e.target.value)}
         />
       </div>
       <div className="space-y-2">
-        <Label>{tr('merchants.cardVendors')}</Label>
-        <div className="text-xs text-muted-foreground mb-1">{tr('merchants.selectVendors')}</div>
+        <Label>{t('merchants.cardVendors')}</Label>
+        <div className="text-xs text-muted-foreground mb-1">{t('merchants.selectVendors')}</div>
         <div className="flex flex-wrap gap-1 p-2 border rounded-lg max-h-32 overflow-auto">
           {vendors.filter(v => v.status === "active").map((vendor) => (
             <Badge 
@@ -298,23 +298,23 @@ function CardTab() {
         </div>
         {formCardVendors.length > 0 && (
           <div className="text-xs text-muted-foreground">
-            {tr('merchants.selected')}: {formCardVendors.join(", ")}
+            {t('merchants.selected')}: {formCardVendors.join(", ")}
           </div>
         )}
       </div>
       <div className="space-y-2">
-        <Label>{tr('merchants.status')}</Label>
+        <Label>{t('merchants.status')}</Label>
         <Select value={formStatus} onValueChange={(v) => setFormStatus(v as "active" | "inactive")}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="active">{tr('merchants.active')}</SelectItem>
-            <SelectItem value="inactive">{tr('merchants.inactive')}</SelectItem>
+            <SelectItem value="active">{t('merchants.active')}</SelectItem>
+            <SelectItem value="inactive">{t('merchants.inactive')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2">
-        <Label>{tr('merchants.remark')}</Label>
-        <Textarea placeholder={tr('merchants.remarkPlaceholder')} value={formRemark} onChange={(e) => setFormRemark(e.target.value)} rows={3} />
+        <Label>{t('merchants.remark')}</Label>
+        <Textarea placeholder={t('merchants.remarkPlaceholder')} value={formRemark} onChange={(e) => setFormRemark(e.target.value)} rows={3} />
       </div>
     </div>
   );
@@ -328,7 +328,7 @@ function CardTab() {
       <div className="flex items-center justify-between gap-3">
         <div className={cn("relative", isMobile ? "flex-1" : "flex-1 max-w-xs")}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder={tr('merchants.searchCards')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-9" />
+          <Input placeholder={t('merchants.searchCards')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-9" />
         </div>
         <div className="flex gap-2">
           <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => refetch()}>
@@ -336,16 +336,16 @@ function CardTab() {
           </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={(open) => { setIsAddDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
-              <Button size="sm" className="h-9"><Plus className="h-4 w-4 mr-1" />{tr('merchants.add')}</Button>
+              <Button size="sm" className="h-9"><Plus className="h-4 w-4 mr-1" />{t('merchants.add')}</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>{tr('merchants.addCard')}</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{t('merchants.addCard')}</DialogTitle></DialogHeader>
               {cardFormContent}
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>{tr('common.cancel')}</Button>
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>{t('common.cancel')}</Button>
                 <Button onClick={handleSave} disabled={saving}>
                   {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {tr('common.save')}
+                  {t('common.save')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -357,13 +357,13 @@ function CardTab() {
         <>
           <MobileCardList>
             {paginatedCards.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground text-sm">{tr('merchants.noData')}</p>
+              <p className="text-center py-8 text-muted-foreground text-sm">{t('merchants.noData')}</p>
             ) : paginatedCards.map((card) => (
               <MobileCard key={card.id}>
                 <MobileCardHeader>
                   <span className="font-medium text-sm">{card.name}</span>
                   <Badge variant={card.status === "active" ? "default" : "secondary"} className="cursor-pointer" onClick={() => toggleStatus(card.id)}>
-                    {card.status === "active" ? tr('merchants.active') : tr('merchants.inactive')}
+                    {card.status === "active" ? t('merchants.active') : t('merchants.inactive')}
                   </Badge>
                 </MobileCardHeader>
                 {(card.cardVendors && card.cardVendors.length > 0) && (
@@ -377,24 +377,24 @@ function CardTab() {
                   </div>
                 )}
                 {card.remark && (
-                  <MobileCardRow label={tr('merchants.remark')} value={card.remark} />
+                  <MobileCardRow label={t('merchants.remark')} value={card.remark} />
                 )}
                 <MobileCardActions>
                   <Dialog open={editingCard?.id === card.id} onOpenChange={(open) => { if (!open) { setEditingCard(null); resetForm(); } }}>
                     <DialogTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={() => openEditDialog(card)}>
                         <Pencil className="h-3.5 w-3.5" />
-                        {tr('common.edit')}
+                        {t('common.edit')}
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
-                      <DialogHeader><DialogTitle>{tr('merchants.editCard')}</DialogTitle></DialogHeader>
+                      <DialogHeader><DialogTitle>{t('merchants.editCard')}</DialogTitle></DialogHeader>
                       {cardFormContent}
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditingCard(null)}>{tr('common.cancel')}</Button>
+                        <Button variant="outline" onClick={() => setEditingCard(null)}>{t('common.cancel')}</Button>
                         <Button onClick={handleSave} disabled={saving}>
                           {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                          {tr('common.save')}
+                          {t('common.save')}
                         </Button>
                       </DialogFooter>
                     </DialogContent>
@@ -403,17 +403,17 @@ function CardTab() {
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-8 gap-1 text-destructive">
                         <Trash2 className="h-3.5 w-3.5" />
-                        {tr('common.delete')}
+                        {t('common.delete')}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>{tr('merchants.confirmDelete')}</AlertDialogTitle>
-                        <AlertDialogDescription>{tr('merchants.deleteCardWarning').replace('{name}', card.name)}</AlertDialogDescription>
+                        <AlertDialogTitle>{t('merchants.confirmDelete')}</AlertDialogTitle>
+                        <AlertDialogDescription>{t('merchants.deleteCardWarning').replace('{name}', card.name)}</AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>{tr('common.cancel')}</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(card.id)}>{tr('common.delete')}</AlertDialogAction>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(card.id)}>{t('common.delete')}</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
@@ -439,11 +439,11 @@ function CardTab() {
                 <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
                   <TableRow>
                     <TableHead className="w-10"></TableHead>
-                    <TableHead className="text-center whitespace-nowrap px-1.5">{tr('merchants.cardName')}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap px-1.5">{tr('merchants.cardVendors')}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap px-1.5">{tr('merchants.status')}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap px-1.5">{tr('merchants.remark')}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap px-1.5">{tr('merchants.actions')}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap px-1.5">{t('merchants.cardName')}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap px-1.5">{t('merchants.cardVendors')}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap px-1.5">{t('merchants.status')}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap px-1.5">{t('merchants.remark')}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap px-1.5">{t('merchants.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -460,13 +460,13 @@ function CardTab() {
                               <Badge variant="secondary" className="text-xs">+{(card.cardVendors || []).length - 2}</Badge>
                             )}
                             {(!card.cardVendors || card.cardVendors.length === 0) && (
-                              <span className="text-muted-foreground text-xs">{tr('merchants.allVendors')}</span>
+                              <span className="text-muted-foreground text-xs">{t('merchants.allVendors')}</span>
                             )}
                           </div>
                         </TableCell>
                         <TableCell className="text-center px-1.5">
                           <Badge variant={card.status === "active" ? "default" : "secondary"} className="cursor-pointer" onClick={() => toggleStatus(card.id)}>
-                            {card.status === "active" ? tr('merchants.active') : tr('merchants.inactive')}
+                            {card.status === "active" ? t('merchants.active') : t('merchants.inactive')}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-center px-1.5">{card.remark}</TableCell>
@@ -477,13 +477,13 @@ function CardTab() {
                                 <Button variant="ghost" size="icon" onClick={() => openEditDialog(card)}><Pencil className="h-4 w-4" /></Button>
                               </DialogTrigger>
                               <DialogContent>
-                                <DialogHeader><DialogTitle>{tr('merchants.editCard')}</DialogTitle></DialogHeader>
+                                <DialogHeader><DialogTitle>{t('merchants.editCard')}</DialogTitle></DialogHeader>
                                 {cardFormContent}
                                 <DialogFooter>
-                                  <Button variant="outline" onClick={() => setEditingCard(null)}>{tr('common.cancel')}</Button>
+                                  <Button variant="outline" onClick={() => setEditingCard(null)}>{t('common.cancel')}</Button>
                                   <Button onClick={handleSave} disabled={saving}>
                                     {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                                    {tr('common.save')}
+                                    {t('common.save')}
                                   </Button>
                                 </DialogFooter>
                               </DialogContent>
@@ -494,12 +494,12 @@ function CardTab() {
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>{tr('merchants.confirmDelete')}</AlertDialogTitle>
-                                  <AlertDialogDescription>{tr('merchants.deleteCardWarning').replace('{name}', card.name)}</AlertDialogDescription>
+                                  <AlertDialogTitle>{t('merchants.confirmDelete')}</AlertDialogTitle>
+                                  <AlertDialogDescription>{t('merchants.deleteCardWarning').replace('{name}', card.name)}</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel>{tr('common.cancel')}</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(card.id)}>{tr('common.delete')}</AlertDialogAction>
+                                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(card.id)}>{t('common.delete')}</AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
@@ -511,7 +511,7 @@ function CardTab() {
                   {paginatedCards.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                        {tr('merchants.noData')}
+                        {t('merchants.noData')}
                       </TableCell>
                     </TableRow>
                   )}
@@ -557,7 +557,7 @@ function CardTab() {
         </>
       )}
       {searchQuery && (
-        <p className="text-xs text-muted-foreground shrink-0">{tr('merchants.dragDisabled')}</p>
+        <p className="text-xs text-muted-foreground shrink-0">{t('merchants.dragDisabled')}</p>
       )}
     </div>
   );
@@ -565,7 +565,7 @@ function CardTab() {
 
 // Vendor Management Tab Component
 function VendorTab() {
-  const { t, tr } = useLanguage();
+  const { t } = useLanguage();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
@@ -631,14 +631,14 @@ function VendorTab() {
       const updates = newOrder.map((vendor, index) => ({ id: vendor.id, sortOrder: index + 1 }));
       const success = await updateVendorSortOrders(updates);
       if (success) {
-        toast({ title: tr('merchants.sortUpdated') });
+        toast({ title: t('merchants.sortUpdated') });
       }
     }
   };
 
   const handleSave = async () => {
     if (!formName) {
-      toast({ title: tr('merchants.fillVendorName'), variant: "destructive" });
+      toast({ title: t('merchants.fillVendorName'), variant: "destructive" });
       return;
     }
 
@@ -652,10 +652,10 @@ function VendorTab() {
           paymentProviders: formPaymentProviders,
         });
         if (success) {
-          toast({ title: tr('merchants.vendorUpdated') });
+          toast({ title: t('merchants.vendorUpdated') });
           setEditingVendor(null);
         } else {
-          toast({ title: tr('merchants.updateFailed'), variant: "destructive" });
+          toast({ title: t('merchants.updateFailed'), variant: "destructive" });
         }
       } else {
         const result = await addVendor({
@@ -664,10 +664,10 @@ function VendorTab() {
           remark: formRemark,
         });
         if (result) {
-          toast({ title: tr('merchants.vendorAdded') });
+          toast({ title: t('merchants.vendorAdded') });
           setIsAddDialogOpen(false);
         } else {
-          toast({ title: tr('merchants.addFailed'), variant: "destructive" });
+          toast({ title: t('merchants.addFailed'), variant: "destructive" });
         }
       }
       resetForm();
@@ -687,9 +687,9 @@ function VendorTab() {
   const handleDelete = async (id: string) => {
     const success = await deleteVendor(id);
     if (success) {
-      toast({ title: tr('merchants.vendorDeleted') });
+      toast({ title: t('merchants.vendorDeleted') });
     } else {
-      toast({ title: tr('merchants.deleteFailed'), variant: "destructive" });
+      toast({ title: t('merchants.deleteFailed'), variant: "destructive" });
     }
   };
 
@@ -699,7 +699,7 @@ function VendorTab() {
       const newStatus = vendor.status === "active" ? "inactive" : "active";
       const success = await updateVendor(id, { status: newStatus });
       if (success) {
-        toast({ title: tr('merchants.statusUpdated') });
+        toast({ title: t('merchants.statusUpdated') });
       }
     }
   };
@@ -707,12 +707,12 @@ function VendorTab() {
   const vendorFormContent = (
     <div className="space-y-4 py-4">
       <div className="space-y-2">
-        <Label>{tr('merchants.vendorName')} *</Label>
-        <Input placeholder={tr('merchants.namePlaceholder')} value={formName} onChange={(e) => setFormName(e.target.value)} />
+        <Label>{t('merchants.vendorName')} *</Label>
+        <Input placeholder={t('merchants.namePlaceholder')} value={formName} onChange={(e) => setFormName(e.target.value)} />
       </div>
       <div className="space-y-2">
-        <Label>{tr('merchants.paymentProvidersFor')}</Label>
-        <div className="text-xs text-muted-foreground mb-1">{tr('merchants.selectProviders')}</div>
+        <Label>{t('merchants.paymentProvidersFor')}</Label>
+        <div className="text-xs text-muted-foreground mb-1">{t('merchants.selectProviders')}</div>
         <div className="flex flex-wrap gap-1 p-2 border rounded-lg max-h-32 overflow-auto">
           {paymentProviders.filter(p => p.status === "active").map((provider) => (
             <Badge 
@@ -727,23 +727,23 @@ function VendorTab() {
         </div>
         {formPaymentProviders.length > 0 && (
           <div className="text-xs text-muted-foreground">
-            {tr('merchants.selected')}: {formPaymentProviders.join(", ")}
+            {t('merchants.selected')}: {formPaymentProviders.join(", ")}
           </div>
         )}
       </div>
       <div className="space-y-2">
-        <Label>{tr('merchants.status')}</Label>
+        <Label>{t('merchants.status')}</Label>
         <Select value={formStatus} onValueChange={(v) => setFormStatus(v as "active" | "inactive")}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="active">{tr('merchants.active')}</SelectItem>
-            <SelectItem value="inactive">{tr('merchants.inactive')}</SelectItem>
+            <SelectItem value="active">{t('merchants.active')}</SelectItem>
+            <SelectItem value="inactive">{t('merchants.inactive')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2">
-        <Label>{tr('merchants.remark')}</Label>
-        <Textarea placeholder={tr('merchants.remarkPlaceholder')} value={formRemark} onChange={(e) => setFormRemark(e.target.value)} rows={3} />
+        <Label>{t('merchants.remark')}</Label>
+        <Textarea placeholder={t('merchants.remarkPlaceholder')} value={formRemark} onChange={(e) => setFormRemark(e.target.value)} rows={3} />
       </div>
     </div>
   );
@@ -757,7 +757,7 @@ function VendorTab() {
       <div className="flex items-center justify-between gap-3">
         <div className={cn("relative", isMobile ? "flex-1" : "flex-1 max-w-xs")}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder={tr('merchants.searchVendors')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-9" />
+          <Input placeholder={t('merchants.searchVendors')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-9" />
         </div>
         <div className="flex gap-2">
           <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => refetch()}>
@@ -765,16 +765,16 @@ function VendorTab() {
           </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={(open) => { setIsAddDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
-              <Button size="sm" className="h-9"><Plus className="h-4 w-4 mr-1" />{tr('merchants.add')}</Button>
+              <Button size="sm" className="h-9"><Plus className="h-4 w-4 mr-1" />{t('merchants.add')}</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>{tr('merchants.addVendor')}</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{t('merchants.addVendor')}</DialogTitle></DialogHeader>
               {vendorFormContent}
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>{tr('common.cancel')}</Button>
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>{t('common.cancel')}</Button>
                 <Button onClick={handleSave} disabled={saving}>
                   {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {tr('common.save')}
+                  {t('common.save')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -786,13 +786,13 @@ function VendorTab() {
         <>
           <MobileCardList>
             {paginatedVendors.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground text-sm">{tr('merchants.noData')}</p>
+              <p className="text-center py-8 text-muted-foreground text-sm">{t('merchants.noData')}</p>
             ) : paginatedVendors.map((vendor) => (
               <MobileCard key={vendor.id}>
                 <MobileCardHeader>
                   <span className="font-medium text-sm">{vendor.name}</span>
                   <Badge variant={vendor.status === "active" ? "default" : "secondary"} className="cursor-pointer" onClick={() => toggleStatus(vendor.id)}>
-                    {vendor.status === "active" ? tr('merchants.active') : tr('merchants.inactive')}
+                    {vendor.status === "active" ? t('merchants.active') : t('merchants.inactive')}
                   </Badge>
                 </MobileCardHeader>
                 {(vendor.paymentProviders && vendor.paymentProviders.length > 0) && (
@@ -806,24 +806,24 @@ function VendorTab() {
                   </div>
                 )}
                 {vendor.remark && (
-                  <MobileCardRow label={tr('merchants.remark')} value={vendor.remark} />
+                  <MobileCardRow label={t('merchants.remark')} value={vendor.remark} />
                 )}
                 <MobileCardActions>
                   <Dialog open={editingVendor?.id === vendor.id} onOpenChange={(open) => { if (!open) { setEditingVendor(null); resetForm(); } }}>
                     <DialogTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={() => openEditDialog(vendor)}>
                         <Pencil className="h-3.5 w-3.5" />
-                        {tr('common.edit')}
+                        {t('common.edit')}
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
-                      <DialogHeader><DialogTitle>{tr('merchants.editVendor')}</DialogTitle></DialogHeader>
+                      <DialogHeader><DialogTitle>{t('merchants.editVendor')}</DialogTitle></DialogHeader>
                       {vendorFormContent}
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditingVendor(null)}>{tr('common.cancel')}</Button>
+                        <Button variant="outline" onClick={() => setEditingVendor(null)}>{t('common.cancel')}</Button>
                         <Button onClick={handleSave} disabled={saving}>
                           {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                          {tr('common.save')}
+                          {t('common.save')}
                         </Button>
                       </DialogFooter>
                     </DialogContent>
@@ -832,17 +832,17 @@ function VendorTab() {
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-8 gap-1 text-destructive">
                         <Trash2 className="h-3.5 w-3.5" />
-                        {tr('common.delete')}
+                        {t('common.delete')}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>{tr('merchants.confirmDelete')}</AlertDialogTitle>
-                        <AlertDialogDescription>{tr('merchants.deleteVendorWarning').replace('{name}', vendor.name)}</AlertDialogDescription>
+                        <AlertDialogTitle>{t('merchants.confirmDelete')}</AlertDialogTitle>
+                        <AlertDialogDescription>{t('merchants.deleteVendorWarning').replace('{name}', vendor.name)}</AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>{tr('common.cancel')}</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(vendor.id)}>{tr('common.delete')}</AlertDialogAction>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(vendor.id)}>{t('common.delete')}</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
@@ -868,11 +868,11 @@ function VendorTab() {
                 <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
                   <TableRow>
                     <TableHead className="w-10"></TableHead>
-                    <TableHead className="text-center whitespace-nowrap px-1.5">{tr('merchants.vendorName')}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap px-1.5">{tr('merchants.paymentProvidersFor')}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap px-1.5">{tr('merchants.status')}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap px-1.5">{tr('merchants.remark')}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap px-1.5">{tr('merchants.actions')}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap px-1.5">{t('merchants.vendorName')}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap px-1.5">{t('merchants.paymentProvidersFor')}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap px-1.5">{t('merchants.status')}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap px-1.5">{t('merchants.remark')}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap px-1.5">{t('merchants.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -889,13 +889,13 @@ function VendorTab() {
                               <Badge variant="secondary" className="text-xs">+{(vendor.paymentProviders || []).length - 2}</Badge>
                             )}
                             {(!vendor.paymentProviders || vendor.paymentProviders.length === 0) && (
-                              <span className="text-muted-foreground text-xs">{tr('merchants.allProviders')}</span>
+                              <span className="text-muted-foreground text-xs">{t('merchants.allProviders')}</span>
                             )}
                           </div>
                         </TableCell>
                         <TableCell className="text-center px-1.5">
                           <Badge variant={vendor.status === "active" ? "default" : "secondary"} className="cursor-pointer" onClick={() => toggleStatus(vendor.id)}>
-                            {vendor.status === "active" ? tr('merchants.active') : tr('merchants.inactive')}
+                            {vendor.status === "active" ? t('merchants.active') : t('merchants.inactive')}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-center px-1.5">{vendor.remark}</TableCell>
@@ -906,13 +906,13 @@ function VendorTab() {
                                 <Button variant="ghost" size="icon" onClick={() => openEditDialog(vendor)}><Pencil className="h-4 w-4" /></Button>
                               </DialogTrigger>
                               <DialogContent>
-                                <DialogHeader><DialogTitle>{tr('merchants.editVendor')}</DialogTitle></DialogHeader>
+                                <DialogHeader><DialogTitle>{t('merchants.editVendor')}</DialogTitle></DialogHeader>
                                 {vendorFormContent}
                                 <DialogFooter>
-                                  <Button variant="outline" onClick={() => setEditingVendor(null)}>{tr('common.cancel')}</Button>
+                                  <Button variant="outline" onClick={() => setEditingVendor(null)}>{t('common.cancel')}</Button>
                                   <Button onClick={handleSave} disabled={saving}>
                                     {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                                    {tr('common.save')}
+                                    {t('common.save')}
                                   </Button>
                                 </DialogFooter>
                               </DialogContent>
@@ -923,12 +923,12 @@ function VendorTab() {
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>{tr('merchants.confirmDelete')}</AlertDialogTitle>
-                                  <AlertDialogDescription>{tr('merchants.deleteVendorWarning').replace('{name}', vendor.name)}</AlertDialogDescription>
+                                  <AlertDialogTitle>{t('merchants.confirmDelete')}</AlertDialogTitle>
+                                  <AlertDialogDescription>{t('merchants.deleteVendorWarning').replace('{name}', vendor.name)}</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel>{tr('common.cancel')}</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(vendor.id)}>{tr('common.delete')}</AlertDialogAction>
+                                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(vendor.id)}>{t('common.delete')}</AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
@@ -940,7 +940,7 @@ function VendorTab() {
                   {paginatedVendors.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                        {tr('merchants.noData')}
+                        {t('merchants.noData')}
                       </TableCell>
                     </TableRow>
                   )}
@@ -986,7 +986,7 @@ function VendorTab() {
         </>
       )}
       {searchQuery && (
-        <p className="text-xs text-muted-foreground shrink-0">{tr('merchants.dragDisabled')}</p>
+        <p className="text-xs text-muted-foreground shrink-0">{t('merchants.dragDisabled')}</p>
       )}
     </div>
   );
@@ -994,7 +994,7 @@ function VendorTab() {
 
 // Payment Provider Tab Component
 function PaymentProviderTab() {
-  const { t, tr } = useLanguage();
+  const { t } = useLanguage();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
@@ -1049,7 +1049,7 @@ function PaymentProviderTab() {
       const updates = newOrder.map((provider, index) => ({ id: provider.id, sortOrder: index + 1 }));
       const success = await updateProviderSortOrders(updates);
       if (success) {
-        toast({ title: tr('merchants.sortUpdated') });
+        toast({ title: t('merchants.sortUpdated') });
       }
     }
   };
@@ -1063,7 +1063,7 @@ function PaymentProviderTab() {
 
   const handleSave = async () => {
     if (!formName) {
-      toast({ title: tr('merchants.fillProviderName'), variant: "destructive" });
+      toast({ title: t('merchants.fillProviderName'), variant: "destructive" });
       return;
     }
 
@@ -1076,10 +1076,10 @@ function PaymentProviderTab() {
           remark: formRemark,
         });
         if (success) {
-          toast({ title: tr('merchants.providerUpdated') });
+          toast({ title: t('merchants.providerUpdated') });
           setEditingProvider(null);
         } else {
-          toast({ title: tr('merchants.updateFailed'), variant: "destructive" });
+          toast({ title: t('merchants.updateFailed'), variant: "destructive" });
         }
       } else {
         const result = await addProvider({
@@ -1088,10 +1088,10 @@ function PaymentProviderTab() {
           remark: formRemark,
         });
         if (result) {
-          toast({ title: tr('merchants.providerAdded') });
+          toast({ title: t('merchants.providerAdded') });
           setIsAddDialogOpen(false);
         } else {
-          toast({ title: tr('merchants.addFailed'), variant: "destructive" });
+          toast({ title: t('merchants.addFailed'), variant: "destructive" });
         }
       }
       resetForm();
@@ -1103,9 +1103,9 @@ function PaymentProviderTab() {
   const handleDelete = async (id: string) => {
     const success = await deleteProvider(id);
     if (success) {
-      toast({ title: tr('merchants.providerDeleted') });
+      toast({ title: t('merchants.providerDeleted') });
     } else {
-      toast({ title: tr('merchants.deleteFailed'), variant: "destructive" });
+      toast({ title: t('merchants.deleteFailed'), variant: "destructive" });
     }
   };
 
@@ -1115,7 +1115,7 @@ function PaymentProviderTab() {
       const newStatus = provider.status === "active" ? "inactive" : "active";
       const success = await updateProvider(id, { status: newStatus });
       if (success) {
-        toast({ title: tr('merchants.statusUpdated') });
+        toast({ title: t('merchants.statusUpdated') });
       }
     }
   };
@@ -1123,22 +1123,22 @@ function PaymentProviderTab() {
   const providerFormContent = (
     <div className="space-y-4 py-4">
       <div className="space-y-2">
-        <Label>{tr('merchants.providerName')} *</Label>
-        <Input placeholder={tr('merchants.namePlaceholder')} value={formName} onChange={(e) => setFormName(e.target.value)} />
+        <Label>{t('merchants.providerName')} *</Label>
+        <Input placeholder={t('merchants.namePlaceholder')} value={formName} onChange={(e) => setFormName(e.target.value)} />
       </div>
       <div className="space-y-2">
-        <Label>{tr('merchants.status')}</Label>
+        <Label>{t('merchants.status')}</Label>
         <Select value={formStatus} onValueChange={(v) => setFormStatus(v as "active" | "inactive")}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="active">{tr('merchants.active')}</SelectItem>
-            <SelectItem value="inactive">{tr('merchants.inactive')}</SelectItem>
+            <SelectItem value="active">{t('merchants.active')}</SelectItem>
+            <SelectItem value="inactive">{t('merchants.inactive')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2">
-        <Label>{tr('merchants.remark')}</Label>
-        <Textarea placeholder={tr('merchants.remarkPlaceholder')} value={formRemark} onChange={(e) => setFormRemark(e.target.value)} rows={3} />
+        <Label>{t('merchants.remark')}</Label>
+        <Textarea placeholder={t('merchants.remarkPlaceholder')} value={formRemark} onChange={(e) => setFormRemark(e.target.value)} rows={3} />
       </div>
     </div>
   );
@@ -1152,7 +1152,7 @@ function PaymentProviderTab() {
       <div className="flex items-center justify-between gap-3">
         <div className={cn("relative", isMobile ? "flex-1" : "flex-1 max-w-xs")}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder={tr('merchants.searchProviders')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-9" />
+          <Input placeholder={t('merchants.searchProviders')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-9" />
         </div>
         <div className="flex gap-2">
           <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => refetch()}>
@@ -1160,16 +1160,16 @@ function PaymentProviderTab() {
           </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={(open) => { setIsAddDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
-              <Button size="sm" className="h-9"><Plus className="h-4 w-4 mr-1" />{tr('merchants.add')}</Button>
+              <Button size="sm" className="h-9"><Plus className="h-4 w-4 mr-1" />{t('merchants.add')}</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>{tr('merchants.addProvider')}</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{t('merchants.addProvider')}</DialogTitle></DialogHeader>
               {providerFormContent}
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>{tr('common.cancel')}</Button>
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>{t('common.cancel')}</Button>
                 <Button onClick={handleSave} disabled={saving}>
                   {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {tr('common.save')}
+                  {t('common.save')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1181,34 +1181,34 @@ function PaymentProviderTab() {
         <>
           <MobileCardList>
             {paginatedProviders.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground text-sm">{tr('merchants.noData')}</p>
+              <p className="text-center py-8 text-muted-foreground text-sm">{t('merchants.noData')}</p>
             ) : paginatedProviders.map((provider) => (
               <MobileCard key={provider.id}>
                 <MobileCardHeader>
                   <span className="font-medium text-sm">{provider.name}</span>
                   <Badge variant={provider.status === "active" ? "default" : "secondary"} className="cursor-pointer" onClick={() => toggleStatus(provider.id)}>
-                    {provider.status === "active" ? tr('merchants.active') : tr('merchants.inactive')}
+                    {provider.status === "active" ? t('merchants.active') : t('merchants.inactive')}
                   </Badge>
                 </MobileCardHeader>
                 {provider.remark && (
-                  <MobileCardRow label={tr('merchants.remark')} value={provider.remark} />
+                  <MobileCardRow label={t('merchants.remark')} value={provider.remark} />
                 )}
                 <MobileCardActions>
                   <Dialog open={editingProvider?.id === provider.id} onOpenChange={(open) => { if (!open) { setEditingProvider(null); resetForm(); } }}>
                     <DialogTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={() => openEditDialog(provider)}>
                         <Pencil className="h-3.5 w-3.5" />
-                        {tr('common.edit')}
+                        {t('common.edit')}
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
-                      <DialogHeader><DialogTitle>{tr('merchants.editProvider')}</DialogTitle></DialogHeader>
+                      <DialogHeader><DialogTitle>{t('merchants.editProvider')}</DialogTitle></DialogHeader>
                       {providerFormContent}
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditingProvider(null)}>{tr('common.cancel')}</Button>
+                        <Button variant="outline" onClick={() => setEditingProvider(null)}>{t('common.cancel')}</Button>
                         <Button onClick={handleSave} disabled={saving}>
                           {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                          {tr('common.save')}
+                          {t('common.save')}
                         </Button>
                       </DialogFooter>
                     </DialogContent>
@@ -1217,17 +1217,17 @@ function PaymentProviderTab() {
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-8 gap-1 text-destructive">
                         <Trash2 className="h-3.5 w-3.5" />
-                        {tr('common.delete')}
+                        {t('common.delete')}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>{tr('merchants.confirmDelete')}</AlertDialogTitle>
-                        <AlertDialogDescription>{tr('merchants.deleteProviderWarning').replace('{name}', provider.name)}</AlertDialogDescription>
+                        <AlertDialogTitle>{t('merchants.confirmDelete')}</AlertDialogTitle>
+                        <AlertDialogDescription>{t('merchants.deleteProviderWarning').replace('{name}', provider.name)}</AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>{tr('common.cancel')}</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(provider.id)}>{tr('common.delete')}</AlertDialogAction>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(provider.id)}>{t('common.delete')}</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
@@ -1253,10 +1253,10 @@ function PaymentProviderTab() {
                 <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
                   <TableRow>
                     <TableHead className="w-10"></TableHead>
-                    <TableHead className="text-center whitespace-nowrap px-1.5">{tr('merchants.providerName')}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap px-1.5">{tr('merchants.status')}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap px-1.5">{tr('merchants.remark')}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap px-1.5">{tr('merchants.actions')}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap px-1.5">{t('merchants.providerName')}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap px-1.5">{t('merchants.status')}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap px-1.5">{t('merchants.remark')}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap px-1.5">{t('merchants.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1266,7 +1266,7 @@ function PaymentProviderTab() {
                         <TableCell className="font-medium text-center px-1.5">{provider.name}</TableCell>
                         <TableCell className="text-center px-1.5">
                           <Badge variant={provider.status === "active" ? "default" : "secondary"} className="cursor-pointer" onClick={() => toggleStatus(provider.id)}>
-                            {provider.status === "active" ? tr('merchants.active') : tr('merchants.inactive')}
+                            {provider.status === "active" ? t('merchants.active') : t('merchants.inactive')}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-center px-1.5">{provider.remark}</TableCell>
@@ -1277,13 +1277,13 @@ function PaymentProviderTab() {
                                 <Button variant="ghost" size="icon" onClick={() => openEditDialog(provider)}><Pencil className="h-4 w-4" /></Button>
                               </DialogTrigger>
                               <DialogContent>
-                                <DialogHeader><DialogTitle>{tr('merchants.editProvider')}</DialogTitle></DialogHeader>
+                                <DialogHeader><DialogTitle>{t('merchants.editProvider')}</DialogTitle></DialogHeader>
                                 {providerFormContent}
                                 <DialogFooter>
-                                  <Button variant="outline" onClick={() => setEditingProvider(null)}>{tr('common.cancel')}</Button>
+                                  <Button variant="outline" onClick={() => setEditingProvider(null)}>{t('common.cancel')}</Button>
                                   <Button onClick={handleSave} disabled={saving}>
                                     {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                                    {tr('common.save')}
+                                    {t('common.save')}
                                   </Button>
                                 </DialogFooter>
                               </DialogContent>
@@ -1294,12 +1294,12 @@ function PaymentProviderTab() {
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>{tr('merchants.confirmDelete')}</AlertDialogTitle>
-                                  <AlertDialogDescription>{tr('merchants.deleteProviderWarning').replace('{name}', provider.name)}</AlertDialogDescription>
+                                  <AlertDialogTitle>{t('merchants.confirmDelete')}</AlertDialogTitle>
+                                  <AlertDialogDescription>{t('merchants.deleteProviderWarning').replace('{name}', provider.name)}</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel>{tr('common.cancel')}</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(provider.id)}>{tr('common.delete')}</AlertDialogAction>
+                                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(provider.id)}>{t('common.delete')}</AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
@@ -1311,7 +1311,7 @@ function PaymentProviderTab() {
                   {paginatedProviders.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                        {tr('merchants.noData')}
+                        {t('merchants.noData')}
                       </TableCell>
                     </TableRow>
                   )}
@@ -1357,7 +1357,7 @@ function PaymentProviderTab() {
         </>
       )}
       {searchQuery && (
-        <p className="text-xs text-muted-foreground shrink-0">{tr('merchants.dragDisabled')}</p>
+        <p className="text-xs text-muted-foreground shrink-0">{t('merchants.dragDisabled')}</p>
       )}
     </div>
   );
@@ -1374,7 +1374,7 @@ const MERCHANT_TAB_LABELS: Record<string, { zh: string; en: string }> = {
 export default function MerchantManagement() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = MERCHANT_TAB_MAP[searchParams.get("tab") || ""] || "cards";
-  const { tr, t } = useLanguage();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState(tabFromUrl);
 
   useEffect(() => {

@@ -39,22 +39,31 @@ export interface KnowledgeReadStatus {
   read_at: string;
 }
 
-export function useKnowledgeCategories(currentEmployeeId?: string, isSuperAdmin?: boolean) {
+export function useKnowledgeCategories(
+  currentEmployeeId?: string,
+  isSuperAdmin?: boolean,
+  isPlatformSuperAdmin?: boolean
+) {
   const queryClient = useQueryClient();
   const { viewingTenantId } = useTenantView() || {};
 
   const { data: categories = [], isLoading: loading } = useQuery({
-    queryKey: ['knowledge-categories', currentEmployeeId, isSuperAdmin, viewingTenantId ?? ''],
+    queryKey: ['knowledge-categories', currentEmployeeId, isSuperAdmin, isPlatformSuperAdmin, viewingTenantId ?? ''],
     staleTime: 5 * 60 * 1000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
-      if (viewingTenantId) {
+      // 仅平台总管理员进入租户视图时才走平台 RPC；
+      // 租户员工虽然也有 viewingTenantId，但无权调用平台 RPC，否则会返回空数据。
+      if (viewingTenantId && isPlatformSuperAdmin) {
         const { data, error } = await supabase.rpc('platform_get_tenant_knowledge_categories', {
           p_tenant_id: viewingTenantId,
         });
-        if (error) throw error;
-        return (data || []) as KnowledgeCategory[];
+        if (!error) {
+          return (data || []) as KnowledgeCategory[];
+        }
+        // RPC 失败时回退到表查询，避免空白页面
+        console.warn('[Knowledge] platform_get_tenant_knowledge_categories failed, fallback to table query:', error.message);
       }
       const { data, error } = await supabase
         .from('knowledge_categories')
@@ -83,8 +92,8 @@ export function useKnowledgeCategories(currentEmployeeId?: string, isSuperAdmin?
   }, [queryClient]);
 
   const fetchCategories = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['knowledge-categories', currentEmployeeId, isSuperAdmin, viewingTenantId ?? ''] });
-  }, [queryClient, currentEmployeeId, isSuperAdmin, viewingTenantId]);
+    queryClient.invalidateQueries({ queryKey: ['knowledge-categories', currentEmployeeId, isSuperAdmin, isPlatformSuperAdmin, viewingTenantId ?? ''] });
+  }, [queryClient, currentEmployeeId, isSuperAdmin, isPlatformSuperAdmin, viewingTenantId]);
 
   const addCategory = async (
     name: string, 
@@ -224,23 +233,31 @@ export function useKnowledgeCategories(currentEmployeeId?: string, isSuperAdmin?
   return { categories, loading, fetchCategories, addCategory, updateCategory, deleteCategory, reorderCategories };
 }
 
-export function useKnowledgeArticles(categoryId?: string, currentEmployeeId?: string, isSuperAdmin?: boolean) {
+export function useKnowledgeArticles(
+  categoryId?: string,
+  currentEmployeeId?: string,
+  isSuperAdmin?: boolean,
+  isPlatformSuperAdmin?: boolean
+) {
   const queryClient = useQueryClient();
   const { viewingTenantId } = useTenantView() || {};
 
   const { data: articles = [], isLoading: loading } = useQuery({
-    queryKey: ['knowledge-articles', categoryId, currentEmployeeId, isSuperAdmin, viewingTenantId ?? ''],
+    queryKey: ['knowledge-articles', categoryId, currentEmployeeId, isSuperAdmin, isPlatformSuperAdmin, viewingTenantId ?? ''],
     staleTime: 5 * 60 * 1000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
-      if (viewingTenantId && categoryId) {
+      // 仅平台总管理员进入租户视图时使用平台 RPC
+      if (viewingTenantId && categoryId && isPlatformSuperAdmin) {
         const { data, error } = await supabase.rpc('platform_get_tenant_knowledge_articles', {
           p_category_id: categoryId,
           p_tenant_id: viewingTenantId,
         });
-        if (error) throw error;
-        return (data || []) as KnowledgeArticle[];
+        if (!error) {
+          return (data || []) as KnowledgeArticle[];
+        }
+        console.warn('[Knowledge] platform_get_tenant_knowledge_articles failed, fallback to table query:', error.message);
       }
       let query = supabase
         .from('knowledge_articles')
@@ -266,8 +283,8 @@ export function useKnowledgeArticles(categoryId?: string, currentEmployeeId?: st
   });
 
   const fetchArticles = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['knowledge-articles', categoryId, currentEmployeeId, isSuperAdmin, viewingTenantId ?? ''] });
-  }, [queryClient, categoryId, currentEmployeeId, isSuperAdmin, viewingTenantId]);
+    queryClient.invalidateQueries({ queryKey: ['knowledge-articles', categoryId, currentEmployeeId, isSuperAdmin, isPlatformSuperAdmin, viewingTenantId ?? ''] });
+  }, [queryClient, categoryId, currentEmployeeId, isSuperAdmin, isPlatformSuperAdmin, viewingTenantId]);
 
   const addArticle = async (article: Omit<KnowledgeArticle, 'id' | 'created_at' | 'updated_at' | 'created_by'>) => {
     try {

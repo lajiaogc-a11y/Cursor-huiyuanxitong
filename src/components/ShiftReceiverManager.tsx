@@ -38,7 +38,7 @@ interface ShiftReceiverManagerProps {
 }
 
 export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceiverManagerProps) {
-  const { tr } = useLanguage();
+  const { t } = useLanguage();
   
   const [receivers, setReceivers] = useState<ShiftReceiver[]>([]);
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
@@ -65,7 +65,7 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
   // 添加接班人
   const handleAdd = async () => {
     if (!newReceiverName.trim()) {
-      toast.error(tr('shiftHandover.pleaseEnterName'));
+      toast.error(t('shiftHandover.pleaseEnterName'));
       return;
     }
     
@@ -74,9 +74,9 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
       await loadReceivers();
       setNewReceiverName('');
       setIsAddDialogOpen(false);
-      toast.success(tr('shiftHandover.addedSuccessfully'));
+      toast.success(t('shiftHandover.addedSuccessfully'));
     } else {
-      toast.error(tr('shiftHandover.addFailed'));
+      toast.error(t('shiftHandover.addFailed'));
     }
   };
   
@@ -90,7 +90,7 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
   // 保存编辑
   const handleSaveEdit = async () => {
     if (!editingReceiver || !editName.trim()) {
-      toast.error(tr('shiftHandover.pleaseEnterName'));
+      toast.error(t('shiftHandover.pleaseEnterName'));
       return;
     }
     
@@ -99,9 +99,9 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
       await loadReceivers();
       setIsEditDialogOpen(false);
       setEditingReceiver(null);
-      toast.success(tr('shiftHandover.updatedSuccessfully'));
+      toast.success(t('shiftHandover.updatedSuccessfully'));
     } else {
-      toast.error(tr('shiftHandover.updateFailed'));
+      toast.error(t('shiftHandover.updateFailed'));
     }
   };
   
@@ -120,9 +120,9 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
       await loadReceivers();
       setIsDeleteDialogOpen(false);
       setDeletingReceiver(null);
-      toast.success(tr('shiftHandover.deletedSuccessfully'));
+      toast.success(t('shiftHandover.deletedSuccessfully'));
     } else {
-      toast.error(tr('shiftHandover.deleteFailed'));
+      toast.error(t('shiftHandover.deleteFailed'));
     }
   };
   
@@ -135,34 +135,34 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
         className="gap-1"
       >
         <Users className="h-3 w-3" />
-        {tr('shiftHandover.manageReceivers')}
+        {t('shiftHandover.manageReceivers')}
       </Button>
       
       {/* 管理接班人主对话框 */}
       <Dialog open={isManageDialogOpen} onOpenChange={setIsManageDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>{tr('shiftHandover.receiverManagement')}</DialogTitle>
+            <DialogTitle>{t('shiftHandover.receiverManagement')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <div className="flex justify-end mb-4">
               <Button size="sm" onClick={() => setIsAddDialogOpen(true)} className="gap-1">
                 <Plus className="h-4 w-4" />
-                {tr('common.add')}
+                {t('common.add')}
               </Button>
             </div>
             
             {receivers.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
-                {tr('shiftHandover.noReceiversYet')}
+                {t('shiftHandover.noReceiversYet')}
               </div>
             ) : (
               <div className="border rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/50 border-b">
-                      <th className="text-left p-3 font-medium">{tr('shiftHandover.name')}</th>
-                      <th className="text-center p-3 font-medium w-32">{tr('common.actions')}</th>
+                      <th className="text-left p-3 font-medium">{t('shiftHandover.name')}</th>
+                      <th className="text-center p-3 font-medium w-32">{t('common.actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -176,7 +176,7 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
                               onClick={() => handleStartEdit(receiver)}
                             >
                               <Pencil className="h-3 w-3" />
-                              {tr('common.edit')}
+                              {t('common.edit')}
                             </button>
                             <span className="text-muted-foreground">|</span>
                             <button
@@ -184,7 +184,7 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
                               onClick={() => handleStartDelete(receiver)}
                             >
                               <Trash2 className="h-3 w-3" />
-                              {tr('common.delete')}
+                              {t('common.delete')}
                             </button>
                           </div>
                         </td>
@@ -197,7 +197,7 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsManageDialogOpen(false)}>
-              {tr('common.close')}
+              {t('common.close')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -207,24 +207,24 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>{tr('shiftHandover.addReceiver')}</DialogTitle>
+            <DialogTitle>{t('shiftHandover.addReceiver')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <Label>{tr('shiftHandover.name')}</Label>
+            <Label>{t('shiftHandover.name')}</Label>
             <Input
               value={newReceiverName}
               onChange={e => setNewReceiverName(e.target.value)}
-              placeholder={tr('shiftHandover.enterReceiverName')}
+              placeholder={t('shiftHandover.enterReceiverName')}
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
             />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-              {tr('common.cancel')}
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleAdd}>
               <Plus className="h-4 w-4 mr-1" />
-              {tr('common.add')}
+              {t('common.add')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -234,23 +234,23 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>{tr('shiftHandover.editReceiver')}</DialogTitle>
+            <DialogTitle>{t('shiftHandover.editReceiver')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <Label>{tr('shiftHandover.name')}</Label>
+            <Label>{t('shiftHandover.name')}</Label>
             <Input
               value={editName}
               onChange={e => setEditName(e.target.value)}
-              placeholder={tr('shiftHandover.enterReceiverName')}
+              placeholder={t('shiftHandover.enterReceiverName')}
               onKeyDown={e => e.key === 'Enter' && handleSaveEdit()}
             />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              {tr('common.cancel')}
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleSaveEdit}>
-              {tr('common.save')}
+              {t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -260,16 +260,16 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{tr('merchants.confirmDelete')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('merchants.confirmDelete')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {tr('shiftHandover.confirmDeleteReceiver')} "{deletingReceiver?.name}"？
-              {tr('shiftHandover.cannotUndo')}
+              {t('shiftHandover.confirmDeleteReceiver')} "{deletingReceiver?.name}"？
+              {t('shiftHandover.cannotUndo')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{tr('common.cancel')}</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {tr('common.delete')}
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

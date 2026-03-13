@@ -63,11 +63,21 @@ export async function extractPhones(tenantId: string, count: number): Promise<Ex
     p_limit_count: count,
   });
   if (error) {
+    const message = error.message || "";
     if (error.message?.includes("daily_limit_exceeded")) {
       throw new Error("DAILY_LIMIT_EXCEEDED");
     }
     if (error.message?.includes("not_authenticated")) {
       throw new Error("NOT_AUTHENTICATED");
+    }
+    if (message.includes("forbidden_tenant_mismatch")) {
+      throw new Error("FORBIDDEN_TENANT_MISMATCH");
+    }
+    if (message.includes("tenant_required") || message.includes("tenant_id_required")) {
+      throw new Error("TENANT_REQUIRED");
+    }
+    if (message.includes("forbidden_admin_only")) {
+      throw new Error("FORBIDDEN_ADMIN_ONLY");
     }
     throw error;
   }
@@ -75,6 +85,26 @@ export async function extractPhones(tenantId: string, count: number): Promise<Ex
     id: r.id,
     normalized: r.normalized,
   }));
+}
+
+// 读取当前登录用户已保留(未使用)的号码，支持刷新页面后继续归还
+export async function getMyReservedPhones(tenantId: string): Promise<ExtractedPhone[]> {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData?.user?.id) {
+    throw new Error("NOT_AUTHENTICATED");
+  }
+
+  const { data, error } = await supabase
+    .from("phone_pool")
+    .select("id, normalized")
+    .eq("tenant_id", tenantId)
+    .eq("status", "reserved")
+    .eq("reserved_by", userData.user.id)
+    .order("reserved_at", { ascending: false })
+    .limit(500);
+
+  if (error) throw error;
+  return (data || []).map((r) => ({ id: Number(r.id), normalized: r.normalized }));
 }
 
 export async function returnPhones(phoneIds: number[]): Promise<number[]> {

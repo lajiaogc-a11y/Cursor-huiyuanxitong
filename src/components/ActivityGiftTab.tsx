@@ -121,7 +121,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
   const { members, findMemberByPhone } = useMembers();
   const { activeProviders } = usePaymentProviders();
   const { addGift } = useActivityGifts();
-  const { tr, t } = useLanguage();
+  const { t } = useLanguage();
   const isMobile = useIsMobile();
   
   // 初始化使用缓存（同步），异步加载更新
@@ -338,20 +338,20 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
 
   const handleSubmit = async () => {
     if (!amount) {
-      toast.error(tr('activityGift.pleaseEnterAmount'));
+      toast.error(t('activityGift.pleaseEnterAmount'));
       return;
     }
     if (!phoneNumber) {
-      toast.error(tr('activityGift.pleaseEnterPhone'));
+      toast.error(t('activityGift.pleaseEnterPhone'));
       return;
     }
     const member = findMemberByPhone(phoneNumber);
     if (!member) {
-      toast.error(tr('activityGift.memberNotFoundError'));
+      toast.error(t('activityGift.memberNotFoundError'));
       return;
     }
     if (!paymentAgent) {
-      toast.error(tr('activityGift.pleaseSelectAgent'));
+      toast.error(t('activityGift.pleaseSelectAgent'));
       return;
     }
 
@@ -369,7 +369,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
     }, member.id, employee?.id);
 
     if (result) {
-      toast.success(tr('activityGift.submitted'));
+      toast.success(t('activityGift.submitted'));
       handleReset();
     }
   };
@@ -392,17 +392,17 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
     <div className="p-2">
       <Card>
         <CardHeader className="py-3">
-          <CardTitle className="text-base">{tr('activityGift.title')}</CardTitle>
+          <CardTitle className="text-base">{t('activityGift.title')}</CardTitle>
         </CardHeader>
         <CardContent className="py-2">
           <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-x-4 gap-y-2`}>
             {/* Left column */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Label className="text-xs w-20 shrink-0">{tr('activityGift.giftCurrency')}</Label>
+                <Label className="text-xs w-20 shrink-0">{t('activityGift.giftCurrency')}</Label>
               <Select value={currency} onValueChange={(v) => setCurrency(v as CurrencyCode)}>
                   <SelectTrigger className="h-7 flex-1 bg-secondary border-border text-foreground">
-                    <SelectValue placeholder={tr('activityGift.selectAgent')} />
+                    <SelectValue placeholder={t('activityGift.selectAgent')} />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border">
                     {currencies.map((c) => (
@@ -415,7 +415,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
               </div>
 
               <div className="flex items-center gap-2">
-                <Label className="text-xs w-20 shrink-0 text-orange-600">* {tr('activityGift.giftAmount')}</Label>
+                <Label className="text-xs w-20 shrink-0 text-orange-600">* {t('activityGift.giftAmount')}</Label>
                 <Input
                   value={amount}
                   onChange={(e) => {
@@ -427,13 +427,13 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
                     const pasted = e.clipboardData.getData('text').replace(/[^0-9.\-]/g, '').replace(/(\..*)\./g, '$1').replace(/(?!^)-/g, '');
                     setAmount(prev => prev + pasted);
                   }}
-                  placeholder={tr('activityGift.amountPlaceholder')}
+                  placeholder={t('activityGift.amountPlaceholder')}
                   className="h-7 flex-1 border-orange-200 text-sm placeholder:text-muted-foreground/40"
                 />
               </div>
 
               <div className="flex items-center gap-2">
-                <Label className="text-xs w-20 shrink-0 text-orange-600">* {tr('activityGift.rate')}</Label>
+                <Label className="text-xs w-20 shrink-0 text-orange-600">* {t('activityGift.rate')}</Label>
                 <Input
                   value={getRate().toString()}
                   readOnly
@@ -442,7 +442,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
               </div>
 
               <div className="flex items-center gap-2">
-                <Label className="text-xs w-20 shrink-0 text-orange-600">* {tr('activityGift.phoneNumber')}</Label>
+                <Label className="text-xs w-20 shrink-0 text-orange-600">* {t('activityGift.phoneNumber')}</Label>
                 <div className="flex-1">
                   <Input
                     value={phoneNumber}
@@ -476,10 +476,10 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
               </div>
 
               <div className="flex items-center gap-2">
-                <Label className="text-xs w-20 shrink-0 text-orange-600">* {tr('activityGift.paymentAgent')}</Label>
+                <Label className="text-xs w-20 shrink-0 text-orange-600">* {t('activityGift.paymentAgent')}</Label>
                 <Select value={paymentAgent} onValueChange={setPaymentAgent}>
                   <SelectTrigger className="h-7 flex-1 border-orange-200">
-                    <SelectValue placeholder={tr('activityGift.selectAgent')} />
+                    <SelectValue placeholder={t('activityGift.selectAgent')} />
                   </SelectTrigger>
                   <SelectContent>
                     {activeVendors.map((vendor) => (

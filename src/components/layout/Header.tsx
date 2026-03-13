@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { Globe, User, LogOut, Settings, Sun, Moon, Maximize2, Minimize2, Menu, Monitor, Smartphone } from "lucide-react";
+import { Globe, User, LogOut, Settings, Sun, Moon, Maximize2, Minimize2, Menu, Smartphone } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -47,7 +48,7 @@ const PAGE_TITLES: Record<string, { zh: string; en: string }> = {
   "/exchange-rate": { zh: "汇率计算", en: "Exchange Rate" },
   "/orders": { zh: "订单管理", en: "Order Management" },
   "/reports": { zh: "报表管理", en: "Report Management" },
-  "/activity-reports": { zh: "会员管理", en: "Member Management" },
+  "/members": { zh: "会员管理", en: "Member Management" },
   "/employees": { zh: "员工管理", en: "Employee Management" },
   "/merchant-settlement": { zh: "商家结算", en: "Merchant Settlement" },
   "/merchants": { zh: "商家管理", en: "Merchant Management" },
@@ -70,7 +71,7 @@ const PAGE_TITLES: Record<string, { zh: string; en: string }> = {
 
 // 带 tab 的页面：根据 tab 显示子页面标题（不显示父级如「会员管理」「商家管理」）
 const TAB_PAGE_TITLES: Record<string, Record<string, { zh: string; en: string }>> = {
-  "/activity-reports": {
+  "/members": {
     members: { zh: "会员数据", en: "Member Data" },
     activity: { zh: "活动数据", en: "Activity Data" },
     gifts: { zh: "活动赠送", en: "Activity Gifts" },
@@ -119,7 +120,7 @@ export function Header() {
     const tabTitles = TAB_PAGE_TITLES[location.pathname];
     const tab = searchParams.get("tab") || "";
     const defaultTab: Record<string, string> = {
-      "/activity-reports": "members",
+      "/members": "members",
       "/merchants": "cards",
       "/settings": "fee",
     };
@@ -236,43 +237,31 @@ export function Header() {
           </div>
         </div>
         
+        <TooltipProvider delayDuration={400}>
         <div className="flex items-center gap-1.5">
           {/* Performance Dashboard - only visible in dev mode */}
           {import.meta.env.DEV && <PerformanceDashboard />}
           
-          {/* 布局模式切换按钮 - hide on tablet */}
-          {!isTablet && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-9 w-9 p-0 hover:bg-accent" 
-              onClick={toggleLayoutMode}
-              title={layoutMode === 'fullWidth' 
-                ? t('切换居中模式', 'Switch to Centered') 
-                : t('切换全屏模式', 'Switch to Full Width')}
-            >
-              {layoutMode === 'fullWidth' ? (
-                <Minimize2 className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <Maximize2 className="h-4 w-4 text-muted-foreground" />
-              )}
-            </Button>
-          )}
-          
           {/* 主题切换按钮 */}
-          <Button
-            variant="ghost" 
-            size="sm" 
-            className="h-9 w-9 p-0 hover:bg-accent" 
-            onClick={toggleTheme}
-            title={theme === 'light' ? t('切换深色模式', 'Switch to Dark Mode') : t('切换浅色模式', 'Switch to Light Mode')}
-          >
-            {theme === 'light' ? (
-              <Moon className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <Sun className="h-4 w-4 text-amber-400/90" />
-            )}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost" 
+                size="sm" 
+                className="h-9 w-9 p-0 hover:bg-accent" 
+                onClick={toggleTheme}
+              >
+                {theme === 'light' ? (
+                  <Moon className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Sun className="h-4 w-4 text-amber-400/90" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {theme === 'light' ? t('深色模式', 'Dark Mode') : t('浅色模式', 'Light Mode')}
+            </TooltipContent>
+          </Tooltip>
           
           {/* 全局搜索 */}
           <GlobalSearch />
@@ -280,11 +269,16 @@ export function Header() {
           {/* 通知中心 */}
           <NotificationCenter />
 
-          {/* 语言切换 - compact on tablet */}
-          <Button variant="ghost" size="sm" className={cn("h-9", isTablet ? "w-9 p-0" : "gap-2")} onClick={toggleLanguage}>
-            <Globe className="h-4 w-4" />
-            {!isTablet && <span className="font-medium">{language === 'zh' ? '中' : 'EN'}</span>}
-          </Button>
+          {/* 语言切换 */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" className={cn("h-9", isTablet ? "w-9 p-0" : "gap-1.5 px-2.5")} onClick={toggleLanguage}>
+                <Globe className="h-4 w-4" />
+                {!isTablet && <span className="font-medium text-sm">{language === 'zh' ? '中' : 'EN'}</span>}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('切换语言', 'Toggle Language')}</TooltipContent>
+          </Tooltip>
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -300,7 +294,7 @@ export function Header() {
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-popover w-52 shadow-lg">
+            <DropdownMenuContent align="end" className="bg-popover w-56 shadow-lg">
               <div className="px-3 py-2 text-sm text-muted-foreground border-b border-border">
                 {t("账号", "Account")}: <span className="font-medium text-foreground">{employee?.username}</span>
               </div>
@@ -310,6 +304,19 @@ export function Header() {
                 </div>
               )}
               <div className="p-1">
+                {/* 布局模式切换 - 移入用户菜单 */}
+                {!isTablet && (
+                  <DropdownMenuItem onClick={toggleLayoutMode} className="cursor-pointer py-2.5">
+                    {layoutMode === 'fullWidth' ? (
+                      <Minimize2 className="mr-2 h-4 w-4" />
+                    ) : (
+                      <Maximize2 className="mr-2 h-4 w-4" />
+                    )}
+                    {layoutMode === 'fullWidth'
+                      ? t('居中布局', 'Centered Layout')
+                      : t('全宽布局', 'Full Width Layout')}
+                  </DropdownMenuItem>
+                )}
                 {forceDesktopLayout && (
                   <DropdownMenuItem onClick={toggleForceDesktopLayout} className="cursor-pointer py-2.5">
                     <Smartphone className="mr-2 h-4 w-4" />
@@ -320,6 +327,7 @@ export function Header() {
                   <Settings className="mr-2 h-4 w-4" />
                   {t("个人设置", "Settings")}
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setShowLogoutDialog(true)} className="text-destructive cursor-pointer py-2.5 focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
                   {t("退出登录", "Logout")}
@@ -328,6 +336,7 @@ export function Header() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        </TooltipProvider>
       </header>
 
       {/* Logout Confirmation Dialog */}

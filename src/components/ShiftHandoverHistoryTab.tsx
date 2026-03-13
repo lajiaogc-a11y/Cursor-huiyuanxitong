@@ -38,7 +38,7 @@ export default function ShiftHandoverHistoryTab({
   onExportReady,
   onRefreshReady,
 }: ShiftHandoverHistoryTabProps) {
-  const { t, tr } = useLanguage();
+  const { t } = useLanguage();
   const isMobile = useIsMobile();
   
   const [loading, setLoading] = useState(true);
@@ -63,7 +63,7 @@ export default function ShiftHandoverHistoryTab({
       setHandovers(data);
     } catch (error) {
       console.error('Failed to load shift handovers:', error);
-      toast.error(tr('shiftHandover.loadFailed'));
+      toast.error(t('shiftHandover.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -72,7 +72,7 @@ export default function ShiftHandoverHistoryTab({
   // 导出函数
   const handleExport = () => {
     if (filteredHandovers.length === 0) {
-      toast.error(tr('shiftHandover.noDataToExport'));
+      toast.error(t('shiftHandover.noDataToExport'));
       return;
     }
     
@@ -95,7 +95,7 @@ export default function ShiftHandoverHistoryTab({
     }));
     
     exportToCSV(exportData, columns, `shift-handovers`);
-    toast.success(tr('shiftHandover.exportSuccess'));
+    toast.success(t('shiftHandover.exportSuccess'));
   };
   
   // 注册导出和刷新函数到父组件
@@ -150,16 +150,16 @@ export default function ShiftHandoverHistoryTab({
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center justify-between">
-            <span>{tr('shiftHandover.historyTitle')}</span>
+            <span>{t('shiftHandover.historyTitle')}</span>
             <span className="text-sm font-normal text-muted-foreground">
-              {tr('shiftHandover.total')} {filteredHandovers.length} {tr('shiftHandover.records')}
+              {t('shiftHandover.total')} {filteredHandovers.length} {t('shiftHandover.records')}
             </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {filteredHandovers.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
-              {searchTerm ? tr('shiftHandover.noMatchingRecords') : tr('shiftHandover.noRecords')}
+              {searchTerm ? t('shiftHandover.noMatchingRecords') : t('shiftHandover.noRecords')}
             </div>
           ) : (
             <div>
@@ -174,12 +174,12 @@ export default function ShiftHandoverHistoryTab({
                             {format(new Date(h.handover_time), 'yyyy-MM-dd HH:mm')}
                           </span>
                         </MobileCardHeader>
-                        <MobileCardRow label={tr('shiftHandover.vendorCount')} value={h.card_merchant_data.length} />
-                        <MobileCardRow label={tr('shiftHandover.providerCount')} value={h.payment_provider_data.length} />
-                        {h.remark && <MobileCardRow label={tr('common.remark')} value={h.remark} />}
+                        <MobileCardRow label={t('shiftHandover.vendorCount')} value={h.card_merchant_data.length} />
+                        <MobileCardRow label={t('shiftHandover.providerCount')} value={h.payment_provider_data.length} />
+                        {h.remark && <MobileCardRow label={t('common.remark')} value={h.remark} />}
                         <MobileCardActions>
                           <Button variant="ghost" size="sm" className="h-8 flex-1" onClick={() => handleViewDetail(h)}>
-                            <Eye className="h-4 w-4 mr-1" />{tr('common.actions')}
+                            <Eye className="h-4 w-4 mr-1" />{t('common.actions')}
                           </Button>
                         </MobileCardActions>
                       </MobileCard>
@@ -199,13 +199,13 @@ export default function ShiftHandoverHistoryTab({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{tr('shiftHandover.handoverTime')}</TableHead>
-                    <TableHead>{tr('shiftHandover.handoverPerson')}</TableHead>
-                    <TableHead>{tr('shiftHandover.receiver')}</TableHead>
-                    <TableHead>{tr('shiftHandover.vendorCount')}</TableHead>
-                    <TableHead>{tr('shiftHandover.providerCount')}</TableHead>
-                    <TableHead>{tr('common.remark')}</TableHead>
-                    <TableHead className="text-right">{tr('common.actions')}</TableHead>
+                    <TableHead>{t('shiftHandover.handoverTime')}</TableHead>
+                    <TableHead>{t('shiftHandover.handoverPerson')}</TableHead>
+                    <TableHead>{t('shiftHandover.receiver')}</TableHead>
+                    <TableHead>{t('shiftHandover.vendorCount')}</TableHead>
+                    <TableHead>{t('shiftHandover.providerCount')}</TableHead>
+                    <TableHead>{t('common.remark')}</TableHead>
+                    <TableHead className="text-right">{t('common.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -237,9 +237,9 @@ export default function ShiftHandoverHistoryTab({
               
               <div className="flex items-center justify-between mt-4 pt-4 border-t">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>{tr('shiftHandover.total')} {filteredHandovers.length} {tr('shiftHandover.entries')}</span>
+                  <span>{t('shiftHandover.total')} {filteredHandovers.length} {t('shiftHandover.entries')}</span>
                   <span>|</span>
-                  <span>{tr('shiftHandover.perPage')}</span>
+                  <span>{t('shiftHandover.perPage')}</span>
                   <Select value={pageSize.toString()} onValueChange={(v) => handlePageSizeChange(parseInt(v))}>
                     <SelectTrigger className="h-8 w-20">
                       <SelectValue />
@@ -258,7 +258,7 @@ export default function ShiftHandoverHistoryTab({
                     onClick={() => setCurrentPage(1)}
                     disabled={currentPage === 1}
                   >
-                    {tr('shiftHandover.firstPage')}
+                    {t('shiftHandover.firstPage')}
                   </Button>
                   <Button
                     variant="outline"
@@ -267,7 +267,7 @@ export default function ShiftHandoverHistoryTab({
                     disabled={currentPage === 1}
                   >
                     <ChevronLeft className="h-4 w-4" />
-                    {tr('shiftHandover.prevPage')}
+                    {t('shiftHandover.prevPage')}
                   </Button>
                   <span className="text-sm text-muted-foreground px-2">
                     {t(`第 ${currentPage} 页 / 共 ${totalPages} 页`, `Page ${currentPage} of ${totalPages}`)}
@@ -278,7 +278,7 @@ export default function ShiftHandoverHistoryTab({
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
                   >
-                    {tr('shiftHandover.nextPage')}
+                    {t('shiftHandover.nextPage')}
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                   <Button
@@ -287,7 +287,7 @@ export default function ShiftHandoverHistoryTab({
                     onClick={() => setCurrentPage(totalPages)}
                     disabled={currentPage === totalPages}
                   >
-                    {tr('shiftHandover.lastPage')}
+                    {t('shiftHandover.lastPage')}
                   </Button>
                 </div>
               </div>
@@ -301,42 +301,42 @@ export default function ShiftHandoverHistoryTab({
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{tr('shiftHandover.detailsTitle')}</DialogTitle>
+            <DialogTitle>{t('shiftHandover.detailsTitle')}</DialogTitle>
           </DialogHeader>
           
           {selectedHandover && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-muted-foreground">{tr('shiftHandover.handoverTime')}:</span>
+                  <span className="text-muted-foreground">{t('shiftHandover.handoverTime')}:</span>
                   <span className="ml-2 font-medium">
                     {format(new Date(selectedHandover.handover_time), 'yyyy-MM-dd HH:mm:ss')}
                   </span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">{tr('shiftHandover.handoverPerson')}:</span>
+                  <span className="text-muted-foreground">{t('shiftHandover.handoverPerson')}:</span>
                   <span className="ml-2 font-medium">{selectedHandover.handover_employee_name}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">{tr('shiftHandover.receiver')}:</span>
+                  <span className="text-muted-foreground">{t('shiftHandover.receiver')}:</span>
                   <span className="ml-2 font-medium">{selectedHandover.receiver_name}</span>
                 </div>
                 {selectedHandover.remark && (
                   <div className="col-span-2">
-                    <span className="text-muted-foreground">{tr('common.remark')}:</span>
+                    <span className="text-muted-foreground">{t('common.remark')}:</span>
                     <span className="ml-2">{selectedHandover.remark}</span>
                   </div>
                 )}
               </div>
               
               <div>
-                <h4 className="font-medium mb-2">{tr('shiftHandover.cardMerchantSettlement')}</h4>
+                <h4 className="font-medium mb-2">{t('shiftHandover.cardMerchantSettlement')}</h4>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{tr('shiftHandover.vendorNameCol')}</TableHead>
-                      <TableHead className="text-right">{tr('shiftHandover.balanceCol')}</TableHead>
-                      <TableHead className="text-right">{tr('shiftHandover.inputValueCol')}</TableHead>
+                      <TableHead>{t('shiftHandover.vendorNameCol')}</TableHead>
+                      <TableHead className="text-right">{t('shiftHandover.balanceCol')}</TableHead>
+                      <TableHead className="text-right">{t('shiftHandover.inputValueCol')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -356,13 +356,13 @@ export default function ShiftHandoverHistoryTab({
               </div>
               
               <div>
-                <h4 className="font-medium mb-2">{tr('shiftHandover.paymentProviderSettlement')}</h4>
+                <h4 className="font-medium mb-2">{t('shiftHandover.paymentProviderSettlement')}</h4>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{tr('shiftHandover.providerNameCol')}</TableHead>
-                      <TableHead className="text-right">{tr('shiftHandover.balanceCol')}</TableHead>
-                      <TableHead className="text-right">{tr('shiftHandover.inputValueCol')}</TableHead>
+                      <TableHead>{t('shiftHandover.providerNameCol')}</TableHead>
+                      <TableHead className="text-right">{t('shiftHandover.balanceCol')}</TableHead>
+                      <TableHead className="text-right">{t('shiftHandover.inputValueCol')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

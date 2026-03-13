@@ -75,7 +75,7 @@ export default function EmployeeManagement() {
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
-  const { t, tr, language } = useLanguage();
+  const { t, language } = useLanguage();
   const queryClient = useQueryClient();
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['employees-management', viewingTenantId ?? '', currentEmployee?.tenant_id ?? ''],
@@ -135,9 +135,9 @@ export default function EmployeeManagement() {
   // Get role label based on language
   const getRoleLabelDisplay = (role: AppRole): string => {
     switch (role) {
-      case 'admin': return tr('employees.admin');
-      case 'manager': return tr('employees.manager');
-      case 'staff': return tr('employees.staff');
+      case 'admin': return t('employees.admin');
+      case 'manager': return t('employees.manager');
+      case 'staff': return t('employees.staff');
       default: return ROLE_LABELS[role]?.[language as 'zh' | 'en'] || role;
     }
   };
@@ -150,7 +150,7 @@ export default function EmployeeManagement() {
 
   const confirmResetPassword = async () => {
     if (!resetTarget || !newPassword.trim()) {
-      toast.error(tr('employees.enterPassword'));
+      toast.error(t('employees.enterPassword'));
       return;
     }
     const { validatePassword } = await import('@/lib/passwordValidation');
@@ -169,7 +169,7 @@ export default function EmployeeManagement() {
       });
 
       if (error) {
-        toast.error(tr('employees.resetFailed') + ": " + error.message);
+        toast.error(t('employees.resetFailed') + ": " + error.message);
         return;
       }
 
@@ -189,10 +189,10 @@ export default function EmployeeManagement() {
         toast.success(t(`已重置 ${resetTarget.real_name} 的密码`, `Reset ${resetTarget.real_name}'s password`));
         setIsResetPasswordOpen(false);
       } else {
-        toast.error(data?.[0]?.message || tr('employees.resetFailed'));
+        toast.error(data?.[0]?.message || t('employees.resetFailed'));
       }
     } catch (e: any) {
-      toast.error(tr('employees.resetFailed') + ": " + e.message);
+      toast.error(t('employees.resetFailed') + ": " + e.message);
     } finally {
       setIsResetting(false);
     }
@@ -247,7 +247,7 @@ export default function EmployeeManagement() {
 
   const handleRefresh = () => {
     refetch();
-    toast.success(tr('employees.refreshed'));
+    toast.success(t('employees.refreshed'));
   };
 
   const handleAdd = () => {
@@ -274,11 +274,11 @@ export default function EmployeeManagement() {
 
   const handleSave = async () => {
     if (!formData.username || !formData.real_name) {
-      toast.error(tr('employees.fillRequired'));
+      toast.error(t('employees.fillRequired'));
       return;
     }
     if (!editingEmployee && !formData.password) {
-      toast.error(tr('employees.fillPassword'));
+      toast.error(t('employees.fillPassword'));
       return;
     }
 
@@ -315,12 +315,12 @@ export default function EmployeeManagement() {
               `Updated, name change recorded (${editingEmployee.real_name} → ${formData.real_name})`
             ));
           } else {
-            toast.success(tr('employees.updated'));
+            toast.success(t('employees.updated'));
           }
           setIsDialogOpen(false);
           refetch();
         } else {
-          toast.error(result.message || tr('employees.updateFailed'));
+          toast.error(result.message || t('employees.updateFailed'));
         }
       } else {
         const result = await addEmployee({
@@ -340,15 +340,15 @@ export default function EmployeeManagement() {
             `新增员工: ${formData.real_name}`
           );
           
-          toast.success(tr('employees.added'));
+          toast.success(t('employees.added'));
           setIsDialogOpen(false);
           refetch();
         } else {
-          toast.error(result.message || tr('employees.addFailed'));
+          toast.error(result.message || t('employees.addFailed'));
         }
       }
     } catch (error) {
-      toast.error(tr('employees.saveFailed'));
+      toast.error(t('employees.saveFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -363,7 +363,7 @@ export default function EmployeeManagement() {
       const history = await getEmployeeNameHistory(employee.id);
       setNameHistory(history);
     } catch (error) {
-      toast.error(tr('employees.loadHistoryFailed'));
+      toast.error(t('employees.loadHistoryFailed'));
     } finally {
       setIsLoadingHistory(false);
     }
@@ -376,7 +376,7 @@ export default function EmployeeManagement() {
   const confirmDeleteEmployee = async () => {
     if (!deletingEmployee) return;
     if (!canModifyEmployee(deletingEmployee)) {
-      toast.error(deletingEmployee.is_super_admin ? tr('employees.superAdminNotModify') : tr('employees.onlySuperAdminModify'));
+      toast.error(deletingEmployee.is_super_admin ? t('employees.superAdminNotModify') : t('employees.onlySuperAdminModify'));
       setDeletingEmployee(null);
       return;
     }
@@ -391,7 +391,7 @@ export default function EmployeeManagement() {
         setDeletingEmployee(null);
         refetch();
       } else {
-        const msg = result.error_code === 'CANNOT_DELETE_SUPER_ADMIN' ? tr('employees.superAdminNotModify') : (result.error_code === 'EMPLOYEE_NOT_FOUND' ? t("员工不存在", "Employee not found") : (result.error_code === 'NO_PERMISSION' ? t("无权限删除该员工", "No permission to delete this employee") : t("删除失败", "Delete failed")));
+        const msg = result.error_code === 'CANNOT_DELETE_SUPER_ADMIN' ? t('employees.superAdminNotModify') : (result.error_code === 'EMPLOYEE_NOT_FOUND' ? t("员工不存在", "Employee not found") : (result.error_code === 'NO_PERMISSION' ? t("无权限删除该员工", "No permission to delete this employee") : t("删除失败", "Delete failed")));
         toast.error(msg);
       }
     } catch (error) {
@@ -412,9 +412,9 @@ export default function EmployeeManagement() {
   const handleToggleStatus = async (employee: Employee) => {
     if (!canModifyEmployee(employee)) {
       if (employee.is_super_admin) {
-        toast.error(tr('employees.superAdminNotModify'));
+        toast.error(t('employees.superAdminNotModify'));
       } else if (employee.role === 'admin') {
-        toast.error(tr('employees.onlySuperAdminModify'));
+        toast.error(t('employees.onlySuperAdminModify'));
       }
       return;
     }
@@ -434,7 +434,7 @@ export default function EmployeeManagement() {
         `${employee.real_name} 状态变更: ${beforeStatus} → ${newStatus}`
       );
       
-      toast.success(tr('employees.statusUpdated'));
+      toast.success(t('employees.statusUpdated'));
       refetch();
     }
   };
@@ -458,7 +458,7 @@ export default function EmployeeManagement() {
             {!isMobile && (
               <CardTitle className="text-lg flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                {tr('employees.title')}
+                {t('employees.title')}
               </CardTitle>
             )}
             <div className={isMobile ? "flex flex-col gap-2" : "flex items-center gap-3"}>
@@ -477,7 +477,7 @@ export default function EmployeeManagement() {
                 </Button>
                 <Button onClick={handleAdd} className="gap-2 flex-1">
                   <Plus className="h-4 w-4" />
-                  {tr('employees.addEmployee')}
+                  {t('employees.addEmployee')}
                 </Button>
               </div>
             </div>
@@ -491,7 +491,7 @@ export default function EmployeeManagement() {
               {useCompactLayout ? (
                 <MobileCardList>
                   {paginatedEmployees.length === 0 ? (
-                    <p className="text-center py-8 text-muted-foreground text-sm">{tr('employees.noData')}</p>
+                    <p className="text-center py-8 text-muted-foreground text-sm">{t('employees.noData')}</p>
                   ) : paginatedEmployees.map((employee) => (
                     <MobileCard key={employee.id}>
                       <MobileCardHeader>
@@ -500,8 +500,8 @@ export default function EmployeeManagement() {
                           {getRoleLabelDisplay(employee.role)}
                         </Badge>
                       </MobileCardHeader>
-                      <MobileCardRow label={tr('employees.username')} value={employee.username} />
-                      <MobileCardRow label={tr('employees.status')} value={
+                      <MobileCardRow label={t('employees.username')} value={employee.username} />
+                      <MobileCardRow label={t('employees.status')} value={
                         <Switch
                           checked={employee.status === "active"}
                           onCheckedChange={() => handleToggleStatus(employee)}
@@ -509,7 +509,7 @@ export default function EmployeeManagement() {
                           className="scale-75 origin-right"
                         />
                       } />
-                      <MobileCardRow label={tr('employees.visibility')} value={
+                      <MobileCardRow label={t('employees.visibility')} value={
                         <Switch
                           checked={employee.visible}
                           onCheckedChange={async () => {
@@ -549,19 +549,19 @@ export default function EmployeeManagement() {
                 <Table className="text-xs">
                   <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
                     <TableRow>
-                      <TableHead className="text-center whitespace-nowrap px-1.5">{tr('employees.username')}</TableHead>
-                      <TableHead className="text-center whitespace-nowrap px-1.5">{tr('employees.realName')}</TableHead>
-                      <TableHead className="text-center whitespace-nowrap px-1.5">{tr('employees.role')}</TableHead>
-                      <TableHead className="text-center whitespace-nowrap px-1.5">{tr('employees.status')}</TableHead>
-                      <TableHead className="text-center whitespace-nowrap px-1.5">{tr('employees.visibility')}</TableHead>
-                      <TableHead className="text-center whitespace-nowrap px-1.5 w-[100px]">{tr('common.actions')}</TableHead>
+                      <TableHead className="text-center whitespace-nowrap px-1.5">{t('employees.username')}</TableHead>
+                      <TableHead className="text-center whitespace-nowrap px-1.5">{t('employees.realName')}</TableHead>
+                      <TableHead className="text-center whitespace-nowrap px-1.5">{t('employees.role')}</TableHead>
+                      <TableHead className="text-center whitespace-nowrap px-1.5">{t('employees.status')}</TableHead>
+                      <TableHead className="text-center whitespace-nowrap px-1.5">{t('employees.visibility')}</TableHead>
+                      <TableHead className="text-center whitespace-nowrap px-1.5 w-[100px]">{t('common.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedEmployees.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                          {tr('employees.noData')}
+                          {t('employees.noData')}
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -571,7 +571,7 @@ export default function EmployeeManagement() {
                           <TableCell className="text-center whitespace-nowrap px-1.5">
                             {employee.real_name}
                             {employee.is_super_admin && (
-                              <Badge variant="destructive" className="ml-2 text-xs">{tr('employees.superAdmin')}</Badge>
+                              <Badge variant="destructive" className="ml-2 text-xs">{t('employees.superAdmin')}</Badge>
                             )}
                           </TableCell>
                           <TableCell className="text-center whitespace-nowrap px-1.5">
@@ -592,18 +592,18 @@ export default function EmployeeManagement() {
                               onCheckedChange={async () => {
                                 if (!canModifyEmployee(employee)) {
                                   if (employee.is_super_admin) {
-                                    toast.error(tr('employees.superAdminNotModify'));
+                                    toast.error(t('employees.superAdminNotModify'));
                                   } else {
-                                    toast.error(tr('employees.onlySuperAdminModify'));
+                                    toast.error(t('employees.onlySuperAdminModify'));
                                   }
                                   return;
                                 }
                                 const result = await updateEmployee(employee.id, { visible: !employee.visible });
                                 if (result.success) {
-                                  toast.success(employee.visible ? tr('employees.setInvisible') : tr('employees.setVisible'));
+                                  toast.success(employee.visible ? t('employees.setInvisible') : t('employees.setVisible'));
                                   refetch();
                                 } else {
-                                  toast.error(result.message || tr('employees.updateFailed'));
+                                  toast.error(result.message || t('employees.updateFailed'));
                                 }
                               }}
                               disabled={!canModifyEmployee(employee)}
@@ -617,7 +617,7 @@ export default function EmployeeManagement() {
                                   size="icon"
                                   className="h-8 w-8"
                                   onClick={() => handleEdit(employee)}
-                                  title={tr('common.edit')}
+                                  title={t('common.edit')}
                                 >
                                   <Pencil className="h-4 w-4" />
                                 </Button>
@@ -627,7 +627,7 @@ export default function EmployeeManagement() {
                                 size="icon"
                                 className="h-8 w-8"
                                 onClick={() => handleViewHistory(employee)}
-                                title={tr('employees.nameHistory')}
+                                title={t('employees.nameHistory')}
                               >
                                 <History className="h-4 w-4" />
                               </Button>
@@ -637,7 +637,7 @@ export default function EmployeeManagement() {
                                   size="icon"
                                   className="h-8 w-8"
                                   onClick={() => handleResetPassword(employee)}
-                                  title={tr('employees.resetPassword')}
+                                  title={t('employees.resetPassword')}
                                 >
                                   <KeyRound className="h-4 w-4" />
                                 </Button>
@@ -682,11 +682,11 @@ export default function EmployeeManagement() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingEmployee ? tr('employees.editEmployee') : tr('employees.addEmployee')}</DialogTitle>
+            <DialogTitle>{editingEmployee ? t('employees.editEmployee') : t('employees.addEmployee')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>{tr('employees.username')}</Label>
+              <Label>{t('employees.username')}</Label>
               <Input
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
@@ -694,15 +694,15 @@ export default function EmployeeManagement() {
               />
             </div>
             <div className="space-y-2">
-              <Label>{tr('employees.nameRequired')}</Label>
+              <Label>{t('employees.nameRequired')}</Label>
               <Input
                 value={formData.real_name}
                 onChange={(e) => setFormData({ ...formData, real_name: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground">{tr('employees.nameUnique')}</p>
+              <p className="text-xs text-muted-foreground">{t('employees.nameUnique')}</p>
             </div>
             <div className="space-y-2">
-              <Label>{tr('employees.role')}</Label>
+              <Label>{t('employees.role')}</Label>
               <Select
                 value={formData.role}
                 onValueChange={(value: AppRole) => setFormData({ ...formData, role: value })}
@@ -712,17 +712,17 @@ export default function EmployeeManagement() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin" disabled={!(isSuperAdmin || currentEmployee?.role === 'admin')}>{tr('employees.admin')}</SelectItem>
-                  <SelectItem value="manager">{tr('employees.manager')}</SelectItem>
-                  <SelectItem value="staff">{tr('employees.staff')}</SelectItem>
+                  <SelectItem value="admin" disabled={!(isSuperAdmin || currentEmployee?.role === 'admin')}>{t('employees.admin')}</SelectItem>
+                  <SelectItem value="manager">{t('employees.manager')}</SelectItem>
+                  <SelectItem value="staff">{t('employees.staff')}</SelectItem>
                 </SelectContent>
               </Select>
               {editingEmployee?.is_super_admin && (
-                <p className="text-xs text-muted-foreground">{tr('employees.superAdminRoleFixed')}</p>
+                <p className="text-xs text-muted-foreground">{t('employees.superAdminRoleFixed')}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label>{editingEmployee ? tr('employees.passwordLeaveEmpty') : t('密码', 'Password')}</Label>
+              <Label>{editingEmployee ? t('employees.passwordLeaveEmpty') : t('密码', 'Password')}</Label>
               <Input
                 type="password"
                 value={formData.password}
@@ -732,11 +732,11 @@ export default function EmployeeManagement() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              {tr('common.cancel')}
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleSave} disabled={isSaving}>
               {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {tr('common.save')}
+              {t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -746,7 +746,7 @@ export default function EmployeeManagement() {
       <Dialog open={isResetPasswordOpen} onOpenChange={setIsResetPasswordOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>{tr('employees.resetPassword')}</DialogTitle>
+            <DialogTitle>{t('employees.resetPassword')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <p className="text-sm text-muted-foreground">
@@ -755,22 +755,22 @@ export default function EmployeeManagement() {
               {t(` 设置新密码`, '')}
             </p>
             <div className="space-y-2">
-              <Label>{tr('employees.newPassword')}</Label>
+              <Label>{t('employees.newPassword')}</Label>
               <Input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder={tr('employees.passwordPlaceholder')}
+                placeholder={t('employees.passwordPlaceholder')}
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsResetPasswordOpen(false)}>
-              {tr('common.cancel')}
+              {t('common.cancel')}
             </Button>
             <Button onClick={confirmResetPassword} disabled={isResetting}>
               {isResetting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {tr('employees.confirmReset')}
+              {t('employees.confirmReset')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -782,7 +782,7 @@ export default function EmployeeManagement() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <History className="h-5 w-5" />
-              {tr('employees.nameHistory')} - {historyTarget?.real_name}
+              {t('employees.nameHistory')} - {historyTarget?.real_name}
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-auto">
@@ -793,19 +793,19 @@ export default function EmployeeManagement() {
             ) : nameHistory.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>{tr('employees.noHistory')}</p>
-                <p className="text-sm mt-2">{tr('employees.neverChanged')}</p>
+                <p>{t('employees.noHistory')}</p>
+                <p className="text-sm mt-2">{t('employees.neverChanged')}</p>
               </div>
             ) : (
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead className="text-center">{tr('employees.changeTime')}</TableHead>
-                      <TableHead className="text-center">{tr('employees.oldName')}</TableHead>
-                      <TableHead className="text-center">{tr('employees.newName')}</TableHead>
-                      <TableHead className="text-center">{tr('employees.operator')}</TableHead>
-                      <TableHead className="text-center">{tr('common.remark')}</TableHead>
+                      <TableHead className="text-center">{t('employees.changeTime')}</TableHead>
+                      <TableHead className="text-center">{t('employees.oldName')}</TableHead>
+                      <TableHead className="text-center">{t('employees.newName')}</TableHead>
+                      <TableHead className="text-center">{t('employees.operator')}</TableHead>
+                      <TableHead className="text-center">{t('common.remark')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -839,7 +839,7 @@ export default function EmployeeManagement() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsHistoryDialogOpen(false)}>
-              {tr('common.close')}
+              {t('common.close')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -857,7 +857,7 @@ export default function EmployeeManagement() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{tr('common.cancel')}</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDeleteEmployee}
               disabled={isDeleting}

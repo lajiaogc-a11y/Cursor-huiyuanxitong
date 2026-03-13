@@ -52,7 +52,7 @@ interface WorkMemoTabProps {
 }
 
 export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
-  const { tr } = useLanguage();
+  const { t } = useLanguage();
   const isMobile = useIsMobile();
   const [memos, setMemos] = useState<WorkMemo[]>([]);
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -93,7 +93,7 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
 
   const handleAddMemo = () => {
     if (!phoneNumber) {
-      toast.error(tr('workMemo.pleaseEnterPhone'));
+      toast.error(t('workMemo.pleaseEnterPhone'));
       return;
     }
 
@@ -108,7 +108,7 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
       reminderOffset,
     });
 
-    toast.success(tr('workMemo.memoAdded'));
+    toast.success(t('workMemo.memoAdded'));
     setPhoneNumber("");
     setRemark1("");
     setRemark2("");
@@ -118,13 +118,13 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
   const handleMarkAsRead = (memoId: string) => {
     markMemoAsRead(memoId);
     loadMemos();
-    toast.success(tr('workMemo.markedAsRead'));
+    toast.success(t('workMemo.markedAsRead'));
   };
 
   const handleDelete = (memoId: string) => {
     deleteMemo(memoId);
     loadMemos();
-    toast.success(tr('workMemo.memoDeleted'));
+    toast.success(t('workMemo.memoDeleted'));
   };
 
   const handleOpenEdit = (memo: WorkMemo) => {
@@ -151,7 +151,7 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
       isRead: false,
     });
     
-    toast.success(tr('workMemo.memoUpdated'));
+    toast.success(t('workMemo.memoUpdated'));
     setIsEditDialogOpen(false);
     setEditingMemo(null);
     loadMemos();
@@ -179,39 +179,39 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <Plus className="h-4 w-4" />
-            {tr('workMemo.addNewMemo')}
+            {t('workMemo.addNewMemo')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className={isMobile ? "flex flex-col gap-3" : "grid grid-cols-5 gap-4"}>
             <div className="space-y-2">
-              <Label className="text-xs">{tr('workMemo.phoneNumber')}</Label>
+              <Label className="text-xs">{t('workMemo.phoneNumber')}</Label>
               <Input
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder={tr('workMemo.phonePlaceholder')}
+                placeholder={t('workMemo.phonePlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">{tr('workMemo.remark1')}</Label>
+              <Label className="text-xs">{t('workMemo.remark1')}</Label>
               <Input
                 value={remark1}
                 onChange={(e) => setRemark1(e.target.value)}
-                placeholder={tr('workMemo.remarkPlaceholder')}
+                placeholder={t('workMemo.remarkPlaceholder')}
               />
             </div>
             {!isMobile && (
               <div className="space-y-2">
-                <Label className="text-xs">{tr('workMemo.remark2')}</Label>
+                <Label className="text-xs">{t('workMemo.remark2')}</Label>
                 <Input
                   value={remark2}
                   onChange={(e) => setRemark2(e.target.value)}
-                  placeholder={tr('workMemo.remarkPlaceholder')}
+                  placeholder={t('workMemo.remarkPlaceholder')}
                 />
               </div>
             )}
             <div className="space-y-2">
-              <Label className="text-xs">{tr('workMemo.reminderTime')}</Label>
+              <Label className="text-xs">{t('workMemo.reminderTime')}</Label>
               <CustomReminderSelect
                 value={reminderOffset}
                 onChange={setReminderOffset}
@@ -220,7 +220,7 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
             <div className="flex items-end">
               <Button onClick={handleAddMemo} className="w-full">
                 <Plus className="h-4 w-4 mr-2" />
-                {tr('workMemo.addMemo')}
+                {t('workMemo.addMemo')}
               </Button>
             </div>
           </div>
@@ -232,14 +232,14 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <Bell className="h-4 w-4" />
-            {tr('workMemo.memoList')}
+            {t('workMemo.memoList')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {isMobile ? (
             <MobileCardList>
               {memos.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">{tr('workMemo.noMemos')}</div>
+                <div className="text-center py-8 text-muted-foreground">{t('workMemo.noMemos')}</div>
               ) : (
                 memos.map((memo) => {
                   const triggered = isReminderTriggered(memo);
@@ -249,20 +249,20 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
                         <span className="font-medium">{memo.phoneNumber}</span>
                         {triggered && !memo.isRead ? (
                           <Badge className="bg-amber-500 text-white animate-pulse text-xs">
-                            <Bell className="h-3 w-3 mr-1" />{tr('workMemo.pending')}
+                            <Bell className="h-3 w-3 mr-1" />{t('workMemo.pending')}
                           </Badge>
                         ) : memo.isRead ? (
-                          <Badge variant="outline" className="text-xs">{tr('workMemo.read')}</Badge>
+                          <Badge variant="outline" className="text-xs">{t('workMemo.read')}</Badge>
                         ) : (
-                          <Badge variant="outline" className="text-xs">{tr('workMemo.waiting')}</Badge>
+                          <Badge variant="outline" className="text-xs">{t('workMemo.waiting')}</Badge>
                         )}
                       </MobileCardHeader>
-                      <MobileCardRow label={tr('workMemo.remark1')} value={memo.remark1 || '-'} />
-                      <MobileCardRow label={tr('workMemo.reminderTime')} value={formatDateTime(memo.reminderTime)} />
+                      <MobileCardRow label={t('workMemo.remark1')} value={memo.remark1 || '-'} />
+                      <MobileCardRow label={t('workMemo.reminderTime')} value={formatDateTime(memo.reminderTime)} />
                       <MobileCardActions>
                         {triggered && !memo.isRead && (
                           <Button variant="ghost" size="sm" className="h-8 flex-1 text-green-600" onClick={() => handleMarkAsRead(memo.id)}>
-                            <Check className="h-4 w-4 mr-1" />{tr('workMemo.confirmRead')}
+                            <Check className="h-4 w-4 mr-1" />{t('workMemo.confirmRead')}
                           </Button>
                         )}
                         <Button variant="ghost" size="sm" className="h-8 flex-1" onClick={() => handleOpenEdit(memo)}>
@@ -282,20 +282,20 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="text-center">{tr('workMemo.status')}</TableHead>
-                  <TableHead className="text-center">{tr('workMemo.entryTime')}</TableHead>
-                  <TableHead className="text-center">{tr('workMemo.phoneNumber')}</TableHead>
-                  <TableHead className="text-center">{tr('workMemo.remark1')}</TableHead>
-                  <TableHead className="text-center">{tr('workMemo.remark2')}</TableHead>
-                  <TableHead className="text-center">{tr('workMemo.reminderTime')}</TableHead>
-                  <TableHead className="text-center w-[120px]">{tr('common.actions')}</TableHead>
+                  <TableHead className="text-center">{t('workMemo.status')}</TableHead>
+                  <TableHead className="text-center">{t('workMemo.entryTime')}</TableHead>
+                  <TableHead className="text-center">{t('workMemo.phoneNumber')}</TableHead>
+                  <TableHead className="text-center">{t('workMemo.remark1')}</TableHead>
+                  <TableHead className="text-center">{t('workMemo.remark2')}</TableHead>
+                  <TableHead className="text-center">{t('workMemo.reminderTime')}</TableHead>
+                  <TableHead className="text-center w-[120px]">{t('common.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {memos.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      {tr('workMemo.noMemos')}
+                      {t('workMemo.noMemos')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -316,14 +316,14 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
                           {triggered && !memo.isRead ? (
                             <Badge className="bg-amber-500 text-white animate-pulse">
                               <Bell className="h-3 w-3 mr-1" />
-                              {tr('workMemo.pending')}
+                              {t('workMemo.pending')}
                             </Badge>
                           ) : memo.isRead ? (
                             <Badge variant="outline" className="text-muted-foreground">
-                              {tr('workMemo.read')}
+                              {t('workMemo.read')}
                             </Badge>
                           ) : (
-                            <Badge variant="outline">{tr('workMemo.waiting')}</Badge>
+                            <Badge variant="outline">{t('workMemo.waiting')}</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground text-center">
@@ -354,18 +354,18 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
-                                    <AlertDialogTitle>{tr('workMemo.confirmRead')}</AlertDialogTitle>
+                                    <AlertDialogTitle>{t('workMemo.confirmRead')}</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      {tr('workMemo.confirmReadQuestion')}
+                                      {t('workMemo.confirmReadQuestion')}
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
-                                    <AlertDialogCancel>{tr('common.cancel')}</AlertDialogCancel>
+                                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                                     <AlertDialogAction
                                       onClick={() => handleMarkAsRead(memo.id)}
                                       className="bg-green-600 text-white hover:bg-green-700"
                                     >
-                                      {tr('workMemo.confirmRead')}
+                                      {t('workMemo.confirmRead')}
                                     </AlertDialogAction>
                                   </AlertDialogFooter>
                                 </AlertDialogContent>
@@ -391,18 +391,18 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>{tr('workMemo.confirmDelete')}</AlertDialogTitle>
+                                  <AlertDialogTitle>{t('workMemo.confirmDelete')}</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    {tr('workMemo.deleteQuestion')}
+                                    {t('workMemo.deleteQuestion')}
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel>{tr('common.cancel')}</AlertDialogCancel>
+                                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                                   <AlertDialogAction
                                     onClick={() => handleDelete(memo.id)}
                                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                   >
-                                    {tr('common.delete')}
+                                    {t('common.delete')}
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
@@ -424,49 +424,49 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{tr('workMemo.editMemo')}</DialogTitle>
+            <DialogTitle>{t('workMemo.editMemo')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>{tr('workMemo.phoneNumber')}</Label>
+              <Label>{t('workMemo.phoneNumber')}</Label>
               <Input
                 value={editPhoneNumber}
                 onChange={(e) => setEditPhoneNumber(e.target.value)}
-                placeholder={tr('workMemo.phonePlaceholder')}
+                placeholder={t('workMemo.phonePlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label>{tr('workMemo.remark1')}</Label>
+              <Label>{t('workMemo.remark1')}</Label>
               <Input
                 value={editRemark1}
                 onChange={(e) => setEditRemark1(e.target.value)}
-                placeholder={tr('workMemo.remarkPlaceholder')}
+                placeholder={t('workMemo.remarkPlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label>{tr('workMemo.remark2')}</Label>
+              <Label>{t('workMemo.remark2')}</Label>
               <Input
                 value={editRemark2}
                 onChange={(e) => setEditRemark2(e.target.value)}
-                placeholder={tr('workMemo.remarkPlaceholder')}
+                placeholder={t('workMemo.remarkPlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label>{tr('workMemo.delayReminder')}</Label>
+              <Label>{t('workMemo.delayReminder')}</Label>
               <CustomReminderSelect
                 value={delayOffset}
                 onChange={setDelayOffset}
               />
               <p className="text-xs text-muted-foreground">
-                {tr('workMemo.delayNote')}
+                {t('workMemo.delayNote')}
               </p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              {tr('common.cancel')}
+              {t('common.cancel')}
             </Button>
-            <Button onClick={handleSaveEdit}>{tr('common.save')}</Button>
+            <Button onClick={handleSaveEdit}>{t('common.save')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

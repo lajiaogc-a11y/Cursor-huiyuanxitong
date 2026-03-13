@@ -33,7 +33,7 @@ export default function Dashboard() {
   // Performance tracking
   trackRender('Dashboard');
   
-  const { t, tr, language } = useLanguage();
+  const { t, language } = useLanguage();
   
   const [selectedRange, setSelectedRange] = useState<TimeRangeType>("今日");
   const [dateRange, setDateRange] = useState<DateRange>(() => getTimeRangeDates("今日"));
@@ -213,12 +213,12 @@ export default function Dashboard() {
   }, [rpcTrendData]);
 
   const chartConfig = {
-    orders: { label: tr('dashboard.orderTrend'), color: "hsl(var(--primary))" },
-    profit: { label: tr('dashboard.profitTrend'), color: "hsl(var(--success))" },
+    orders: { label: t('dashboard.orderTrend'), color: "hsl(var(--primary))" },
+    profit: { label: t('dashboard.profitTrend'), color: "hsl(var(--success))" },
   };
 
   const tradingUserChartConfig = {
-    users: { label: tr('dashboard.users'), color: "hsl(var(--chart-3))" },
+    users: { label: t('dashboard.users'), color: "hsl(var(--chart-3))" },
   };
 
   const getCurrentVolume = () => {
@@ -232,7 +232,7 @@ export default function Dashboard() {
   };
 
   const handlePrint = () => {
-    printContent('dashboard-content', tr('dashboard.printTitle'));
+    printContent('dashboard-content', t('dashboard.printTitle'));
   };
 
   const totalProfit = stats.ghsProfit + stats.ngnProfit;
@@ -268,7 +268,7 @@ export default function Dashboard() {
               onClick={toggleAutoRefresh}
             >
               <Timer className="h-3 w-3" />
-              {autoRefreshEnabled ? formatCountdown(countdown) : tr('common.autoRefresh')}
+              {autoRefreshEnabled ? formatCountdown(countdown) : t('common.autoRefresh')}
             </Button>
             {autoRefreshEnabled && (
               <select
@@ -276,10 +276,10 @@ export default function Dashboard() {
                 value={refreshInterval}
                 onChange={(e) => handleIntervalChange(parseInt(e.target.value))}
               >
-                <option value={30}>{tr('refreshInterval.sec30')}</option>
-                <option value={60}>{tr('refreshInterval.min1')}</option>
-                <option value={180}>{tr('refreshInterval.min3')}</option>
-                <option value={300}>{tr('refreshInterval.min5')}</option>
+                <option value={30}>{t('refreshInterval.sec30')}</option>
+                <option value={60}>{t('refreshInterval.min1')}</option>
+                <option value={180}>{t('refreshInterval.min3')}</option>
+                <option value={300}>{t('refreshInterval.min5')}</option>
               </select>
             )}
             <Button variant="outline" size="icon" onClick={handleRefresh} className="no-print h-7 w-7">
@@ -287,7 +287,7 @@ export default function Dashboard() {
             </Button>
             <Button variant="outline" size="sm" onClick={handlePrint} className="no-print h-7 hidden sm:flex text-xs">
               <Printer className="h-3.5 w-3.5 mr-1" />
-              {tr('common.print')}
+              {t('common.print')}
             </Button>
           </div>
         </div>
@@ -320,7 +320,7 @@ export default function Dashboard() {
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
-                {tr('dashboard.totalUsers')}
+                {t('dashboard.totalUsers')}
               </p>
               <p className="text-2xl sm:text-3xl font-bold tabular-nums text-foreground">
                 {stats.totalUsers.toLocaleString()}
@@ -337,7 +337,7 @@ export default function Dashboard() {
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
-                {tr('dashboard.newUsers')}
+                {t('dashboard.newUsers')}
               </p>
               <p className="text-2xl sm:text-3xl font-bold tabular-nums text-success">
                 {stats.newUsers.toLocaleString()}
@@ -354,7 +354,7 @@ export default function Dashboard() {
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
-                {tr('dashboard.tradingUsers')}
+                {t('dashboard.tradingUsers')}
               </p>
               <p className="text-2xl sm:text-3xl font-bold tabular-nums" style={{ color: 'hsl(var(--chart-3))' }}>
                 {stats.tradingUsers.toLocaleString()}
@@ -371,7 +371,7 @@ export default function Dashboard() {
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
-                {tr('dashboard.orderCount')}
+                {t('dashboard.orderCount')}
               </p>
               <p className="text-2xl sm:text-3xl font-bold tabular-nums text-foreground">
                 {stats.totalOrders.toLocaleString()}
@@ -387,7 +387,7 @@ export default function Dashboard() {
         <div className="dash-stat-card dash-stat-success col-span-2 lg:col-span-1">
           <div className="flex items-start justify-between mb-1">
             <p className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
-              {tr('dashboard.volume')}
+              {t('dashboard.volume')}
             </p>
             <div className="flex gap-0.5 no-print relative z-10">
               {(["NGN", "GHS", "USDT"] as const).map((cur) => (
@@ -425,7 +425,7 @@ export default function Dashboard() {
             <div className="dash-icon dash-icon-primary p-1.5">
               <TrendingUp className="h-4 w-4" />
             </div>
-            <h3 className="text-sm font-semibold text-foreground">{tr('dashboard.orderTrendTitle')}</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t('dashboard.orderTrendTitle')}</h3>
           </div>
           <div className="px-3 pb-4">
             <ChartContainer config={chartConfig} className="h-[220px] w-full">
@@ -445,8 +445,8 @@ export default function Dashboard() {
                 <YAxis yAxisId="left" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} hide={trendData.length > 14} width={35} />
                 <YAxis yAxisId="right" orientation="right" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} hide={trendData.length > 14} width={35} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Area yAxisId="left" type="monotone" dataKey="orders" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#orderGradient)" dot={trendData.length <= 14 ? { fill: "hsl(var(--primary))", r: 3, strokeWidth: 0 } : false} name={tr('dashboard.orderTrend')} />
-                <Area yAxisId="right" type="monotone" dataKey="profit" stroke="hsl(var(--success))" strokeWidth={2} fill="url(#profitGradient)" dot={trendData.length <= 14 ? { fill: "hsl(var(--success))", r: 3, strokeWidth: 0 } : false} name={tr('dashboard.profitTrend')} />
+                <Area yAxisId="left" type="monotone" dataKey="orders" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#orderGradient)" dot={trendData.length <= 14 ? { fill: "hsl(var(--primary))", r: 3, strokeWidth: 0 } : false} name={t('dashboard.orderTrend')} />
+                <Area yAxisId="right" type="monotone" dataKey="profit" stroke="hsl(var(--success))" strokeWidth={2} fill="url(#profitGradient)" dot={trendData.length <= 14 ? { fill: "hsl(var(--success))", r: 3, strokeWidth: 0 } : false} name={t('dashboard.profitTrend')} />
               </AreaChart>
             </ChartContainer>
           </div>
@@ -458,7 +458,7 @@ export default function Dashboard() {
             <div className="dash-icon dash-icon-chart3 p-1.5">
               <BarChart3 className="h-4 w-4" />
             </div>
-            <h3 className="text-sm font-semibold text-foreground">{tr('dashboard.tradingUserTrend')}</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t('dashboard.tradingUserTrend')}</h3>
           </div>
           <div className="px-3 pb-4">
             <ChartContainer config={tradingUserChartConfig} className="h-[220px] w-full">
@@ -473,7 +473,7 @@ export default function Dashboard() {
                 <XAxis dataKey="date" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} interval={tradingUserTrendData.length > 7 ? Math.ceil(tradingUserTrendData.length / 5) - 1 : 0} />
                 <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} hide={tradingUserTrendData.length > 14} width={35} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="users" fill="url(#barGradient)" radius={[6, 6, 0, 0]} name={tr('dashboard.tradingUsers')} />
+                <Bar dataKey="users" fill="url(#barGradient)" radius={[6, 6, 0, 0]} name={t('dashboard.tradingUsers')} />
               </BarChart>
             </ChartContainer>
           </div>
@@ -484,7 +484,7 @@ export default function Dashboard() {
       <div>
         <div className="flex items-center gap-2 mb-4">
           <div className="w-1 h-5 rounded-full bg-success" />
-          <h3 className="text-sm font-semibold text-foreground">{tr('dashboard.totalProfit')}</h3>
+          <h3 className="text-sm font-semibold text-foreground">{t('dashboard.totalProfit')}</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="dash-profit-card dash-profit-ghs">

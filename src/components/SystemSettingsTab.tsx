@@ -34,23 +34,23 @@ export default function SystemSettingsTab({
   onCediRateChange,
   onUsdtFeeChange,
 }: SystemSettingsTabProps) {
-  const { tr, language } = useLanguage();
+  const { t, language } = useLanguage();
   const [feeSettings, setFeeSettings] = useState<FeeSettings>(getFeeSettings());
   const [trxSettings, setTrxSettings] = useState<TrxSettings>(getTrxSettings());
 
 
   const handleSaveFeeSettings = () => {
     saveFeeSettings(feeSettings);
-    toast.success(tr('systemSettings.feeSaved'));
+    toast.success(t('systemSettings.feeSaved'));
   };
 
   const handleSaveTrxQuantity = () => {
     saveTrxSettings(trxSettings);
-    toast.success(tr('systemSettings.trxSaved'));
+    toast.success(t('systemSettings.trxSaved'));
   };
 
   const handleSaveRates = () => {
-    toast.success(tr('systemSettings.rateSaved'));
+    toast.success(t('systemSettings.rateSaved'));
   };
 
 
@@ -61,7 +61,7 @@ export default function SystemSettingsTab({
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <Settings className="h-4 w-4" />
-            {tr('systemSettings.feeSettingsTitle')}
+            {t('systemSettings.feeSettingsTitle')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -69,11 +69,11 @@ export default function SystemSettingsTab({
           <div className="p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
             <div className="flex items-center gap-2 mb-3">
               <Badge className="bg-orange-500">{CURRENCIES.NGN.name}</Badge>
-              <span className="text-sm text-muted-foreground">{tr('systemSettings.feeRules')}</span>
+              <span className="text-sm text-muted-foreground">{t('systemSettings.feeRules')}</span>
             </div>
             <div className="grid grid-cols-4 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs">{tr('systemSettings.paymentAmountGte')}</Label>
+                <Label className="text-xs">{t('systemSettings.paymentAmountGte')}</Label>
                 <Input
                   type="number"
                   value={feeSettings.nairaThreshold}
@@ -86,7 +86,7 @@ export default function SystemSettingsTab({
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">{tr('systemSettings.fee')}</Label>
+                <Label className="text-xs">{t('systemSettings.fee')}</Label>
                 <Input
                   type="number"
                   value={feeSettings.nairaFeeAbove}
@@ -99,7 +99,7 @@ export default function SystemSettingsTab({
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">{tr('systemSettings.paymentAmountLt')}</Label>
+                <Label className="text-xs">{t('systemSettings.paymentAmountLt')}</Label>
                 <Input
                   type="number"
                   value={feeSettings.nairaThreshold}
@@ -108,7 +108,7 @@ export default function SystemSettingsTab({
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">{tr('systemSettings.fee')}</Label>
+                <Label className="text-xs">{t('systemSettings.fee')}</Label>
                 <Input
                   type="number"
                   value={feeSettings.nairaFeeBelow}
@@ -127,11 +127,11 @@ export default function SystemSettingsTab({
           <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
             <div className="flex items-center gap-2 mb-3">
               <Badge className="bg-green-500">{CURRENCIES.GHS.name}</Badge>
-              <span className="text-sm text-muted-foreground">{tr('systemSettings.feeRules')}</span>
+              <span className="text-sm text-muted-foreground">{t('systemSettings.feeRules')}</span>
             </div>
             <div className="grid grid-cols-4 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs">{tr('systemSettings.paymentAmountGte')}</Label>
+                <Label className="text-xs">{t('systemSettings.paymentAmountGte')}</Label>
                 <Input
                   type="number"
                   value={feeSettings.cediThreshold}
@@ -144,7 +144,7 @@ export default function SystemSettingsTab({
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">{tr('systemSettings.fee')}</Label>
+                <Label className="text-xs">{t('systemSettings.fee')}</Label>
                 <Input
                   type="number"
                   value={feeSettings.cediFeeAbove}
@@ -157,7 +157,7 @@ export default function SystemSettingsTab({
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">{tr('systemSettings.paymentAmountLt')}</Label>
+                <Label className="text-xs">{t('systemSettings.paymentAmountLt')}</Label>
                 <Input
                   type="number"
                   value={feeSettings.cediThreshold}
@@ -166,7 +166,7 @@ export default function SystemSettingsTab({
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">{tr('systemSettings.fee')}</Label>
+                <Label className="text-xs">{t('systemSettings.fee')}</Label>
                 <Input
                   type="number"
                   value={feeSettings.cediFeeBelow}
@@ -183,7 +183,7 @@ export default function SystemSettingsTab({
 
           <Button onClick={handleSaveFeeSettings} className="gap-2">
             <Save className="h-4 w-4" />
-            {tr('systemSettings.saveFeeSettings')}
+            {t('systemSettings.saveFeeSettings')}
           </Button>
         </CardContent>
       </Card>
@@ -193,14 +193,14 @@ export default function SystemSettingsTab({
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <Settings className="h-4 w-4" />
-            {tr('systemSettings.trxSettingsTitle')}
+            {t('systemSettings.trxSettingsTitle')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label className="text-xs">
-                {tr('systemSettings.trxRate')}
+                {t('systemSettings.trxRate')}
               </Label>
               <Input
                 type="number"
@@ -215,7 +215,7 @@ export default function SystemSettingsTab({
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">{tr('systemSettings.trxQuantity')}</Label>
+              <Label className="text-xs">{t('systemSettings.trxQuantity')}</Label>
               <Input
                 type="number"
                 step="0.1"
@@ -226,13 +226,13 @@ export default function SystemSettingsTab({
                     trxQuantity: parseFloat(e.target.value) || 0,
                   })
                 }
-                placeholder={tr('systemSettings.trxQuantityPlaceholder')}
+                placeholder={t('systemSettings.trxQuantityPlaceholder')}
               />
             </div>
             <div className="flex items-end">
               <Button onClick={handleSaveTrxQuantity} className="gap-2">
                 <Save className="h-4 w-4" />
-                {tr('systemSettings.saveTrxSettings')}
+                {t('systemSettings.saveTrxSettings')}
               </Button>
             </div>
           </div>
@@ -244,13 +244,13 @@ export default function SystemSettingsTab({
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <Settings className="h-4 w-4" />
-            {tr('systemSettings.rateSettingsTitle')}
+            {t('systemSettings.rateSettingsTitle')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label className="text-xs">{tr('systemSettings.nairaRate')}</Label>
+              <Label className="text-xs">{t('systemSettings.nairaRate')}</Label>
               <Input
                 type="number"
                 value={nairaRate}
@@ -258,7 +258,7 @@ export default function SystemSettingsTab({
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">{tr('systemSettings.cediRate')}</Label>
+              <Label className="text-xs">{t('systemSettings.cediRate')}</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -267,7 +267,7 @@ export default function SystemSettingsTab({
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">{tr('systemSettings.usdtFee')}</Label>
+              <Label className="text-xs">{t('systemSettings.usdtFee')}</Label>
               <Input
                 type="number"
                 step="0.1"
@@ -278,7 +278,7 @@ export default function SystemSettingsTab({
           </div>
           <Button onClick={handleSaveRates} className="gap-2 mt-4">
             <Save className="h-4 w-4" />
-            {tr('systemSettings.saveRateSettings')}
+            {t('systemSettings.saveRateSettings')}
           </Button>
         </CardContent>
       </Card>

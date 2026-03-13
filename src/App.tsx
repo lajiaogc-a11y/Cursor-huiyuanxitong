@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AppRouter } from "@/components/AppRouter";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -58,6 +58,10 @@ const InviteLanding = lazy(() => import("./pages/member/InviteLanding"));
 const MemberLayout = lazy(() => import("./components/member/MemberLayout").then((m) => ({ default: m.MemberLayout })));
 
 /** 懒加载时显示顶部细进度条，替代页面中心大 loading */
+function LegacyActivityReportsRedirect() {
+  const location = useLocation();
+  return <Navigate to={`/members${location.search}`} replace />;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -91,7 +95,8 @@ const App = () => (
                   
                   {/* 受保护的路由 */}
                   <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                  <Route path="/members" element={<ProtectedRoute><MemberManagement /></ProtectedRoute>} />
+                  <Route path="/members" element={<ProtectedRoute><ActivityReports /></ProtectedRoute>} />
+                  <Route path="/member-management" element={<ProtectedRoute><MemberManagement /></ProtectedRoute>} />
                   <Route path="/orders" element={<ProtectedRoute><OrderManagement /></ProtectedRoute>} />
                   <Route path="/employees" element={<ProtectedRoute><EmployeeManagement /></ProtectedRoute>} />
                   <Route path="/exchange-rate" element={<ProtectedRoute><ExchangeRate /></ProtectedRoute>} />
@@ -99,7 +104,7 @@ const App = () => (
                   <Route path="/customer-query" element={<ProtectedRoute><CustomerQuery /></ProtectedRoute>} />
                   <Route path="/merchants" element={<ProtectedRoute><MerchantManagement /></ProtectedRoute>} />
                   <Route path="/merchant-settlement" element={<ProtectedRoute><MerchantSettlement /></ProtectedRoute>} />
-                  <Route path="/activity-reports" element={<ProtectedRoute><ActivityReports /></ProtectedRoute>} />
+                  <Route path="/activity-reports" element={<ProtectedRoute><LegacyActivityReportsRedirect /></ProtectedRoute>} />
                   <Route path="/member-activity" element={<ProtectedRoute><MemberActivityData /></ProtectedRoute>} />
                   <Route path="/reports" element={<ProtectedRoute><ReportManagement /></ProtectedRoute>} />
                   <Route path="/operation-logs" element={<ProtectedRoute><OperationLogs /></ProtectedRoute>} />

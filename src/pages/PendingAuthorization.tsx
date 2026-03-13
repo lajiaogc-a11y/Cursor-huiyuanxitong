@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 export default function PendingAuthorization() {
   const navigate = useNavigate();
   const { signOut, employee } = useAuth();
-  const { tr } = useLanguage();
+  const { t } = useLanguage();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleLogout = async () => {
@@ -22,7 +22,7 @@ export default function PendingAuthorization() {
 
   const handleRefresh = async () => {
     if (!employee?.id) {
-      toast.error(tr('pending.cannotGetUser'));
+      toast.error(t('pending.cannotGetUser'));
       return;
     }
     
@@ -37,14 +37,14 @@ export default function PendingAuthorization() {
       if (error) throw error;
       
       if (emp?.status === 'active') {
-        toast.success(tr('pending.approved'));
+        toast.success(t('pending.approved'));
         navigate('/', { replace: true });
       } else {
-        toast.info(tr('pending.stillPending'));
+        toast.info(t('pending.stillPending'));
       }
     } catch (error) {
       console.error('Failed to check status:', error);
-      toast.error(tr('pending.checkFailed'));
+      toast.error(t('pending.checkFailed'));
     } finally {
       setIsRefreshing(false);
     }
@@ -57,18 +57,18 @@ export default function PendingAuthorization() {
           <div className="mx-auto w-16 h-16 bg-warning/20 rounded-full flex items-center justify-center mb-4">
             <Clock className="h-8 w-8 text-warning" />
           </div>
-          <CardTitle className="text-2xl font-bold text-login-foreground">{tr('pending.title')}</CardTitle>
+          <CardTitle className="text-2xl font-bold text-login-foreground">{t('pending.title')}</CardTitle>
         </CardHeader>
         <CardContent className="pt-4">
           <div className="text-center space-y-4">
             <p className="text-foreground">
-              {tr('pending.greeting')}{employee?.real_name ? `，${employee.real_name}` : ''}！
+              {t('pending.greeting')}{employee?.real_name ? `，${employee.real_name}` : ''}！
             </p>
             <p className="text-muted-foreground">
-              {tr('pending.accountCreated')}
+              {t('pending.accountCreated')}
             </p>
             <p className="text-muted-foreground text-sm">
-              {tr('pending.approvedMessage')}
+              {t('pending.approvedMessage')}
             </p>
             
             <div className="pt-4 space-y-3">
@@ -83,7 +83,7 @@ export default function PendingAuthorization() {
                 ) : (
                   <RefreshCw className="h-4 w-4 mr-2" />
                 )}
-                {isRefreshing ? tr('pending.checking') : tr('pending.refreshStatus')}
+                {isRefreshing ? t('pending.checking') : t('pending.refreshStatus')}
               </Button>
               <Button
                 onClick={handleLogout}
@@ -91,7 +91,7 @@ export default function PendingAuthorization() {
                 className="w-full text-muted-foreground hover:text-foreground"
               >
                 <LogOut className="h-4 w-4 mr-2" />
-                {tr('pending.logout')}
+                {t('pending.logout')}
               </Button>
             </div>
           </div>
@@ -99,7 +99,7 @@ export default function PendingAuthorization() {
           <div className="mt-8 pt-6 border-t border-border">
             <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
               <GCLogo size={20} />
-              <span>{tr('login.title')}</span>
+              <span>{t('login.title')}</span>
             </div>
           </div>
         </CardContent>

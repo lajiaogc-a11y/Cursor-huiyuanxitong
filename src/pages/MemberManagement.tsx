@@ -69,7 +69,7 @@ export default function MemberManagement() {
   // Performance tracking
   trackRender('MemberManagement');
   
-  const { t, tr, formatDate } = useLanguage();
+  const { t, formatDate } = useLanguage();
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const { members, loading, updateMember, deleteMember, refetch } = useMembers();
@@ -91,7 +91,7 @@ export default function MemberManagement() {
 
   const handleRefresh = async () => {
     await refetch();
-    toast.success(tr('members.listRefreshed'));
+    toast.success(t('members.listRefreshed'));
   };
 
   // 排序后的会员列表（按创建时间倒序）
@@ -158,7 +158,7 @@ export default function MemberManagement() {
           `修改会员: ${editingMember.phoneNumber}`
         );
         
-        toast.success(tr('members.updateSuccess'));
+        toast.success(t('members.updateSuccess'));
         setIsEditDialogOpen(false);
         setEditingMember(null);
       }
@@ -168,7 +168,7 @@ export default function MemberManagement() {
   const handleDelete = async (memberId: string) => {
     const success = await deleteMember(memberId);
     if (success) {
-      toast.success(tr('members.deleteSuccess'));
+      toast.success(t('members.deleteSuccess'));
     }
   };
 
@@ -252,14 +252,14 @@ export default function MemberManagement() {
             {!isMobile && (
               <CardTitle className="text-lg flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                {tr('members.title')}
+                {t('members.title')}
               </CardTitle>
             )}
             <div className={isMobile ? "flex flex-col gap-2" : "flex items-center gap-3"}>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder={tr('members.searchPlaceholder')}
+                  placeholder={t('members.searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
@@ -292,14 +292,14 @@ export default function MemberManagement() {
         </CardHeader>
         <CardContent className="flex-1 min-h-0 flex flex-col p-4">
           <div className="text-sm text-muted-foreground mb-3 p-3 bg-muted/30 rounded-lg shrink-0">
-            💡 {tr('members.memberTip')}
+            💡 {t('members.memberTip')}
           </div>
           <div className="flex-1 min-h-0">
             {isMobile ? (
               <MobileCardList>
                 {paginatedMembers.length === 0 ? (
                   <p className="text-center py-8 text-muted-foreground text-sm">
-                    {filteredMembers.length === 0 ? tr('members.noMembers') : tr('members.currentPageEmpty')}
+                    {filteredMembers.length === 0 ? t('members.noMembers') : t('members.currentPageEmpty')}
                   </p>
                 ) : paginatedMembers.map((member) => (
                   <MobileCard key={member.id}>
@@ -309,16 +309,16 @@ export default function MemberManagement() {
                         {member.level}{t('级', '')}
                       </Badge>
                     </MobileCardHeader>
-                    <MobileCardRow label={tr('members.memberCode')} value={<Badge variant="outline" className="font-mono">{member.memberCode}</Badge>} />
-                    <MobileCardRow label={tr('members.commonCards')} value={
+                    <MobileCardRow label={t('members.memberCode')} value={<Badge variant="outline" className="font-mono">{member.memberCode}</Badge>} />
+                    <MobileCardRow label={t('members.commonCards')} value={
                       member.commonCards && member.commonCards.length > 0
                         ? <div className="flex gap-1 flex-wrap justify-end">{member.commonCards.map(c => <Badge key={c} variant="outline" className="bg-purple-100 text-purple-700 border-purple-200 text-xs">{c}</Badge>)}</div>
                         : "-"
                     } />
                     <MobileCardCollapsible>
-                      <MobileCardRow label={tr('members.referrer')} value={member.referrerPhone ? getDisplayPhone(member.referrerPhone, isAdmin) : "-"} />
-                      <MobileCardRow label={tr('members.bankCard')} value={member.bankCard || "-"} />
-                      <MobileCardRow label={tr('members.feature')} value={member.customerFeature || "-"} />
+                      <MobileCardRow label={t('members.referrer')} value={member.referrerPhone ? getDisplayPhone(member.referrerPhone, isAdmin) : "-"} />
+                      <MobileCardRow label={t('members.bankCard')} value={member.bankCard || "-"} />
+                      <MobileCardRow label={t('members.feature')} value={member.customerFeature || "-"} />
                       <MobileCardRow label={t('备注', 'Remark')} value={member.remark || "-"} />
                     </MobileCardCollapsible>
                     <MobileCardActions>
@@ -333,7 +333,7 @@ export default function MemberManagement() {
                           <Button size="sm" variant="outline" className="h-8 text-destructive border-destructive/30"><Trash2 className="h-3 w-3" /></Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
-                          <AlertDialogHeader><AlertDialogTitle>{tr('members.confirmDelete')}</AlertDialogTitle><AlertDialogDescription>{tr('members.deleteWarning')}</AlertDialogDescription></AlertDialogHeader>
+                          <AlertDialogHeader><AlertDialogTitle>{t('members.confirmDelete')}</AlertDialogTitle><AlertDialogDescription>{t('members.deleteWarning')}</AlertDialogDescription></AlertDialogHeader>
                           <AlertDialogFooter><AlertDialogCancel>{t('取消', 'Cancel')}</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(member.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{t('删除', 'Delete')}</AlertDialogAction></AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -347,18 +347,18 @@ export default function MemberManagement() {
               <Table className="text-sm">
                 <TableHeader className="sticky top-0 z-10">
                   <TableRow>
-                  <TableHead className="text-center">{tr('members.phone')}</TableHead>
-                  <TableHead className="text-center">{tr('members.memberCode')}</TableHead>
-                  <TableHead className="text-center">{tr('members.referrer')}</TableHead>
-                  <TableHead className="text-center">{tr('members.level')}</TableHead>
-                  <TableHead className="text-center">{tr('members.commonCards')}</TableHead>
-                  <TableHead className="text-center">{tr('members.currencyPreference')}</TableHead>
-                  <TableHead className="text-center">{tr('members.bankCard')}</TableHead>
-                  <TableHead className="text-center">{tr('members.feature')}</TableHead>
-                  <TableHead className="text-center">{tr('members.source')}</TableHead>
+                  <TableHead className="text-center">{t('members.phone')}</TableHead>
+                  <TableHead className="text-center">{t('members.memberCode')}</TableHead>
+                  <TableHead className="text-center">{t('members.referrer')}</TableHead>
+                  <TableHead className="text-center">{t('members.level')}</TableHead>
+                  <TableHead className="text-center">{t('members.commonCards')}</TableHead>
+                  <TableHead className="text-center">{t('members.currencyPreference')}</TableHead>
+                  <TableHead className="text-center">{t('members.bankCard')}</TableHead>
+                  <TableHead className="text-center">{t('members.feature')}</TableHead>
+                  <TableHead className="text-center">{t('members.source')}</TableHead>
                   <TableHead className="text-center">{t('备注', 'Remark')}</TableHead>
                   <TableHead className="text-center">{t('添加时间', 'Created At')}</TableHead>
-                  <TableHead className="text-center">{tr('members.recorder')}</TableHead>
+                  <TableHead className="text-center">{t('members.recorder')}</TableHead>
                   <TableHead className="text-center w-[100px]">{t('操作', 'Actions')}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -367,8 +367,8 @@ export default function MemberManagement() {
                   <TableRow>
                     <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                       {filteredMembers.length === 0 
-                        ? tr('members.noMembers')
-                        : tr('members.currentPageEmpty')}
+                        ? t('members.noMembers')
+                        : t('members.currentPageEmpty')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -484,9 +484,9 @@ export default function MemberManagement() {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>{tr('members.confirmDelete')}</AlertDialogTitle>
+                                <AlertDialogTitle>{t('members.confirmDelete')}</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  {tr('members.deleteWarning')}
+                                  {t('members.deleteWarning')}
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -515,9 +515,9 @@ export default function MemberManagement() {
           {!isMobile && (
           <div className="flex items-center justify-between mt-4 pt-4 border-t shrink-0">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>{tr('members.total')} {filteredMembers.length} {tr('members.items')}</span>
+              <span>{t('members.total')} {filteredMembers.length} {t('members.items')}</span>
               <span>|</span>
-              <span>{tr('members.perPage')}</span>
+              <span>{t('members.perPage')}</span>
               <Select 
                 value={pageSize.toString()} 
                 onValueChange={(v) => setPageSize(parseInt(v))}
@@ -579,18 +579,18 @@ export default function MemberManagement() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{tr('members.editMember')}</DialogTitle>
+            <DialogTitle>{t('members.editMember')}</DialogTitle>
           </DialogHeader>
           {editingMember && (
             <div className="space-y-3 py-4">
               {/* 只读字段 - 手机号、会员编号 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-3">
-                  <Label className="w-20 text-right shrink-0">{tr('members.phone')}</Label>
+                  <Label className="w-20 text-right shrink-0">{t('members.phone')}</Label>
                   <Input value={editingMember.phoneNumber} disabled className="bg-muted flex-1" />
                 </div>
                 <div className="flex items-center gap-3">
-                  <Label className="w-20 text-right shrink-0">{tr('members.memberCode')}</Label>
+                  <Label className="w-20 text-right shrink-0">{t('members.memberCode')}</Label>
                   <Input value={editingMember.memberCode} disabled className="bg-muted flex-1" />
                 </div>
               </div>
@@ -598,7 +598,7 @@ export default function MemberManagement() {
               {/* 等级、常交易卡 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-3">
-                  <Label className="w-20 text-right shrink-0">{tr('members.level')}</Label>
+                  <Label className="w-20 text-right shrink-0">{t('members.level')}</Label>
                   <Select
                     value={editingMember.level}
                     onValueChange={(value) =>
@@ -618,7 +618,7 @@ export default function MemberManagement() {
                   </Select>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Label className="w-20 text-right shrink-0">{tr('members.commonCards')}</Label>
+                  <Label className="w-20 text-right shrink-0">{t('members.commonCards')}</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -675,7 +675,7 @@ export default function MemberManagement() {
               {/* 银行卡、币种偏好 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-3">
-                  <Label className="w-20 text-right shrink-0">{tr('members.bankCard')}</Label>
+                  <Label className="w-20 text-right shrink-0">{t('members.bankCard')}</Label>
                   <Input
                     value={editingMember.bankCard || ""}
                     onChange={(e) =>
@@ -686,7 +686,7 @@ export default function MemberManagement() {
                   />
                 </div>
                 <div className="flex items-center gap-3">
-                  <Label className="w-20 text-right shrink-0">{tr('members.currencyPreference')}</Label>
+                  <Label className="w-20 text-right shrink-0">{t('members.currencyPreference')}</Label>
                   <div className="flex gap-1 flex-wrap flex-1">
                     {editingMember.preferredCurrency.length > 0 ? 
                       editingMember.preferredCurrency.map((c) => (
@@ -701,7 +701,7 @@ export default function MemberManagement() {
               {/* 客户特点、来源 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-3">
-                  <Label className="w-20 text-right shrink-0">{tr('members.feature')}</Label>
+                  <Label className="w-20 text-right shrink-0">{t('members.feature')}</Label>
                   <Input
                     value={editingMember.customerFeature || ""}
                     onChange={(e) =>
@@ -712,7 +712,7 @@ export default function MemberManagement() {
                   />
                 </div>
                 <div className="flex items-center gap-3">
-                  <Label className="w-20 text-right shrink-0">{tr('members.source')}</Label>
+                  <Label className="w-20 text-right shrink-0">{t('members.source')}</Label>
                   <Select
                     value={editingMember.sourceId || ""}
                     onValueChange={(value) =>
@@ -720,7 +720,7 @@ export default function MemberManagement() {
                     }
                   >
                     <SelectTrigger className="flex-1">
-                      <SelectValue placeholder={tr('members.selectSource')} />
+                      <SelectValue placeholder={t('members.selectSource')} />
                     </SelectTrigger>
                     <SelectContent>
                       {customerSources.map((source) => (
@@ -750,7 +750,7 @@ export default function MemberManagement() {
               {/* 推荐人、录入人 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-3">
-                  <Label className="w-20 text-right shrink-0">{tr('members.referrer')}</Label>
+                  <Label className="w-20 text-right shrink-0">{t('members.referrer')}</Label>
                   <Input
                     value={editingMember.referrerPhone || ""}
                     onChange={(e) =>
@@ -761,7 +761,7 @@ export default function MemberManagement() {
                   />
                 </div>
                 <div className="flex items-center gap-3">
-                  <Label className="w-20 text-right shrink-0">{tr('members.recorder')}</Label>
+                  <Label className="w-20 text-right shrink-0">{t('members.recorder')}</Label>
                   <Input
                     value={editingMember.recorder}
                     disabled
@@ -825,9 +825,9 @@ export default function MemberManagement() {
           {detailMember && (
             <div className="space-y-4 py-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>{tr('members.memberCode')}: {detailMember.memberCode}</span>
+                <span>{t('members.memberCode')}: {detailMember.memberCode}</span>
                 <span>|</span>
-                <span>{tr('members.phone')}: {detailMember.phoneNumber}</span>
+                <span>{t('members.phone')}: {detailMember.phoneNumber}</span>
               </div>
               <div className="p-4 bg-muted/30 rounded-lg">
                 <p className="whitespace-pre-wrap">{detailMember.remark || t("暂无备注", "No remark")}</p>

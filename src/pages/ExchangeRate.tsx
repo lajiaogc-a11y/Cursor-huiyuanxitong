@@ -47,7 +47,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Send, Lock, Bell, RefreshCw, Timer, Copy, Settings, Plus, Pencil, Trash2, Image as ImageIcon, ArrowDown, Check, X, Loader2, ChevronDown } from "lucide-react";
+import { Send, Lock, Bell, RefreshCw, Timer, Copy, Settings, Plus, Pencil, Trash2, Image as ImageIcon, ArrowDown, Check, X, Loader2, ChevronDown, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DropdownMenu,
@@ -503,6 +503,18 @@ export default function ExchangeRate() {
 
   // 工作备忘未读数 - 自动计算
   const [memoUnreadCount, setMemoUnreadCount] = useState(0);
+
+  // 右侧工作面板显示状态（可折叠）
+  const [showRightPanel, setShowRightPanel] = useState(() =>
+    localStorage.getItem('exchangeRightPanel') !== 'hidden'
+  );
+  const toggleRightPanel = () => {
+    setShowRightPanel(prev => {
+      const next = !prev;
+      localStorage.setItem('exchangeRightPanel', next ? 'visible' : 'hidden');
+      return next;
+    });
+  };
   
   // Tab响应式溢出导航
   const tabsContainerRef = useRef<HTMLDivElement>(null);
@@ -510,9 +522,9 @@ export default function ExchangeRate() {
   
   // Tab配置数组
   const TAB_CONFIG = useMemo(() => [
-    { value: 'calc1', label: { zh: '汇率计算1', en: 'Calc 1' } },
-    { value: 'calc2', label: { zh: '汇率计算2', en: 'Calc 2' } },
-    { value: 'calc3', label: { zh: '汇率计算3', en: 'Calc 3' } },
+    { value: 'calc1', label: { zh: '台位 A', en: 'Desk A' } },
+    { value: 'calc2', label: { zh: '台位 B', en: 'Desk B' } },
+    { value: 'calc3', label: { zh: '台位 C', en: 'Desk C' } },
     { value: 'activity', label: { zh: '活动赠送', en: 'Gifts' } },
     { value: 'memo', label: { zh: '工作备忘', en: 'Memos' }, showBadge: true },
     { value: 'referral', label: { zh: '推荐录入', en: 'Referral' } },
@@ -579,9 +591,9 @@ export default function ExchangeRate() {
     const calcTabs = ['calc1', 'calc2', 'calc3'];
     if (calcTabs.includes(value) && calcTabs.includes(prevTab) && value !== prevTab) {
       const tabNames: Record<string, string> = {
-        calc1: '汇率计算 1',
-        calc2: '汇率计算 2', 
-        calc3: '汇率计算 3',
+        calc1: '台位 A',
+        calc2: '台位 B',
+        calc3: '台位 C',
       };
       toast.success(`已切换到 ${tabNames[value]}`, {
         duration: 1500,
@@ -1721,7 +1733,7 @@ export default function ExchangeRate() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
+    <div className={cn("grid grid-cols-1 gap-4", showRightPanel ? "lg:grid-cols-[1fr_280px]" : "lg:grid-cols-1")}>
       <div className="space-y-4 min-w-0">
       {/* 订单异常检测警告对话框 */}
       <AlertDialog open={showAnomalyDialog} onOpenChange={setShowAnomalyDialog}>
@@ -1931,6 +1943,20 @@ export default function ExchangeRate() {
                   setUsdtBid(rates.bid);
                   setUsdtAsk(rates.ask);
                 }} />
+                {/* 右侧工作面板折叠按钮（仅桌面端显示） */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden lg:flex h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={toggleRightPanel}
+                  title={showRightPanel ? t("隐藏工作面板", "Hide Panel") : t("显示工作面板", "Show Panel")}
+                >
+                  {showRightPanel ? (
+                    <PanelRightClose className="h-4 w-4" />
+                  ) : (
+                    <PanelRightOpen className="h-4 w-4" />
+                  )}
+                </Button>
               </div>
             </div>
 
@@ -2075,11 +2101,13 @@ export default function ExchangeRate() {
 
       </div>
 
-      {/* 右侧：号码提取 + 工作任务 */}
-      <div className="hidden lg:block space-y-4">
-        <PhoneExtractPanel />
-        <TasksQuickPanel />
-      </div>
+      {/* 右侧：号码提取 + 工作任务（可折叠） */}
+      {showRightPanel && (
+        <div className="hidden lg:block space-y-4">
+          <PhoneExtractPanel />
+          <TasksQuickPanel />
+        </div>
+      )}
 
       {/* 积分兑换对话框 - 与会员管理活动数据保持一致 */}
       <Dialog open={isRedeemDialogOpen} onOpenChange={setIsRedeemDialogOpen}>

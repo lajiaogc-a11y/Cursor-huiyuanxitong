@@ -13,7 +13,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Signup() {
   const navigate = useNavigate();
-  const { t, tr } = useLanguage();
+  const { t } = useLanguage();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -79,17 +79,17 @@ export default function Signup() {
     e.preventDefault();
     
     if (!username.trim()) {
-      toast.error(tr('signup.fillUsername'));
+      toast.error(t('signup.fillUsername'));
       return;
     }
 
     if (!realName.trim()) {
-      toast.error(tr('signup.fillRealName'));
+      toast.error(t('signup.fillRealName'));
       return;
     }
 
     if (!password.trim()) {
-      toast.error(tr('signup.fillPassword'));
+      toast.error(t('signup.fillPassword'));
       return;
     }
 
@@ -100,7 +100,7 @@ export default function Signup() {
     }
 
     if (password !== confirmPassword) {
-      toast.error(tr('signup.passwordMismatch'));
+      toast.error(t('signup.passwordMismatch'));
       return;
     }
 
@@ -122,12 +122,12 @@ export default function Signup() {
 
       if (response.error) {
         console.error('Signup RPC error:', response.error);
-        toast.error(tr('signup.signupFailed') + ": " + response.error.message);
+        toast.error(t('signup.signupFailed') + ": " + response.error.message);
         return;
       }
 
       if (!response.data || response.data.length === 0) {
-        toast.error(tr('signup.signupFailed'));
+        toast.error(t('signup.signupFailed'));
         return;
       }
 
@@ -136,7 +136,7 @@ export default function Signup() {
       if (!result.success) {
         switch (result.error_code) {
           case 'USERNAME_EXISTS':
-            toast.error(tr('signup.usernameExists'));
+            toast.error(t('signup.usernameExists'));
             break;
           case 'INVITATION_CODE_REQUIRED':
             toast.error(t('请输入邀请码', 'Invitation code is required'));
@@ -151,20 +151,20 @@ export default function Signup() {
             toast.error(t('邀请码已被使用完', 'Invitation code usage limit reached'));
             break;
           default:
-            toast.error(tr('signup.signupFailed'));
+            toast.error(t('signup.signupFailed'));
         }
         return;
       }
 
       if (result.assigned_status === 'active') {
-        toast.success(tr('signup.signupSuccessAdmin'));
+        toast.success(t('signup.signupSuccessAdmin'));
       } else {
-        toast.success(tr('signup.signupSuccessPending'));
+        toast.success(t('signup.signupSuccessPending'));
       }
       navigate('/login');
     } catch (error: any) {
       console.error('Signup error:', error);
-      toast.error(error.message || tr('signup.signupFailed'));
+      toast.error(error.message || t('signup.signupFailed'));
     } finally {
       setLoading(false);
     }
@@ -179,19 +179,19 @@ export default function Signup() {
             {networkStatus === 'checking' && (
               <div className="flex items-center gap-2 text-muted-foreground text-sm">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>{tr('signup.checkingNetwork')}</span>
+                <span>{t('signup.checkingNetwork')}</span>
               </div>
             )}
             {networkStatus === 'ok' && (
               <div className="flex items-center gap-2 text-green-500 dark:text-green-400 text-sm">
                 <Wifi className="h-4 w-4" />
-                <span>{tr('signup.networkOk')} ({networkLatency}ms)</span>
+                <span>{t('signup.networkOk')} ({networkLatency}ms)</span>
               </div>
             )}
             {networkStatus === 'error' && (
               <div className="flex items-center gap-2 text-destructive text-sm">
                 <WifiOff className="h-4 w-4" />
-                <span>{tr('signup.networkError')}</span>
+                <span>{t('signup.networkError')}</span>
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -207,13 +207,13 @@ export default function Signup() {
           <div className="mx-auto w-16 h-16 flex items-center justify-center mb-4">
             <GCLogo size={48} />
           </div>
-          <CardTitle className="text-2xl font-bold text-login-foreground">{tr('signup.title')}</CardTitle>
-          <p className="text-muted-foreground mt-2">{tr('signup.subtitle')}</p>
+          <CardTitle className="text-2xl font-bold text-login-foreground">{t('signup.title')}</CardTitle>
+          <p className="text-muted-foreground mt-2">{t('signup.subtitle')}</p>
         </CardHeader>
         <CardContent className="pt-6">
           <form onSubmit={handleSignup} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-login-label">{tr('signup.username')}</Label>
+              <Label htmlFor="username" className="text-login-label">{t('signup.username')}</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -221,7 +221,7 @@ export default function Signup() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder={tr('signup.usernamePlaceholder')}
+                  placeholder={t('signup.usernamePlaceholder')}
                   className="pl-10 bg-login-input border-login-border text-login-foreground placeholder:text-muted-foreground/60"
                   autoComplete="username"
                   disabled={loading}
@@ -229,7 +229,7 @@ export default function Signup() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="realName" className="text-login-label">{tr('signup.realName')}</Label>
+              <Label htmlFor="realName" className="text-login-label">{t('signup.realName')}</Label>
               <div className="relative">
                 <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -237,7 +237,7 @@ export default function Signup() {
                   type="text"
                   value={realName}
                   onChange={(e) => setRealName(e.target.value)}
-                  placeholder={tr('signup.realNamePlaceholder')}
+                  placeholder={t('signup.realNamePlaceholder')}
                   className="pl-10 bg-login-input border-login-border text-login-foreground placeholder:text-muted-foreground/60"
                   disabled={loading}
                 />
@@ -270,7 +270,7 @@ export default function Signup() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-login-label">{tr('signup.password')}</Label>
+              <Label htmlFor="password" className="text-login-label">{t('signup.password')}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -278,7 +278,7 @@ export default function Signup() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={tr('signup.passwordPlaceholder')}
+                  placeholder={t('signup.passwordPlaceholder')}
                   className="pl-10 pr-10 bg-login-input border-login-border text-login-foreground placeholder:text-muted-foreground/60"
                   autoComplete="new-password"
                   disabled={loading}
@@ -294,7 +294,7 @@ export default function Signup() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-login-label">{tr('signup.confirmPassword')}</Label>
+              <Label htmlFor="confirmPassword" className="text-login-label">{t('signup.confirmPassword')}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -302,7 +302,7 @@ export default function Signup() {
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder={tr('signup.confirmPasswordPlaceholder')}
+                  placeholder={t('signup.confirmPasswordPlaceholder')}
                   className="pl-10 pr-10 bg-login-input border-login-border text-login-foreground placeholder:text-muted-foreground/60"
                   autoComplete="new-password"
                   disabled={loading}
@@ -345,15 +345,15 @@ export default function Signup() {
               {loading ? (
                 <span className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  {tr('signup.registering')}
+                  {t('signup.registering')}
                 </span>
-              ) : tr('signup.submit')}
+              ) : t('signup.submit')}
             </Button>
           </form>
           <div className="mt-6 text-center">
-            <span className="text-muted-foreground">{tr('signup.haveAccount')}</span>
+            <span className="text-muted-foreground">{t('signup.haveAccount')}</span>
             <Link to="/login" className="text-primary hover:underline ml-2">
-              {tr('signup.goLogin')}
+              {t('signup.goLogin')}
             </Link>
           </div>
         </CardContent>
