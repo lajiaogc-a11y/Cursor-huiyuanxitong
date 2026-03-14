@@ -49,6 +49,7 @@
     "db:fix-shared-data-employees": "node scripts/run-shared-data-employees-fix.mjs",
     "db:fix-task-items": "node scripts/run-task-items-rpc.mjs",
     "db:phone-pool": "node scripts/run-phone-pool-migration.mjs",
+    "db:phone-pool-extract-guard-consume": "node scripts/run-phone-pool-extract-guard-and-consume-migration.mjs",
     "verify:tenant-002": "node scripts/verify-tenant-002-task.mjs",
     "restore-employees": "node scripts/restore-employees.mjs",
     "restore-knowledge": "node scripts/restore-knowledge.mjs",

@@ -2,20 +2,21 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { logOperation } from '@/stores/auditLogStore';
 import { normalizeCurrencyCode } from '@/config/currencies';
 import {
   reversePointsOnOrderCancel,
   restorePointsOnOrderRestore,
 } from '@/services/pointsService';
-import { resolveVendorName, resolveProviderName } from '@/services/nameResolver';
-import { logOrderCancelBalanceChange, logOrderRestoreBalanceChange } from '@/services/balanceLogService';
 import { mapDbOrderToOrder, mapOrderToDbAsync, calculateOrderPointsAsync } from './utils';
 import type { Order, OrderResult } from './types';
-import { notifyDataMutation } from '@/services/dataRefreshManager';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
-import { runCreateOrderSideEffects } from '@/services/orderSideEffectOrchestrator';
+import {
+  runCreateOrderSideEffects,
+  runCancelOrderSideEffects,
+  runRestoreOrderSideEffects,
+  runDeleteOrderSideEffects,
+} from '@/services/orderSideEffectOrchestrator';
 
 export interface UseOrderMutationsParams {
   orders: Order[];
@@ -164,43 +165,29 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
 
         setOrders(prev => prev.map(o => o.dbId === dbId ? { ...o, status: 'cancelled' as const } : o));
 
-        const vendorName = resolveVendorName(order.vendor);
-        const providerName = resolveProviderName(order.paymentProvider);
-
-        logOrderCancelBalanceChange({
-          vendorName,
-          providerName,
-          cardWorth: order.cardWorth,
-          paymentValue: order.paymentValue,
-          currency: order.demandCurrency,
-          foreignRate: order.foreignRate,
-          orderId: dbId,
-          orderNumber: order.id,
-          orderCreatedAt: order.createdAt,
-        }).catch(logErr => console.error('[useOrders] Balance cancel log failed:', logErr));
-
-        logOperation('order_management', 'cancel', dbId,
-          beforeState,
-          { ...order, status: 'cancelled' },
-          `取消订单: ${order.id}`);
-
-        import('@/services/webhookService').then(({ triggerOrderCancelled }) => {
-          triggerOrderCancelled({
-            id: dbId,
-            orderNumber: order.id,
+        await runCancelOrderSideEffects({
+          dbId,
+          order: {
+            id: order.id,
+            cardType: order.cardType,
+            cardValue: order.cardValue,
+            cardWorth: order.cardWorth,
+            paymentValue: order.paymentValue,
+            demandCurrency: order.demandCurrency,
+            foreignRate: order.foreignRate,
+            vendor: order.vendor,
+            paymentProvider: order.paymentProvider,
             phoneNumber: order.phoneNumber,
             memberCode: order.memberCode,
-            currency: order.demandCurrency,
-            amount: order.cardWorth,
-            cancelledAt: new Date().toISOString(),
-          }).catch(err => console.error('[useOrders] Webhook trigger failed:', err));
+            actualPaid: order.actualPaid,
+            createdAt: order.createdAt,
+          },
+          beforeState,
+          afterState: { ...order, status: 'cancelled' },
+          queryClient,
+          fetchOrders,
+          emitCancelledWebhook: true,
         });
-
-        fetchOrders();
-        queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
-        queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
-        queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
         return true;
       } catch (error) {
         console.error('Failed to cancel order:', error);
@@ -252,45 +239,29 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
 
         setOrders(prev => prev.map(o => o.dbId === dbId ? { ...o, status: 'completed' as const } : o));
 
-        const vendorName = resolveVendorName(order.vendor);
-        const providerName = resolveProviderName(order.paymentProvider);
-
-        logOrderRestoreBalanceChange({
-          vendorName,
-          providerName,
-          cardWorth: order.cardWorth,
-          paymentValue: order.paymentValue,
-          currency: order.demandCurrency,
-          foreignRate: order.foreignRate,
-          orderId: dbId,
-          orderNumber: order.id,
-          orderCreatedAt: order.createdAt,
-        }).catch(logErr => console.error('[useOrders] Balance restore log failed:', logErr));
-
-        logOperation('order_management', 'restore', dbId,
-          beforeState,
-          { ...order, status: 'completed' },
-          `恢复订单: ${order.id}`);
-
-        import('@/services/webhookService').then(({ triggerOrderCompleted }) => {
-          triggerOrderCompleted({
-            id: dbId,
-            orderNumber: order.id,
+        await runRestoreOrderSideEffects({
+          dbId,
+          order: {
+            id: order.id,
+            cardType: order.cardType,
+            cardValue: order.cardValue,
+            cardWorth: order.cardWorth,
+            paymentValue: order.paymentValue,
+            demandCurrency: order.demandCurrency,
+            foreignRate: order.foreignRate,
+            vendor: order.vendor,
+            paymentProvider: order.paymentProvider,
             phoneNumber: order.phoneNumber,
             memberCode: order.memberCode,
-            currency: order.demandCurrency,
-            amount: order.cardWorth,
             actualPaid: order.actualPaid,
-            cardType: order.cardType,
-            completedAt: new Date().toISOString(),
-          }).catch(err => console.error('[useOrders] Webhook trigger failed:', err));
+            createdAt: order.createdAt,
+          },
+          beforeState,
+          afterState: { ...order, status: 'completed' },
+          queryClient,
+          fetchOrders,
+          emitCompletedWebhook: true,
         });
-
-        fetchOrders();
-        queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
-        queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
-        queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
         return true;
       } catch (error) {
         console.error('Failed to restore order:', error);
@@ -336,9 +307,6 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
           }
         }
 
-        const vendorName = resolveVendorName(order.vendor);
-        const providerName = resolveProviderName(order.paymentProvider);
-
         const { error } = await supabase
           .from('orders')
           .update({
@@ -352,34 +320,29 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
 
         setOrders(prev => prev.filter(o => o.dbId !== dbId));
 
-        if (needsReversal) {
-          logOrderCancelBalanceChange({
-            vendorName,
-            providerName,
+        await runDeleteOrderSideEffects({
+          dbId,
+          order: {
+            id: order.id,
+            cardType: order.cardType,
+            cardValue: order.cardValue,
             cardWorth: order.cardWorth,
             paymentValue: order.paymentValue,
-            currency: order.demandCurrency,
+            demandCurrency: order.demandCurrency,
             foreignRate: order.foreignRate,
-            orderId: dbId,
-            orderNumber: order.id,
-            orderCreatedAt: order.createdAt,
-          }).catch(logErr => console.error('[deleteOrder] Balance log failed:', logErr));
-        }
-
-        logOperation(
-          'order_management',
-          'delete',
-          dbId,
-          { ...order, dbId },
-          { ...order, dbId, status: 'cancelled', is_deleted: true },
-          `删除订单: ${order.id} - ${order.cardType} ¥${order.cardValue}`
-        );
-
-        fetchOrders();
-        queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
-        queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
-        queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        notifyDataMutation({ table: 'orders', operation: 'DELETE', source: 'mutation' }).catch(console.error);
+            vendor: order.vendor,
+            paymentProvider: order.paymentProvider,
+            phoneNumber: order.phoneNumber,
+            memberCode: order.memberCode,
+            actualPaid: order.actualPaid,
+            createdAt: order.createdAt,
+          },
+          beforeState: { ...order, dbId },
+          afterState: { ...order, dbId, status: 'cancelled', is_deleted: true },
+          queryClient,
+          fetchOrders,
+          includeCancelBalanceLog: needsReversal,
+        });
         return true;
       } catch (error) {
         console.error('Failed to delete order:', error);

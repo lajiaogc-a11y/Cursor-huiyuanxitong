@@ -12,16 +12,17 @@ import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  createTenantWithAdmin,
-  deleteTenant,
-  listTenants,
-  resetTenantAdminPassword,
-  updateTenantBasicInfo,
-  setTenantSuperAdmin,
+  createTenantWithAdminResult,
+  deleteTenantResult,
+  listTenantsResult,
+  resetTenantAdminPasswordResult,
+  updateTenantBasicInfoResult,
+  setTenantSuperAdminResult,
   getTenantEmployeesFull,
   type TenantItem,
 } from "@/services/tenantService";
 import { syncAuthPassword } from "@/services/authPasswordSyncService";
+import { showServiceErrorToast } from "@/services/serviceErrorToast";
 
 const TENANT_FORM_DRAFT_KEY = "tenant_management_form_draft_v1";
 const SYSTEM_TENANT_CODE = "platform";
@@ -97,16 +98,15 @@ export default function TenantManagementTab() {
     }
     setLoading(true);
     try {
-      const data = await listTenants();
-      setTenants(data);
-    } catch (error) {
-      console.error(error);
-      const detail = error instanceof Error ? error.message : "";
-      if (detail === "MULTI_TENANT_NOT_READY") {
-        toast.error(t("加载租户列表失败：数据库尚未完成多租户初始化", "Failed to load tenants: multi-tenant schema not initialized."));
+      const result = await listTenantsResult();
+      if (!result.ok) {
+        showServiceErrorToast(result.error, t, "加载租户列表失败", "Failed to load tenants");
         return;
       }
-      toast.error(detail ? t(`加载租户列表失败：${detail}`, `Failed to load tenants: ${detail}`) : t("加载租户列表失败", "Failed to load tenants"));
+      setTenants(result.data);
+    } catch (error) {
+      console.error(error);
+      showServiceErrorToast(error, t, "加载租户列表失败", "Failed to load tenants");
     } finally {
       setLoading(false);
     }
@@ -132,18 +132,9 @@ export default function TenantManagementTab() {
     }
     setCreating(true);
     try {
-      const result = await createTenantWithAdmin({ tenantCode, tenantName, adminUsername, adminRealName, adminPassword });
-      if (!result.success) {
-        const errorMap: Record<string, string> = {
-          NO_PERMISSION: t("权限不足，仅平台超级管理员可创建租户", "Only platform super admin can create tenants"),
-          TENANT_CODE_EXISTS: t("租户编码已存在，请换一个编码", "Tenant code already exists"),
-          ADMIN_USERNAME_EXISTS: t("管理员账号已存在，请换一个账号", "Admin username already exists"),
-          ADMIN_REAL_NAME_EXISTS: t("管理员姓名已存在，请换一个姓名", "Admin real name already exists"),
-          DUPLICATE_KEY: t("租户编码或管理员账号已存在", "Tenant code or admin account already exists"),
-          CREATE_FAILED: t("创建失败，请检查数据后重试", "Create failed, please check data and retry"),
-          MULTI_TENANT_NOT_READY: t("数据库尚未完成多租户初始化", "Multi-tenant schema not initialized."),
-        };
-        toast.error(errorMap[result.errorCode || ""] || t("创建租户失败", "Create tenant failed"));
+      const result = await createTenantWithAdminResult({ tenantCode, tenantName, adminUsername, adminRealName, adminPassword });
+      if (!result.ok) {
+        showServiceErrorToast(result.error, t, "创建租户失败", "Create tenant failed");
         return;
       }
       // 同步到 Supabase Auth，确保新租户管理员可直接登录
@@ -162,8 +153,7 @@ export default function TenantManagementTab() {
       await loadTenants();
     } catch (error) {
       console.error(error);
-      const detail = error instanceof Error ? error.message : "";
-      toast.error(detail ? t(`创建租户失败：${detail}`, `Create tenant failed: ${detail}`) : t("创建租户失败", "Create tenant failed"));
+      showServiceErrorToast(error, t, "创建租户失败", "Create tenant failed");
     } finally {
       setCreating(false);
     }
@@ -185,15 +175,11 @@ export default function TenantManagementTab() {
     }
     setUpdating(true);
     try {
-      const result = await updateTenantBasicInfo({
+      const result = await updateTenantBasicInfoResult({
         tenantId: editingTenant.id, tenantCode: editTenantCode, tenantName: editTenantName, status: editTenantStatus,
       });
-      if (!result.success) {
-        const msg = result.errorCode === "NO_PERMISSION" ? t("权限不足", "No permission")
-          : result.errorCode === "TENANT_CODE_EXISTS" ? t("租户编码已存在", "Tenant code already exists")
-          : result.errorCode === "TENANT_NOT_FOUND" ? t("租户不存在或已被删除", "Tenant not found")
-          : t("修改租户失败", "Update tenant failed");
-        toast.error(msg);
+      if (!result.ok) {
+        showServiceErrorToast(result.error, t, "修改租户失败", "Update tenant failed");
         return;
       }
       toast.success(t("租户信息已更新", "Tenant updated"));
@@ -201,7 +187,7 @@ export default function TenantManagementTab() {
       await loadTenants();
     } catch (error) {
       console.error(error);
-      toast.error(t("修改租户失败", "Update tenant failed"));
+      showServiceErrorToast(error, t, "修改租户失败", "Update tenant failed");
     } finally {
       setUpdating(false);
     }
@@ -215,16 +201,11 @@ export default function TenantManagementTab() {
     if (!newAdminPassword.trim()) { toast.error(t("请输入新密码", "Please enter new password")); return; }
     setResettingPwd(true);
     try {
-      const result = await resetTenantAdminPassword({
+      const result = await resetTenantAdminPasswordResult({
         tenantId: resetPwdTenant.id, adminEmployeeId: resetPwdTenant.admin_employee_id || null, newPassword: newAdminPassword,
       });
-      if (!result.success) {
-        const msg = result.errorCode === "NO_PERMISSION" ? t("权限不足，请确认当前账号为平台总管理员", "No permission, ensure you are platform super admin")
-          : result.errorCode === "ADMIN_NOT_FOUND" ? t("未找到该租户的管理员账号，请检查租户数据", "Admin not found for this tenant")
-          : result.errorCode === "INVALID_PASSWORD" ? t("新密码不能为空", "New password cannot be empty")
-          : result.errorCode === "EMPTY_RESULT" ? t("重置失败，请稍后重试", "Reset failed, please try again")
-          : t("重置管理员密码失败", "Reset admin password failed");
-        toast.error(msg);
+      if (!result.ok) {
+        showServiceErrorToast(result.error, t, "重置管理员密码失败", "Reset admin password failed");
         return;
       }
       // 同步到 Supabase Auth，确保重置后能立即登录
@@ -246,14 +227,7 @@ export default function TenantManagementTab() {
       await loadTenants();
     } catch (error: unknown) {
       console.error("[TenantManagement] Reset password error:", error);
-      const msg = (error instanceof Error ? error.message : "").toLowerCase();
-      if (msg.includes("permission") || msg.includes("42501")) {
-        toast.error(t("权限不足，请确认当前账号为平台总管理员", "No permission, ensure you are platform super admin"));
-      } else if (msg.includes("not found") || msg.includes("admin_not_found")) {
-        toast.error(t("未找到该租户的管理员账号", "Admin not found for this tenant"));
-      } else {
-        toast.error(t("重置管理员密码失败，请确认数据库迁移已执行", "Reset admin password failed. Ensure migrations are applied."));
-      }
+      showServiceErrorToast(error, t, "重置管理员密码失败", "Reset admin password failed");
     } finally {
       setResettingPwd(false);
     }
@@ -296,29 +270,19 @@ export default function TenantManagementTab() {
     }
     setDeleting(true);
     try {
-      const result = await deleteTenant({
+      const result = await deleteTenantResult({
         tenantId: deletingTenant.id,
         force,
         username: employee.username,
         password: deletePassword,
       });
-      if (!result.success) {
-        if (result.errorCode === "TENANT_HAS_DATA") {
+      if (!result.ok) {
+        if (result.error.code === "TENANT_HAS_DATA") {
           setDeleteHasData(true);
-          setDeleteDataDetail(result.detail || "");
+          setDeleteDataDetail(result.error.message || "");
           return;
         }
-        if (result.errorCode === "PASSWORD_REQUIRED" || result.errorCode === "INVALID_PASSWORD") {
-          toast.error(t("密码错误，请重新输入", "Invalid password, please try again"));
-          return;
-        }
-        const msg = result.errorCode === "NO_PERMISSION" ? t("权限不足", "No permission")
-          : result.errorCode === "TENANT_NOT_FOUND" ? t("租户不存在", "Tenant not found")
-          : result.errorCode === "CANNOT_DELETE_PLATFORM" ? t("不能删除平台管理租户", "Cannot delete platform tenant")
-          : result.errorCode === "DELETE_FAILED" && result.detail
-            ? t("删除失败", "Delete failed") + ": " + result.detail
-            : t("删除租户失败", "Delete tenant failed");
-        toast.error(msg);
+        showServiceErrorToast(result.error, t, "删除租户失败", "Delete tenant failed");
         return;
       }
       toast.success(t("租户已删除", "Tenant deleted"));
@@ -326,7 +290,7 @@ export default function TenantManagementTab() {
       await loadTenants();
     } catch (error) {
       console.error(error);
-      toast.error(t("删除租户失败", "Delete tenant failed"));
+      showServiceErrorToast(error, t, "删除租户失败", "Delete tenant failed");
     } finally {
       setDeleting(false);
     }
@@ -368,17 +332,17 @@ export default function TenantManagementTab() {
     }
     setSettingSuperAdmin(superAdminTenant.id);
     try {
-      const result = await setTenantSuperAdmin(selectedEmployeeId);
-      if (result.success) {
+      const result = await setTenantSuperAdminResult(selectedEmployeeId);
+      if (result.ok) {
         toast.success(t("已设为总管理员", "Set as super admin"));
         setSuperAdminTenant(null);
         setSuperAdminConfirmName("");
         await loadTenants();
       } else {
-        toast.error(result.errorCode === "NO_PERMISSION" ? t("权限不足", "No permission") : t("设置失败", "Failed"));
+        showServiceErrorToast(result.error, t, "设置失败", "Failed");
       }
     } catch (e) {
-      toast.error(t("设置失败", "Failed"));
+      showServiceErrorToast(e, t, "设置失败", "Failed");
     } finally {
       setSettingSuperAdmin(null);
     }

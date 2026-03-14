@@ -886,3 +886,71 @@ export async function getTaskPostersResult(tenantId: string): Promise<ServiceRes
     return mapTaskError(error);
   }
 }
+
+export async function closeTaskResult(taskId: string, tenantId: string): Promise<ServiceResult<void>> {
+  try {
+    await closeTask(taskId, tenantId);
+    return ok(undefined);
+  } catch (error) {
+    return mapTaskError(error);
+  }
+}
+
+export async function createCustomerMaintenanceTaskResult(params: {
+  title: string;
+  phones: string[];
+  assignTo: string[];
+  distribute: "even" | "manual";
+  manualMap?: Record<string, string[]>;
+  createdBy: string;
+  tenantId: string;
+}): Promise<ServiceResult<{ task_id: string; distributed: Record<string, number> }>> {
+  try {
+    const data = await createCustomerMaintenanceTask(params);
+    return ok(data);
+  } catch (error) {
+    return mapTaskError(error);
+  }
+}
+
+export async function createPosterTaskResult(params: {
+  title: string;
+  posterIds: string[];
+  assignTo: string[];
+  distribute: "even" | "manual";
+  manualMap?: Record<string, string[]>;
+  createdBy: string;
+  tenantId: string;
+}): Promise<ServiceResult<{ task_id: string; distributed: Record<string, number> }>> {
+  try {
+    const data = await createPosterTask(params);
+    return ok(data);
+  } catch (error) {
+    return mapTaskError(error);
+  }
+}
+
+export async function updateTaskPosterResult(
+  posterId: string,
+  tenantId: string,
+  updates: { title?: string }
+): Promise<ServiceResult<void>> {
+  try {
+    await updateTaskPoster(posterId, tenantId, updates);
+    return ok(undefined);
+  } catch (error) {
+    return mapTaskError(error);
+  }
+}
+
+export async function deleteTaskPosterResult(
+  posterId: string,
+  tenantId: string
+): Promise<ServiceResult<void>> {
+  try {
+    await deleteTaskPoster(posterId, tenantId);
+    return ok(undefined);
+  } catch (error) {
+    return mapTaskError(error);
+  }
+}

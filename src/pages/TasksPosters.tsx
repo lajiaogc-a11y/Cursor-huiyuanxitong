@@ -37,9 +37,9 @@ import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import {
-  createPosterTask,
-  deleteTaskPoster,
-  updateTaskPoster,
+  createPosterTaskResult,
+  deleteTaskPosterResult,
+  updateTaskPosterResult,
   type TaskPoster,
 } from "@/services/taskService";
 import { useTaskPosters, useTaskPostersEmployees } from "@/hooks/useTaskPosters";
@@ -47,6 +47,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { showServiceErrorToast } from "@/services/serviceErrorToast";
 
 export default function TasksPosters() {
   const { employee } = useAuth();
@@ -104,7 +105,7 @@ export default function TasksPosters() {
     }
     setCreating(true);
     try {
-      await createPosterTask({
+      const created = await createPosterTaskResult({
         title: `${t("发动态", "Post Dynamic")} ${new Date().toLocaleDateString()}`,
         posterIds: [...selectedIds],
         assignTo: assignSelected,
@@ -112,14 +113,17 @@ export default function TasksPosters() {
         createdBy: employee.id,
         tenantId,
       });
+      if (!created.ok) {
+        showServiceErrorToast(created.error, t, "创建失败", "Create failed");
+        return;
+      }
       toast.success(t("创建成功", "Created"));
       setDialogOpen(false);
       setSelectedIds(new Set());
       refetch();
     } catch (e: any) {
       console.error("Create poster task failed:", e);
-      const msg = e?.message || e?.error_description || e?.error?.message || e?.details || t("创建失败", "Create failed");
-      toast.error(msg);
+      showServiceErrorToast(e, t, "创建失败", "Create failed");
     } finally {
       setCreating(false);
     }
@@ -134,13 +138,16 @@ export default function TasksPosters() {
     if (!editPoster || !tenantId) return;
     setSavingEdit(true);
     try {
-      await updateTaskPoster(editPoster.id, tenantId, { title: editTitle.trim() || undefined });
+      const updated = await updateTaskPosterResult(editPoster.id, tenantId, { title: editTitle.trim() || undefined });
+      if (!updated.ok) {
+        showServiceErrorToast(updated.error, t, "保存失败", "Save failed");
+        return;
+      }
       toast.success(t("已保存", "Saved"));
       setEditPoster(null);
       refetch();
     } catch (e: any) {
-      const msg = e?.message || e?.error_description || e?.error?.message || e?.details || t("保存失败", "Save failed");
-      toast.error(msg);
+      showServiceErrorToast(e, t, "保存失败", "Save failed");
     } finally {
       setSavingEdit(false);
     }
@@ -150,13 +157,16 @@ export default function TasksPosters() {
     if (!tenantId) return;
     setDeletingId(id);
     try {
-      await deleteTaskPoster(id, tenantId);
+      const deleted = await deleteTaskPosterResult(id, tenantId);
+      if (!deleted.ok) {
+        showServiceErrorToast(deleted.error, t, "删除失败", "Delete failed");
+        return;
+      }
       toast.success(t("已删除", "Deleted"));
       setConfirmDeleteId(null);
       refetch();
     } catch (e: any) {
-      const msg = e?.message || e?.error_description || e?.error?.message || e?.details || t("删除失败", "Delete failed");
-      toast.error(msg);
+      showServiceErrorToast(e, t, "删除失败", "Delete failed");
     } finally {
       setDeletingId(null);
     }

@@ -2,19 +2,21 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { logOperation } from '@/stores/auditLogStore';
 import {
   reversePointsOnOrderCancel,
   restorePointsOnOrderRestore,
 } from '@/services/pointsService';
-import { getVendorId, getProviderId, getCardIdByName, resolveVendorName, resolveProviderName } from '@/services/nameResolver';
-import { logOrderCancelBalanceChange, logOrderRestoreBalanceChange } from '@/services/balanceLogService';
+import { getVendorId, getProviderId, getCardIdByName } from '@/services/nameResolver';
 import { formatBeijingTime, calculateOrderPointsAsync, generateUniqueOrderNumber } from './utils';
 import type { UsdtOrder, OrderResult } from './types';
-import { notifyDataMutation } from '@/services/dataRefreshManager';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
-import { runCreateOrderSideEffects } from '@/services/orderSideEffectOrchestrator';
+import {
+  runCreateOrderSideEffects,
+  runCancelOrderSideEffects,
+  runRestoreOrderSideEffects,
+  runDeleteOrderSideEffects,
+} from '@/services/orderSideEffectOrchestrator';
 
 export interface UseUsdtOrderMutationsParams {
   orders: UsdtOrder[];
@@ -188,31 +190,30 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
 
         setOrders(prev => prev.map(o => o.dbId === dbId ? { ...o, status: 'cancelled' as const } : o));
 
-        const vendorName = resolveVendorName(order.vendor);
-        const providerName = resolveProviderName(order.paymentProvider);
-
-        logOrderCancelBalanceChange({
-          vendorName,
-          providerName,
-          cardWorth: order.cardWorth,
-          paymentValue: order.paymentValue,
-          currency: 'USDT',
-          foreignRate: order.usdtRate,
-          orderId: dbId,
-          orderNumber: order.id,
-          orderCreatedAt: order.createdAt,
-        }).catch(logErr => console.error('[useUsdtOrders] Balance cancel log failed:', logErr));
-
-        logOperation('order_management', 'cancel', dbId,
+        await runCancelOrderSideEffects({
+          dbId,
+          order: {
+            id: order.id,
+            cardType: order.cardType,
+            cardValue: order.cardValue,
+            cardWorth: order.cardWorth,
+            paymentValue: order.paymentValue,
+            demandCurrency: 'USDT',
+            foreignRate: order.usdtRate,
+            vendor: order.vendor,
+            paymentProvider: order.paymentProvider,
+            phoneNumber: order.phoneNumber,
+            memberCode: order.memberCode,
+            actualPaid: order.actualPaidUsdt,
+            createdAt: order.createdAt,
+          },
           beforeState,
-          { ...order, status: 'cancelled' },
-          `取消USDT订单: ${order.id}`);
-
-        fetchOrders();
-        queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
-        queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
-        queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
+          afterState: { ...order, status: 'cancelled' },
+          queryClient,
+          fetchOrders,
+          isUsdt: true,
+          emitCancelledWebhook: false,
+        });
         return true;
       } catch (error) {
         console.error('Failed to cancel USDT order:', error);
@@ -260,45 +261,30 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
 
         setOrders(prev => prev.map(o => o.dbId === dbId ? { ...o, status: 'completed' as const } : o));
 
-        const vendorName = resolveVendorName(order.vendor);
-        const providerName = resolveProviderName(order.paymentProvider);
-
-        logOrderRestoreBalanceChange({
-          vendorName,
-          providerName,
-          cardWorth: order.cardWorth,
-          paymentValue: order.paymentValue,
-          currency: 'USDT',
-          foreignRate: order.usdtRate,
-          orderId: dbId,
-          orderNumber: order.id,
-          orderCreatedAt: order.createdAt,
-        }).catch(logErr => console.error('[useUsdtOrders] Balance restore log failed:', logErr));
-
-        logOperation('order_management', 'restore', dbId,
-          beforeState,
-          { ...order, status: 'completed' },
-          `恢复USDT订单: ${order.id}`);
-
-        import('@/services/webhookService').then(({ triggerOrderCompleted }) => {
-          triggerOrderCompleted({
-            id: dbId,
-            orderNumber: order.id,
+        await runRestoreOrderSideEffects({
+          dbId,
+          order: {
+            id: order.id,
+            cardType: order.cardType,
+            cardValue: order.cardValue,
+            cardWorth: order.cardWorth,
+            paymentValue: order.paymentValue,
+            demandCurrency: 'USDT',
+            foreignRate: order.usdtRate,
+            vendor: order.vendor,
+            paymentProvider: order.paymentProvider,
             phoneNumber: order.phoneNumber,
             memberCode: order.memberCode,
-            currency: 'USDT',
-            amount: order.cardWorth,
             actualPaid: order.actualPaidUsdt,
-            cardType: order.cardType,
-            completedAt: new Date().toISOString(),
-          }).catch(err => console.error('[useOrders] Webhook trigger failed:', err));
+            createdAt: order.createdAt,
+          },
+          beforeState,
+          afterState: { ...order, status: 'completed' },
+          queryClient,
+          fetchOrders,
+          isUsdt: true,
+          emitCompletedWebhook: true,
         });
-
-        fetchOrders();
-        queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
-        queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
-        queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
         return true;
       } catch (error) {
         console.error('Failed to restore USDT order:', error);
@@ -354,42 +340,31 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
 
         if (error) throw error;
 
-        if (needsReversal) {
-          const vendorName = resolveVendorName(order.vendor);
-          const providerName = resolveProviderName(order.paymentProvider);
-
-          try {
-            await logOrderCancelBalanceChange({
-              vendorName,
-              providerName,
-              cardWorth: order.cardWorth,
-              paymentValue: order.paymentValue,
-              currency: 'USDT',
-              foreignRate: order.usdtRate,
-              orderId: dbId,
-              orderNumber: order.id,
-              orderCreatedAt: order.createdAt,
-            });
-          } catch (logErr) {
-            console.error('[deleteUsdtOrder] Balance log failed:', logErr);
-          }
-        }
-
-        logOperation(
-          'order_management',
-          'delete',
-          dbId,
-          { ...order, dbId },
-          { ...order, dbId, status: 'cancelled', is_deleted: true },
-          `删除USDT订单: ${order.id} - ${order.cardType} ¥${order.cardValue}`
-        );
-
         setOrders(prev => prev.filter(o => o.dbId !== dbId));
-        fetchOrders();
-        queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
-        queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
-        queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        notifyDataMutation({ table: 'orders', operation: 'DELETE', source: 'mutation' }).catch(console.error);
+        await runDeleteOrderSideEffects({
+          dbId,
+          order: {
+            id: order.id,
+            cardType: order.cardType,
+            cardValue: order.cardValue,
+            cardWorth: order.cardWorth,
+            paymentValue: order.paymentValue,
+            demandCurrency: 'USDT',
+            foreignRate: order.usdtRate,
+            vendor: order.vendor,
+            paymentProvider: order.paymentProvider,
+            phoneNumber: order.phoneNumber,
+            memberCode: order.memberCode,
+            actualPaid: order.actualPaidUsdt,
+            createdAt: order.createdAt,
+          },
+          beforeState: { ...order, dbId },
+          afterState: { ...order, dbId, status: 'cancelled', is_deleted: true },
+          queryClient,
+          fetchOrders,
+          isUsdt: true,
+          includeCancelBalanceLog: needsReversal,
+        });
         return true;
       } catch (error) {
         console.error('Failed to delete USDT order:', error);

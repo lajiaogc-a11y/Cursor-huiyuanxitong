@@ -533,3 +533,83 @@ export async function getMyTenantUsdtOrdersFullResult(): Promise<ServiceResult<a
     return mapTenantError(error);
   }
 }
+
+export async function createTenantWithAdminResult(
+  params: CreateTenantWithAdminParams
+): Promise<ServiceResult<{ tenantId?: string; adminEmployeeId?: string }>> {
+  try {
+    const result = await createTenantWithAdmin(params);
+    if (!result.success) {
+      return fail((result.errorCode as any) || "UNKNOWN", result.errorCode || "Create tenant failed", "TENANT");
+    }
+    return ok({ tenantId: result.tenantId, adminEmployeeId: result.adminEmployeeId });
+  } catch (error) {
+    return mapTenantError(error);
+  }
+}
+
+export async function updateTenantBasicInfoResult(params: {
+  tenantId: string;
+  tenantCode: string;
+  tenantName: string;
+  status: string;
+}): Promise<ServiceResult<void>> {
+  try {
+    const result = await updateTenantBasicInfo(params);
+    if (!result.success) {
+      return fail((result.errorCode as any) || "UNKNOWN", result.errorCode || "Update tenant failed", "TENANT");
+    }
+    return ok(undefined);
+  } catch (error) {
+    return mapTenantError(error);
+  }
+}
+
+export async function resetTenantAdminPasswordResult(params: {
+  tenantId: string;
+  adminEmployeeId?: string | null;
+  newPassword: string;
+}): Promise<ServiceResult<{ adminEmployeeId?: string; adminUsername?: string; adminRealName?: string }>> {
+  try {
+    const result = await resetTenantAdminPassword(params);
+    if (!result.success) {
+      return fail((result.errorCode as any) || "UNKNOWN", result.errorCode || "Reset tenant admin password failed", "TENANT");
+    }
+    return ok({
+      adminEmployeeId: result.adminEmployeeId,
+      adminUsername: result.adminUsername,
+      adminRealName: result.adminRealName,
+    });
+  } catch (error) {
+    return mapTenantError(error);
+  }
+}
+
+export async function deleteTenantResult(params: {
+  tenantId: string;
+  force?: boolean;
+  username?: string;
+  password?: string;
+}): Promise<ServiceResult<{ detail?: string }>> {
+  try {
+    const result = await deleteTenant(params);
+    if (!result.success) {
+      return fail((result.errorCode as any) || "UNKNOWN", result.detail || result.errorCode || "Delete tenant failed", "TENANT");
+    }
+    return ok({ detail: result.detail });
+  } catch (error) {
+    return mapTenantError(error);
+  }
+}
+
+export async function setTenantSuperAdminResult(employeeId: string): Promise<ServiceResult<void>> {
+  try {
+    const result = await setTenantSuperAdmin(employeeId);
+    if (!result.success) {
+      return fail((result.errorCode as any) || "UNKNOWN", result.errorCode || "Set super admin failed", "TENANT");
+    }
+    return ok(undefined);
+  } catch (error) {
+    return mapTenantError(error);
+  }
+}

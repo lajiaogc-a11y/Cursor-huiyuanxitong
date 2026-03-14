@@ -41,6 +41,7 @@ import {
   type PhoneStats,
   type ExtractRecord,
 } from "@/services/phonePoolService";
+import { showServiceErrorToast } from "@/services/serviceErrorToast";
 import {
   Table,
   TableBody,
@@ -208,14 +209,7 @@ export function PhoneExtractSettingsSection() {
       }
     } catch (e: unknown) {
       console.error("Phone import failed:", e);
-      const msg = e instanceof Error ? e.message : String(e);
-      if (msg.includes("tenant_not_found") || msg.includes("tenant_id_required")) {
-        toast.error(t("租户未关联，请在员工管理中完成关联", "Tenant not found. Please link employee in settings."));
-      } else if (msg.includes("forbidden_tenant_mismatch")) {
-        toast.error(t("无权导入到该租户", "Not allowed to import to this tenant."));
-      } else {
-        toast.error(t("导入失败", "Import failed"));
-      }
+      showServiceErrorToast(e, t, "导入失败", "Import failed");
     } finally {
       setImporting(false);
       setImportProgress(0);
@@ -251,7 +245,7 @@ export function PhoneExtractSettingsSection() {
       toast.success(t("号码池已清空", "Pool cleared"));
       setShowClearPoolConfirm(false);
     } catch (e) {
-      toast.error(t("清空失败", "Clear failed"));
+      showServiceErrorToast(e, t, "清空失败", "Clear failed");
     } finally {
       setClearingPool(false);
     }
@@ -279,11 +273,7 @@ export function PhoneExtractSettingsSection() {
       setShowSettingsModal(false);
       toast.success(t("设置已保存", "Settings saved"));
     } catch (e: any) {
-      if ((e?.code || e?.message) === "FORBIDDEN_ADMIN_ONLY") {
-        toast.error(t("仅管理员可修改", "Admin only"));
-      } else {
-        toast.error(t("保存失败", "Save failed"));
-      }
+      showServiceErrorToast(e, t, "保存失败", "Save failed");
     } finally {
       setSavingSettings(false);
     }

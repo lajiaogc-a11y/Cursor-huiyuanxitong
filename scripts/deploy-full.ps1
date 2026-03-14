@@ -51,7 +51,8 @@ $migrationScripts = @(
     ".\scripts\run-member-points-mall-migration.mjs",
     ".\scripts\run-member-points-mall-redemption-admin-migration.mjs",
     ".\scripts\run-member-tenant-resolution-fix-migration.mjs",
-    ".\scripts\run-member-portal-settings-by-account-migration.mjs"
+    ".\scripts\run-member-portal-settings-by-account-migration.mjs",
+    ".\scripts\run-phone-pool-extract-guard-and-consume-migration.mjs"
 )
 foreach ($script in $migrationScripts) {
     if (Test-Path $script) {

@@ -44,6 +44,11 @@ import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
 import { OrderFilters, OrderEditDialog, OrderUsdtEditDialog, OrderTable, OrderUsdtTable } from "@/components/orders";
 import { queryClient } from "@/lib/queryClient";
 import { notifyDataMutation } from "@/services/dataRefreshManager";
+import {
+  fetchMerchantCards,
+  fetchMerchantPaymentProviders,
+  fetchMerchantVendors,
+} from "@/services/merchantConfigReadService";
 
 // UUID 校验函数 - 防止把姓名字符串写入 uuid 字段
 const isUuid = (str: string): boolean => {
@@ -241,14 +246,14 @@ export default function OrderManagement() {
     // 从数据库加载商家管理数据
     const loadMerchantData = async () => {
       const [cardsResult, vendorsResult, providersResult] = await Promise.all([
-        supabase.from('cards').select('id, name').eq('status', 'active'),
-        supabase.from('vendors').select('id, name').eq('status', 'active'),
-        supabase.from('payment_providers').select('id, name').eq('status', 'active'),
+        fetchMerchantCards(),
+        fetchMerchantVendors(),
+        fetchMerchantPaymentProviders(),
       ]);
-      
-      if (cardsResult.data) setCardsList(cardsResult.data);
-      if (vendorsResult.data) setVendorsList(vendorsResult.data);
-      if (providersResult.data) setPaymentProvidersList(providersResult.data);
+
+      setCardsList(cardsResult.filter((row) => row.status === "active").map((row) => ({ id: row.id, name: row.name })));
+      setVendorsList(vendorsResult.filter((row) => row.status === "active").map((row) => ({ id: row.id, name: row.name })));
+      setPaymentProvidersList(providersResult.filter((row) => row.status === "active").map((row) => ({ id: row.id, name: row.name })));
     };
     
     loadMerchantData();

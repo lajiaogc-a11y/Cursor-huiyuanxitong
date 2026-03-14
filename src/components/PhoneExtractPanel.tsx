@@ -6,6 +6,8 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Phone, Copy, RotateCcw, Trash2, Loader2, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
@@ -13,8 +15,10 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
+import { supabase } from "@/integrations/supabase/client";
 import {
   extractPhonesResult,
+  consumePhonesResult,
   returnPhonesResult,
   getPhoneStatsResult,
   getExtractSettingsResult,
@@ -22,6 +26,7 @@ import {
   type ExtractedPhone,
   type PhoneStats,
 } from "@/services/phonePoolService";
+import { showServiceErrorToast } from "@/services/serviceErrorToast";
 
 export function PhoneExtractPanel() {
   const { viewingTenantId } = useTenantView() || {};
@@ -39,6 +44,10 @@ export function PhoneExtractPanel() {
   const [copyFormat, setCopyFormat] = useState<"comma" | "newline">("comma");
   const [extracting, setExtracting] = useState(false);
   const [returning, setReturning] = useState(false);
+  const [consuming, setConsuming] = useState(false);
+  const [passwordDialogAction, setPasswordDialogAction] = useState<"extract" | "return" | "consume" | null>(null);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
 
   const loadStats = useCallback(async () => {
     if (!effectiveTenantId) return;
@@ -96,7 +105,55 @@ export function PhoneExtractPanel() {
     }
   }, [effectiveTenantId, loadStats, loadReservedPhones]);
 
-  const handleExtract = async () => {
+  // 租户内号码池实时同步：库存变化后快速刷新，避免不同员工看到旧库存
+  useEffect(() => {
+    if (!effectiveTenantId) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        void loadStats();
+        void loadReservedPhones();
+      }, 250);
+    };
+    const channel = supabase
+      .channel(`phone-pool-live-${effectiveTenantId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "phone_pool" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "phone_reservations" }, scheduleRefresh)
+      .subscribe();
+    return () => {
+      if (timer) clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
+  }, [effectiveTenantId, loadReservedPhones, loadStats]);
+
+  const verifyPassword = async () => {
+    if (!employee?.username) {
+      toast.error(t("未识别到当前账号，请重新登录", "Current user not found, please sign in again"));
+      return false;
+    }
+    if (!confirmPassword.trim()) {
+      toast.error(t("请输入密码确认", "Please enter password"));
+      return false;
+    }
+    setVerifyingPassword(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)("verify_employee_login_detailed", {
+        p_username: employee.username,
+        p_password: confirmPassword,
+      });
+      if (error) return false;
+      const row = Array.isArray(data) ? data[0] : null;
+      if (!row || row.error_code) return false;
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setVerifyingPassword(false);
+    }
+  };
+
+  const executeExtract = async () => {
     if (!effectiveTenantId) return;
     if (isPlatformAdminReadonlyView) {
       toast.error(t("平台总管理查看租户时为只读，无法提取号码", "Read-only in platform admin tenant view"));
@@ -104,6 +161,10 @@ export function PhoneExtractPanel() {
     }
     if (stats && stats.total_available === 0) {
       toast.error(t("号码池已耗尽", "Phone pool exhausted"));
+      return;
+    }
+    if (extractedList.length > 0) {
+      toast.error(t("请先归还或删除当前已提取号码后再提取", "Please return or delete current extracted numbers first"));
       return;
     }
     setExtracting(true);
@@ -142,41 +203,14 @@ export function PhoneExtractPanel() {
       }
       await loadStats();
     } catch (e: any) {
-      const code = e?.code || e?.message;
-      if (code === "DAILY_LIMIT_EXCEEDED") {
-        toast.error(t("今日提取次数已达上限", "Daily extract limit reached"));
-      } else if (code === "NOT_AUTHENTICATED") {
-        toast.error(
-          t(
-            "登录会话已失效，请刷新页面重新登录后再试",
-            "Session expired, please refresh and sign in again"
-          )
-        );
-      } else if (code === "FORBIDDEN_TENANT_MISMATCH") {
-        toast.error(
-          t(
-            "当前租户与操作租户不一致，请退出租户视图后重试",
-            "Tenant mismatch. Exit tenant view and retry"
-          )
-        );
-      } else if (code === "TENANT_REQUIRED") {
-        toast.error(t("未识别到租户，请重新登录后重试", "Tenant not found, please sign in again"));
-      } else {
-        console.error("Phone extract failed:", e);
-        const detail = e?.message ? ` (${e.message})` : "";
-        toast.error(
-          t(
-            `提取失败，请稍后重试或联系管理员${detail}`,
-            `Extract failed, please retry later or contact admin${detail}`
-          )
-        );
-      }
+      console.error("Phone extract failed:", e);
+      showServiceErrorToast(e, t, "提取失败，请稍后重试或联系管理员", "Extract failed, please retry later or contact admin");
     } finally {
       setExtracting(false);
     }
   };
 
-  const handleReturn = async () => {
+  const executeReturn = async () => {
     if (isPlatformAdminReadonlyView) {
       toast.error(t("平台总管理查看租户时为只读，无法归还号码", "Read-only in platform admin tenant view"));
       return;
@@ -227,10 +261,69 @@ export function PhoneExtractPanel() {
       await loadStats();
       await loadReservedPhones();
     } catch (e) {
-      toast.error(t("归还失败", "Return failed"));
+      showServiceErrorToast(e, t, "归还失败", "Return failed");
     } finally {
       setReturning(false);
     }
+  };
+
+  const executeConsume = async () => {
+    if (!effectiveTenantId) return;
+    if (isPlatformAdminReadonlyView) {
+      toast.error(t("平台总管理查看租户时为只读，无法删除号码", "Read-only in platform admin tenant view"));
+      return;
+    }
+    if (extractedList.length === 0) {
+      toast.error(t("暂无可删除号码", "No numbers to delete"));
+      return;
+    }
+    const targetIds = selectedIds.size > 0 ? [...selectedIds] : extractedList.map((p) => p.id);
+    setConsuming(true);
+    try {
+      const consumed = await consumePhonesResult(targetIds);
+      if (!consumed.ok) throw consumed.error;
+      const consumedIds = consumed.data;
+      const consumedSet = new Set(consumedIds);
+      setExtractedList((prev) => prev.filter((p) => !consumedSet.has(p.id)));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        consumedIds.forEach((id) => next.delete(id));
+        return next;
+      });
+      if (consumedIds.length === 0) {
+        toast.error(t("未删除成功：号码可能已被处理或无权限", "No numbers deleted: already handled or no permission"));
+      } else {
+        toast.success(
+          selectedIds.size > 0
+            ? t(`已删除选中号码（${consumedIds.length}）`, `Deleted selected numbers (${consumedIds.length})`)
+            : t(`已删除全部号码（${consumedIds.length}）`, `Deleted all numbers (${consumedIds.length})`)
+        );
+      }
+      await loadStats();
+      await loadReservedPhones();
+    } catch (e) {
+      showServiceErrorToast(e, t, "删除失败", "Delete failed");
+    } finally {
+      setConsuming(false);
+    }
+  };
+
+  const openPasswordDialog = (action: "extract" | "return" | "consume") => {
+    setConfirmPassword("");
+    setPasswordDialogAction(action);
+  };
+
+  const handlePasswordConfirmedAction = async () => {
+    const ok = await verifyPassword();
+    if (!ok) {
+      toast.error(t("密码错误，操作已取消", "Invalid password, action cancelled"));
+      return;
+    }
+    const action = passwordDialogAction;
+    setPasswordDialogAction(null);
+    if (action === "extract") await executeExtract();
+    if (action === "return") await executeReturn();
+    if (action === "consume") await executeConsume();
   };
 
   const handleCopy = () => {
@@ -249,10 +342,10 @@ export function PhoneExtractPanel() {
     );
   };
 
-  const handleClearList = () => {
-    setExtractedList([]);
-    setSelectedIds(new Set());
-    toast.success(t("已清空列表", "List cleared"));
+  const actionTitleMap: Record<"extract" | "return" | "consume", string> = {
+    extract: t("确认提取号码", "Confirm Extract"),
+    return: t("确认归还号码", "Confirm Return"),
+    consume: t("确认删除号码", "Confirm Delete"),
   };
 
   const toggleSelect = (id: number) => {
@@ -325,8 +418,16 @@ export function PhoneExtractPanel() {
           <Button
             size="sm"
             className="flex-1 h-8"
-            onClick={handleExtract}
-            disabled={isPlatformAdminReadonlyView || extracting || (stats?.total_available ?? 0) === 0}
+            onClick={() => openPasswordDialog("extract")}
+            disabled={
+              isPlatformAdminReadonlyView ||
+              extracting ||
+              verifyingPassword ||
+              consuming ||
+              returning ||
+              (stats?.total_available ?? 0) === 0 ||
+              extractedList.length > 0
+            }
           >
             {extracting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
             {t("提取", "Extract")}
@@ -349,11 +450,23 @@ export function PhoneExtractPanel() {
                 <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={handleCopy}>
                   <Copy className="h-3 w-3" />
                 </Button>
-                <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={handleReturn} disabled={isPlatformAdminReadonlyView || returning || extractedList.length === 0}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 px-1.5"
+                  onClick={() => openPasswordDialog("return")}
+                  disabled={isPlatformAdminReadonlyView || returning || extractedList.length === 0 || verifyingPassword || consuming}
+                >
                   {returning ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
                 </Button>
-                <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={handleClearList}>
-                  <Trash2 className="h-3 w-3" />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 px-1.5"
+                  onClick={() => openPasswordDialog("consume")}
+                  disabled={isPlatformAdminReadonlyView || consuming || extractedList.length === 0 || verifyingPassword || returning}
+                >
+                  {consuming ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                 </Button>
               </div>
             </div>
@@ -388,7 +501,45 @@ export function PhoneExtractPanel() {
         {stats && stats.total_available === 0 && (
           <p className="text-xs text-amber-600 dark:text-amber-400">{t("池已耗尽，请到提取设置导入", "Pool exhausted. Import in Extract Settings.")}</p>
         )}
+        {extractedList.length > 0 && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            {t("当前有未处理号码，请先归还或删除后再提取下一批", "You have unprocessed numbers. Return or delete them before next extract.")}
+          </p>
+        )}
       </CardContent>
+
+      <Dialog open={!!passwordDialogAction} onOpenChange={(open) => { if (!open) setPasswordDialogAction(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{passwordDialogAction ? actionTitleMap[passwordDialogAction] : t("确认操作", "Confirm Action")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              {t("请输入当前账号密码进行安全确认", "Enter current account password to continue")}
+            </p>
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder={t("输入密码", "Enter password")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  void handlePasswordConfirmedAction();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialogAction(null)}>
+              {t("取消", "Cancel")}
+            </Button>
+            <Button onClick={() => void handlePasswordConfirmedAction()} disabled={verifyingPassword}>
+              {verifyingPassword ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              {t("确认", "Confirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

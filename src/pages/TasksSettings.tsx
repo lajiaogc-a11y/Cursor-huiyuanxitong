@@ -28,12 +28,13 @@ import { toast } from "sonner";
 import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
 import {
   generateCustomerList,
-  createCustomerMaintenanceTask,
+  createCustomerMaintenanceTaskResult,
   getDateRangeForPreset,
-  closeTask,
+  closeTaskResult,
   type DateRangePreset,
 } from "@/services/taskService";
 import { useOpenTasks, useTaskSettingsEmployees } from "@/hooks/useOpenTasks";
+import { showServiceErrorToast } from "@/services/serviceErrorToast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -79,13 +80,17 @@ export default function TasksSettings() {
     if (!tenantId) return;
     setClosingId(taskId);
     try {
-      await closeTask(taskId, tenantId);
+      const result = await closeTaskResult(taskId, tenantId);
+      if (!result.ok) {
+        showServiceErrorToast(result.error, t, "取消失败", "Cancel failed");
+        return;
+      }
       toast.success(t("已取消任务", "Task cancelled"));
       setConfirmCloseId(null);
       refetchOpenTasks();
     } catch (e) {
       console.error(e);
-      toast.error(t("取消失败", "Cancel failed"));
+      showServiceErrorToast(e, t, "取消失败", "Cancel failed");
     } finally {
       setClosingId(null);
     }
@@ -134,7 +139,7 @@ export default function TasksSettings() {
     }
     setLoading(true);
     try {
-      const { task_id, distributed } = await createCustomerMaintenanceTask({
+      const created = await createCustomerMaintenanceTaskResult({
         title: `${t("客户维护", "Customer Maintenance")} ${new Date().toLocaleDateString()}`,
         phones,
         assignTo: selectedIds,
@@ -142,6 +147,10 @@ export default function TasksSettings() {
         createdBy: employee.id,
         tenantId,
       });
+      if (!created.ok) {
+        showServiceErrorToast(created.error, t, "创建失败", "Create failed");
+        return;
+      }
       toast.success(t("创建成功", "Created"));
       setDialogOpen(false);
       setPhones([]);

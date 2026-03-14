@@ -88,6 +88,11 @@ import { useTenantView } from "@/contexts/TenantViewContext";
 import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
 import { getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getTenantOrdersFull, getTenantUsdtOrdersFull } from "@/services/tenantService";
 import { useFieldPermissions } from "@/hooks/useFieldPermissions";
+import {
+  fetchMerchantCards,
+  fetchMerchantPaymentProviders,
+  fetchMerchantVendors,
+} from "@/services/merchantConfigReadService";
 import { supabase } from "@/integrations/supabase/client";
 import { useMerchantNameResolver, getEmployeeNameById } from "@/hooks/useNameResolver";
 import ShiftHandoverHistoryTab from "@/components/ShiftHandoverHistoryTab";
@@ -366,17 +371,51 @@ export default function MerchantSettlement() {
       (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
     const [cardsRes, vendorsRes, providersRes, giftsRes, cardSettlementsData, providerSettlementsData] = await Promise.all([
-      supabase.from("cards").select("*").eq("status", "active"),
-      supabase.from("vendors").select("*").eq("status", "active"),
-      supabase.from("payment_providers").select("*").eq("status", "active"),
+      fetchMerchantCards(),
+      fetchMerchantVendors(),
+      fetchMerchantPaymentProviders(),
       supabase.from("activity_gifts").select("*"),
       getCardMerchantSettlementsAsync(),
       getPaymentProviderSettlementsAsync(),
     ]);
-    
-    setCards(cardsRes.data || []);
-    setVendors(vendorsRes.data || []);
-    setProviders(providersRes.data || []);
+
+    const cardsData = cardsRes
+      .filter((row) => row.status === "active")
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        type: row.type,
+        status: row.status,
+        remark: row.remark,
+        created_at: row.createdAt,
+        card_vendors: row.cardVendors || [],
+        sort_order: row.sortOrder ?? 0,
+      }));
+    const vendorsData = vendorsRes
+      .filter((row) => row.status === "active")
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        status: row.status,
+        remark: row.remark,
+        created_at: row.createdAt,
+        payment_providers: row.paymentProviders || [],
+        sort_order: row.sortOrder ?? 0,
+      }));
+    const providersData = providersRes
+      .filter((row) => row.status === "active")
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        status: row.status,
+        remark: row.remark,
+        created_at: row.createdAt,
+        sort_order: row.sortOrder ?? 0,
+      }));
+
+    setCards(cardsData);
+    setVendors(vendorsData);
+    setProviders(providersData);
     setDbOrders(allOrders);
     setActivityGifts(giftsRes.data || []);
     // 使用异步获取的结算数据（展开运算符创建新引用，确保 React 重渲染）
@@ -384,7 +423,7 @@ export default function MerchantSettlement() {
     setProviderSettlements([...providerSettlementsData]);
     // Update module-level cache
     _msCache = {
-      cards: cardsRes.data || [], vendors: vendorsRes.data || [], providers: providersRes.data || [],
+      cards: cardsData, vendors: vendorsData, providers: providersData,
       dbOrders: allOrders, activityGifts: giftsRes.data || [],
       cardSettlements: [...cardSettlementsData], providerSettlements: [...providerSettlementsData],
       employees: _msCache?.employees || [], loadedAt: Date.now(),

@@ -120,6 +120,15 @@ export async function returnPhones(phoneIds: number[]): Promise<number[]> {
   return (data || []).map((r: { returned_id: number }) => r.returned_id);
 }
 
+export async function consumePhones(phoneIds: number[]): Promise<number[]> {
+  if (phoneIds.length === 0) return [];
+  const { data, error } = await (supabase.rpc as any)("rpc_consume_phones", {
+    phone_ids: phoneIds,
+  });
+  if (error) throw error;
+  return (data || []).map((r: { consumed_id: number }) => r.consumed_id);
+}
+
 export async function getPhoneStats(tenantId: string): Promise<PhoneStats> {
   const { data, error } = await supabase.rpc("rpc_phone_stats", {
     p_tenant_id: tenantId,
@@ -190,6 +199,9 @@ export async function updateExtractSettings(
 
 function mapPhonePoolError(error: unknown) {
   const message = getErrorMessage(error);
+  if (message.includes("HAS_UNRETURNED_PHONES") || message.includes("has_unreturned_phones")) {
+    return fail("HAS_UNRETURNED_PHONES", "Has unreturned phones", "PHONE_POOL", error);
+  }
   if (message.includes("DAILY_LIMIT_EXCEEDED") || message.includes("daily_limit_exceeded")) {
     return fail("DAILY_LIMIT_EXCEEDED", "Daily extract limit reached", "PHONE_POOL", error);
   }
@@ -223,6 +235,15 @@ export async function extractPhonesResult(
 export async function returnPhonesResult(phoneIds: number[]): Promise<ServiceResult<number[]>> {
   try {
     const data = await returnPhones(phoneIds);
+    return ok(data);
+  } catch (error) {
+    return mapPhonePoolError(error);
+  }
+}
+
+export async function consumePhonesResult(phoneIds: number[]): Promise<ServiceResult<number[]>> {
+  try {
+    const data = await consumePhones(phoneIds);
     return ok(data);
   } catch (error) {
     return mapPhonePoolError(error);
