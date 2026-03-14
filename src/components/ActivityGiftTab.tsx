@@ -22,6 +22,7 @@ import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
 import { useMembers } from "@/hooks/useMembers";
 import { usePaymentProviders } from "@/hooks/useMerchantConfig";
 import { useActivityGifts } from "@/hooks/useActivityGifts";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
 import { markInputActive } from "@/lib/performanceUtils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -86,10 +87,11 @@ function loadFormState(): ActivityGiftFormState | null {
 
 // 保存表单状态到数据库（带防抖）
 let saveTimeoutId: NodeJS.Timeout | null = null;
-async function saveFormStateDebounced(state: any) {
+async function saveFormStateDebounced(state: any, skipPersist = false) {
   if (saveTimeoutId) {
     clearTimeout(saveTimeoutId);
   }
+  if (skipPersist) return;
   saveTimeoutId = setTimeout(async () => {
     try {
       formStateCache = state;
@@ -102,11 +104,12 @@ async function saveFormStateDebounced(state: any) {
 }
 
 // 清除表单状态
-async function clearFormState() {
+async function clearFormState(skipPersist = false) {
   if (saveTimeoutId) {
     clearTimeout(saveTimeoutId);
   }
   formStateCache = null;
+  if (skipPersist) return;
   try {
     const { saveSharedData } = await import('@/services/sharedDataService');
     await saveSharedData(FORM_DATA_KEY, null);
@@ -118,6 +121,7 @@ async function clearFormState() {
 export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: ActivityGiftTabProps) {
   const { currencies } = useCurrencies();
   const { employee } = useAuth();
+  const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
   const { members, findMemberByPhone } = useMembers();
   const { activeProviders } = usePaymentProviders();
   const { addGift } = useActivityGifts();
@@ -185,8 +189,8 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
   
   // 自动保存表单状态 - 使用防抖
   useEffect(() => {
-    saveFormStateDebounced({ currency, amount, phoneNumber, paymentAgent, giftType, remark });
-  }, [currency, amount, phoneNumber, paymentAgent, giftType, remark]);
+    saveFormStateDebounced({ currency, amount, phoneNumber, paymentAgent, giftType, remark }, isPlatformAdminReadonlyView);
+  }, [currency, amount, phoneNumber, paymentAgent, giftType, remark, isPlatformAdminReadonlyView]);
 
   // Get rate based on currency - with null safety
   const getRate = (): number => {
@@ -337,6 +341,10 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
   };
 
   const handleSubmit = async () => {
+    if (isPlatformAdminReadonlyView) {
+      toast.error("平台总管理查看租户时为只读，无法提交活动赠送");
+      return;
+    }
     if (!amount) {
       toast.error(t('activityGift.pleaseEnterAmount'));
       return;
@@ -382,7 +390,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
     setGiftType(activityTypes.length > 0 ? activityTypes[0].value : "");
     setRemark("");
     setMemberError("");
-    clearFormState();
+    clearFormState(isPlatformAdminReadonlyView);
   };
 
   // 代付商家列表（来自商家管理的代付商家）
@@ -544,7 +552,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
 
               {/* 按钮 */}
               <div className="flex gap-2 pt-1">
-                <Button onClick={handleSubmit} size="sm" className="gap-1 h-7">
+                <Button onClick={handleSubmit} size="sm" className="gap-1 h-7" disabled={isPlatformAdminReadonlyView}>
                   <Plus className="h-3 w-3" />
                   {t("提交", "Submit")}
                 </Button>

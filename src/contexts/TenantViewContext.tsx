@@ -15,6 +15,7 @@ interface TenantViewContextType {
 const TenantViewContext = createContext<TenantViewContextType | undefined>(undefined);
 
 const STORAGE_KEY = "platform_viewing_tenant";
+const SYSTEM_TENANT_CODE = "platform";
 
 export function TenantViewProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
@@ -47,6 +48,9 @@ export function TenantViewProvider({ children }: { children: ReactNode }) {
 
   const enterTenant = useCallback(
     async (tenantId: string, tenantName: string, tenantCode: string) => {
+      if (tenantCode === SYSTEM_TENANT_CODE) {
+        return;
+      }
       try {
         await preloadTenantEmployeesIntoCache(tenantId);
       } catch (e) {

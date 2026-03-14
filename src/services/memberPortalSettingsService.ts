@@ -16,6 +16,7 @@ export interface MemberPortalSettings {
   checkin_reward_streak_7: number;
   share_reward_spins: number;
   invite_reward_spins: number;
+  daily_free_spins_per_day: number;
   login_badges: string[];
   footer_text: string;
   home_banners: { title: string; subtitle?: string; link?: string; image_url?: string }[];
@@ -70,6 +71,7 @@ const DEFAULT_SETTINGS: MemberPortalSettings = {
   checkin_reward_streak_7: 2,
   share_reward_spins: 1,
   invite_reward_spins: 3,
+  daily_free_spins_per_day: 0,
   login_badges: ["🏆 签到奖励", "🎁 积分兑换", "👥 邀请好友"],
   footer_text: "账户数据安全加密，平台合规运营，请放心使用",
   home_banners: [],
@@ -87,6 +89,7 @@ function normalizeSettings(raw: any): MemberPortalSettings {
   return {
     ...settings,
     login_badges: Array.isArray(raw?.login_badges) ? raw.login_badges.map((x: any) => String(x)) : DEFAULT_SETTINGS.login_badges,
+    daily_free_spins_per_day: Math.max(0, Number(raw?.daily_free_spins_per_day ?? DEFAULT_SETTINGS.daily_free_spins_per_day)),
     home_banners: Array.isArray(raw?.home_banners)
       ? raw.home_banners
           .map((b: any) => ({
@@ -134,6 +137,7 @@ export async function upsertMyMemberPortalSettings(settings: MemberPortalSetting
     p_checkin_reward_streak_7: settings.checkin_reward_streak_7,
     p_share_reward_spins: settings.share_reward_spins,
     p_invite_reward_spins: settings.invite_reward_spins,
+    p_daily_free_spins_per_day: settings.daily_free_spins_per_day,
     p_login_badges: settings.login_badges,
     p_footer_text: settings.footer_text,
     p_home_banners: settings.home_banners,
@@ -184,6 +188,18 @@ export async function getMemberPortalSettingsByAccount(account: string): Promise
   const { data, error } = await (supabase.rpc as any)("member_get_portal_settings_by_account", {
     p_account: value,
   });
+  if (error) return null;
+  const r = (data || {}) as any;
+  if (!r.success) return null;
+  return {
+    tenant_id: r.tenant_id ?? null,
+    tenant_name: r.tenant_name || "",
+    settings: normalizeSettings(r.settings),
+  };
+}
+
+export async function getDefaultMemberPortalSettings(): Promise<MemberPortalSettingsPayload | null> {
+  const { data, error } = await (supabase.rpc as any)("member_get_default_portal_settings");
   if (error) return null;
   const r = (data || {}) as any;
   if (!r.success) return null;
@@ -339,7 +355,9 @@ export async function upsertMyMemberSpinWheelPrizes(items: SpinWheelPrizeItem[])
   if (!r.success) {
     if (r.error === "ITEM_COUNT_OUT_OF_RANGE") throw new Error("奖品数量需在 6~10 个");
     if (r.error === "ENABLED_ITEMS_TOO_FEW") throw new Error("至少保留 6 个启用奖品");
-    if (r.error === "INVALID_HIT_RATE") throw new Error("命中率总和必须大于 0");
+    if (r.error === "INVALID_HIT_RATE") throw new Error("命中率配置无效");
+    if (r.error === "RATE_SUM_NOT_100") throw new Error("启用奖品命中率总和必须等于 100%");
+    if (r.error === "HIT_RATE_OUT_OF_RANGE") throw new Error("每个奖品命中率必须在 0%~100% 之间");
     throw new Error(r.error || "Save spin prizes failed");
   }
 }

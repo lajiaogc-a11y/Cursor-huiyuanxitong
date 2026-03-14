@@ -1,0 +1,57 @@
+export type ServiceErrorDomain = "COMMON" | "AUTH" | "TENANT" | "PHONE_POOL" | "TASK";
+
+export type ServiceErrorCode =
+  | "UNKNOWN"
+  | "NOT_AUTHENTICATED"
+  | "NO_PERMISSION"
+  | "TENANT_REQUIRED"
+  | "FORBIDDEN_TENANT_MISMATCH"
+  | "FORBIDDEN_ADMIN_ONLY"
+  | "MULTI_TENANT_NOT_READY"
+  | "EMPTY_RESULT"
+  | "DAILY_LIMIT_EXCEEDED"
+  | "PHONE_POOL_EXHAUSTED"
+  | "TENANT_CODE_EXISTS"
+  | "ADMIN_USERNAME_EXISTS"
+  | "ADMIN_REAL_NAME_EXISTS"
+  | "TENANT_NOT_FOUND"
+  | "ADMIN_NOT_FOUND"
+  | "TENANT_HAS_DATA"
+  | "PASSWORD_REQUIRED"
+  | "INVALID_PASSWORD"
+  | "TASK_NOT_FOUND"
+  | "TASK_ALREADY_CLOSED"
+  | "POSTER_NOT_FOUND";
+
+export interface ServiceError {
+  code: ServiceErrorCode;
+  message: string;
+  domain: ServiceErrorDomain;
+  retryable?: boolean;
+  cause?: unknown;
+}
+
+export type ServiceResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: ServiceError };
+
+export function ok<T>(data: T): ServiceResult<T> {
+  return { ok: true, data };
+}
+
+export function fail<T = never>(
+  code: ServiceErrorCode,
+  message: string,
+  domain: ServiceErrorDomain,
+  cause?: unknown,
+  retryable = false
+): ServiceResult<T> {
+  return { ok: false, error: { code, message, domain, cause, retryable } };
+}
+
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return "UNKNOWN";
+}
+

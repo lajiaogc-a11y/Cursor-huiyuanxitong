@@ -100,6 +100,8 @@ import { BtcPriceConfig } from "@/components/BtcPriceSettingsCard";
 import BtcPriceSettingsCard from "@/components/BtcPriceSettingsCard";
 import { useIsMobile } from "@/hooks/use-mobile";
 import UsdtRatePanel, { UsdtLiveRates } from "@/components/UsdtRatePanel";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
+import { fetchMerchantCards, fetchMerchantPaymentProviders, fetchMerchantVendors } from "@/services/merchantConfigReadService";
 
 
 // 会员等级选项
@@ -108,23 +110,14 @@ const memberLevels = ["A", "B", "C", "D"];
 // 从数据库获取卡片列表（异步）- 按 sort_order 升序排列
 const fetchCardsFromDatabase = async (): Promise<{ id: string; name: string; cardVendors?: string[] }[]> => {
   try {
-    const { supabase } = await import('@/integrations/supabase/client');
-    const { data, error } = await supabase
-      .from('cards')
-      .select('id, name, card_vendors, sort_order')
-      .eq('status', 'active')
-      .order('sort_order', { ascending: true, nullsFirst: false })
-      .order('name', { ascending: true });
-    
-    if (error) {
-      console.error('Failed to fetch cards from database:', error);
-      return [];
-    }
-    return (data || []).map(card => ({
-      id: card.id,
-      name: card.name,
-      cardVendors: card.card_vendors || [],
-    }));
+    const rows = await fetchMerchantCards();
+    return rows
+      .filter((row) => row.status === "active")
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        cardVendors: row.cardVendors || [],
+      }));
   } catch (error) {
     console.error('Failed to fetch cards from database:', error);
     return [];
@@ -134,23 +127,14 @@ const fetchCardsFromDatabase = async (): Promise<{ id: string; name: string; car
 // 从数据库获取卡商列表（异步）- 按 sort_order 升序排列
 const fetchVendorsFromDatabase = async (): Promise<{ id: string; name: string; paymentProviders?: string[] }[]> => {
   try {
-    const { supabase } = await import('@/integrations/supabase/client');
-    const { data, error } = await supabase
-      .from('vendors')
-      .select('id, name, payment_providers, sort_order')
-      .eq('status', 'active')
-      .order('sort_order', { ascending: true, nullsFirst: false })
-      .order('name', { ascending: true });
-    
-    if (error) {
-      console.error('Failed to fetch vendors from database:', error);
-      return [];
-    }
-    return (data || []).map(vendor => ({
-      id: vendor.id,
-      name: vendor.name,
-      paymentProviders: vendor.payment_providers || [],
-    }));
+    const rows = await fetchMerchantVendors();
+    return rows
+      .filter((row) => row.status === "active")
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        paymentProviders: row.paymentProviders || [],
+      }));
   } catch (error) {
     console.error('Failed to fetch vendors from database:', error);
     return [];
@@ -160,22 +144,13 @@ const fetchVendorsFromDatabase = async (): Promise<{ id: string; name: string; p
 // 从数据库获取代付商家列表（异步）- 按 sort_order 升序排列
 const fetchPaymentProvidersFromDatabase = async (): Promise<{ id: string; name: string }[]> => {
   try {
-    const { supabase } = await import('@/integrations/supabase/client');
-    const { data, error } = await supabase
-      .from('payment_providers')
-      .select('id, name, sort_order')
-      .eq('status', 'active')
-      .order('sort_order', { ascending: true, nullsFirst: false })
-      .order('name', { ascending: true });
-    
-    if (error) {
-      console.error('Failed to fetch payment providers from database:', error);
-      return [];
-    }
-    return (data || []).map(provider => ({
-      id: provider.id,
-      name: provider.name,
-    }));
+    const rows = await fetchMerchantPaymentProviders();
+    return rows
+      .filter((row) => row.status === "active")
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+      }));
   } catch (error) {
     console.error('Failed to fetch payment providers from database:', error);
     return [];
@@ -352,7 +327,13 @@ export default function ExchangeRate() {
   trackRender('ExchangeRate');
   const { t } = useLanguage();
   const { employee } = useAuth();
+  const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
   const isMobile = useIsMobile();
+  const blockReadonly = useCallback((actionText: string) => {
+    if (!isPlatformAdminReadonlyView) return false;
+    toast.error(`平台总管理查看租户时为只读，无法${actionText}`);
+    return true;
+  }, [isPlatformAdminReadonlyView]);
   
   // 使用数据库hooks获取订单数据
   const { orders, addOrder } = useOrders();
@@ -828,6 +809,7 @@ export default function ExchangeRate() {
   // 监听汇率变化，同步到数据库（等待写入完成，确保刷新不丢失）
   useEffect(() => {
     if (!ratesInitialized || nairaRate === null || cediRate === null) return;
+    if (isPlatformAdminReadonlyView) return;
     const save = async () => {
       const ok = await saveSharedData('calculatorInputRates', {
         nairaRate,
@@ -838,13 +820,19 @@ export default function ExchangeRate() {
       if (!ok) console.error('[ExchangeRate] Failed to save calculatorInputRates');
     };
     save();
-  }, [nairaRate, cediRate, usdtRate, ratesInitialized]);
+  }, [nairaRate, cediRate, usdtRate, ratesInitialized, isPlatformAdminReadonlyView]);
 
 
 
   // 刷新汇率采集（isManual: 用户点击刷新时 true，自动/页面切换触发时 false）
   // 自动触发失败时静默使用缓存，避免每次切换页面都弹「汇率采集失败」
   const handleRefreshCurrencyRates = useCallback(async (isManual = false) => {
+    if (isPlatformAdminReadonlyView) {
+      if (isManual) {
+        toast.error("平台总管理查看租户时为只读，无法手动更新汇率采集");
+      }
+      return;
+    }
     const oldRates = currencyRates;
     const newRates = await fetchCurrencyRatesToNGN();
     
@@ -875,25 +863,27 @@ export default function ExchangeRate() {
         toast.error("汇率采集失败");
       }
     }
-  }, [currencyRates, currencyRatesInterval]);
+  }, [currencyRates, currencyRatesInterval, isPlatformAdminReadonlyView]);
 
   // 切换自动更新（等待保存完成）
   const handleToggleCurrencyRatesAutoUpdate = useCallback(async () => {
+    if (blockReadonly("切换自动更新")) return;
     const newValue = !currencyRatesAutoUpdate;
     setCurrencyRatesAutoUpdate(newValue);
     await saveCurrencyRatesAutoUpdate(newValue, currencyRatesInterval);
     toast.success(newValue ? "已开启自动更新" : "已关闭自动更新");
-  }, [currencyRatesAutoUpdate, currencyRatesInterval]);
+  }, [currencyRatesAutoUpdate, currencyRatesInterval, blockReadonly]);
 
   // 修改自动更新间隔
   const handleChangeCurrencyRatesInterval = useCallback(async (intervalSeconds: number) => {
+    if (blockReadonly("修改更新间隔")) return;
     setCurrencyRatesInterval(intervalSeconds);
     await saveCurrencyRatesInterval(intervalSeconds);
     if (currencyRatesAutoUpdate) {
       setCurrencyRatesCountdown(intervalSeconds);
     }
     toast.success("更新间隔已保存");
-  }, [currencyRatesAutoUpdate]);
+  }, [currencyRatesAutoUpdate, blockReadonly]);
 
   // 汇率采集自动更新 - 基于 lastUpdated 计算剩余时间，导航切换回来不触发刷新
   useEffect(() => {
@@ -1284,6 +1274,7 @@ export default function ExchangeRate() {
 
   const handleQuickAmountChange = (index: number, value: string) => {
     if (!quickSettingsLoaded) return;
+    if (blockReadonly("修改快捷金额")) return;
     const newAmounts = [...quickAmounts];
     newAmounts[index] = value;
     setQuickAmounts(newAmounts);
@@ -1293,6 +1284,7 @@ export default function ExchangeRate() {
 
   const handleQuickRateChange = (index: number, value: string) => {
     if (!quickSettingsLoaded) return;
+    if (blockReadonly("修改快捷汇率")) return;
     const newRates = [...quickRates];
     newRates[index] = value;
     setQuickRates(newRates);
@@ -1393,6 +1385,7 @@ export default function ExchangeRate() {
 
   // 提交订单入口 - 先验证，再检测异常
   const handleSubmitOrder = async () => {
+    if (blockReadonly("提交订单")) return;
     if (isSubmittingOrder) return;
     
     // 必填字段验证
@@ -1481,6 +1474,7 @@ export default function ExchangeRate() {
 
   // 用户确认异常后继续提交
   const handleConfirmAnomalySubmit = async () => {
+    if (blockReadonly("提交订单")) return;
     setShowAnomalyDialog(false);
     setAnomalyWarnings([]);
     await executeOrderSubmit();
@@ -1488,6 +1482,7 @@ export default function ExchangeRate() {
 
   // 提交订单（可跳过异常检测）
   const executeOrderSubmit = async () => {
+    if (blockReadonly("提交订单")) return;
     // 标记正在提交
     isSubmittingOrder = true;
     
@@ -1797,6 +1792,7 @@ export default function ExchangeRate() {
                   step="any"
                   value={nairaRate} 
                   onChange={(e) => setNairaRate(parseFloat(e.target.value) || 0)}
+                  disabled={isPlatformAdminReadonlyView}
                   className="h-6 text-center text-base lg:text-lg font-bold text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700 bg-white/60 dark:bg-white/10"
                 />
                 )}
@@ -1814,6 +1810,7 @@ export default function ExchangeRate() {
                   step="any"
                   value={cediRate} 
                   onChange={(e) => setCediRate(parseFloat(e.target.value) || 0)}
+                  disabled={isPlatformAdminReadonlyView}
                   className="h-6 text-center text-base lg:text-lg font-bold text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-700 bg-white/60 dark:bg-white/10"
                 />
                 )}
@@ -2076,6 +2073,7 @@ export default function ExchangeRate() {
                 nairaRate={safeNairaRate}
                 cediRate={safeCediRate}
                 cardsList={cardsList}
+                isReadOnly={isPlatformAdminReadonlyView}
               />
             </TabsContent>
 
@@ -2160,7 +2158,7 @@ export default function ExchangeRate() {
               {/* 代付商家选择 */}
               <div className="space-y-2">
                 <Label>{t("代付商家", "Payment Provider")} <span className="text-destructive">*</span></Label>
-                <Select value={redeemPaymentProvider} onValueChange={setRedeemPaymentProvider}>
+                <Select value={redeemPaymentProvider} onValueChange={setRedeemPaymentProvider} disabled={isPlatformAdminReadonlyView}>
                   <SelectTrigger>
                     <SelectValue placeholder={t("请选择代付商家", "Select payment provider")} />
                   </SelectTrigger>
@@ -2185,6 +2183,7 @@ export default function ExchangeRate() {
                   onChange={(e) => setRedeemRemark(e.target.value)}
                   placeholder={t("请输入备注信息", "Enter remark")}
                   rows={2}
+                  disabled={isPlatformAdminReadonlyView}
                 />
               </div>
 
@@ -2200,13 +2199,14 @@ export default function ExchangeRate() {
             </Button>
             <Button 
               onClick={() => {
+                if (blockReadonly("进行积分兑换")) return;
                 if (!redeemPaymentProvider) {
                   toast.error(t("请选择代付商家", "Please select payment provider"));
                   return;
                 }
                 setIsRedeemConfirmOpen(true);
               }}
-              disabled={!redeemPaymentProvider || paymentProvidersList.length === 0}
+              disabled={isPlatformAdminReadonlyView || !redeemPaymentProvider || paymentProvidersList.length === 0}
             >
               {t("确认兑换", "Confirm Redemption")}
             </Button>
@@ -2230,6 +2230,7 @@ export default function ExchangeRate() {
             <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={async () => {
               if (!redeemPreviewData) return;
+              if (blockReadonly("进行积分兑换")) return;
               
               try {
                 // 执行积分兑换

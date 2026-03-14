@@ -2,6 +2,7 @@
  * 工作任务服务 - 客户维护、发动态
  */
 import { supabase } from "@/integrations/supabase/client";
+import { fail, getErrorMessage, ok, ServiceResult } from "@/services/serviceResult";
 
 export type TaskTemplateModule = "customer_maintenance" | "post_dynamic";
 export type TaskItemStatus = "todo" | "done";
@@ -836,4 +837,52 @@ export async function createPosterTask(params: {
   if (itemsErr) throw itemsErr;
 
   return { task_id: task.id, distributed };
+}
+
+function mapTaskError(error: unknown) {
+  const message = getErrorMessage(error);
+  if (message.includes("task_not_found")) {
+    return fail("TASK_NOT_FOUND", "Task not found", "TASK", error);
+  }
+  if (message.includes("task_already_closed")) {
+    return fail("TASK_ALREADY_CLOSED", "Task already closed", "TASK", error);
+  }
+  if (message.includes("poster_not_found")) {
+    return fail("POSTER_NOT_FOUND", "Poster not found", "TASK", error);
+  }
+  return fail("UNKNOWN", message || "Task service failed", "TASK", error, true);
+}
+
+export async function getOpenTasksResult(
+  tenantId: string
+): Promise<ServiceResult<{ id: string; title: string; created_at: string; total_items: number }[]>> {
+  try {
+    const data = await getOpenTasks(tenantId);
+    return ok(data);
+  } catch (error) {
+    return mapTaskError(error);
+  }
+}
+
+export async function getTaskProgressListResult(params: {
+  tenantId: string;
+  employeeId?: string;
+  startDate?: string;
+  endDate?: string;
+}): Promise<ServiceResult<TaskProgressOverview[]>> {
+  try {
+    const data = await getTaskProgressList(params);
+    return ok(data);
+  } catch (error) {
+    return mapTaskError(error);
+  }
+}
+
+export async function getTaskPostersResult(tenantId: string): Promise<ServiceResult<TaskPoster[]>> {
+  try {
+    const data = await getTaskPosters(tenantId);
+    return ok(data);
+  } catch (error) {
+    return mapTaskError(error);
+  }
 }

@@ -12,11 +12,12 @@ import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
 import {
-  extractPhones,
-  returnPhones,
-  getPhoneStats,
-  getExtractSettings,
+  extractPhonesResult,
+  returnPhonesResult,
+  getPhoneStatsResult,
+  getExtractSettingsResult,
   getMyReservedPhones,
   type ExtractedPhone,
   type PhoneStats,
@@ -28,6 +29,7 @@ export function PhoneExtractPanel() {
   const { t } = useLanguage();
   const tenantId = viewingTenantId || employee?.tenant_id;
   const effectiveTenantId = tenantId ?? "";
+  const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
 
   const [extractedList, setExtractedList] = useState<ExtractedPhone[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -42,8 +44,12 @@ export function PhoneExtractPanel() {
     if (!effectiveTenantId) return;
     setStatsLoading(true);
     try {
-      const s = await getPhoneStats(effectiveTenantId);
-      setStats(s);
+      const s = await getPhoneStatsResult(effectiveTenantId);
+      if (s.ok) {
+        setStats(s.data);
+      } else {
+        setStats(null);
+      }
     } catch (e) {
       console.error("Phone stats load failed:", e);
       setStats(null);
@@ -54,8 +60,8 @@ export function PhoneExtractPanel() {
 
   const loadSettings = useCallback(async () => {
     try {
-      const s = await getExtractSettings();
-      setSettings(s);
+      const s = await getExtractSettingsResult();
+      if (s.ok) setSettings(s.data);
     } catch (e) {
       console.error(e);
     }
@@ -92,6 +98,10 @@ export function PhoneExtractPanel() {
 
   const handleExtract = async () => {
     if (!effectiveTenantId) return;
+    if (isPlatformAdminReadonlyView) {
+      toast.error(t("平台总管理查看租户时为只读，无法提取号码", "Read-only in platform admin tenant view"));
+      return;
+    }
     if (stats && stats.total_available === 0) {
       toast.error(t("号码池已耗尽", "Phone pool exhausted"));
       return;
@@ -101,14 +111,21 @@ export function PhoneExtractPanel() {
       // 每次提取前读取最新设置，确保汇率页执行与“提取设置”完全一致
       let latestSettings = settings;
       try {
-        latestSettings = await getExtractSettings();
-        setSettings(latestSettings);
+        const latest = await getExtractSettingsResult();
+        if (latest.ok) {
+          latestSettings = latest.data;
+          setSettings(latestSettings);
+        }
       } catch (e) {
         console.error("Load latest extract settings failed, fallback to local settings:", e);
       }
       const n = Math.max(1, latestSettings.per_extract_limit || 1);
 
-      const result = await extractPhones(effectiveTenantId, n);
+      const extractedResult = await extractPhonesResult(effectiveTenantId, n);
+      if (!extractedResult.ok) {
+        throw extractedResult.error;
+      }
+      const result = extractedResult.data;
       setExtractedList((prev) => [...result, ...prev]);
       // 默认选中本次提取结果，便于一键归还
       setSelectedIds((prev) => {
@@ -125,23 +142,24 @@ export function PhoneExtractPanel() {
       }
       await loadStats();
     } catch (e: any) {
-      if (e?.message === "DAILY_LIMIT_EXCEEDED") {
+      const code = e?.code || e?.message;
+      if (code === "DAILY_LIMIT_EXCEEDED") {
         toast.error(t("今日提取次数已达上限", "Daily extract limit reached"));
-      } else if (e?.message === "NOT_AUTHENTICATED") {
+      } else if (code === "NOT_AUTHENTICATED") {
         toast.error(
           t(
             "登录会话已失效，请刷新页面重新登录后再试",
             "Session expired, please refresh and sign in again"
           )
         );
-      } else if (e?.message === "FORBIDDEN_TENANT_MISMATCH") {
+      } else if (code === "FORBIDDEN_TENANT_MISMATCH") {
         toast.error(
           t(
             "当前租户与操作租户不一致，请退出租户视图后重试",
             "Tenant mismatch. Exit tenant view and retry"
           )
         );
-      } else if (e?.message === "TENANT_REQUIRED") {
+      } else if (code === "TENANT_REQUIRED") {
         toast.error(t("未识别到租户，请重新登录后重试", "Tenant not found, please sign in again"));
       } else {
         console.error("Phone extract failed:", e);
@@ -159,6 +177,10 @@ export function PhoneExtractPanel() {
   };
 
   const handleReturn = async () => {
+    if (isPlatformAdminReadonlyView) {
+      toast.error(t("平台总管理查看租户时为只读，无法归还号码", "Read-only in platform admin tenant view"));
+      return;
+    }
     if (extractedList.length === 0) {
       toast.error(t("暂无可归还号码", "No numbers to return"));
       return;
@@ -167,7 +189,11 @@ export function PhoneExtractPanel() {
     const targetIds = selectedIds.size > 0 ? [...selectedIds] : extractedList.map((p) => p.id);
     setReturning(true);
     try {
-      const returnedIds = await returnPhones(targetIds);
+      const returned = await returnPhonesResult(targetIds);
+      if (!returned.ok) {
+        throw returned.error;
+      }
+      const returnedIds = returned.data;
       const returnedSet = new Set(returnedIds);
 
       setExtractedList((prev) => prev.filter((p) => !returnedSet.has(p.id)));
@@ -300,7 +326,7 @@ export function PhoneExtractPanel() {
             size="sm"
             className="flex-1 h-8"
             onClick={handleExtract}
-            disabled={extracting || (stats?.total_available ?? 0) === 0}
+            disabled={isPlatformAdminReadonlyView || extracting || (stats?.total_available ?? 0) === 0}
           >
             {extracting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
             {t("提取", "Extract")}
@@ -323,7 +349,7 @@ export function PhoneExtractPanel() {
                 <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={handleCopy}>
                   <Copy className="h-3 w-3" />
                 </Button>
-                <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={handleReturn} disabled={returning || extractedList.length === 0}>
+                <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={handleReturn} disabled={isPlatformAdminReadonlyView || returning || extractedList.length === 0}>
                   {returning ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
                 </Button>
                 <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={handleClearList}>

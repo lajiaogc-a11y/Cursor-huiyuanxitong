@@ -10,6 +10,7 @@ import { isUserTyping, trackRender } from '@/lib/performanceUtils';
 import { useTenantView } from '@/contexts/TenantViewContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { notifyDataMutation } from '@/services/dataRefreshManager';
+import { useIsPlatformAdminViewingTenant } from '@/hooks/useIsPlatformAdminViewingTenant';
 
 export interface Member {
   id: string;
@@ -100,6 +101,7 @@ export function useMembers() {
   const { viewingTenantId } = useTenantView() || {};
   const { employee } = useAuth() || {};
   const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
+  const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
   const useMyTenantRpc = !!(effectiveTenantId && employee?.tenant_id && effectiveTenantId === employee.tenant_id);
 
   useEffect(() => {
@@ -168,6 +170,14 @@ export function useMembers() {
 
   const addMember = async (memberData: Partial<Member> & { phoneNumber: string }): Promise<Member | null> => {
     try {
+      if (isPlatformAdminReadonlyView) {
+        toast.error('平台总管理查看租户时为只读，无法新增会员');
+        return null;
+      }
+      if (!effectiveTenantId) {
+        toast.error("请先进入业务租户后再新增会员（系统租户不可用于业务数据）");
+        return null;
+      }
       const existing = members.find(m => m.phoneNumber === memberData.phoneNumber);
       if (existing) {
         toast.error('该电话号码已存在');
@@ -178,6 +188,7 @@ export function useMembers() {
       const dbData = {
         ...mapMemberToDb({ ...memberData, memberCode }),
         creator_id: memberData.recorderId || null,
+        tenant_id: effectiveTenantId || null,
       };
       
       const { data, error } = await supabase
@@ -211,6 +222,10 @@ export function useMembers() {
 
   const updateMember = async (memberId: string, updates: Partial<Member>): Promise<Member | null> => {
     try {
+      if (isPlatformAdminReadonlyView) {
+        toast.error('平台总管理查看租户时为只读，无法修改会员');
+        return null;
+      }
       const dbUpdates: any = {};
       if (updates.level !== undefined) dbUpdates.member_level = updates.level;
       if (updates.remark !== undefined) dbUpdates.remark = updates.remark;
@@ -254,6 +269,10 @@ export function useMembers() {
 
   const updateMemberByPhone = async (phone: string, updates: Partial<Member>): Promise<Member | null> => {
     try {
+      if (isPlatformAdminReadonlyView) {
+        toast.error('平台总管理查看租户时为只读，无法修改会员');
+        return null;
+      }
       const dbUpdates: any = {};
       if (updates.level !== undefined) dbUpdates.member_level = updates.level;
       if (updates.remark !== undefined) dbUpdates.remark = updates.remark;
@@ -311,6 +330,10 @@ export function useMembers() {
 
   const deleteMember = async (memberId: string): Promise<boolean> => {
     try {
+      if (isPlatformAdminReadonlyView) {
+        toast.error('平台总管理查看租户时为只读，无法删除会员');
+        return false;
+      }
       const memberToDelete = members.find(m => m.id === memberId);
       
       await supabase.from('orders').update({ member_id: null }).eq('member_id', memberId);

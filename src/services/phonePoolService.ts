@@ -2,6 +2,7 @@
  * Phone Extractor - pool import, extract, return, stats
  */
 import { supabase } from "@/integrations/supabase/client";
+import { fail, getErrorMessage, ok, ServiceResult } from "@/services/serviceResult";
 
 const CHUNK_SIZE = 5000;
 
@@ -184,5 +185,98 @@ export async function updateExtractSettings(
       throw new Error("FORBIDDEN_ADMIN_ONLY");
     }
     throw error;
+  }
+}
+
+function mapPhonePoolError(error: unknown) {
+  const message = getErrorMessage(error);
+  if (message.includes("DAILY_LIMIT_EXCEEDED") || message.includes("daily_limit_exceeded")) {
+    return fail("DAILY_LIMIT_EXCEEDED", "Daily extract limit reached", "PHONE_POOL", error);
+  }
+  if (message.includes("NOT_AUTHENTICATED") || message.includes("not_authenticated")) {
+    return fail("NOT_AUTHENTICATED", "Not authenticated", "PHONE_POOL", error);
+  }
+  if (message.includes("FORBIDDEN_TENANT_MISMATCH") || message.includes("forbidden_tenant_mismatch")) {
+    return fail("FORBIDDEN_TENANT_MISMATCH", "Tenant mismatch", "PHONE_POOL", error);
+  }
+  if (message.includes("TENANT_REQUIRED") || message.includes("tenant_required") || message.includes("tenant_id_required")) {
+    return fail("TENANT_REQUIRED", "Tenant is required", "PHONE_POOL", error);
+  }
+  if (message.includes("FORBIDDEN_ADMIN_ONLY") || message.includes("forbidden_admin_only")) {
+    return fail("FORBIDDEN_ADMIN_ONLY", "Admin only", "PHONE_POOL", error);
+  }
+  return fail("UNKNOWN", message || "Phone pool operation failed", "PHONE_POOL", error, true);
+}
+
+export async function extractPhonesResult(
+  tenantId: string,
+  count: number
+): Promise<ServiceResult<ExtractedPhone[]>> {
+  try {
+    const data = await extractPhones(tenantId, count);
+    return ok(data);
+  } catch (error) {
+    return mapPhonePoolError(error);
+  }
+}
+
+export async function returnPhonesResult(phoneIds: number[]): Promise<ServiceResult<number[]>> {
+  try {
+    const data = await returnPhones(phoneIds);
+    return ok(data);
+  } catch (error) {
+    return mapPhonePoolError(error);
+  }
+}
+
+export async function getPhoneStatsResult(tenantId: string): Promise<ServiceResult<PhoneStats>> {
+  try {
+    const data = await getPhoneStats(tenantId);
+    return ok(data);
+  } catch (error) {
+    return mapPhonePoolError(error);
+  }
+}
+
+export async function getExtractSettingsResult(): Promise<ServiceResult<ExtractSettings>> {
+  try {
+    const data = await getExtractSettings();
+    return ok(data);
+  } catch (error) {
+    return mapPhonePoolError(error);
+  }
+}
+
+export async function phoneBulkImportResult(
+  tenantId: string,
+  lines: string[],
+  onProgress?: ImportProgressCallback
+): Promise<ServiceResult<{ inserted: number; skipped: number }>> {
+  try {
+    const data = await phoneBulkImport(tenantId, lines, onProgress);
+    return ok(data);
+  } catch (error) {
+    return mapPhonePoolError(error);
+  }
+}
+
+export async function clearPhonePoolResult(tenantId: string): Promise<ServiceResult<void>> {
+  try {
+    await clearPhonePool(tenantId);
+    return ok(undefined);
+  } catch (error) {
+    return mapPhonePoolError(error);
+  }
+}
+
+export async function updateExtractSettingsResult(
+  perExtractLimit?: number,
+  perUserDailyLimit?: number
+): Promise<ServiceResult<void>> {
+  try {
+    await updateExtractSettings(perExtractLimit, perUserDailyLimit);
+    return ok(undefined);
+  } catch (error) {
+    return mapPhonePoolError(error);
   }
 }

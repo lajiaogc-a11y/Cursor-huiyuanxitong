@@ -9,6 +9,7 @@ import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
 import { ConfigProvider } from "antd";
 import {
   DEFAULT_SETTINGS,
+  getDefaultMemberPortalSettings,
   getMemberPortalSettingsByAccount,
   type MemberPortalSettings,
 } from "@/services/memberPortalSettingsService";
@@ -22,6 +23,7 @@ export default function MemberLogin() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [previewSettings, setPreviewSettings] = useState<MemberPortalSettings>(DEFAULT_SETTINGS);
+  const [defaultPortalSettings, setDefaultPortalSettings] = useState<MemberPortalSettings>(DEFAULT_SETTINGS);
   const accountValue = Form.useWatch("phone", form);
 
   useEffect(() => {
@@ -30,9 +32,24 @@ export default function MemberLogin() {
 
   useEffect(() => {
     if (member?.id) return;
+    let cancelled = false;
+    (async () => {
+      const data = await getDefaultMemberPortalSettings();
+      if (cancelled) return;
+      const next = data?.settings || DEFAULT_SETTINGS;
+      setDefaultPortalSettings(next);
+      setPreviewSettings(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [member?.id]);
+
+  useEffect(() => {
+    if (member?.id) return;
     const account = String(accountValue || "").trim();
     if (!account) {
-      setPreviewSettings(DEFAULT_SETTINGS);
+      setPreviewSettings(defaultPortalSettings);
       return;
     }
 
@@ -41,12 +58,12 @@ export default function MemberLogin() {
       if (data?.settings) {
         setPreviewSettings(data.settings);
       } else {
-        setPreviewSettings(DEFAULT_SETTINGS);
+        setPreviewSettings(defaultPortalSettings);
       }
     }, 350);
 
     return () => window.clearTimeout(timer);
-  }, [accountValue, member?.id]);
+  }, [accountValue, member?.id, defaultPortalSettings]);
 
   const displaySettings = member?.id ? settings : previewSettings;
 

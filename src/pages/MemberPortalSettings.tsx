@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
 import {
   approveMyMemberPortalSettingsVersion,
   submitMyMemberPortalSettingsForApproval,
@@ -103,6 +104,7 @@ function SwitchRow({
 export default function MemberPortalSettingsPage() {
   const { employee } = useAuth();
   const { viewingTenantId } = useTenantView() || {};
+  const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
   const tenantId = viewingTenantId || employee?.tenant_id || null;
   const canPublish        = employee?.role === "admin" || !!employee?.is_super_admin;
   const canSubmitApproval = employee?.role === "manager" || canPublish;
@@ -142,10 +144,24 @@ export default function MemberPortalSettingsPage() {
   const [checkingVersion, setCheckingVersion] = useState(false);
   const [previewTab, setPreviewTab] = useState<PreviewTabKey>("dashboard");
   const localBuildTime = typeof __BUILD_TIME__ !== "undefined" ? __BUILD_TIME__ : "unknown";
+  const enabledSpinPrizes = useMemo(
+    () => spinPrizes.filter((x) => x.enabled !== false),
+    [spinPrizes]
+  );
+  const spinRateTotal = useMemo(
+    () => enabledSpinPrizes.reduce((acc, x) => acc + Math.max(0, Number(x.hit_rate || 0)), 0),
+    [enabledSpinPrizes]
+  );
+  const isSpinRateValid = Math.abs(spinRateTotal - 100) < 0.0001;
 
   const logoPreview = useMemo(() => settings.logo_url || "", [settings.logo_url]);
   const draftKey    = useMemo(() => `member_portal_draft_${tenantId || "none"}`, [tenantId]);
   const workingDraftKey = useMemo(() => `member_portal_working_${tenantId || "none"}`, [tenantId]);
+  const blockReadonly = useCallback((action: string) => {
+    if (!isPlatformAdminReadonlyView) return false;
+    toast.error(`平台总管理查看租户时为只读，无法${action}`);
+    return true;
+  }, [isPlatformAdminReadonlyView]);
 
   // ── 构建 payload ──────────────────────────────────────────────────────────
   const buildPayload = () => {
@@ -206,6 +222,7 @@ export default function MemberPortalSettingsPage() {
   }, []);
 
   const notifyForceRefreshAll = async () => {
+    if (blockReadonly("发送刷新通知")) return;
     if (!canPublish) {
       toast.error("仅管理员可操作");
       return;
@@ -279,6 +296,7 @@ export default function MemberPortalSettingsPage() {
 
   // ── Logo 上传 ─────────────────────────────────────────────────────────────
   const onUploadLogo = async (file?: File | null) => {
+    if (blockReadonly("上传Logo")) return;
     if (!file || !tenantId) return;
     if (!file.type.startsWith("image/")) { toast.error("请上传图片文件"); return; }
     if (file.size > 2 * 1024 * 1024) { toast.error("Logo 大小不能超过 2MB"); return; }
@@ -300,6 +318,7 @@ export default function MemberPortalSettingsPage() {
   const addBanner    = () => setBanners((prev) => [...prev, { title: "", subtitle: "", link: "", image_url: "" }]);
   const removeBanner = (idx: number) => setBanners((prev) => prev.filter((_, i) => i !== idx));
   const uploadBannerImage = async (idx: number, file?: File | null) => {
+    if (blockReadonly("上传轮播图")) return;
     if (!tenantId || !file) return;
     if (!file.type.startsWith("image/")) { toast.error("请上传图片文件"); return; }
     if (file.size > 3 * 1024 * 1024) { toast.error("轮播图大小不能超过 3MB"); return; }
@@ -336,12 +355,17 @@ export default function MemberPortalSettingsPage() {
     setSpinPrizes((prev) => prev.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
   };
   const saveSpinPrizes = async () => {
+    if (blockReadonly("保存抽奖奖品配置")) return;
+    if (!isSpinRateValid) {
+      toast.error("启用奖品命中率总和必须等于 100%");
+      return;
+    }
     setSavingSpinPrizes(true);
     try {
       const payload = spinPrizes.map((x) => ({
         ...x,
         name: (x.name || "").trim() || "奖品",
-        hit_rate: Math.max(0, Number(x.hit_rate || 0)),
+        hit_rate: Math.min(100, Math.max(0, Number(x.hit_rate || 0))),
         enabled: x.enabled !== false,
       }));
       await upsertMyMemberSpinWheelPrizes(payload);
@@ -379,6 +403,7 @@ export default function MemberPortalSettingsPage() {
     setMallItems((prev) => prev.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
   };
   const uploadMallItemImage = async (idx: number, file?: File | null) => {
+    if (blockReadonly("上传商品图")) return;
     if (!tenantId || !file) return;
     if (!file.type.startsWith("image/")) { toast.error("请上传图片文件"); return; }
     if (file.size > 3 * 1024 * 1024) { toast.error("商品图大小不能超过 3MB"); return; }
@@ -394,6 +419,7 @@ export default function MemberPortalSettingsPage() {
     }
   };
   const saveMallItems = async () => {
+    if (blockReadonly("保存积分商城商品")) return;
     setSavingMallItems(true);
     try {
       const payload = mallItems.map((x, idx) => ({
@@ -428,6 +454,7 @@ export default function MemberPortalSettingsPage() {
     }
   };
   const processMallOrder = async (orderId: string, action: "complete" | "reject") => {
+    if (blockReadonly("处理商城订单")) return;
     setProcessingMallOrderId(orderId);
     try {
       await processMyPointsMallRedemptionOrder(orderId, action);
@@ -476,6 +503,7 @@ export default function MemberPortalSettingsPage() {
 
   // ── 回滚 & 审核 ───────────────────────────────────────────────────────────
   const onRollback = async (versionId: string) => {
+    if (blockReadonly("回滚版本")) return;
     if (!canPublish) { toast.error("仅管理员可回滚"); return; }
     setSaving(true);
     try {
@@ -493,6 +521,7 @@ export default function MemberPortalSettingsPage() {
   };
 
   const onApprove = async (versionId: string, approve: boolean) => {
+    if (blockReadonly(approve ? "审核通过版本" : "驳回版本")) return;
     if (!canPublish) { toast.error("仅管理员可审核"); return; }
     setSaving(true);
     try {
@@ -513,6 +542,7 @@ export default function MemberPortalSettingsPage() {
 
   // ── 发布 / 提审 ───────────────────────────────────────────────────────────
   const onSave = async () => {
+    if (blockReadonly("提交发布")) return;
     if (!canSubmitApproval) { toast.error("无权限提交"); return; }
     const payload = buildPayload();
     const snapshot = JSON.stringify(payload);
@@ -631,14 +661,13 @@ export default function MemberPortalSettingsPage() {
         </div>
       </div>
 
-      {/* ── Tab 内容区 ────────────────────────────────────────────────────── */}
-      <div className={cn("px-6 py-6", activeTab === "brand" ? "" : "max-w-3xl")}>
-
+      {/* ── Tab 内容区（左侧 Tab 内容 + 右侧预览始终显示）──────────────────────── */}
+      <div className="flex gap-8 px-6 py-6">
+        {/* 左侧：Tab 内容 */}
+        <div className="flex-1 min-w-0 max-w-3xl">
         {/* ════ 品牌外观 ════════════════════════════════════════════════════ */}
         {activeTab === "brand" && (
-          <div className="flex gap-8">
-            {/* 左侧：表单 */}
-            <div className="flex-1 min-w-0 max-w-3xl space-y-6">
+          <div className="space-y-6">
             {/* 基本信息 */}
             <Card>
               <CardContent className="pt-5 space-y-4">
@@ -945,289 +974,6 @@ export default function MemberPortalSettingsPage() {
                 )}
               </CardContent>
             </Card>
-            </div>
-
-            {/* 右侧：主题颜色实时预览（与前端会员端一致 + 底部导航切换） */}
-            <div className="w-[400px] shrink-0 sticky top-24 self-start">
-              <p className="text-xs font-medium text-muted-foreground mb-3">主题颜色实时预览</p>
-              <div className="rounded-[28px] border-4 border-zinc-800 overflow-hidden shadow-xl bg-black">
-                <div className="member-antd-wrap h-[72vh] min-h-[520px] max-h-[780px] flex flex-col bg-[#f1f5f9] relative">
-                  {/* 手机状态栏 */}
-                  <div style={{ background: previewGradient, padding: "8px 16px 4px", color: "white", flexShrink: 0 }}>
-                    <div className="flex items-center justify-between text-[11px] opacity-90">
-                      <span>9:41</span>
-                      <span>5G</span>
-                    </div>
-                  </div>
-                  {/* 可滚动内容区 */}
-                  <div className="flex-1 overflow-y-auto min-h-0">
-                    {/* 英雄区：欢迎回来 + 会员卡 */}
-                    <div style={{ background: previewGradient, padding: "12px 16px 88px", position: "relative", overflow: "hidden" }}>
-                      <div style={{ position: "absolute", top: -40, right: -40, width: 120, height: 120, borderRadius: "50%", background: "rgba(245,158,11,0.08)", pointerEvents: "none" }} />
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-                        <div>
-                          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, margin: 0, letterSpacing: "0.5px", textTransform: "uppercase" }}>欢迎回来</p>
-                          <h1 style={{ color: "white", fontSize: 18, fontWeight: 700, margin: "4px 0 0", letterSpacing: "-0.3px" }}>RTLCA96</h1>
-                        </div>
-                        <div style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: "rgba(255,255,255,0.7)", padding: "6px 10px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
-                          <LogOut className="h-3 w-3" />
-                          退出
-                        </div>
-                      </div>
-                      {/* 会员卡 */}
-                      <div className="member-card">
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            {logoPreview ? (
-                              <img src={logoPreview} alt="" style={{ width: 24, height: 24, borderRadius: 6, objectFit: "cover", border: "1px solid rgba(255,255,255,0.2)" }} />
-                            ) : null}
-                            <span style={{ color: "white", fontSize: 13, fontWeight: 800, letterSpacing: "1px" }}>
-                              {settings.company_name || "Spin & Win"}
-                            </span>
-                          </div>
-                          <span className="member-badge member-badge-gold">★ MEMBER</span>
-                        </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0 }}>
-                          <div>
-                            <p style={{ display: "flex", alignItems: "center", gap: 4, color: "rgba(255,255,255,0.7)", fontSize: 10, margin: 0 }}>
-                              <Star className="h-3 w-3" style={{ color: "#f59e0b" }} />
-                              消费积分
-                              <Info className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.4)" }} />
-                            </p>
-                            <p style={{ fontSize: 16, fontWeight: 800, color: "#fbbf24", margin: "4px 0 0", lineHeight: 1.2 }}>0</p>
-                          </div>
-                          <div style={{ borderLeft: "1px solid rgba(255,255,255,0.1)", paddingLeft: 10 }}>
-                            <p style={{ display: "flex", alignItems: "center", gap: 4, color: "rgba(255,255,255,0.7)", fontSize: 10, margin: 0 }}>
-                              <Star className="h-3 w-3" style={{ color: "#34d399" }} />
-                              推广积分
-                              <Info className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.4)" }} />
-                            </p>
-                            <p style={{ fontSize: 16, fontWeight: 800, color: "#34d399", margin: "4px 0 0", lineHeight: 1.2 }}>0</p>
-                          </div>
-                          <div style={{ borderLeft: "1px solid rgba(255,255,255,0.1)", paddingLeft: 10 }}>
-                            <p style={{ display: "flex", alignItems: "center", gap: 4, color: "rgba(255,255,255,0.7)", fontSize: 10, margin: 0 }}>
-                              <Star className="h-3 w-3" style={{ color: "#a78bfa" }} />
-                              总积分
-                              <Info className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.4)" }} />
-                            </p>
-                            <p style={{ fontSize: 16, fontWeight: 800, color: "#a78bfa", margin: "4px 0 0", lineHeight: 1.2 }}>0</p>
-                          </div>
-                        </div>
-                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.1)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, letterSpacing: "1px", textTransform: "uppercase" }}>Member ID</span>
-                          <span style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, fontFamily: "monospace", letterSpacing: "1.5px" }}>RTLCA96</span>
-                        </div>
-                      </div>
-                    </div>
-                    {/* 内容区：按 previewTab 显示不同页面 */}
-                    <div className="member-content-area" style={{ paddingTop: 20 }}>
-                      {previewTab === "dashboard" && (
-                        <>
-                          {banners[0] && (
-                            <div style={{ marginBottom: 14, padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.08)", color: "#92400e", fontSize: 11 }}>
-                              📢 {banners[0].title || "首页轮播"}
-                            </div>
-                          )}
-                          <p className="member-section-title" style={{ marginBottom: 10 }}>快捷入口</p>
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
-                            <div className="member-shortcut-card">
-                              <div className="member-shortcut-icon" style={{ background: "linear-gradient(135deg, #fef3c7, #fde68a)" }}>
-                                <Gift className="h-5 w-5" style={{ color: "#d97706" }} />
-                              </div>
-                              <p style={{ margin: 0, fontWeight: 700, fontSize: 12, color: "#0f172a" }}>幸运抽奖</p>
-                              <p style={{ margin: "4px 0 0", fontSize: 10, color: "#f59e0b", fontWeight: 600 }}>剩余0次</p>
-                            </div>
-                            <div className="member-shortcut-card">
-                              <div className="member-shortcut-icon" style={{ background: "linear-gradient(135deg, #ede9fe, #ddd6fe)" }}>
-                                <ShoppingBag className="h-5 w-5" style={{ color: "#7c3aed" }} />
-                              </div>
-                              <p style={{ margin: 0, fontWeight: 700, fontSize: 12, color: "#0f172a" }}>积分商城</p>
-                              <p style={{ margin: "4px 0 0", fontSize: 10, color: "#64748b" }}>兑换好礼</p>
-                            </div>
-                            <div className="member-shortcut-card">
-                              <div className="member-shortcut-icon" style={{ background: "linear-gradient(135deg, #dcfce7, #bbf7d0)" }}>
-                                <Users className="h-5 w-5" style={{ color: "#059669" }} />
-                              </div>
-                              <p style={{ margin: 0, fontWeight: 700, fontSize: 12, color: "#0f172a" }}>邀请好友</p>
-                              <p style={{ margin: "4px 0 0", fontSize: 10, color: "#059669", fontWeight: 600 }}>+3次抽奖</p>
-                            </div>
-                          </div>
-                          <p className="member-section-title" style={{ marginBottom: 10 }}>今日任务</p>
-                          <div style={{ background: "white", borderRadius: 12, padding: "4px 12px", boxShadow: "0 1px 3px rgba(15,23,42,0.06)", border: "1px solid rgba(15,23,42,0.05)" }}>
-                            <div className="member-task-item">
-                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(245,158,11,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>📅</div>
-                                <div>
-                                  <p style={{ margin: 0, fontWeight: 600, fontSize: 12, color: "#0f172a" }}>每日签到</p>
-                                  <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>获得 <span style={{ color: "#f59e0b", fontWeight: 700 }}>+1 次</span> 免费抽奖</p>
-                                </div>
-                              </div>
-                              <div style={{ padding: "4px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: "#f59e0b", color: "white" }}>签到</div>
-                            </div>
-                            <div className="member-task-item">
-                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(37,211,102,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>💬</div>
-                                <div>
-                                  <p style={{ margin: 0, fontWeight: 600, fontSize: 12, color: "#0f172a" }}>分享到 WhatsApp</p>
-                                  <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>获得 <span style={{ color: "#f59e0b", fontWeight: 700 }}>+1 次</span> 抽奖机会</p>
-                                </div>
-                              </div>
-                              <div style={{ padding: "4px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: "#25D366", color: "white" }}>分享</div>
-                            </div>
-                            <div className="member-task-item" style={{ borderBottom: "none" }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(5,150,105,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>👥</div>
-                                <div>
-                                  <p style={{ margin: 0, fontWeight: 600, fontSize: 12, color: "#0f172a" }}>邀请好友</p>
-                                  <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>双方各得 <span style={{ color: "#f59e0b", fontWeight: 700 }}>+3 次</span> 抽奖</p>
-                                </div>
-                              </div>
-                              <div style={{ padding: "4px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, border: "1px solid #e2e8f0", color: "#475569" }}>去邀请 →</div>
-                            </div>
-                          </div>
-                          <div style={{ marginTop: 14, padding: "12px 14px", background: "linear-gradient(135deg, rgba(245,158,11,0.06), rgba(217,119,6,0.04))", borderRadius: 12, border: "1px solid rgba(245,158,11,0.12)", textAlign: "center" }}>
-                            <p style={{ margin: 0, fontSize: 11, color: "#92400e", fontWeight: 500 }}>
-                              🔐 {settings.footer_text || "账户数据安全加密，平台合规运营，请放心使用"}
-                            </p>
-                          </div>
-                        </>
-                      )}
-                      {previewTab === "points" && (
-                        <div style={{ padding: "4px 0" }}>
-                          <p className="member-section-title" style={{ marginBottom: 12 }}>积分商城</p>
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
-                            {[1, 2, 3, 4].map((i) => (
-                              <div key={i} className="member-shortcut-card" style={{ padding: 12 }}>
-                                <div style={{ height: 72, borderRadius: 10, background: "linear-gradient(135deg, #fde68a, #f59e0b)", marginBottom: 8 }} />
-                                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "#0f172a" }}>商品 {i}</p>
-                                <p style={{ margin: "4px 0 0", fontSize: 11, color: "#f59e0b", fontWeight: 600 }}>100 积分</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {previewTab === "spin" && (
-                        <div style={{ padding: "20px 0", textAlign: "center" }}>
-                          <p className="member-section-title" style={{ marginBottom: 16 }}>幸运抽奖</p>
-                          <div style={{ width: 140, height: 140, margin: "0 auto 16px", borderRadius: "50%", background: "linear-gradient(135deg, #fbbf24, #f59e0b)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 32px rgba(245,158,11,0.4)" }}>
-                            <Gift className="h-14 w-14" style={{ color: "white" }} />
-                          </div>
-                          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0f172a" }}>剩余 0 次抽奖</p>
-                          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#64748b" }}>完成今日任务获取更多</p>
-                        </div>
-                      )}
-                      {previewTab === "invite" && (
-                        <div style={{ padding: "4px 0" }}>
-                          <p className="member-section-title" style={{ marginBottom: 12 }}>邀请好友</p>
-                          <div style={{ padding: 16, background: "white", borderRadius: 16, boxShadow: "0 1px 3px rgba(15,23,42,0.06)", textAlign: "center" }}>
-                            <Users className="h-12 w-12" style={{ color: "#059669", margin: "0 auto 12px" }} />
-                            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0f172a" }}>邀请好友得抽奖</p>
-                            <p style={{ margin: "8px 0 0", fontSize: 12, color: "#64748b" }}>双方各得 +3 次抽奖机会</p>
-                            <div style={{ marginTop: 16, padding: "10px 14px", borderRadius: 10, background: "#f1f5f9", fontSize: 11, color: "#64748b", fontFamily: "monospace" }}>邀请链接...</div>
-                          </div>
-                        </div>
-                      )}
-                      {previewTab === "settings" && (
-                        <div style={{ padding: "4px 0" }}>
-                          <p className="member-section-title" style={{ marginBottom: 12 }}>设置</p>
-                          <div style={{ background: "white", borderRadius: 16, boxShadow: "0 1px 3px rgba(15,23,42,0.06)", overflow: "hidden" }}>
-                            {["账号与安全", "隐私设置", "关于我们"].map((label, i) => (
-                              <div key={i} style={{ padding: "14px 16px", borderBottom: i < 2 ? "1px solid rgba(15,23,42,0.06)" : "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <span style={{ fontSize: 14, color: "#0f172a" }}>{label}</span>
-                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {/* 底部导航栏 */}
-                  <nav style={{
-                    position: "absolute",
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    background: "rgba(255,255,255,0.94)",
-                    backdropFilter: "blur(20px)",
-                    borderTop: "1px solid rgba(15,23,42,0.08)",
-                    boxShadow: "0 -4px 20px rgba(15,23,42,0.08)",
-                    padding: "8px 4px 4px",
-                    paddingBottom: "max(8px, env(safe-area-inset-bottom))",
-                    display: "flex",
-                    justifyContent: "space-around",
-                    alignItems: "flex-end",
-                    flexShrink: 0,
-                  }}>
-                    {[
-                      { key: "dashboard" as const, icon: Home, label: "首页" },
-                      { key: "points" as const, icon: ShoppingBag, label: "积分商城" },
-                      { key: "spin" as const, icon: Gift, label: "抽奖", isSpin: true },
-                      { key: "invite" as const, icon: Users, label: "邀请" },
-                      { key: "settings" as const, icon: Settings, label: "设置" },
-                    ].map(({ key, icon: Icon, label, isSpin }) => {
-                      const isActive = previewTab === key;
-                      if (isSpin) {
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => setPreviewTab(key)}
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              flex: 1,
-                              background: "none",
-                              border: "none",
-                              cursor: "pointer",
-                              paddingBottom: 6,
-                              marginTop: -22,
-                            }}
-                          >
-                            <div style={{
-                              width: 48,
-                              height: 48,
-                              borderRadius: "50%",
-                              background: isActive ? "linear-gradient(135deg, #fbbf24, #f59e0b)" : "linear-gradient(135deg, #f59e0b, #d97706)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              boxShadow: isActive ? "0 -4px 20px rgba(245,158,11,0.55)" : "0 -2px 16px rgba(245,158,11,0.35)",
-                              border: "3px solid white",
-                            }}
-                            >
-                              <Icon className="h-5 w-5" style={{ color: "white" }} />
-                            </div>
-                            <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, color: isActive ? "#d97706" : "#94a3b8", marginTop: 4 }}>{label}</span>
-                          </button>
-                        );
-                      }
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => setPreviewTab(key)}
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            flex: 1,
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            padding: "4px 0 8px",
-                          }}
-                        >
-                          <Icon className="h-5 w-5" style={{ color: isActive ? "#f59e0b" : "#94a3b8", marginBottom: 2 }} />
-                          <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, color: isActive ? "#d97706" : "#94a3b8" }}>{label}</span>
-                        </button>
-                      );
-                    })}
-                  </nav>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -1430,6 +1176,22 @@ export default function MemberPortalSettingsPage() {
                     <Input type="number" min={0} step={1} value={settings.invite_reward_spins}
                       onChange={(e) => setSettings((s) => ({ ...s, invite_reward_spins: Number(e.target.value || 0) }))} />
                   </div>
+                  <div className="space-y-2">
+                    <Label>每日免费抽奖次数</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={settings.daily_free_spins_per_day}
+                      onChange={(e) =>
+                        setSettings((s) => ({
+                          ...s,
+                          daily_free_spins_per_day: Math.max(0, Number(e.target.value || 0)),
+                        }))
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">会员每天自动拥有的免费抽奖次数</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1443,7 +1205,10 @@ export default function MemberPortalSettingsPage() {
                     新增奖品
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground -mt-2">支持 6~10 个奖品。命中率越高，被抽中的概率越大。</p>
+                <p className="text-xs text-muted-foreground -mt-2">支持 6~10 个奖品，命中率按百分比配置（仅统计启用项，总和必须为 100%）。</p>
+                <div className={cn("text-xs font-medium", isSpinRateValid ? "text-emerald-600" : "text-destructive")}>
+                  已启用奖品命中率总和：{spinRateTotal.toFixed(1)}%
+                </div>
                 <div className="space-y-2">
                   {spinPrizes.map((item, idx) => (
                     <div key={`${idx}-${item.id || "new"}`} className="rounded-xl border p-3 bg-muted/20 space-y-2">
@@ -1460,9 +1225,10 @@ export default function MemberPortalSettingsPage() {
                           min={0}
                           step={0.1}
                           value={item.hit_rate}
-                          onChange={(e) => updateSpinPrize(idx, { hit_rate: Number(e.target.value || 0) })}
+                          max={100}
+                          onChange={(e) => updateSpinPrize(idx, { hit_rate: Math.min(100, Math.max(0, Number(e.target.value || 0))) })}
                           className="w-28"
-                          placeholder="命中率"
+                          placeholder="命中率(%)"
                         />
                         <Switch checked={item.enabled !== false} onCheckedChange={(v) => updateSpinPrize(idx, { enabled: v })} />
                         <Button
@@ -1478,7 +1244,7 @@ export default function MemberPortalSettingsPage() {
                     </div>
                   ))}
                 </div>
-                <Button onClick={saveSpinPrizes} disabled={savingSpinPrizes || spinPrizes.length < 6 || spinPrizes.length > 10} className="w-full gap-2">
+                <Button onClick={saveSpinPrizes} disabled={savingSpinPrizes || spinPrizes.length < 6 || spinPrizes.length > 10 || !isSpinRateValid} className="w-full gap-2">
                   {savingSpinPrizes ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   保存抽奖奖品配置
                 </Button>
@@ -1653,6 +1419,334 @@ export default function MemberPortalSettingsPage() {
             </Card>
           </div>
         )}
+        </div>
+
+        {/* 右侧：主题颜色实时预览（始终显示） */}
+        <div className="w-[400px] shrink-0 sticky top-24 self-start">
+          <p className="text-xs font-medium text-muted-foreground mb-3">主题颜色实时预览</p>
+          <div className="rounded-[28px] border-4 border-zinc-800 overflow-hidden shadow-xl bg-black">
+            <div className="member-antd-wrap h-[72vh] min-h-[520px] max-h-[780px] flex flex-col bg-[#f1f5f9] relative">
+              <div style={{ background: previewGradient, padding: "8px 16px 4px", color: "white", flexShrink: 0 }}>
+                <div className="flex items-center justify-between text-[11px] opacity-90">
+                  <span>9:41</span>
+                  <span>5G</span>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto min-h-0">
+                <div style={{ background: previewGradient, padding: "12px 16px 88px", position: "relative", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", top: -40, right: -40, width: 120, height: 120, borderRadius: "50%", background: "rgba(245,158,11,0.08)", pointerEvents: "none" }} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+                    <div>
+                      <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, margin: 0, letterSpacing: "0.5px", textTransform: "uppercase" }}>欢迎回来</p>
+                      <h1 style={{ color: "white", fontSize: 18, fontWeight: 700, margin: "4px 0 0", letterSpacing: "-0.3px" }}>RTLCA96</h1>
+                    </div>
+                    <div style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: "rgba(255,255,255,0.7)", padding: "6px 10px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                      <LogOut className="h-3 w-3" />
+                      退出
+                    </div>
+                  </div>
+                  <div className="member-card">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        {logoPreview ? (
+                          <img src={logoPreview} alt="" style={{ width: 24, height: 24, borderRadius: 6, objectFit: "cover", border: "1px solid rgba(255,255,255,0.2)" }} />
+                        ) : null}
+                        <span style={{ color: "white", fontSize: 13, fontWeight: 800, letterSpacing: "1px" }}>
+                          {settings.company_name || "Spin & Win"}
+                        </span>
+                      </div>
+                      <span className="member-badge member-badge-gold">★ MEMBER</span>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0 }}>
+                      <div>
+                        <p style={{ display: "flex", alignItems: "center", gap: 4, color: "rgba(255,255,255,0.7)", fontSize: 10, margin: 0 }}>
+                          <Star className="h-3 w-3" style={{ color: "#f59e0b" }} />
+                          消费积分
+                          <Info className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.4)" }} />
+                        </p>
+                        <p style={{ fontSize: 16, fontWeight: 800, color: "#fbbf24", margin: "4px 0 0", lineHeight: 1.2 }}>0</p>
+                      </div>
+                      <div style={{ borderLeft: "1px solid rgba(255,255,255,0.1)", paddingLeft: 10 }}>
+                        <p style={{ display: "flex", alignItems: "center", gap: 4, color: "rgba(255,255,255,0.7)", fontSize: 10, margin: 0 }}>
+                          <Star className="h-3 w-3" style={{ color: "#34d399" }} />
+                          推广积分
+                          <Info className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.4)" }} />
+                        </p>
+                        <p style={{ fontSize: 16, fontWeight: 800, color: "#34d399", margin: "4px 0 0", lineHeight: 1.2 }}>0</p>
+                      </div>
+                      <div style={{ borderLeft: "1px solid rgba(255,255,255,0.1)", paddingLeft: 10 }}>
+                        <p style={{ display: "flex", alignItems: "center", gap: 4, color: "rgba(255,255,255,0.7)", fontSize: 10, margin: 0 }}>
+                          <Star className="h-3 w-3" style={{ color: "#a78bfa" }} />
+                          总积分
+                          <Info className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.4)" }} />
+                        </p>
+                        <p style={{ fontSize: 16, fontWeight: 800, color: "#a78bfa", margin: "4px 0 0", lineHeight: 1.2 }}>0</p>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.1)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, letterSpacing: "1px", textTransform: "uppercase" }}>Member ID</span>
+                      <span style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, fontFamily: "monospace", letterSpacing: "1.5px" }}>RTLCA96</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="member-content-area" style={{ paddingTop: 20 }}>
+                  {previewTab === "dashboard" && (
+                    <>
+                      {banners[0] && (
+                        <div style={{ marginBottom: 14, padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.08)", color: "#92400e", fontSize: 11 }}>
+                          📢 {banners[0].title || "首页轮播"}
+                        </div>
+                      )}
+
+                      {moduleOrder.includes("shortcuts") && (
+                        <>
+                          <p className="member-section-title" style={{ marginBottom: 10 }}>快捷入口</p>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+                            {settings.enable_spin && (
+                              <div className="member-shortcut-card">
+                                <div className="member-shortcut-icon" style={{ background: "linear-gradient(135deg, #fef3c7, #fde68a)" }}>
+                                  <Gift className="h-5 w-5" style={{ color: "#d97706" }} />
+                                </div>
+                                <p style={{ margin: 0, fontWeight: 700, fontSize: 12, color: "#0f172a" }}>幸运抽奖</p>
+                                <p style={{ margin: "4px 0 0", fontSize: 10, color: "#f59e0b", fontWeight: 600 }}>
+                                  每日免费{settings.daily_free_spins_per_day}次
+                                </p>
+                              </div>
+                            )}
+                            <div className="member-shortcut-card">
+                              <div className="member-shortcut-icon" style={{ background: "linear-gradient(135deg, #ede9fe, #ddd6fe)" }}>
+                                <ShoppingBag className="h-5 w-5" style={{ color: "#7c3aed" }} />
+                              </div>
+                              <p style={{ margin: 0, fontWeight: 700, fontSize: 12, color: "#0f172a" }}>积分商城</p>
+                              <p style={{ margin: "4px 0 0", fontSize: 10, color: "#64748b" }}>兑换好礼</p>
+                            </div>
+                            {settings.enable_invite && (
+                              <div className="member-shortcut-card">
+                                <div className="member-shortcut-icon" style={{ background: "linear-gradient(135deg, #dcfce7, #bbf7d0)" }}>
+                                  <Users className="h-5 w-5" style={{ color: "#059669" }} />
+                                </div>
+                                <p style={{ margin: 0, fontWeight: 700, fontSize: 12, color: "#0f172a" }}>邀请好友</p>
+                                <p style={{ margin: "4px 0 0", fontSize: 10, color: "#059669", fontWeight: 600 }}>+{settings.invite_reward_spins}次抽奖</p>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+
+                      {moduleOrder.includes("tasks") && (
+                        <>
+                          <p className="member-section-title" style={{ marginBottom: 10 }}>今日任务</p>
+                          <div style={{ background: "white", borderRadius: 12, padding: "4px 12px", boxShadow: "0 1px 3px rgba(15,23,42,0.06)", border: "1px solid rgba(15,23,42,0.05)" }}>
+                            {settings.enable_check_in && (
+                              <div className="member-task-item">
+                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                  <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(245,158,11,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>📅</div>
+                                  <div>
+                                    <p style={{ margin: 0, fontWeight: 600, fontSize: 12, color: "#0f172a" }}>每日签到</p>
+                                    <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>获得 <span style={{ color: "#f59e0b", fontWeight: 700 }}>+{settings.checkin_reward_base} 次</span> 免费抽奖</p>
+                                  </div>
+                                </div>
+                                <div style={{ padding: "4px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: "#f59e0b", color: "white" }}>签到</div>
+                              </div>
+                            )}
+                            {settings.enable_share_reward && (
+                              <div className="member-task-item">
+                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                  <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(37,211,102,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>💬</div>
+                                  <div>
+                                    <p style={{ margin: 0, fontWeight: 600, fontSize: 12, color: "#0f172a" }}>分享到 WhatsApp</p>
+                                    <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>获得 <span style={{ color: "#f59e0b", fontWeight: 700 }}>+{settings.share_reward_spins} 次</span> 抽奖机会</p>
+                                  </div>
+                                </div>
+                                <div style={{ padding: "4px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: "#25D366", color: "white" }}>分享</div>
+                              </div>
+                            )}
+                            {settings.enable_invite && (
+                              <div className="member-task-item" style={{ borderBottom: "none" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                  <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(5,150,105,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>👥</div>
+                                  <div>
+                                    <p style={{ margin: 0, fontWeight: 600, fontSize: 12, color: "#0f172a" }}>邀请好友</p>
+                                    <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>双方各得 <span style={{ color: "#f59e0b", fontWeight: 700 }}>+{settings.invite_reward_spins} 次</span> 抽奖</p>
+                                  </div>
+                                </div>
+                                <div style={{ padding: "4px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, border: "1px solid #e2e8f0", color: "#475569" }}>去邀请 →</div>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+
+                      {moduleOrder.includes("security") && (
+                        <div style={{ marginTop: 14, padding: "12px 14px", background: "linear-gradient(135deg, rgba(245,158,11,0.06), rgba(217,119,6,0.04))", borderRadius: 12, border: "1px solid rgba(245,158,11,0.12)", textAlign: "center" }}>
+                          <p style={{ margin: 0, fontSize: 11, color: "#92400e", fontWeight: 500 }}>
+                            🔐 {settings.footer_text || "账户数据安全加密，平台合规运营，请放心使用"}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {previewTab === "points" && (
+                    <div style={{ padding: "4px 0" }}>
+                      <p className="member-section-title" style={{ marginBottom: 12 }}>积分商城</p>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+                        {[1, 2, 3, 4].map((i) => (
+                          <div key={i} className="member-shortcut-card" style={{ padding: 12 }}>
+                            <div style={{ height: 72, borderRadius: 10, background: "linear-gradient(135deg, #fde68a, #f59e0b)", marginBottom: 8 }} />
+                            <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "#0f172a" }}>商品 {i}</p>
+                            <p style={{ margin: "4px 0 0", fontSize: 11, color: "#f59e0b", fontWeight: 600 }}>100 积分</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {previewTab === "spin" && (
+                    <div style={{ padding: "20px 0", textAlign: "center" }}>
+                      <p className="member-section-title" style={{ marginBottom: 16 }}>幸运抽奖</p>
+                      <div style={{ width: 140, height: 140, margin: "0 auto 16px", borderRadius: "50%", background: "linear-gradient(135deg, #fbbf24, #f59e0b)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 32px rgba(245,158,11,0.4)" }}>
+                        <Gift className="h-14 w-14" style={{ color: "white" }} />
+                      </div>
+                      <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0f172a" }}>剩余 0 次抽奖</p>
+                      <p style={{ margin: "4px 0 0", fontSize: 12, color: "#64748b" }}>完成今日任务获取更多</p>
+                    </div>
+                  )}
+                  {previewTab === "invite" && (
+                    <div style={{ padding: "4px 0" }}>
+                      <p className="member-section-title" style={{ marginBottom: 12 }}>邀请好友</p>
+                      <div style={{ padding: 16, background: "white", borderRadius: 16, boxShadow: "0 1px 3px rgba(15,23,42,0.06)", textAlign: "center" }}>
+                        <Users className="h-12 w-12" style={{ color: "#059669", margin: "0 auto 12px" }} />
+                        <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0f172a" }}>邀请好友得抽奖</p>
+                        <p style={{ margin: "8px 0 0", fontSize: 12, color: "#64748b" }}>双方各得 +3 次抽奖机会</p>
+                        <div style={{ marginTop: 16, padding: "10px 14px", borderRadius: 10, background: "#f1f5f9", fontSize: 11, color: "#64748b", fontFamily: "monospace" }}>邀请链接...</div>
+                      </div>
+                    </div>
+                  )}
+                  {previewTab === "settings" && (
+                    <div style={{ padding: "4px 0" }}>
+                      <p className="member-section-title" style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ width: 3, height: 18, borderRadius: 999, background: "#f59e0b", display: "inline-block" }} />
+                        设置
+                      </p>
+                      <div style={{ background: "white", borderRadius: 16, boxShadow: "0 1px 3px rgba(15,23,42,0.06)", overflow: "hidden" }}>
+                        {["账号与安全", "隐私设置", "关于我们"].map((label, i) => (
+                          <div key={i} style={{ padding: "20px 16px", borderBottom: i < 2 ? "1px solid rgba(15,23,42,0.06)" : "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: 14, color: "#0f172a", fontWeight: 500 }}>{label}</span>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <nav style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                background: "rgba(255,255,255,0.94)",
+                backdropFilter: "blur(20px)",
+                borderTop: "1px solid rgba(15,23,42,0.08)",
+                boxShadow: "0 -4px 20px rgba(15,23,42,0.08)",
+                padding: "8px 4px 4px",
+                paddingBottom: "max(8px, env(safe-area-inset-bottom))",
+                display: "flex",
+                justifyContent: "space-around",
+                alignItems: "flex-end",
+                flexShrink: 0,
+              }}>
+                {[
+                  { key: "dashboard" as const, icon: Home, label: "首页" },
+                  { key: "points" as const, icon: ShoppingBag, label: "积分商城" },
+                  { key: "spin" as const, icon: Gift, label: "抽奖", isSpin: true, visible: settings.enable_spin },
+                  { key: "invite" as const, icon: Users, label: "邀请", visible: settings.enable_invite },
+                  { key: "settings" as const, icon: Settings, label: "设置" },
+                ].filter((item) => item.visible !== false).map(({ key, icon: Icon, label, isSpin }) => {
+                  const isActive = previewTab === key;
+                  if (isSpin) {
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setPreviewTab(key)}
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          flex: 1,
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          paddingBottom: 6,
+                          marginTop: -22,
+                        }}
+                      >
+                        <div style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: "50%",
+                          background: isActive ? "linear-gradient(135deg, #fbbf24, #f59e0b)" : "linear-gradient(135deg, #f59e0b, #d97706)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          boxShadow: isActive ? "0 -4px 20px rgba(245,158,11,0.55)" : "0 -2px 16px rgba(245,158,11,0.35)",
+                          border: "3px solid white",
+                        }}
+                        >
+                          <Icon className="h-5 w-5" style={{ color: "white" }} />
+                        </div>
+                        <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, color: isActive ? "#d97706" : "#94a3b8", marginTop: 4 }}>{label}</span>
+                      </button>
+                    );
+                  }
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setPreviewTab(key)}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        flex: 1,
+                          position: "relative",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "4px 0 8px",
+                      }}
+                    >
+                      {isActive && (
+                        <div style={{
+                          position: "absolute",
+                          top: 0,
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          width: 30,
+                          height: 22,
+                          borderRadius: 8,
+                          background: "rgba(245,158,11,0.1)",
+                        }} />
+                      )}
+                      <Icon className="h-5 w-5" style={{ color: isActive ? "#f59e0b" : "#94a3b8", marginBottom: 2 }} />
+                      <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, color: isActive ? "#d97706" : "#94a3b8" }}>{label}</span>
+                      {isActive && (
+                        <div style={{
+                          width: 4,
+                          height: 4,
+                          borderRadius: "50%",
+                          background: "#f59e0b",
+                          marginTop: 3,
+                          boxShadow: "0 0 6px rgba(245,158,11,0.6)",
+                        }} />
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

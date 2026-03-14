@@ -98,6 +98,7 @@ interface RateSettingsTabProps {
   nairaRate: number;
   cediRate: number;
   cardsList: { id: string; name: string }[];
+  isReadOnly?: boolean;
 }
 
 // 卡片列只显示英文部分：去除括号内中文，再去除剩余 CJK 字符
@@ -142,8 +143,14 @@ export default function RateSettingsTab({
   nairaRate,
   cediRate,
   cardsList,
+  isReadOnly = false,
 }: RateSettingsTabProps) {
   const { t } = useLanguage();
+  const blockReadonly = () => {
+    if (!isReadOnly) return false;
+    toast.error(t("平台总管理查看租户时为只读，无法修改汇率设置", "Read-only in platform admin tenant view"));
+    return true;
+  };
   const [rateSettingEntries, setRateSettingEntries] = useState<RateSettingEntry[]>([]);
   const [newRateEntry, setNewRateEntry] = useState({
     country: "",
@@ -177,6 +184,7 @@ export default function RateSettingsTab({
   };
 
   const togglePosterColumn = (key: PosterColumnKey) => {
+    if (blockReadonly()) return;
     const next = posterColumns.includes(key)
       ? posterColumns.filter((c) => c !== key)
       : [...posterColumns, key].sort(
@@ -238,6 +246,7 @@ export default function RateSettingsTab({
 
   const [adding, setAdding] = useState(false);
   const handleAddRateEntry = async () => {
+    if (blockReadonly()) return;
     if (!newRateEntry.country || !newRateEntry.faceValue) {
       toast.error(t("请填写完整信息", "Please fill in all fields"));
       return;
@@ -293,6 +302,7 @@ export default function RateSettingsTab({
 
   const [updating, setUpdating] = useState(false);
   const handleUpdateRateEntry = async () => {
+    if (blockReadonly()) return;
     if (!editingRateEntry) return;
     setUpdating(true);
     try {
@@ -333,6 +343,7 @@ export default function RateSettingsTab({
   };
 
   const handleDeleteRateEntry = async (id: string) => {
+    if (blockReadonly()) return;
     try {
       const ok = await deleteRateSettingEntryAsync(id);
       if (ok) {
@@ -353,6 +364,7 @@ export default function RateSettingsTab({
   );
 
   const handleDragEnd = async (event: DragEndEvent) => {
+    if (blockReadonly()) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = rateSettingEntries.findIndex((e) => e.id === active.id);
@@ -391,7 +403,8 @@ export default function RateSettingsTab({
             <Button
               variant={currencyRatesAutoUpdate ? "default" : "outline"}
               size="sm"
-              onClick={onToggleCurrencyRatesAutoUpdate}
+              onClick={() => { if (!blockReadonly()) void onToggleCurrencyRatesAutoUpdate(); }}
+              disabled={isReadOnly}
               className="h-7 text-xs gap-1"
             >
               <Timer className="h-3 w-3" />
@@ -400,7 +413,8 @@ export default function RateSettingsTab({
             {currencyRatesAutoUpdate && (
               <Select
                 value={INTERVAL_OPTIONS.some((o) => o.value === currencyRatesInterval) ? String(currencyRatesInterval) : "7200"}
-                onValueChange={(v) => onChangeCurrencyRatesInterval(parseInt(v, 10))}
+                onValueChange={(v) => { if (!blockReadonly()) void onChangeCurrencyRatesInterval(parseInt(v, 10)); }}
+                disabled={isReadOnly}
               >
                 <SelectTrigger className="h-7 w-[100px] text-xs">
                   <SelectValue />
@@ -414,7 +428,7 @@ export default function RateSettingsTab({
                 </SelectContent>
               </Select>
             )}
-            <Button variant="outline" size="sm" onClick={() => onRefreshCurrencyRates(true)} className="h-7 text-xs gap-1">
+            <Button variant="outline" size="sm" onClick={() => { if (!blockReadonly()) void onRefreshCurrencyRates(true); }} disabled={isReadOnly} className="h-7 text-xs gap-1">
               <RefreshCw className="h-3 w-3" />
               {t("手动更新", "Manual Update")}
             </Button>
@@ -431,6 +445,7 @@ export default function RateSettingsTab({
                 <Checkbox
                   checked={posterColumns.includes(key)}
                   onCheckedChange={() => togglePosterColumn(key)}
+                  disabled={isReadOnly}
                 />
                 {posterColumnLabels[key]}
               </label>
@@ -588,7 +603,7 @@ export default function RateSettingsTab({
               />
             </div>
             <div className="flex items-end">
-              <Button onClick={handleAddRateEntry} size="sm" className="h-8 w-full gap-1" disabled={adding}>
+              <Button onClick={handleAddRateEntry} size="sm" className="h-8 w-full gap-1" disabled={isReadOnly || adding}>
                 <Plus className="h-3.5 w-3.5" />
                 {adding ? t("保存中...", "Saving...") : t("添加", "Add")}
               </Button>
@@ -625,7 +640,7 @@ export default function RateSettingsTab({
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={rateSettingEntries.map((e) => e.id)} strategy={verticalListSortingStrategy}>
                   {rateSettingEntries.map((entry) => (
-                    <SortableTableRow key={entry.id} id={entry.id} disabled={!!editingRateEntry}>
+                    <SortableTableRow key={entry.id} id={entry.id} disabled={isReadOnly || !!editingRateEntry}>
                   {editingRateEntry?.id === entry.id ? (
                     <>
                       <TableCell className="text-center">
@@ -723,7 +738,7 @@ export default function RateSettingsTab({
                         <div className="flex items-center justify-center gap-1">
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="default" size="sm" className="h-7 gap-1">
+                              <Button variant="default" size="sm" className="h-7 gap-1" disabled={isReadOnly || updating}>
                                 {t("保存", "Save")}
                               </Button>
                             </AlertDialogTrigger>
@@ -736,11 +751,11 @@ export default function RateSettingsTab({
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleUpdateRateEntry}>{t("确认", "Confirm")}</AlertDialogAction>
+                                <AlertDialogAction onClick={handleUpdateRateEntry} disabled={isReadOnly || updating}>{t("确认", "Confirm")}</AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
-                          <Button variant="outline" size="sm" className="h-7" onClick={() => setEditingRateEntry(null)}>
+                          <Button variant="outline" size="sm" className="h-7" onClick={() => setEditingRateEntry(null)} disabled={isReadOnly || updating}>
                             {t("取消", "Cancel")}
                           </Button>
                         </div>
@@ -766,12 +781,12 @@ export default function RateSettingsTab({
                       <TableCell className="text-center">{entry.profitRate}%</TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingRateEntry(entry)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingRateEntry(entry)} disabled={isReadOnly}>
                             <Pencil className="h-3 w-3" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" disabled={isReadOnly}>
                                 <Trash2 className="h-3 w-3" />
                               </Button>
                             </AlertDialogTrigger>
@@ -784,7 +799,7 @@ export default function RateSettingsTab({
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteRateEntry(entry.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                <AlertDialogAction onClick={() => handleDeleteRateEntry(entry.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={isReadOnly}>
                                   {t("删除", "Delete")}
                                 </AlertDialogAction>
                               </AlertDialogFooter>

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logOperation } from '@/stores/auditLogStore';
+import { fetchMerchantCards, fetchMerchantVendors, fetchMerchantPaymentProviders } from '@/services/merchantConfigReadService';
 
 export interface CardItem {
   id: string;
@@ -38,47 +39,41 @@ export interface PaymentProvider {
 
 // ============= Standalone fetch functions =============
 export async function fetchCardsFromDb(): Promise<CardItem[]> {
-  const { data, error } = await supabase
-    .from('cards')
-    .select('*')
-    .order('sort_order', { ascending: true, nullsFirst: false })
-    .order('name', { ascending: true });
-  if (error) throw error;
-  return (data || []).map(c => ({
-    id: c.id, name: c.name, type: c.type || '',
-    status: c.status as "active" | "inactive",
-    remark: c.remark || '', createdAt: c.created_at.split('T')[0],
-    cardVendors: c.card_vendors || [], sortOrder: c.sort_order || 0,
+  const rows = await fetchMerchantCards();
+  return rows.map((c) => ({
+    id: c.id,
+    name: c.name,
+    type: c.type,
+    status: c.status,
+    remark: c.remark,
+    createdAt: c.createdAt,
+    cardVendors: c.cardVendors,
+    sortOrder: c.sortOrder,
   }));
 }
 
 export async function fetchVendorsFromDb(): Promise<Vendor[]> {
-  const { data, error } = await supabase
-    .from('vendors')
-    .select('*')
-    .order('sort_order', { ascending: true, nullsFirst: false })
-    .order('name', { ascending: true });
-  if (error) throw error;
-  return (data || []).map(v => ({
-    id: v.id, name: v.name,
-    status: v.status as "active" | "inactive",
-    remark: v.remark || '', createdAt: v.created_at.split('T')[0],
-    paymentProviders: v.payment_providers || [], sortOrder: v.sort_order || 0,
+  const rows = await fetchMerchantVendors();
+  return rows.map((v) => ({
+    id: v.id,
+    name: v.name,
+    status: v.status,
+    remark: v.remark,
+    createdAt: v.createdAt,
+    paymentProviders: v.paymentProviders,
+    sortOrder: v.sortOrder,
   }));
 }
 
 export async function fetchPaymentProvidersFromDb(): Promise<PaymentProvider[]> {
-  const { data, error } = await supabase
-    .from('payment_providers')
-    .select('*')
-    .order('sort_order', { ascending: true, nullsFirst: false })
-    .order('name', { ascending: true });
-  if (error) throw error;
-  return (data || []).map(p => ({
-    id: p.id, name: p.name,
-    status: p.status as "active" | "inactive",
-    remark: p.remark || '', createdAt: p.created_at.split('T')[0],
-    sortOrder: p.sort_order || 0,
+  const rows = await fetchMerchantPaymentProviders();
+  return rows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    status: p.status,
+    remark: p.remark,
+    createdAt: p.createdAt,
+    sortOrder: p.sortOrder,
   }));
 }
 

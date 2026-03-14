@@ -30,12 +30,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
 import {
-  phoneBulkImport,
-  getPhoneStats,
-  clearPhonePool,
-  getExtractSettings,
-  updateExtractSettings,
+  phoneBulkImportResult,
+  getPhoneStatsResult,
+  clearPhonePoolResult,
+  getExtractSettingsResult,
+  updateExtractSettingsResult,
   getExtractRecords,
   type PhoneStats,
   type ExtractRecord,
@@ -55,6 +56,7 @@ export function PhoneExtractSettingsSection() {
   const { t } = useLanguage();
   const tenantId = viewingTenantId || employee?.tenant_id;
   const effectiveTenantId = tenantId ?? "";
+  const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
 
   const [bulkText, setBulkText] = useState(() => {
     try {
@@ -84,8 +86,12 @@ export function PhoneExtractSettingsSection() {
     setStatsError(false);
     setStatsLoading(true);
     try {
-      const s = await getPhoneStats(effectiveTenantId);
-      setStats(s);
+      const s = await getPhoneStatsResult(effectiveTenantId);
+      if (s.ok) {
+        setStats(s.data);
+      } else {
+        setStatsError(true);
+      }
     } catch (e) {
       console.error("Phone stats load failed:", e);
       setStatsError(true);
@@ -96,8 +102,8 @@ export function PhoneExtractSettingsSection() {
 
   const loadSettings = useCallback(async () => {
     try {
-      const s = await getExtractSettings();
-      setSettings(s);
+      const s = await getExtractSettingsResult();
+      if (s.ok) setSettings(s.data);
     } catch (e) {
       console.error(e);
     }
@@ -146,6 +152,10 @@ export function PhoneExtractSettingsSection() {
 
   const handleImport = async () => {
     if (!effectiveTenantId) return;
+    if (isPlatformAdminReadonlyView) {
+      toast.error(t("平台总管理查看租户时为只读，无法导入号码", "Read-only in platform admin tenant view"));
+      return;
+    }
     const lines = bulkText
       .split(/\r?\n/)
       .map((l) => l.trim())
@@ -158,7 +168,7 @@ export function PhoneExtractSettingsSection() {
     setImportProgress(0);
     setImportStatus("");
     try {
-      const { inserted, skipped } = await phoneBulkImport(
+      const importResult = await phoneBulkImportResult(
         effectiveTenantId,
         lines,
         (progress, currentChunk, totalChunks) => {
@@ -170,6 +180,10 @@ export function PhoneExtractSettingsSection() {
           );
         }
       );
+      if (!importResult.ok) {
+        throw importResult.error;
+      }
+      const { inserted, skipped } = importResult.data;
       setImportProgress(100);
       setImportStatus("");
       if (inserted === 0 && skipped > 0) {
@@ -225,9 +239,14 @@ export function PhoneExtractSettingsSection() {
 
   const handleClearPool = async () => {
     if (!effectiveTenantId) return;
+    if (isPlatformAdminReadonlyView) {
+      toast.error(t("平台总管理查看租户时为只读，无法清空号码池", "Read-only in platform admin tenant view"));
+      return;
+    }
     setClearingPool(true);
     try {
-      await clearPhonePool(effectiveTenantId);
+      const cleared = await clearPhonePoolResult(effectiveTenantId);
+      if (!cleared.ok) throw cleared.error;
       await loadStats();
       toast.success(t("号码池已清空", "Pool cleared"));
       setShowClearPoolConfirm(false);
@@ -239,19 +258,28 @@ export function PhoneExtractSettingsSection() {
   };
 
   const handleOpenSettings = () => {
+    if (isPlatformAdminReadonlyView) {
+      toast.error(t("平台总管理查看租户时为只读，无法修改设置", "Read-only in platform admin tenant view"));
+      return;
+    }
     setSettingsForm({ per_extract_limit: settings.per_extract_limit, per_user_daily_limit: settings.per_user_daily_limit });
     setShowSettingsModal(true);
   };
 
   const handleSaveSettings = async () => {
+    if (isPlatformAdminReadonlyView) {
+      toast.error(t("平台总管理查看租户时为只读，无法保存设置", "Read-only in platform admin tenant view"));
+      return;
+    }
     setSavingSettings(true);
     try {
-      await updateExtractSettings(settingsForm.per_extract_limit, settingsForm.per_user_daily_limit);
+      const updated = await updateExtractSettingsResult(settingsForm.per_extract_limit, settingsForm.per_user_daily_limit);
+      if (!updated.ok) throw updated.error;
       await loadSettings();
       setShowSettingsModal(false);
       toast.success(t("设置已保存", "Settings saved"));
     } catch (e: any) {
-      if (e?.message === "FORBIDDEN_ADMIN_ONLY") {
+      if ((e?.code || e?.message) === "FORBIDDEN_ADMIN_ONLY") {
         toast.error(t("仅管理员可修改", "Admin only"));
       } else {
         toast.error(t("保存失败", "Save failed"));
@@ -344,11 +372,11 @@ export function PhoneExtractSettingsSection() {
               className="hidden"
               onChange={handleFileUpload}
             />
-            <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+            <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isPlatformAdminReadonlyView || importing}>
               <FileUp className="h-3.5 w-3.5 mr-1.5" />
               {t("上传文件", "Upload")}
             </Button>
-            <Button size="sm" onClick={handleImport} disabled={importing || !bulkText.trim()}>
+            <Button size="sm" onClick={handleImport} disabled={isPlatformAdminReadonlyView || importing || !bulkText.trim()}>
               {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Upload className="h-3.5 w-3.5 mr-1.5" />}
               {t("标准化并导入", "Normalize & Import")}
             </Button>
@@ -435,7 +463,7 @@ export function PhoneExtractSettingsSection() {
 
         {/* Admin: Clear pool */}
         {isAdmin && (
-          <Button size="sm" variant="destructive" className="w-full" onClick={() => setShowClearPoolConfirm(true)}>
+          <Button size="sm" variant="destructive" className="w-full" disabled={isPlatformAdminReadonlyView} onClick={() => setShowClearPoolConfirm(true)}>
             <Trash2 className="h-3.5 w-3.5 mr-1.5" />
             {t("清空号码池（管理员）", "Clear Pool (Admin)")}
           </Button>

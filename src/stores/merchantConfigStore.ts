@@ -4,6 +4,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { logOperation } from './auditLogStore';
+import { fetchMerchantCards, fetchMerchantPaymentProviders, fetchMerchantVendors } from '@/services/merchantConfigReadService';
 
 // ============= Types =============
 
@@ -45,45 +46,39 @@ export async function initializeMerchantConfigCache(): Promise<void> {
   if (cacheInitialized) return;
   
   try {
-    // 并行加载所有数据 - 使用 sort_order 升序排列（1在最上面），名称作为第二排序
+    // 统一经由 merchantConfigReadService 读取，保证 Hook/Store/页面排序和字段一致
     const [cardsResult, vendorsResult, providersResult, typesResult] = await Promise.all([
-      supabase.from('cards').select('*').order('sort_order', { ascending: true, nullsFirst: false }).order('name', { ascending: true }),
-      supabase.from('vendors').select('*').order('sort_order', { ascending: true, nullsFirst: false }).order('name', { ascending: true }),
-      supabase.from('payment_providers').select('*').order('sort_order', { ascending: true, nullsFirst: false }).order('name', { ascending: true }),
+      fetchMerchantCards(),
+      fetchMerchantVendors(),
+      fetchMerchantPaymentProviders(),
       supabase.from('card_types').select('*').order('sort_order', { ascending: true, nullsFirst: false }).order('name', { ascending: true }),
     ]);
 
-    if (cardsResult.data) {
-      cardsCache = cardsResult.data.map(c => ({
-        id: c.id,
-        name: c.name,
-        type: c.type || '',
-        status: c.status as "active" | "inactive",
-        remark: c.remark || '',
-        createdAt: c.created_at.split('T')[0],
-        cardVendors: c.card_vendors || [],
-      }));
-    }
+    cardsCache = cardsResult.map(c => ({
+      id: c.id,
+      name: c.name,
+      type: c.type,
+      status: c.status,
+      remark: c.remark,
+      createdAt: c.createdAt,
+      cardVendors: c.cardVendors || [],
+    }));
 
-    if (vendorsResult.data) {
-      vendorsCache = vendorsResult.data.map(v => ({
-        id: v.id,
-        name: v.name,
-        status: v.status as "active" | "inactive",
-        remark: v.remark || '',
-        createdAt: v.created_at.split('T')[0],
-      }));
-    }
+    vendorsCache = vendorsResult.map(v => ({
+      id: v.id,
+      name: v.name,
+      status: v.status,
+      remark: v.remark,
+      createdAt: v.createdAt,
+    }));
 
-    if (providersResult.data) {
-      paymentProvidersCache = providersResult.data.map(p => ({
-        id: p.id,
-        name: p.name,
-        status: p.status as "active" | "inactive",
-        remark: p.remark || '',
-        createdAt: p.created_at.split('T')[0],
-      }));
-    }
+    paymentProvidersCache = providersResult.map(p => ({
+      id: p.id,
+      name: p.name,
+      status: p.status,
+      remark: p.remark,
+      createdAt: p.createdAt,
+    }));
 
     if (typesResult.data) {
       cardTypesCache = typesResult.data.map(t => t.name);
@@ -99,21 +94,15 @@ export async function initializeMerchantConfigCache(): Promise<void> {
 // ============= 刷新缓存 =============
 async function refreshCardsCache(): Promise<void> {
   try {
-    const { data, error } = await supabase
-      .from('cards')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    
-    cardsCache = (data || []).map(c => ({
+    const data = await fetchMerchantCards();
+    cardsCache = data.map(c => ({
       id: c.id,
       name: c.name,
-      type: c.type || '',
-      status: c.status as "active" | "inactive",
-      remark: c.remark || '',
-      createdAt: c.created_at.split('T')[0],
-      cardVendors: c.card_vendors || [],
+      type: c.type,
+      status: c.status,
+      remark: c.remark,
+      createdAt: c.createdAt,
+      cardVendors: c.cardVendors || [],
     }));
   } catch (error) {
     console.error('[MerchantConfig] Failed to refresh cards cache:', error);
@@ -122,19 +111,13 @@ async function refreshCardsCache(): Promise<void> {
 
 async function refreshVendorsCache(): Promise<void> {
   try {
-    const { data, error } = await supabase
-      .from('vendors')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    
-    vendorsCache = (data || []).map(v => ({
+    const data = await fetchMerchantVendors();
+    vendorsCache = data.map(v => ({
       id: v.id,
       name: v.name,
-      status: v.status as "active" | "inactive",
-      remark: v.remark || '',
-      createdAt: v.created_at.split('T')[0],
+      status: v.status,
+      remark: v.remark,
+      createdAt: v.createdAt,
     }));
   } catch (error) {
     console.error('[MerchantConfig] Failed to refresh vendors cache:', error);
@@ -143,19 +126,13 @@ async function refreshVendorsCache(): Promise<void> {
 
 async function refreshPaymentProvidersCache(): Promise<void> {
   try {
-    const { data, error } = await supabase
-      .from('payment_providers')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    
-    paymentProvidersCache = (data || []).map(p => ({
+    const data = await fetchMerchantPaymentProviders();
+    paymentProvidersCache = data.map(p => ({
       id: p.id,
       name: p.name,
-      status: p.status as "active" | "inactive",
-      remark: p.remark || '',
-      createdAt: p.created_at.split('T')[0],
+      status: p.status,
+      remark: p.remark,
+      createdAt: p.createdAt,
     }));
   } catch (error) {
     console.error('[MerchantConfig] Failed to refresh payment providers cache:', error);

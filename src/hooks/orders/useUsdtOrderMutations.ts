@@ -4,15 +4,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logOperation } from '@/stores/auditLogStore';
 import {
-  createPointsOnOrderCreate,
   reversePointsOnOrderCancel,
   restorePointsOnOrderRestore,
 } from '@/services/pointsService';
-import { getEmployeeNameById, getVendorId, getProviderId, getCardIdByName, resolveVendorName, resolveProviderName } from '@/services/nameResolver';
-import { logOrderBalanceChange, logOrderCancelBalanceChange, logOrderRestoreBalanceChange } from '@/services/balanceLogService';
+import { getVendorId, getProviderId, getCardIdByName, resolveVendorName, resolveProviderName } from '@/services/nameResolver';
+import { logOrderCancelBalanceChange, logOrderRestoreBalanceChange } from '@/services/balanceLogService';
 import { formatBeijingTime, calculateOrderPointsAsync, generateUniqueOrderNumber } from './utils';
 import type { UsdtOrder, OrderResult } from './types';
 import { notifyDataMutation } from '@/services/dataRefreshManager';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTenantView } from '@/contexts/TenantViewContext';
+import { runCreateOrderSideEffects } from '@/services/orderSideEffectOrchestrator';
 
 export interface UseUsdtOrderMutationsParams {
   orders: UsdtOrder[];
@@ -24,6 +26,14 @@ export interface UseUsdtOrderMutationsParams {
 
 export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
   const { orders, setOrders, fetchOrders, viewingTenantId, queryClient } = params;
+  const { employee } = useAuth() || {};
+  const { isViewingTenant } = useTenantView() || {};
+  const isPlatformAdminReadonlyView = !!(
+    employee?.is_platform_super_admin &&
+    isViewingTenant &&
+    viewingTenantId &&
+    viewingTenantId !== employee?.tenant_id
+  );
 
   const addOrder = useCallback(
     async (
@@ -31,8 +41,8 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
       memberId?: string,
       employeeId?: string
     ): Promise<OrderResult> => {
-      if (viewingTenantId) {
-        toast.error('只读模式，无法新增订单');
+      if (isPlatformAdminReadonlyView) {
+        toast.error('平台总管理查看租户时为只读，无法新增订单');
         return { order: null, earnedPoints: 0 };
       }
       try {
@@ -82,37 +92,6 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         const dbUuid = data.id;
         const memberCode = (data as any).member_code_snapshot || orderData.memberCode;
 
-        let earnedPoints = 0;
-        if (orderPoints > 0 && memberCode && orderData.phoneNumber) {
-          try {
-            const pointsResult = await createPointsOnOrderCreate({
-              orderId: dbUuid,
-              orderPhoneNumber: orderData.phoneNumber,
-              memberCode: memberCode,
-              actualPayment: orderData.actualPaidUsdt,
-              currency: 'USDT',
-              creatorId: employeeId,
-            });
-
-            if (pointsResult.success) {
-              earnedPoints = orderPoints;
-
-              (async () => {
-                try {
-                  await supabase
-                    .from('orders')
-                    .update({ points_status: 'added' })
-                    .eq('id', dbUuid);
-                } catch (err) {
-                  console.error('[useUsdtOrders] Points status update failed:', err);
-                }
-              })();
-            }
-          } catch (err) {
-            console.error('[useUsdtOrders] Points creation failed:', err);
-          }
-        }
-
         const newOrder: UsdtOrder = {
           id: data.order_number,
           dbId: dbUuid,
@@ -137,35 +116,32 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
           remark: orderData.remark,
           status: 'completed',
           order_points: orderPoints,
-          points_status: earnedPoints > 0 ? 'added' : 'none',
+          points_status: 'none',
         };
-
-        const vendorName = resolveVendorName(orderData.vendor);
-        const providerName = resolveProviderName(orderData.paymentProvider);
-
-        try {
-          await logOrderBalanceChange({
-            vendorName,
-            providerName,
+        const orchestrated = await runCreateOrderSideEffects({
+          dbId: dbUuid,
+          orderNumber: data.order_number,
+          order: {
+            id: newOrder.id,
+            cardType: newOrder.cardType,
+            cardValue: newOrder.cardValue,
             cardWorth: newOrder.cardWorth,
             paymentValue: newOrder.paymentValue,
             actualPaid: newOrder.actualPaidUsdt,
-            currency: 'USDT',
+            demandCurrency: 'USDT',
             foreignRate: newOrder.usdtRate,
-            orderId: dbUuid,
-            orderNumber: data.order_number,
-            operatorId: employeeId,
-            operatorName: employeeId ? getEmployeeNameById(employeeId) : undefined,
-          });
-        } catch (logErr) {
-          console.error('[useUsdtOrders] Balance log failed:', logErr);
-        }
-
-        queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
-        queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
-        queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
-        queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        notifyDataMutation({ table: 'orders', operation: 'INSERT', source: 'mutation' }).catch(console.error);
+            vendor: newOrder.vendor,
+            paymentProvider: newOrder.paymentProvider,
+            phoneNumber: newOrder.phoneNumber,
+            memberCode: newOrder.memberCode,
+          },
+          orderPoints,
+          employeeId,
+          createdAt: data.created_at,
+          queryClient,
+        });
+        const earnedPoints = orchestrated.earnedPoints;
+        newOrder.points_status = orchestrated.pointsStatus;
         return { order: newOrder as any, earnedPoints };
       } catch (error) {
         console.error('Failed to add USDT order:', error);
@@ -173,13 +149,13 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         return { order: null, earnedPoints: 0 };
       }
     },
-    [viewingTenantId, queryClient]
+    [isPlatformAdminReadonlyView, queryClient]
   );
 
   const cancelOrder = useCallback(
     async (dbId: string): Promise<boolean> => {
-      if (viewingTenantId) {
-        toast.error('只读模式，无法取消订单');
+      if (isPlatformAdminReadonlyView) {
+        toast.error('平台总管理查看租户时为只读，无法取消订单');
         return false;
       }
       try {
@@ -243,13 +219,13 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         return false;
       }
     },
-    [orders, setOrders, fetchOrders, viewingTenantId, queryClient]
+    [orders, setOrders, fetchOrders, isPlatformAdminReadonlyView, queryClient]
   );
 
   const restoreOrder = useCallback(
     async (dbId: string): Promise<boolean> => {
-      if (viewingTenantId) {
-        toast.error('只读模式，无法恢复订单');
+      if (isPlatformAdminReadonlyView) {
+        toast.error('平台总管理查看租户时为只读，无法恢复订单');
         return false;
       }
       try {
@@ -329,13 +305,13 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         return false;
       }
     },
-    [orders, setOrders, fetchOrders, viewingTenantId, queryClient]
+    [orders, setOrders, fetchOrders, isPlatformAdminReadonlyView, queryClient]
   );
 
   const deleteOrder = useCallback(
     async (dbId: string): Promise<boolean> => {
-      if (viewingTenantId) {
-        toast.error('只读模式，无法删除订单');
+      if (isPlatformAdminReadonlyView) {
+        toast.error('平台总管理查看租户时为只读，无法删除订单');
         return false;
       }
       try {
@@ -421,7 +397,7 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         return false;
       }
     },
-    [orders, setOrders, fetchOrders, viewingTenantId, queryClient]
+    [orders, setOrders, fetchOrders, isPlatformAdminReadonlyView, queryClient]
   );
 
   return {

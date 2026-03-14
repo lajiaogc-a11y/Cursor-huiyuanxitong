@@ -1,0 +1,285 @@
+﻿
+            {/* σÅ│Σ╛º∩╝ÜΣ╕╗ΘóÿΘó£Φë▓σ«₧µù╢ΘóäΦºê∩╝êΣ╕Äσëìτ½»Σ╝Üσæÿτ½»Σ╕ÇΦç┤ + σ║òΘâ¿σ»╝Φê¬σêçµìó∩╝ë */}
+            <div className="w-[400px] shrink-0 sticky top-24 self-start">
+              <p className="text-xs font-medium text-muted-foreground mb-3">Σ╕╗ΘóÿΘó£Φë▓σ«₧µù╢ΘóäΦºê</p>
+              <div className="rounded-[28px] border-4 border-zinc-800 overflow-hidden shadow-xl bg-black">
+                <div className="member-antd-wrap h-[72vh] min-h-[520px] max-h-[780px] flex flex-col bg-[#f1f5f9] relative">
+                  {/* µëïµ£║τè╢µÇüµáÅ */}
+                  <div style={{ background: previewGradient, padding: "8px 16px 4px", color: "white", flexShrink: 0 }}>
+                    <div className="flex items-center justify-between text-[11px] opacity-90">
+                      <span>9:41</span>
+                      <span>5G</span>
+                    </div>
+                  </div>
+                  {/* σÅ»µ╗Üσè¿σåàσ«╣σî║ */}
+                  <div className="flex-1 overflow-y-auto min-h-0">
+                    {/* Φï▒Θ¢äσî║∩╝Üµ¼óΦ┐Äσ¢₧µ¥Ñ + Σ╝Üσæÿσìí */}
+                    <div style={{ background: previewGradient, padding: "12px 16px 88px", position: "relative", overflow: "hidden" }}>
+                      <div style={{ position: "absolute", top: -40, right: -40, width: 120, height: 120, borderRadius: "50%", background: "rgba(245,158,11,0.08)", pointerEvents: "none" }} />
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+                        <div>
+                          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, margin: 0, letterSpacing: "0.5px", textTransform: "uppercase" }}>µ¼óΦ┐Äσ¢₧µ¥Ñ</p>
+                          <h1 style={{ color: "white", fontSize: 18, fontWeight: 700, margin: "4px 0 0", letterSpacing: "-0.3px" }}>RTLCA96</h1>
+                        </div>
+                        <div style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: "rgba(255,255,255,0.7)", padding: "6px 10px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                          <LogOut className="h-3 w-3" />
+                          ΘÇÇσç║
+                        </div>
+                      </div>
+                      {/* Σ╝Üσæÿσìí */}
+                      <div className="member-card">
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            {logoPreview ? (
+                              <img src={logoPreview} alt="" style={{ width: 24, height: 24, borderRadius: 6, objectFit: "cover", border: "1px solid rgba(255,255,255,0.2)" }} />
+                            ) : null}
+                            <span style={{ color: "white", fontSize: 13, fontWeight: 800, letterSpacing: "1px" }}>
+                              {settings.company_name || "Spin & Win"}
+                            </span>
+                          </div>
+                          <span className="member-badge member-badge-gold">Γÿà MEMBER</span>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0 }}>
+                          <div>
+                            <p style={{ display: "flex", alignItems: "center", gap: 4, color: "rgba(255,255,255,0.7)", fontSize: 10, margin: 0 }}>
+                              <Star className="h-3 w-3" style={{ color: "#f59e0b" }} />
+                              µ╢êΦ┤╣τº»σêå
+                              <Info className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.4)" }} />
+                            </p>
+                            <p style={{ fontSize: 16, fontWeight: 800, color: "#fbbf24", margin: "4px 0 0", lineHeight: 1.2 }}>0</p>
+                          </div>
+                          <div style={{ borderLeft: "1px solid rgba(255,255,255,0.1)", paddingLeft: 10 }}>
+                            <p style={{ display: "flex", alignItems: "center", gap: 4, color: "rgba(255,255,255,0.7)", fontSize: 10, margin: 0 }}>
+                              <Star className="h-3 w-3" style={{ color: "#34d399" }} />
+                              µÄ¿σ╣┐τº»σêå
+                              <Info className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.4)" }} />
+                            </p>
+                            <p style={{ fontSize: 16, fontWeight: 800, color: "#34d399", margin: "4px 0 0", lineHeight: 1.2 }}>0</p>
+                          </div>
+                          <div style={{ borderLeft: "1px solid rgba(255,255,255,0.1)", paddingLeft: 10 }}>
+                            <p style={{ display: "flex", alignItems: "center", gap: 4, color: "rgba(255,255,255,0.7)", fontSize: 10, margin: 0 }}>
+                              <Star className="h-3 w-3" style={{ color: "#a78bfa" }} />
+                              µÇ╗τº»σêå
+                              <Info className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.4)" }} />
+                            </p>
+                            <p style={{ fontSize: 16, fontWeight: 800, color: "#a78bfa", margin: "4px 0 0", lineHeight: 1.2 }}>0</p>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.1)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, letterSpacing: "1px", textTransform: "uppercase" }}>Member ID</span>
+                          <span style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, fontFamily: "monospace", letterSpacing: "1.5px" }}>RTLCA96</span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* σåàσ«╣σî║∩╝Üµîë previewTab µÿ╛τñ║Σ╕ìσÉîΘí╡Θ¥ó */}
+                    <div className="member-content-area" style={{ paddingTop: 20 }}>
+                      {previewTab === "dashboard" && (
+                        <>
+                          {banners[0] && (
+                            <div style={{ marginBottom: 14, padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.08)", color: "#92400e", fontSize: 11 }}>
+                              ≡ƒôó {banners[0].title || "ΘªûΘí╡Φ╜«µÆ¡"}
+                            </div>
+                          )}
+                          <p className="member-section-title" style={{ marginBottom: 10 }}>σ┐½µì╖σàÑσÅú</p>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+                            <div className="member-shortcut-card">
+                              <div className="member-shortcut-icon" style={{ background: "linear-gradient(135deg, #fef3c7, #fde68a)" }}>
+                                <Gift className="h-5 w-5" style={{ color: "#d97706" }} />
+                              </div>
+                              <p style={{ margin: 0, fontWeight: 700, fontSize: 12, color: "#0f172a" }}>σ╣╕Φ┐Éµè╜σÑû</p>
+                              <p style={{ margin: "4px 0 0", fontSize: 10, color: "#f59e0b", fontWeight: 600 }}>σë⌐Σ╜Ö0µ¼í</p>
+                            </div>
+                            <div className="member-shortcut-card">
+                              <div className="member-shortcut-icon" style={{ background: "linear-gradient(135deg, #ede9fe, #ddd6fe)" }}>
+                                <ShoppingBag className="h-5 w-5" style={{ color: "#7c3aed" }} />
+                              </div>
+                              <p style={{ margin: 0, fontWeight: 700, fontSize: 12, color: "#0f172a" }}>τº»σêåσòåσƒÄ</p>
+                              <p style={{ margin: "4px 0 0", fontSize: 10, color: "#64748b" }}>σàæµìóσÑ╜τñ╝</p>
+                            </div>
+                            <div className="member-shortcut-card">
+                              <div className="member-shortcut-icon" style={{ background: "linear-gradient(135deg, #dcfce7, #bbf7d0)" }}>
+                                <Users className="h-5 w-5" style={{ color: "#059669" }} />
+                              </div>
+                              <p style={{ margin: 0, fontWeight: 700, fontSize: 12, color: "#0f172a" }}>ΘéÇΦ»╖σÑ╜σÅï</p>
+                              <p style={{ margin: "4px 0 0", fontSize: 10, color: "#059669", fontWeight: 600 }}>+3µ¼íµè╜σÑû</p>
+                            </div>
+                          </div>
+                          <p className="member-section-title" style={{ marginBottom: 10 }}>Σ╗èµùÑΣ╗╗σèí</p>
+                          <div style={{ background: "white", borderRadius: 12, padding: "4px 12px", boxShadow: "0 1px 3px rgba(15,23,42,0.06)", border: "1px solid rgba(15,23,42,0.05)" }}>
+                            <div className="member-task-item">
+                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(245,158,11,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>≡ƒôà</div>
+                                <div>
+                                  <p style={{ margin: 0, fontWeight: 600, fontSize: 12, color: "#0f172a" }}>µ»ÅµùÑτ¡╛σê░</p>
+                                  <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>ΦÄ╖σ╛ù <span style={{ color: "#f59e0b", fontWeight: 700 }}>+1 µ¼í</span> σàìΦ┤╣µè╜σÑû</p>
+                                </div>
+                              </div>
+                              <div style={{ padding: "4px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: "#f59e0b", color: "white" }}>τ¡╛σê░</div>
+                            </div>
+                            <div className="member-task-item">
+                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(37,211,102,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>≡ƒÆ¼</div>
+                                <div>
+                                  <p style={{ margin: 0, fontWeight: 600, fontSize: 12, color: "#0f172a" }}>σêåΣ║½σê░ WhatsApp</p>
+                                  <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>ΦÄ╖σ╛ù <span style={{ color: "#f59e0b", fontWeight: 700 }}>+1 µ¼í</span> µè╜σÑûµ£║Σ╝Ü</p>
+                                </div>
+                              </div>
+                              <div style={{ padding: "4px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: "#25D366", color: "white" }}>σêåΣ║½</div>
+                            </div>
+                            <div className="member-task-item" style={{ borderBottom: "none" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(5,150,105,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>≡ƒæÑ</div>
+                                <div>
+                                  <p style={{ margin: 0, fontWeight: 600, fontSize: 12, color: "#0f172a" }}>ΘéÇΦ»╖σÑ╜σÅï</p>
+                                  <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>σÅîµû╣σÉäσ╛ù <span style={{ color: "#f59e0b", fontWeight: 700 }}>+3 µ¼í</span> µè╜σÑû</p>
+                                </div>
+                              </div>
+                              <div style={{ padding: "4px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, border: "1px solid #e2e8f0", color: "#475569" }}>σÄ╗ΘéÇΦ»╖ ΓåÆ</div>
+                            </div>
+                          </div>
+                          <div style={{ marginTop: 14, padding: "12px 14px", background: "linear-gradient(135deg, rgba(245,158,11,0.06), rgba(217,119,6,0.04))", borderRadius: 12, border: "1px solid rgba(245,158,11,0.12)", textAlign: "center" }}>
+                            <p style={{ margin: 0, fontSize: 11, color: "#92400e", fontWeight: 500 }}>
+                              ≡ƒöÉ {settings.footer_text || "Φ┤ªµê╖µò░µì«σ«ëσà¿σèáσ»å∩╝îσ╣│σÅ░σÉêΦºäΦ┐ÉΦÉÑ∩╝îΦ»╖µö╛σ┐âΣ╜┐τö¿"}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                      {previewTab === "points" && (
+                        <div style={{ padding: "4px 0" }}>
+                          <p className="member-section-title" style={{ marginBottom: 12 }}>τº»σêåσòåσƒÄ</p>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+                            {[1, 2, 3, 4].map((i) => (
+                              <div key={i} className="member-shortcut-card" style={{ padding: 12 }}>
+                                <div style={{ height: 72, borderRadius: 10, background: "linear-gradient(135deg, #fde68a, #f59e0b)", marginBottom: 8 }} />
+                                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "#0f172a" }}>σòåσôü {i}</p>
+                                <p style={{ margin: "4px 0 0", fontSize: 11, color: "#f59e0b", fontWeight: 600 }}>100 τº»σêå</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {previewTab === "spin" && (
+                        <div style={{ padding: "20px 0", textAlign: "center" }}>
+                          <p className="member-section-title" style={{ marginBottom: 16 }}>σ╣╕Φ┐Éµè╜σÑû</p>
+                          <div style={{ width: 140, height: 140, margin: "0 auto 16px", borderRadius: "50%", background: "linear-gradient(135deg, #fbbf24, #f59e0b)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 32px rgba(245,158,11,0.4)" }}>
+                            <Gift className="h-14 w-14" style={{ color: "white" }} />
+                          </div>
+                          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0f172a" }}>σë⌐Σ╜Ö 0 µ¼íµè╜σÑû</p>
+                          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#64748b" }}>σ«îµêÉΣ╗èµùÑΣ╗╗σèíΦÄ╖σÅûµ¢┤σñÜ</p>
+                        </div>
+                      )}
+                      {previewTab === "invite" && (
+                        <div style={{ padding: "4px 0" }}>
+                          <p className="member-section-title" style={{ marginBottom: 12 }}>ΘéÇΦ»╖σÑ╜σÅï</p>
+                          <div style={{ padding: 16, background: "white", borderRadius: 16, boxShadow: "0 1px 3px rgba(15,23,42,0.06)", textAlign: "center" }}>
+                            <Users className="h-12 w-12" style={{ color: "#059669", margin: "0 auto 12px" }} />
+                            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0f172a" }}>ΘéÇΦ»╖σÑ╜σÅïσ╛ùµè╜σÑû</p>
+                            <p style={{ margin: "8px 0 0", fontSize: 12, color: "#64748b" }}>σÅîµû╣σÉäσ╛ù +3 µ¼íµè╜σÑûµ£║Σ╝Ü</p>
+                            <div style={{ marginTop: 16, padding: "10px 14px", borderRadius: 10, background: "#f1f5f9", fontSize: 11, color: "#64748b", fontFamily: "monospace" }}>ΘéÇΦ»╖Θô╛µÄÑ...</div>
+                          </div>
+                        </div>
+                      )}
+                      {previewTab === "settings" && (
+                        <div style={{ padding: "4px 0" }}>
+                          <p className="member-section-title" style={{ marginBottom: 12 }}>Φ«╛τ╜«</p>
+                          <div style={{ background: "white", borderRadius: 16, boxShadow: "0 1px 3px rgba(15,23,42,0.06)", overflow: "hidden" }}>
+                            {["Φ┤ªσÅ╖Σ╕Äσ«ëσà¿", "ΘÜÉτºüΦ«╛τ╜«", "σà│Σ║ÄµêæΣ╗¼"].map((label, i) => (
+                              <div key={i} style={{ padding: "14px 16px", borderBottom: i < 2 ? "1px solid rgba(15,23,42,0.06)" : "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <span style={{ fontSize: 14, color: "#0f172a" }}>{label}</span>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* σ║òΘâ¿σ»╝Φê¬µáÅ */}
+                  <nav style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    background: "rgba(255,255,255,0.94)",
+                    backdropFilter: "blur(20px)",
+                    borderTop: "1px solid rgba(15,23,42,0.08)",
+                    boxShadow: "0 -4px 20px rgba(15,23,42,0.08)",
+                    padding: "8px 4px 4px",
+                    paddingBottom: "max(8px, env(safe-area-inset-bottom))",
+                    display: "flex",
+                    justifyContent: "space-around",
+                    alignItems: "flex-end",
+                    flexShrink: 0,
+                  }}>
+                    {[
+                      { key: "dashboard" as const, icon: Home, label: "ΘªûΘí╡" },
+                      { key: "points" as const, icon: ShoppingBag, label: "τº»σêåσòåσƒÄ" },
+                      { key: "spin" as const, icon: Gift, label: "µè╜σÑû", isSpin: true },
+                      { key: "invite" as const, icon: Users, label: "ΘéÇΦ»╖" },
+                      { key: "settings" as const, icon: Settings, label: "Φ«╛τ╜«" },
+                    ].map(({ key, icon: Icon, label, isSpin }) => {
+                      const isActive = previewTab === key;
+                      if (isSpin) {
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setPreviewTab(key)}
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              flex: 1,
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              paddingBottom: 6,
+                              marginTop: -22,
+                            }}
+                          >
+                            <div style={{
+                              width: 48,
+                              height: 48,
+                              borderRadius: "50%",
+                              background: isActive ? "linear-gradient(135deg, #fbbf24, #f59e0b)" : "linear-gradient(135deg, #f59e0b, #d97706)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              boxShadow: isActive ? "0 -4px 20px rgba(245,158,11,0.55)" : "0 -2px 16px rgba(245,158,11,0.35)",
+                              border: "3px solid white",
+                            }}
+                            >
+                              <Icon className="h-5 w-5" style={{ color: "white" }} />
+                            </div>
+                            <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, color: isActive ? "#d97706" : "#94a3b8", marginTop: 4 }}>{label}</span>
+                          </button>
+                        );
+                      }
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setPreviewTab(key)}
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            flex: 1,
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "4px 0 8px",
+                          }}
+                        >
+                          <Icon className="h-5 w-5" style={{ color: isActive ? "#f59e0b" : "#94a3b8", marginBottom: 2 }} />
+                          <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, color: isActive ? "#d97706" : "#94a3b8" }}>{label}</span>
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+

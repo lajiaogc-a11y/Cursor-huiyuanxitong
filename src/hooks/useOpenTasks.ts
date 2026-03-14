@@ -3,13 +3,15 @@
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { getOpenTasks } from '@/services/taskService';
+import { getOpenTasksResult } from '@/services/taskService';
 
 const STALE_TIME = 5 * 60 * 1000;
 
 async function fetchOpenTasks(tenantId: string | null): Promise<{ id: string; title: string; created_at: string; total_items: number }[]> {
   if (!tenantId) return [];
-  return getOpenTasks(tenantId);
+  const result = await getOpenTasksResult(tenantId);
+  if (!result.ok) return [];
+  return result.data;
 }
 
 async function fetchTaskSettingsEmployees(tenantId: string | null): Promise<{ id: string; real_name: string }[]> {

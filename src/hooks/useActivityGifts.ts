@@ -8,6 +8,7 @@ import { logOperation } from '@/stores/auditLogStore';
 import { getEmployeeNameById, getActivityTypeLabelByValue } from '@/services/nameResolver';
 import { logGiftBalanceChange } from '@/services/balanceLogService';
 import { notifyDataMutation } from '@/services/dataRefreshManager';
+import { useIsPlatformAdminViewingTenant } from '@/hooks/useIsPlatformAdminViewingTenant';
 
 function generateGiftNumber(): string {
   const now = new Date();
@@ -99,6 +100,7 @@ export async function fetchActivityGiftsFromDb(): Promise<ActivityGift[]> {
 
 export function useActivityGifts() {
   const queryClient = useQueryClient();
+  const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
 
   const { data: gifts = [], isLoading: loading } = useQuery({
     queryKey: ['activity-gifts'],
@@ -129,6 +131,10 @@ export function useActivityGifts() {
 
   const addGift = async (giftData: Omit<ActivityGift, 'id' | 'createdAt'>, memberId?: string, employeeId?: string): Promise<ActivityGift | null> => {
     try {
+      if (isPlatformAdminReadonlyView) {
+        toast.error('平台总管理查看租户时为只读，无法新增活动赠送');
+        return null;
+      }
       const giftNumber = await generateUniqueGiftNumber();
       const dbGift = {
         gift_number: giftNumber,

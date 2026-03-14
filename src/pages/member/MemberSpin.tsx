@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { format } from "date-fns";
-import { Button, Collapse, Empty } from "antd";
-import { GiftOutlined, HistoryOutlined, TrophyOutlined } from "@ant-design/icons";
+import { Button, Collapse, Empty, Tooltip } from "antd";
+import { GiftOutlined, HistoryOutlined, TrophyOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useMemberSpinQuota } from "@/hooks/useMemberSpinQuota";
 import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
@@ -67,6 +67,19 @@ export default function MemberSpin() {
       rateText: `${(((segmentRates[i] || 0) / total) * 100).toFixed(1)}%`,
     }));
   }, [segments, segmentRates]);
+  const hitRateTipContent = useMemo(
+    () => (
+      <div style={{ minWidth: 180 }}>
+        {segmentLabelMap.map((x, idx) => (
+          <div key={`${x.name}-${idx}`} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12 }}>
+            <span>{x.name}</span>
+            <span style={{ fontWeight: 700 }}>{x.rateText}</span>
+          </div>
+        ))}
+      </div>
+    ),
+    [segmentLabelMap]
+  );
 
   const loadSpinHistory = useCallback(() => {
     if (!member) return;
@@ -254,8 +267,11 @@ export default function MemberSpin() {
           zIndex: 1,
         }}>
           <h1 style={{ color: "white", fontSize: 19, fontWeight: 800, margin: 0, letterSpacing: "-0.3px" }}>
-            好运转盘
+            幸运抽奖
           </h1>
+          <p style={{ margin: "4px 0 0", fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+            转动转盘赢取积分、话费与现金奖励
+          </p>
           <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6 }}>
             <div style={{
               background: "linear-gradient(135deg, #f59e0b, #d97706)",
@@ -398,25 +414,35 @@ export default function MemberSpin() {
 
           <div style={{ width: "100%", maxWidth: 360, marginBottom: 16 }}>
             <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)",
-              gap: 8,
+              background: "rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 12,
+              padding: "10px 12px",
+              color: "rgba(255,255,255,0.85)",
+              fontSize: 12,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
             }}>
-              {segmentLabelMap.map((x, idx) => (
-                <div key={`${x.name}-${idx}`} style={{
-                  background: "rgba(255,255,255,0.1)",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  borderRadius: 10,
-                  padding: "6px 8px",
-                  color: "rgba(255,255,255,0.88)",
-                  fontSize: 12,
-                  display: "flex",
-                  justifyContent: "space-between",
-                }}>
-                  <span>{x.name}</span>
-                  <span style={{ color: "#fbbf24", fontWeight: 700 }}>{x.rateText}</span>
-                </div>
-              ))}
+              <span>奖品概率说明</span>
+              <Tooltip title={hitRateTipContent} placement="topRight">
+                <button
+                  type="button"
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    color: "#fbbf24",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    cursor: "pointer",
+                    fontSize: 12,
+                  }}
+                >
+                  <InfoCircleOutlined />
+                  查看
+                </button>
+              </Tooltip>
             </div>
           </div>
 
@@ -433,7 +459,7 @@ export default function MemberSpin() {
               borderRadius: 14, letterSpacing: "0.5px",
             }}
           >
-            {spinning ? "抽奖中..." : remaining <= 0 ? "暂无抽奖机会" : "开始抽奖"}
+            {spinning ? "抽奖中..." : remaining <= 0 ? "暂无抽奖机会" : "立即抽奖"}
           </Button>
 
           {remaining <= 0 && !spinning && (
@@ -449,11 +475,16 @@ export default function MemberSpin() {
                 {
                   key: "history",
                   label: (
-                    <span style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255,255,255,0.8)", fontWeight: 600 }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 8, color: "#0f172a", fontWeight: 700 }}>
                       <HistoryOutlined />
                       我的抽奖记录
                     </span>
                   ),
+                  style: {
+                    background: "rgba(255,255,255,0.96)",
+                    borderRadius: 12,
+                    border: "1px solid rgba(15,23,42,0.06)",
+                  },
                   children:
                     spinHistory.length === 0 ? (
                       <Empty description={<span style={{ color: "#64748b" }}>暂无抽奖记录</span>} image={Empty.PRESENTED_IMAGE_SIMPLE} />
@@ -481,7 +512,7 @@ export default function MemberSpin() {
                 },
               ]}
               style={{
-                background: "rgba(255,255,255,0.08)",
+                background: "rgba(255,255,255,0.14)",
                 borderRadius: 16,
                 border: "1px solid rgba(255,255,255,0.1)",
               }}

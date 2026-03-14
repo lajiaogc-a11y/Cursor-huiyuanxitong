@@ -47,6 +47,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
 import { supabase } from "@/integrations/supabase/client";
 import {
   getEmployees,
@@ -76,6 +77,7 @@ export default function EmployeeManagement() {
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
   const { t, language } = useLanguage();
+  const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
   const queryClient = useQueryClient();
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['employees-management', viewingTenantId ?? '', currentEmployee?.tenant_id ?? ''],
@@ -111,6 +113,11 @@ export default function EmployeeManagement() {
   });
 
   const isAdminOrManager = currentEmployee?.role === 'admin' || currentEmployee?.role === 'manager';
+  const blockReadonly = (actionZh: string, actionEn: string) => {
+    if (!isPlatformAdminReadonlyView) return false;
+    toast.error(t(`平台总管理查看租户时为只读，无法${actionZh}`, `Read-only in platform admin tenant view: cannot ${actionEn}`));
+    return true;
+  };
   
   // 总管理员：来自 Auth 或当前员工列表（平台总管理员查看租户时可能不在列表中）
   const isSuperAdmin = currentEmployee?.is_super_admin === true || employees.find(e => e.id === currentEmployee?.id)?.is_super_admin === true;
@@ -143,12 +150,14 @@ export default function EmployeeManagement() {
   };
 
   const handleResetPassword = (employee: Employee) => {
+    if (blockReadonly("重置密码", "reset password")) return;
     setResetTarget(employee);
     setNewPassword("");
     setIsResetPasswordOpen(true);
   };
 
   const confirmResetPassword = async () => {
+    if (blockReadonly("重置密码", "reset password")) return;
     if (!resetTarget || !newPassword.trim()) {
       toast.error(t('employees.enterPassword'));
       return;
@@ -251,6 +260,7 @@ export default function EmployeeManagement() {
   };
 
   const handleAdd = () => {
+    if (blockReadonly("新增员工", "add employee")) return;
     setEditingEmployee(null);
     setFormData({
       username: "",
@@ -262,6 +272,7 @@ export default function EmployeeManagement() {
   };
 
   const handleEdit = (employee: Employee) => {
+    if (blockReadonly("编辑员工", "edit employee")) return;
     setEditingEmployee(employee);
     setFormData({
       username: employee.username,
@@ -273,6 +284,7 @@ export default function EmployeeManagement() {
   };
 
   const handleSave = async () => {
+    if (blockReadonly(editingEmployee ? "编辑员工" : "新增员工", editingEmployee ? "edit employee" : "add employee")) return;
     if (!formData.username || !formData.real_name) {
       toast.error(t('employees.fillRequired'));
       return;
@@ -374,6 +386,7 @@ export default function EmployeeManagement() {
   };
 
   const confirmDeleteEmployee = async () => {
+    if (blockReadonly("删除员工", "delete employee")) return;
     if (!deletingEmployee) return;
     if (!canModifyEmployee(deletingEmployee)) {
       toast.error(deletingEmployee.is_super_admin ? t('employees.superAdminNotModify') : t('employees.onlySuperAdminModify'));
@@ -410,6 +423,7 @@ export default function EmployeeManagement() {
   };
 
   const handleToggleStatus = async (employee: Employee) => {
+    if (blockReadonly("修改员工状态", "change employee status")) return;
     if (!canModifyEmployee(employee)) {
       if (employee.is_super_admin) {
         toast.error(t('employees.superAdminNotModify'));
@@ -513,6 +527,10 @@ export default function EmployeeManagement() {
                         <Switch
                           checked={employee.visible}
                           onCheckedChange={async () => {
+                            if (isPlatformAdminReadonlyView) {
+                              toast.error(t("平台总管理查看租户时为只读，无法修改员工可见性", "Read-only in platform admin tenant view: cannot change employee visibility"));
+                              return;
+                            }
                             if (!canModifyEmployee(employee)) return;
                             await updateEmployee(employee.id, { visible: !employee.visible });
                             refetch();
@@ -590,6 +608,10 @@ export default function EmployeeManagement() {
                             <Switch
                               checked={employee.visible}
                               onCheckedChange={async () => {
+                                if (isPlatformAdminReadonlyView) {
+                                  toast.error(t("平台总管理查看租户时为只读，无法修改员工可见性", "Read-only in platform admin tenant view: cannot change employee visibility"));
+                                  return;
+                                }
                                 if (!canModifyEmployee(employee)) {
                                   if (employee.is_super_admin) {
                                     toast.error(t('employees.superAdminNotModify'));

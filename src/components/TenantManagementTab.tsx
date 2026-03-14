@@ -24,6 +24,7 @@ import {
 import { syncAuthPassword } from "@/services/authPasswordSyncService";
 
 const TENANT_FORM_DRAFT_KEY = "tenant_management_form_draft_v1";
+const SYSTEM_TENANT_CODE = "platform";
 
 export default function TenantManagementTab() {
   const { t } = useLanguage();
@@ -471,7 +472,16 @@ export default function TenantManagementTab() {
                 tenants.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-mono text-xs">{item.tenant_code}</TableCell>
-                    <TableCell>{item.tenant_name}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span>{item.tenant_name}</span>
+                        {item.tenant_code === SYSTEM_TENANT_CODE ? (
+                          <Badge variant="secondary">
+                            {t("系统租户（不可用于业务数据）", "System Tenant (Not for business data)")}
+                          </Badge>
+                        ) : null}
+                      </div>
+                    </TableCell>
                     <TableCell className="font-mono text-xs">{item.admin_username || "-"}</TableCell>
                     <TableCell>{item.admin_real_name || "-"}</TableCell>
                     <TableCell>
@@ -485,7 +495,7 @@ export default function TenantManagementTab() {
                           variant="outline"
                           size="sm"
                           onClick={() => openSetSuperAdminDialog(item)}
-                          disabled={settingSuperAdmin === item.id}
+                          disabled={settingSuperAdmin === item.id || item.tenant_code === SYSTEM_TENANT_CODE}
                         >
                           {settingSuperAdmin === item.id ? t("设置中...", "Setting...") : (
                             <>
@@ -494,15 +504,30 @@ export default function TenantManagementTab() {
                             </>
                           )}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => openEditDialog(item)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditDialog(item)}
+                          disabled={item.tenant_code === SYSTEM_TENANT_CODE}
+                        >
                           <Pencil className="h-3.5 w-3.5 mr-1.5" />
                           {t("编辑", "Edit")}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => openResetPwdDialog(item)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openResetPwdDialog(item)}
+                          disabled={item.tenant_code === SYSTEM_TENANT_CODE}
+                        >
                           <KeyRound className="h-3.5 w-3.5 mr-1.5" />
                           {t("重置密码", "Reset Pwd")}
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(item)}>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => openDeleteDialog(item)}
+                          disabled={item.tenant_code === SYSTEM_TENANT_CODE}
+                        >
                           <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                           {t("删除", "Delete")}
                         </Button>

@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
-import { queryClient } from '@/lib/queryClient';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { emitDataRefresh, emitLegacyEvents, queueQueryInvalidations } from '@/services/dataConsistencyHub';
 
 type DataTable =
   | 'orders'
@@ -85,20 +85,6 @@ const TABLE_LEGACY_EVENTS: Record<DataTable, string[]> = {
 
 let refreshChannel: RealtimeChannel | null = null;
 let initialized = false;
-const pendingQueryKeys = new Set<string>();
-let flushTimer: ReturnType<typeof setTimeout> | null = null;
-
-function queueInvalidate(queryKey: string[]) {
-  pendingQueryKeys.add(queryKey.join('::'));
-  if (flushTimer) return;
-  flushTimer = setTimeout(() => {
-    flushTimer = null;
-    for (const key of pendingQueryKeys) {
-      queryClient.invalidateQueries({ queryKey: key.split('::') });
-    }
-    pendingQueryKeys.clear();
-  }, 80);
-}
 
 async function clearStoreCachesByTable(table: DataTable) {
   if (table === 'points_ledger') {
@@ -123,23 +109,11 @@ async function clearStoreCachesByTable(table: DataTable) {
   }
 }
 
-function emitLegacyEvents(table: DataTable) {
-  for (const eventName of TABLE_LEGACY_EVENTS[table]) {
-    window.dispatchEvent(new CustomEvent(eventName));
-  }
-}
-
-function emitDataRefreshEvent(payload: DataRefreshPayload) {
-  window.dispatchEvent(new CustomEvent('data-refresh', { detail: payload }));
-}
-
 export async function notifyDataMutation(payload: DataRefreshPayload) {
   const queryKeys = TABLE_QUERY_KEYS[payload.table] || [];
-  for (const queryKey of queryKeys) {
-    queueInvalidate(queryKey);
-  }
-  emitLegacyEvents(payload.table);
-  emitDataRefreshEvent(payload);
+  queueQueryInvalidations(queryKeys);
+  emitLegacyEvents(TABLE_LEGACY_EVENTS[payload.table]);
+  emitDataRefresh(payload);
   await clearStoreCachesByTable(payload.table);
 }
 

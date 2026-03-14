@@ -4,7 +4,12 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getTenantOrdersFull, getTenantUsdtOrdersFull } from '@/services/tenantService';
+import {
+  getMyTenantOrdersFullResult,
+  getMyTenantUsdtOrdersFullResult,
+  getTenantOrdersFullResult,
+  getTenantUsdtOrdersFullResult,
+} from '@/services/tenantService';
 import { loadSharedData } from '@/services/sharedDataService';
 
 const STALE_TIME = 5 * 60 * 1000; // 5 分钟
@@ -24,9 +29,11 @@ async function fetchActivityDataContent(
   effectiveTenantId: string | null,
   useMyTenantRpc: boolean
 ): Promise<ActivityDataContentResult> {
-  const [normalOrders, usdtOrders] = effectiveTenantId && !useMyTenantRpc
-    ? await Promise.all([getTenantOrdersFull(effectiveTenantId), getTenantUsdtOrdersFull(effectiveTenantId)])
-    : await Promise.all([getMyTenantOrdersFull(), getMyTenantUsdtOrdersFull()]);
+  const [normalOrdersRes, usdtOrdersRes] = effectiveTenantId && !useMyTenantRpc
+    ? await Promise.all([getTenantOrdersFullResult(effectiveTenantId), getTenantUsdtOrdersFullResult(effectiveTenantId)])
+    : await Promise.all([getMyTenantOrdersFullResult(), getMyTenantUsdtOrdersFullResult()]);
+  const normalOrders = normalOrdersRes.ok ? normalOrdersRes.data : [];
+  const usdtOrders = usdtOrdersRes.ok ? usdtOrdersRes.data : [];
   const allOrders = [...(normalOrders || []), ...(usdtOrders || [])].sort(
     (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );

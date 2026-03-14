@@ -5,8 +5,8 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { queryClient } from "@/lib/queryClient";
-import { isUserTyping } from "@/lib/performanceUtils";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { queueQueryInvalidations } from "@/services/dataConsistencyHub";
 
 // ============= 事件类型 =============
 export type RealtimeEventType =
@@ -50,34 +50,6 @@ function setStatus(status: RealtimeConnectionStatus) {
   statusListeners.forEach((cb) => cb(status));
 }
 
-// ============= 节流式 Query 失效 =============
-const pendingInvalidations = new Set<string>();
-let invalidationTimer: ReturnType<typeof setTimeout> | null = null;
-
-function scheduleInvalidation(queryKey: string | string[]) {
-  const key = Array.isArray(queryKey) ? queryKey.join(":") : queryKey;
-  pendingInvalidations.add(key);
-  if (!invalidationTimer) {
-    invalidationTimer = setTimeout(() => {
-      invalidationTimer = null;
-      if (isUserTyping(1500)) {
-        // 用户正在输入，延迟 500ms 再执行
-        setTimeout(flushInvalidations, 500);
-        return;
-      }
-      flushInvalidations();
-    }, 200);
-  }
-}
-
-function flushInvalidations() {
-  pendingInvalidations.forEach((key) => {
-    const parts = key.split(":");
-    queryClient.invalidateQueries({ queryKey: parts });
-  });
-  pendingInvalidations.clear();
-}
-
 // ============= 事件分发 =============
 function emitEvent(payload: RealtimeEventPayload) {
   // 派发 DOM 自定义事件（供非 React 代码使用）
@@ -118,7 +90,7 @@ function mapTableChangeToEvent(
       break;
     case "balance_change_logs":
       payload.type = "balance_update";
-      scheduleInvalidation(["points-ledger", "merchant-settlement", "dashboard"]);
+      queueQueryInvalidations([["points-ledger"], ["merchant-settlement"], ["dashboard"]]);
       break;
     case "points_ledger":
     case "ledger_transactions":
@@ -129,23 +101,23 @@ function mapTableChangeToEvent(
     case "task_items":
     case "task_item_logs":
       payload.type = "task_update";
-      scheduleInvalidation(["task-progress", "open-tasks"]);
+      queueQueryInvalidations([["task-progress"], ["open-tasks"]]);
       window.dispatchEvent(new CustomEvent("tasks-updated"));
       break;
     case "notifications":
       payload.type = "chat_message";
-      scheduleInvalidation(["notifications", "pending-count"]);
+      queueQueryInvalidations([["notifications"], ["pending-count"]]);
       window.dispatchEvent(new CustomEvent("notifications-updated"));
       break;
     case "shared_data_store":
       payload.type = "rate_update";
-      scheduleInvalidation(["shared-config", "currency-rates", "fee-settings", "dashboard-trend"]);
+      queueQueryInvalidations([["shared-config"], ["currency-rates"], ["fee-settings"], ["dashboard-trend"]]);
       window.dispatchEvent(new CustomEvent("shared-data-updated", { detail: payload }));
       window.dispatchEvent(new CustomEvent("report-cache-invalidate"));
       break;
     case "audit_records":
       payload.type = "audit_update";
-      scheduleInvalidation(["audit-records", "audit-pending-count"]);
+      queueQueryInvalidations([["audit-records"], ["audit-pending-count"]]);
       window.dispatchEvent(new CustomEvent("audit-records-updated", { detail: payload }));
       break;
     case "activity_gifts":

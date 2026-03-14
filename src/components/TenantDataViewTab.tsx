@@ -7,6 +7,8 @@ import { useTenantView } from "@/contexts/TenantViewContext";
 import { listTenants, type TenantItem } from "@/services/tenantService";
 import { toast } from "sonner";
 
+const SYSTEM_TENANT_CODE = "platform";
+
 export default function TenantDataViewTab() {
   const { t } = useLanguage();
   const { enterTenant } = useTenantView() || {};
@@ -33,6 +35,10 @@ export default function TenantDataViewTab() {
 
   const handleEnterTenant = async (tenant: TenantItem) => {
     if (!enterTenant) return;
+    if (tenant.tenant_code === SYSTEM_TENANT_CODE) {
+      toast.error(t("系统租户仅用于平台总后台，不可进入业务数据视图", "System tenant is platform-only and cannot be used for business data view"));
+      return;
+    }
     setEntering(tenant.id);
     try {
       await enterTenant(tenant.id, tenant.tenant_name || tenant.tenant_code || "", tenant.tenant_code || "");
@@ -55,7 +61,7 @@ export default function TenantDataViewTab() {
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground mb-4">
-          {t("点击「进入租户」后，将以该租户视角浏览全部真实数据（仪表盘、订单、会员、员工等），只读模式，租户不会收到任何通知。", "Click 'Enter Tenant' to browse all real data as that tenant (dashboard, orders, members, employees, etc.). Read-only mode, tenant will not be notified.")}
+          {t("点击「进入租户」后，将以该租户视角浏览全部真实数据（仪表盘、订单、会员、员工等）；平台总管理员在该视角下为只读，租户不会收到任何通知。", "Click 'Enter Tenant' to browse all real data as that tenant (dashboard, orders, members, employees, etc.); platform super admins are read-only in this view, and tenants are not notified.")}
         </p>
         {loading ? (
           <div className="py-8 text-center text-muted-foreground">{t("加载中...", "Loading...")}</div>
@@ -64,7 +70,6 @@ export default function TenantDataViewTab() {
         ) : (
           <div className="space-y-2">
             {tenants
-              .filter((item) => item.tenant_code !== "platform")
               .map((item) => (
                 <div
                   key={item.id}
@@ -73,12 +78,17 @@ export default function TenantDataViewTab() {
                   <div>
                     <span className="font-medium">{item.tenant_name}</span>
                     <span className="text-muted-foreground ml-2 font-mono text-sm">({item.tenant_code})</span>
+                    {item.tenant_code === SYSTEM_TENANT_CODE ? (
+                      <span className="text-xs text-amber-600 ml-2">
+                        {t("系统租户（不可用于业务数据）", "System Tenant (Not for business data)")}
+                      </span>
+                    ) : null}
                   </div>
                   <Button
                     variant="default"
                     size="sm"
                     onClick={() => handleEnterTenant(item)}
-                    disabled={entering === item.id}
+                    disabled={entering === item.id || item.tenant_code === SYSTEM_TENANT_CODE}
                   >
                     {entering === item.id ? (
                       t("进入中...", "Entering...")

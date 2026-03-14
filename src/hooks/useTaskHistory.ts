@@ -3,7 +3,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { getTaskProgressList, type TaskProgressOverview } from '@/services/taskService';
+import { getTaskProgressListResult, type TaskProgressOverview } from '@/services/taskService';
 
 const STALE_TIME = 5 * 60 * 1000;
 
@@ -15,12 +15,14 @@ async function fetchTaskHistory(params: {
 }): Promise<TaskProgressOverview[]> {
   const { tenantId, employeeId, startDate, endDate } = params;
   if (!tenantId) return [];
-  return getTaskProgressList({
+  const result = await getTaskProgressListResult({
     tenantId,
     employeeId: employeeId && employeeId !== 'all' ? employeeId : undefined,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
   });
+  if (!result.ok) return [];
+  return result.data;
 }
 
 async function fetchTaskEmployees(tenantId: string | null): Promise<{ id: string; real_name: string }[]> {

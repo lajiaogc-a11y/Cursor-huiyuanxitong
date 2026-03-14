@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fail, getErrorMessage, ok, ServiceResult } from "@/services/serviceResult";
 
 export interface TenantItem {
   id: string;
@@ -469,4 +470,66 @@ export async function setTenantSuperAdmin(employeeId: string): Promise<{ success
     success: !!row.success,
     errorCode: row.error_code || undefined,
   };
+}
+
+function mapTenantError(error: unknown) {
+  const message = getErrorMessage(error);
+  if (message.includes("MULTI_TENANT_NOT_READY")) {
+    return fail("MULTI_TENANT_NOT_READY", "Multi-tenant module not ready", "TENANT", error);
+  }
+  if (message.includes("EMPTY_RESULT")) {
+    return fail("EMPTY_RESULT", "Empty result", "TENANT", error);
+  }
+  if (message.includes("tenant_not_found")) {
+    return fail("TENANT_NOT_FOUND", "Tenant not found", "TENANT", error);
+  }
+  if (message.includes("admin_not_found")) {
+    return fail("ADMIN_NOT_FOUND", "Admin not found", "TENANT", error);
+  }
+  return fail("UNKNOWN", message || "Tenant service failed", "TENANT", error, true);
+}
+
+export async function listTenantsResult(): Promise<ServiceResult<TenantItem[]>> {
+  try {
+    const data = await listTenants();
+    return ok(data);
+  } catch (error) {
+    return mapTenantError(error);
+  }
+}
+
+export async function getTenantOrdersFullResult(tenantId: string): Promise<ServiceResult<any[]>> {
+  try {
+    const data = await getTenantOrdersFull(tenantId);
+    return ok(data);
+  } catch (error) {
+    return mapTenantError(error);
+  }
+}
+
+export async function getTenantUsdtOrdersFullResult(tenantId: string): Promise<ServiceResult<any[]>> {
+  try {
+    const data = await getTenantUsdtOrdersFull(tenantId);
+    return ok(data);
+  } catch (error) {
+    return mapTenantError(error);
+  }
+}
+
+export async function getMyTenantOrdersFullResult(): Promise<ServiceResult<any[]>> {
+  try {
+    const data = await getMyTenantOrdersFull();
+    return ok(data);
+  } catch (error) {
+    return mapTenantError(error);
+  }
+}
+
+export async function getMyTenantUsdtOrdersFullResult(): Promise<ServiceResult<any[]>> {
+  try {
+    const data = await getMyTenantUsdtOrdersFull();
+    return ok(data);
+  } catch (error) {
+    return mapTenantError(error);
+  }
 }

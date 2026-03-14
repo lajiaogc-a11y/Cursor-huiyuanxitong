@@ -25,6 +25,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
 import {
   generateCustomerList,
   createCustomerMaintenanceTask,
@@ -55,6 +56,7 @@ export default function TasksSettings() {
   const { viewingTenantId } = useTenantView() || {};
   const { t } = useLanguage();
   const tenantId = viewingTenantId || employee?.tenant_id;
+  const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
   const [datePreset, setDatePreset] = useState<DateRangePreset>("last_week");
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -70,6 +72,10 @@ export default function TasksSettings() {
   const { employees } = useTaskSettingsEmployees(tenantId ?? null, dialogOpen);
 
   const handleCloseTask = async (taskId: string) => {
+    if (isPlatformAdminReadonlyView) {
+      toast.error(t("平台总管理查看租户时为只读，无法取消任务", "Read-only in platform admin tenant view: cannot cancel task"));
+      return;
+    }
     if (!tenantId) return;
     setClosingId(taskId);
     try {
@@ -86,6 +92,10 @@ export default function TasksSettings() {
   };
 
   const handleGenerate = async () => {
+    if (isPlatformAdminReadonlyView) {
+      toast.error(t("平台总管理查看租户时为只读，无法生成名单", "Read-only in platform admin tenant view: cannot generate list"));
+      return;
+    }
     if (!tenantId) {
       toast.error(t("请先选择租户", "Please select tenant first"));
       return;
@@ -110,6 +120,10 @@ export default function TasksSettings() {
   };
 
   const handleCreateTask = async () => {
+    if (isPlatformAdminReadonlyView) {
+      toast.error(t("平台总管理查看租户时为只读，无法创建任务", "Read-only in platform admin tenant view: cannot create task"));
+      return;
+    }
     if (selectedIds.length === 0 || phones.length === 0) {
       toast.error(t("请选择员工并确保有名单", "Select employees and ensure list exists"));
       return;
@@ -184,7 +198,7 @@ export default function TasksSettings() {
               </p>
             </div>
           </div>
-          <Button onClick={handleGenerate} disabled={generating}>
+          <Button onClick={handleGenerate} disabled={isPlatformAdminReadonlyView || generating}>
             {generating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             {t("生成名单", "Generate List")}
           </Button>
@@ -251,7 +265,7 @@ export default function TasksSettings() {
                         <AlertDialogAction
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           onClick={() => handleCloseTask(task.id)}
-                          disabled={closingId === task.id}
+                          disabled={isPlatformAdminReadonlyView || closingId === task.id}
                         >
                           {closingId === task.id ? <Loader2 className="h-4 w-4 animate-spin" /> : t("取消任务", "Cancel Task")}
                         </AlertDialogAction>
@@ -317,7 +331,7 @@ export default function TasksSettings() {
             ))}
           </div>
           <DialogFooter>
-            <Button onClick={handleCreateTask} disabled={loading}>
+            <Button onClick={handleCreateTask} disabled={isPlatformAdminReadonlyView || loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {t("创建并分配", "Create & Assign")}
             </Button>

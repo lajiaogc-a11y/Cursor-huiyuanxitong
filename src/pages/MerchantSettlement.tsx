@@ -85,6 +85,7 @@ import ProviderManagementDialog from "@/components/ProviderManagementDialog";
 import { MerchantType } from "@/stores/merchantSettlementStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
 import { getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getTenantOrdersFull, getTenantUsdtOrdersFull } from "@/services/tenantService";
 import { useFieldPermissions } from "@/hooks/useFieldPermissions";
 import { supabase } from "@/integrations/supabase/client";
@@ -155,10 +156,16 @@ export default function MerchantSettlement() {
   const useCompactLayout = isMobile || isTablet;
   const { checkPermission } = useFieldPermissions();
   const { t, tr } = useLanguage();
+  const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
   // 编辑余额权限 - 控制提款/充值/初始余额/撤回操作
   const canEditBalance = useMemo(() => {
-    return checkPermission('merchant_settlement', 'edit_balance').canEdit;
-  }, [checkPermission]);
+    return checkPermission('merchant_settlement', 'edit_balance').canEdit && !isPlatformAdminReadonlyView;
+  }, [checkPermission, isPlatformAdminReadonlyView]);
+  const blockReadonly = (action: string) => {
+    if (!isPlatformAdminReadonlyView) return false;
+    sonnerToast.error(`平台总管理查看租户时为只读，无法${action}`);
+    return true;
+  };
   
   // 商家名称解析器 - 实时获取最新商家名称
   const { resolveVendorName, resolveProviderName } = useMerchantNameResolver();
@@ -609,6 +616,7 @@ export default function MerchantSettlement() {
   };
 
   const handleSaveInitialBalance = async () => {
+    if (blockReadonly("设置初始余额")) return;
     const amount = parseFloat(initialBalanceAmount);
     if (isNaN(amount)) {
       showSubmissionError("请输入有效数值");
@@ -641,6 +649,7 @@ export default function MerchantSettlement() {
   };
 
   const handleSaveWithdrawal = async () => {
+    if (blockReadonly("录入提款")) return;
     const amountUsdt = parseFloat(withdrawalAmountUsdt);
     const rate = parseFloat(withdrawalUsdtRate);
     
@@ -737,6 +746,7 @@ export default function MerchantSettlement() {
   };
 
   const handleConfirmUndo = async () => {
+    if (blockReadonly("撤回操作")) return;
     if (!employee?.username) {
       setUndoAuthError('无法获取当前账号信息');
       return;
@@ -804,6 +814,7 @@ export default function MerchantSettlement() {
   };
 
   const handleSaveEditWithdrawal = async () => {
+    if (blockReadonly("编辑提款记录")) return;
     if (!editingWithdrawal) return;
     
     setIsSaving(true);
@@ -837,6 +848,7 @@ export default function MerchantSettlement() {
 
   // 删除提款记录
   const handleConfirmDeleteWithdrawal = async () => {
+    if (blockReadonly("删除提款记录")) return;
     if (!deletingWithdrawalId) return;
     
     setIsSaving(true);
@@ -871,6 +883,7 @@ export default function MerchantSettlement() {
   };
 
   const handleSaveProviderInitialBalance = async () => {
+    if (blockReadonly("设置代付初始余额")) return;
     const amount = parseFloat(providerInitialBalanceAmount);
     if (isNaN(amount)) {
       showSubmissionError("请输入有效数值");
@@ -903,6 +916,7 @@ export default function MerchantSettlement() {
   };
 
   const handleSaveRecharge = async () => {
+    if (blockReadonly("录入充值")) return;
     const amountUsdt = parseFloat(rechargeAmountUsdt);
     const rate = parseFloat(rechargeUsdtRate);
     
@@ -962,6 +976,7 @@ export default function MerchantSettlement() {
   };
 
   const handleConfirmProviderUndo = async () => {
+    if (blockReadonly("撤回操作")) return;
     if (!employee?.username) {
       setUndoAuthError('无法获取当前账号信息');
       return;
@@ -1027,6 +1042,7 @@ export default function MerchantSettlement() {
   };
 
   const handleSaveEditRecharge = async () => {
+    if (blockReadonly("编辑充值记录")) return;
     if (!editingRecharge) return;
     
     setIsSaving(true);
@@ -1060,6 +1076,7 @@ export default function MerchantSettlement() {
 
   // 删除充值记录
   const handleConfirmDeleteRecharge = async () => {
+    if (blockReadonly("删除充值记录")) return;
     if (!deletingRechargeId) return;
     
     setIsSaving(true);
@@ -1831,6 +1848,7 @@ export default function MerchantSettlement() {
         isSaving={isSaving}
         defaultTab={vendorManagementDefaultTab}
         onSaveWithdrawal={async (amountUsdt, rate, remark) => {
+          if (blockReadonly("录入提款")) return;
           setIsSaving(true);
           try {
             const recorderId = employee?.id || '';
@@ -1845,6 +1863,7 @@ export default function MerchantSettlement() {
           } finally { setIsSaving(false); }
         }}
         onSaveInitialBalance={async (amount) => {
+          if (blockReadonly("设置初始余额")) return;
           setIsSaving(true);
           try {
             const vendorData = vendorSettlementData.find(v => v.vendorName === currentVendor);
@@ -1855,6 +1874,7 @@ export default function MerchantSettlement() {
           } finally { setIsSaving(false); }
         }}
         onEditWithdrawal={async (withdrawal, updates) => {
+          if (blockReadonly("编辑提款记录")) return;
           setIsSaving(true);
           try {
             const vendorData = vendorSettlementData.find(v => v.vendorName === currentVendor);
@@ -1868,6 +1888,7 @@ export default function MerchantSettlement() {
           } finally { setIsSaving(false); }
         }}
         onDeleteWithdrawal={async (withdrawalId) => {
+          if (blockReadonly("删除提款记录")) return;
           setIsSaving(true);
           try {
             const vendorData = vendorSettlementData.find(v => v.vendorName === currentVendor);
@@ -1895,6 +1916,7 @@ export default function MerchantSettlement() {
         isSaving={isSaving}
         defaultTab={providerManagementDefaultTab}
         onSaveRecharge={async (amountUsdt, rate, remark) => {
+          if (blockReadonly("录入充值")) return;
           setIsSaving(true);
           try {
             const recorderId = employee?.id || '';
@@ -1908,6 +1930,7 @@ export default function MerchantSettlement() {
           } finally { setIsSaving(false); }
         }}
         onSaveInitialBalance={async (amount) => {
+          if (blockReadonly("设置代付初始余额")) return;
           setIsSaving(true);
           try {
             const providerData = providerSettlementData.find(p => p.providerName === currentProvider);
@@ -1918,6 +1941,7 @@ export default function MerchantSettlement() {
           } finally { setIsSaving(false); }
         }}
         onEditRecharge={async (recharge, updates) => {
+          if (blockReadonly("编辑充值记录")) return;
           setIsSaving(true);
           try {
             const providerData = providerSettlementData.find(p => p.providerName === currentProvider);
@@ -1931,6 +1955,7 @@ export default function MerchantSettlement() {
           } finally { setIsSaving(false); }
         }}
         onDeleteRecharge={async (rechargeId) => {
+          if (blockReadonly("删除充值记录")) return;
           setIsSaving(true);
           try {
             const providerData = providerSettlementData.find(p => p.providerName === currentProvider);

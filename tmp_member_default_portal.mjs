@@ -1,0 +1,14 @@
+﻿import pg from "pg";
+import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
+dotenv.config();
+const url = process.env.DATABASE_URL || ("postgresql://postgres:" + encodeURIComponent(process.env.DATABASE_PASSWORD || "") + "@db.dhlwefrcowefvbxutsmc.supabase.co:5432/postgres");
+const sql = fs.readFileSync(path.join("supabase","migrations","20260405000003_member_default_portal_settings.sql"), "utf8");
+const c = new pg.Client({ connectionString: url });
+await c.connect();
+await c.query(sql);
+console.log("Migration OK: 20260405000003_member_default_portal_settings.sql");
+const r = await c.query("select public.member_get_default_portal_settings() as data");
+console.log(JSON.stringify(r.rows[0].data, null, 2));
+await c.end();
