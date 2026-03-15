@@ -620,16 +620,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // 使用 setTimeout 延迟数据库调用，避免死锁
           setTimeout(() => {
             if (isMounted) {
-              fetchProfileAssociation(session.user.id, session.user.email).then((profile) => {
-                if (!isMounted) return;
-                if (profile.employee_id) {
-                  fetchEmployeeInfo(session.user.id, profile.employee_id, session.user.email);
-                  syncUserData(session.user.id);
-                } else {
+              fetchProfileAssociation(session.user.id, session.user.email)
+                .then((profile) => {
+                  if (!isMounted) return;
+                  if (profile.employee_id) {
+                    fetchEmployeeInfo(session.user.id, profile.employee_id, session.user.email);
+                    syncUserData(session.user.id);
+                  } else {
+                    setEmployee(null);
+                    setDataSynced(true);
+                  }
+                })
+                .catch((err) => {
+                  console.error('[AuthContext] onAuthStateChange fetchProfileAssociation error:', err);
                   setEmployee(null);
                   setDataSynced(true);
-                }
-              });
+                });
             }
           }, 0);
         } else {
@@ -650,6 +656,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     // 获取现有会话
+    const finishInit = () => {
+      if (isMounted && !initCompletedRef.current) {
+        setLoading(false);
+        setDataSynced(true);
+        initCompletedRef.current = true;
+      }
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!isMounted) return;
       
@@ -657,43 +671,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchProfileAssociation(session.user.id, session.user.email).then((profile) => {
-          if (!isMounted) return;
-          if (profile.employee_id) {
-            // 异步获取员工信息，但不阻塞 loading 状态
-            fetchEmployeeInfo(session.user.id, profile.employee_id, session.user.email).finally(() => {
-              if (isMounted && !initCompletedRef.current) {
-                setLoading(false);
-                initCompletedRef.current = true;
-              }
-            });
-            syncUserData(session.user.id);
-          } else {
+        fetchProfileAssociation(session.user.id, session.user.email)
+          .then((profile) => {
+            if (!isMounted) return;
+            if (profile.employee_id) {
+              // 异步获取员工信息，但不阻塞 loading 状态
+              fetchEmployeeInfo(session.user.id, profile.employee_id, session.user.email).finally(finishInit);
+              syncUserData(session.user.id);
+            } else {
+              setEmployee(null);
+              setDataSynced(true);
+              finishInit();
+            }
+          })
+          .catch((err) => {
+            console.error('[AuthContext] fetchProfileAssociation error:', err);
             setEmployee(null);
             setDataSynced(true);
-            if (!initCompletedRef.current) {
-              setLoading(false);
-              initCompletedRef.current = true;
-            }
-          }
-        });
+            finishInit();
+          });
       } else {
         // 无会话时：清除可能残留的缓存，避免下次刷新误用过期缓存
         writeEmployeeCache(null);
         setEmployee(null);
         setDataSynced(true);
-        if (!initCompletedRef.current) {
-          setLoading(false);
-          initCompletedRef.current = true;
-        }
+        finishInit();
       }
     }).catch((error) => {
       console.error('[AuthContext] getSession error:', error);
-      if (isMounted && !initCompletedRef.current) {
-        setLoading(false);
-        setDataSynced(true);
-        initCompletedRef.current = true;
-      }
+      finishInit();
     });
 
     return () => {

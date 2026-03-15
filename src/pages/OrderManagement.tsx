@@ -27,6 +27,7 @@ import { Search, RefreshCw, Filter, Upload, Download } from "lucide-react";
 import TableImportButton from "@/components/TableImportButton";
 import { exportTableToCSV } from "@/services/dataExportImportService";
 import { toast } from "sonner";
+import { showServiceErrorToast } from "@/services/serviceErrorToast";
 import { TimeRangeType, DateRange, getTimeRangeDates, ALL_TIME_DATE_RANGE } from "@/lib/dateFilter";
 import { useOrders, useUsdtOrders, useOrderStats, Order, UsdtOrder } from "@/hooks/useOrders";
 import { supabase } from "@/integrations/supabase/client";
@@ -540,12 +541,12 @@ export default function OrderManagement() {
         .select('id');
       
       if (error) {
-        toast.error(`更新失败: ${error.message}`);
+        showServiceErrorToast(error, t, "更新失败", "Update failed");
         return; // 保持弹窗打开，用户可修正后重试
       }
       
       if (!data || data.length === 0) {
-        toast.error("更新失败: 未找到匹配的订单记录");
+        showServiceErrorToast({ code: "ORDER_NOT_FOUND" }, t, "更新失败", "Update failed");
         return;
       }
       
@@ -655,7 +656,7 @@ export default function OrderManagement() {
       });
       
       if (result.hasRejected) {
-        toast.error(result.message);
+        showServiceErrorToast({ message: result.message }, t, "更新失败", "Update failed");
         return;
       }
       
@@ -679,12 +680,12 @@ export default function OrderManagement() {
         .select('id');
       
       if (error) {
-        toast.error(`更新失败: ${error.message}`);
+        showServiceErrorToast(error, t, "更新失败", "Update failed");
         return;
       }
       
       if (!data || data.length === 0) {
-        toast.error("更新失败: 未找到匹配的订单记录");
+        showServiceErrorToast({ code: "ORDER_NOT_FOUND" }, t, "更新失败", "Update failed");
         return;
       }
       
@@ -940,12 +941,12 @@ export default function OrderManagement() {
         .select('id');
       
       if (error) {
-        toast.error(`更新失败: ${error.message}`);
+        showServiceErrorToast(error, t, "更新失败", "Update failed");
         return; // 保持弹窗打开，用户可修正后重试
       }
       
       if (!data || data.length === 0) {
-        toast.error("更新失败: 未找到匹配的订单记录");
+        showServiceErrorToast({ code: "ORDER_NOT_FOUND" }, t, "更新失败", "Update failed");
         return;
       }
       
@@ -1035,7 +1036,7 @@ export default function OrderManagement() {
       });
       
       if (result.hasRejected) {
-        toast.error(result.message);
+        showServiceErrorToast({ message: result.message }, t, "更新失败", "Update failed");
         return;
       }
       
@@ -1059,12 +1060,12 @@ export default function OrderManagement() {
         .select('id');
       
       if (error) {
-        toast.error(`更新失败: ${error.message}`);
+        showServiceErrorToast(error, t, "更新失败", "Update failed");
         return;
       }
       
       if (!data || data.length === 0) {
-        toast.error("更新失败: 未找到匹配的订单记录");
+        showServiceErrorToast({ code: "ORDER_NOT_FOUND" }, t, "更新失败", "Update failed");
         return;
       }
       

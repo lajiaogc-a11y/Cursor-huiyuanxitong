@@ -83,6 +83,10 @@ const ERROR_MESSAGES: Record<string, { zh: string; en: string }> = {
     zh: "海报不存在",
     en: "Poster not found",
   },
+  ORDER_NOT_FOUND: {
+    zh: "更新失败: 未找到匹配的订单记录",
+    en: "Update failed: No matching order found",
+  },
 };
 
 export function showServiceErrorToast(
