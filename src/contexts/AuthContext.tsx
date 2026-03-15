@@ -224,6 +224,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const DATA_SYNC_TIMEOUT = 10000;
 // 初始化最大超时时间（防止永久卡死）
 const AUTH_INIT_TIMEOUT = 8000;
+// 运行期兜底超时（防止异常路径导致长期 loading）
+const AUTH_LOADING_WATCHDOG_TIMEOUT = 12000;
 
 // ─── Employee sessionStorage 缓存 ────────────────────────────────────────────
 const EMPLOYEE_CACHE_KEY = 'auth_employee_cache';
@@ -267,6 +269,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initCompletedRef = useRef(!!readEmployeeCache()); // 有缓存则视为已完成初始化
   const ipValidationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isValidatingIpRef = useRef(false);
+
+  // 全局兜底：任何场景 loading 持续过久都强制结束，避免页面长期骨架屏
+  useEffect(() => {
+    if (!loading) return;
+    const timer = setTimeout(() => {
+      if (loading) {
+        console.warn('[AuthContext] Loading watchdog timeout, forcing loading=false');
+        setLoading(false);
+        setDataSynced(true);
+      }
+    }, AUTH_LOADING_WATCHDOG_TIMEOUT);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   // 统一的 employee 更新：同步写缓存
   const setAndCacheEmployee = useCallback((emp: EmployeeInfo | null) => {
