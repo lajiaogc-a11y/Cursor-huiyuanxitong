@@ -81,6 +81,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.get_tenant_quota_status(uuid);
 CREATE OR REPLACE FUNCTION public.get_tenant_quota_status(
   p_tenant_id uuid
 )
