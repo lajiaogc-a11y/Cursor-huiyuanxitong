@@ -1439,9 +1439,13 @@ export default function MemberPortalSettingsPage() {
                 <div style={{ background: previewGradient, padding: "12px 16px 88px", position: "relative", overflow: "hidden" }}>
                   <div style={{ position: "absolute", top: -40, right: -40, width: 120, height: 120, borderRadius: "50%", background: "rgba(245,158,11,0.08)", pointerEvents: "none" }} />
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-                    <div>
-                      <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, margin: 0, letterSpacing: "0.5px", textTransform: "uppercase" }}>欢迎回来</p>
-                      <h1 style={{ color: "white", fontSize: 18, fontWeight: 700, margin: "4px 0 0", letterSpacing: "-0.3px" }}>RTLCA96</h1>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {logoPreview ? (
+                        <img src={logoPreview} alt="" style={{ width: 28, height: 28, borderRadius: 8, objectFit: "cover", border: "1px solid rgba(255,255,255,0.2)" }} />
+                      ) : null}
+                      <span style={{ color: "white", fontSize: 16, fontWeight: 800, letterSpacing: "1px" }}>
+                        {settings.company_name || "Spin & Win"}
+                      </span>
                     </div>
                     <div style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: "rgba(255,255,255,0.7)", padding: "6px 10px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
                       <LogOut className="h-3 w-3" />
@@ -1450,13 +1454,9 @@ export default function MemberPortalSettingsPage() {
                   </div>
                   <div className="member-card">
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        {logoPreview ? (
-                          <img src={logoPreview} alt="" style={{ width: 24, height: 24, borderRadius: 6, objectFit: "cover", border: "1px solid rgba(255,255,255,0.2)" }} />
-                        ) : null}
-                        <span style={{ color: "white", fontSize: 13, fontWeight: 800, letterSpacing: "1px" }}>
-                          {settings.company_name || "Spin & Win"}
-                        </span>
+                      <div>
+                        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, margin: 0, letterSpacing: "0.5px", textTransform: "uppercase" }}>欢迎回来</p>
+                        <h2 style={{ color: "white", fontSize: 15, fontWeight: 700, margin: "4px 0 0", letterSpacing: "-0.3px" }}>RTLCA96</h2>
                       </div>
                       <span className="member-badge member-badge-gold">★ MEMBER</span>
                     </div>

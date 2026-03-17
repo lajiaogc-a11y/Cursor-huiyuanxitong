@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
+import { isAdminDomain } from "@/config/domains";
 import { ConfigProvider } from "antd";
 import {
   DEFAULT_SETTINGS,
@@ -318,7 +319,8 @@ export default function MemberLogin() {
             </span>
           </div>
 
-          {/* 员工入口 */}
+          {/* 员工入口 - 仅在员工域名或本地开发时显示 */}
+          {isAdminDomain() && (
           <div style={{ textAlign: "center", marginTop: 20 }}>
             <Link
               to="/staff/login"
@@ -327,6 +329,7 @@ export default function MemberLogin() {
               {t("员工入口 →", "Staff Login →")}
             </Link>
           </div>
+          )}
         </div>
       </div>
     </ConfigProvider>

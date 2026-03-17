@@ -4,6 +4,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getOpenTasksResult } from '@/services/taskService';
+import { listEmployeesApi } from '@/api/employees';
 
 const STALE_TIME = 5 * 60 * 1000;
 
@@ -16,13 +17,22 @@ async function fetchOpenTasks(tenantId: string | null): Promise<{ id: string; ti
 
 async function fetchTaskSettingsEmployees(tenantId: string | null): Promise<{ id: string; real_name: string }[]> {
   if (!tenantId) return [];
+  try {
+    const list = await listEmployeesApi({ tenant_id: tenantId });
+    if (list?.length) {
+      return list
+        .filter((e) => e.status === 'active')
+        .map((e) => ({ id: e.id, real_name: e.real_name || '' }))
+        .sort((a, b) => (a.real_name || '').localeCompare(b.real_name || ''));
+    }
+  } catch (_) {}
   const { data } = await supabase
     .from('employees')
     .select('id, real_name')
     .eq('tenant_id', tenantId)
     .eq('status', 'active')
     .order('real_name');
-  return data || [];
+  return (data || []).map((e: { id: string; real_name: string }) => ({ id: e.id, real_name: e.real_name || '' }));
 }
 
 export function useOpenTasks(tenantId: string | null) {

@@ -64,24 +64,34 @@ export async function loginApi(
   password: string
 ): Promise<{ success: boolean; user?: AuthUser; message?: string }> {
   try {
-    const res = await apiPost<LoginResponse>('/api/auth/login', {
-      username: username.trim(),
-      password,
+    // 登录接口直接用 fetch，不走 apiPost（避免 401 触发全局 onUnauthorized 回调）
+    const API_BASE = import.meta.env.VITE_API_BASE ?? '';
+    const url = `${API_BASE}/api/auth/login`.replace(/([^:])\/\/+/g, '$1/');
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username.trim(), password }),
     });
-    if (!res.success || !res.token || !res.user) {
-      return { success: false, message: (res as { error?: string }).error || '登录失败' };
+    const data = await response.json().catch(() => ({})) as LoginResponse & { error?: string };
+    if (!response.ok || !data.success) {
+      const errorMsg = data.error || data.message || '登录失败';
+      // 404 说明后端未部署，回退到 Edge Function
+      if (response.status === 404) {
+        try { return await loginViaEdgeFunction(username, password); } catch (_) {}
+      }
+      return { success: false, message: errorMsg };
     }
-    setAuthToken(res.token);
-    return { success: true, user: res.user };
+    if (!data.token || !data.user) {
+      return { success: false, message: '登录失败' };
+    }
+    setAuthToken(data.token);
+    return { success: true, user: data.user };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     const isBackendUnavailable =
       msg.includes('ECONNREFUSED') ||
       msg.includes('Failed to fetch') ||
       msg.includes('NetworkError') ||
-      msg === '请求失败' ||
-      msg.includes('404') ||
-      msg.includes('Not Found') ||
       msg.includes('接口不存在');
     if (isBackendUnavailable) {
       try {
@@ -89,7 +99,7 @@ export async function loginApi(
       } catch (edgeErr) {
         return {
           success: false,
-          message: err instanceof Error ? err.message : '登录失败，请检查网络或联系管理员',
+          message: '登录失败，请检查网络或联系管理员',
         };
       }
     }

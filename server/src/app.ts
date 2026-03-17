@@ -25,6 +25,7 @@ import employeesRoutes from './modules/employees/routes.js';
 import knowledgeRoutes from './modules/knowledge/routes.js';
 import logsRoutes from './modules/logs/routes.js';
 import memberAuthRoutes from './modules/memberAuth/routes.js';
+import tasksRoutes from './modules/tasks/routes.js';
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use('/api/employees', employeesRoutes);
 app.use('/api/knowledge', knowledgeRoutes);
 app.use('/api/logs', logsRoutes);
 app.use('/api/member-auth', memberAuthRoutes);
+app.use('/api/tasks', tasksRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

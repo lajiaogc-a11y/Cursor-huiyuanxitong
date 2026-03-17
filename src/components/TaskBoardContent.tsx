@@ -33,6 +33,7 @@ export default function TaskBoardContent({ compact, onRefresh }: TaskBoardConten
   const { employee } = useAuth();
   const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [groups, setGroups] = useState<{ task: Task; items: TaskItemWithPoster[]; doneCount: number }[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [editingRemarkId, setEditingRemarkId] = useState<string | null>(null);
@@ -41,12 +42,14 @@ export default function TaskBoardContent({ compact, onRefresh }: TaskBoardConten
   const load = useCallback(async () => {
     if (!employee?.id) return;
     setLoading(true);
+    setLoadError(false);
     try {
       const data = await getMyTaskItems(employee.id);
       setGroups(data);
     } catch (e) {
       console.error(e);
-      toast.error(t("加载失败", "Load failed"));
+      setLoadError(true);
+      toast.error(t("加载失败，请确认后端已启动", "Load failed, please ensure backend is running"));
     } finally {
       setLoading(false);
     }
@@ -134,9 +137,24 @@ export default function TaskBoardContent({ compact, onRefresh }: TaskBoardConten
           {t("您分配到的任务列表，可复制号码、填写备注并标记完成", "Your assigned tasks")}
         </p>
       )}
-      {groups.length === 0 ? (
-        <div className="py-8 text-center text-muted-foreground text-sm">
-          {t("暂无分配任务", "No tasks assigned")}
+      {loadError ? (
+        <div className="py-8 text-center">
+          <p className="text-muted-foreground text-sm mb-2">
+            {t("加载失败，请确认后端已启动（npm run dev:all 或部署后端）", "Load failed. Ensure backend is running (npm run dev:all or deploy backend)")}
+          </p>
+          <Button variant="outline" size="sm" onClick={() => load()}>
+            {t("重试", "Retry")}
+          </Button>
+        </div>
+      ) : groups.length === 0 ? (
+        <div className="py-8 text-center text-muted-foreground text-sm space-y-1">
+          <p>{t("暂无分配任务", "No tasks assigned")}</p>
+          <p className="text-xs">
+            {t("请在「工作任务」→「维护设置」或「发动态」中创建任务并分配给当前员工", "Create tasks in Tasks → Maintenance or Post Dynamic and assign to current employee")}
+          </p>
+          <Button variant="outline" size="sm" className="mt-2" onClick={() => load()}>
+            {t("刷新", "Refresh")}
+          </Button>
         </div>
       ) : (
         groups.map(({ task, items, doneCount }) => (

@@ -340,8 +340,7 @@ export default function Login() {
             </div>
 
             <Button
-              type="button"
-              onClick={() => void handleLogin({ preventDefault: () => {} } as React.FormEvent)}
+              type="submit"
               className="w-full h-11 mt-1 font-medium rounded-lg text-white hover:opacity-95 transition-opacity"
               style={{ height: 44, backgroundColor: '#2563EB' }}
               disabled={loading}

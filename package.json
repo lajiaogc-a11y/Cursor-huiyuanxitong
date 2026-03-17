@@ -65,6 +65,7 @@
     "db:fix-shared-data-employees": "node scripts/run-shared-data-employees-fix.mjs",
     "db:fix-task-items": "node scripts/run-task-items-rpc.mjs",
     "db:phone-pool": "node scripts/run-phone-pool-migration.mjs",
+    "db:phone-pool-by-employee": "node scripts/deploy-phone-pool-by-employee-db.mjs",
     "db:phone-pool-extract-guard-consume": "node scripts/run-phone-pool-extract-guard-and-consume-migration.mjs",
     "db:phone-stats-fallback": "node scripts/run-phone-stats-fallback-migration.mjs",
     "db:employee-login-lockout": "node scripts/run-employee-login-lockout-migration.mjs",

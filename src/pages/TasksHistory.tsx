@@ -47,7 +47,7 @@ export default function TasksHistory() {
   const [selectedEmpInTask, setSelectedEmpInTask] = useState<string | null>(null);
 
   const { employees } = useTaskHistoryEmployees(tenantId ?? null);
-  const { overviews, loading, refetch } = useTaskHistory(tenantId ?? null, {
+  const { overviews, loading, isError, refetch } = useTaskHistory(tenantId ?? null, {
     employeeId,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
@@ -120,6 +120,17 @@ export default function TasksHistory() {
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : isError ? (
+            <div className="py-12 text-center">
+              <p className="text-muted-foreground text-sm mb-2">{t("加载失败，请确认后端已部署", "Load failed, please ensure backend is deployed")}</p>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                {t("重试", "Retry")}
+              </Button>
+            </div>
+          ) : !tenantId && employee?.is_platform_super_admin ? (
+            <div className="py-12 text-center text-muted-foreground text-sm">
+              {t("请先在租户管理中选择要查看的租户", "Please select a tenant in tenant management first")}
             </div>
           ) : overviews.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground text-sm">

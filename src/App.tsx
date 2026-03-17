@@ -15,6 +15,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LayoutProvider } from "@/contexts/LayoutContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminProtectedRoute } from "@/components/AdminProtectedRoute";
+import { isAdminDomain } from "@/config/domains";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { TopProgressBar } from "@/components/TopProgressBar";
@@ -116,6 +117,8 @@ function LegacyActivityReportsRedirect() {
 
 function LegacyRedirect({ to }: { to: string }) {
   const location = useLocation();
+  // 主域名不暴露员工后台路径
+  if (!isAdminDomain()) return <Navigate to="/member/login" replace />;
   return <Navigate to={`${to}${location.search}${location.hash}`} replace />;
 }
 
@@ -127,6 +130,10 @@ function LegacyAdminSettingsTabRedirect() {
 }
 
 function StaffRoute({ children }: { children: ReactNode }) {
+  // 非员工域名（如 crm.fastgc.cc）禁止访问后台，重定向到会员登录
+  if (!isAdminDomain()) {
+    return <Navigate to="/member/login" replace />;
+  }
   return (
     <AdminProtectedRoute>
       <ProtectedRoute>{children}</ProtectedRoute>
@@ -135,6 +142,9 @@ function StaffRoute({ children }: { children: ReactNode }) {
 }
 
 function StaffPlatformRoute({ children }: { children: ReactNode }) {
+  if (!isAdminDomain()) {
+    return <Navigate to="/member/login" replace />;
+  }
   return (
     <AdminProtectedRoute>
       <ProtectedRoute requirePlatformSuperAdmin>{children}</ProtectedRoute>
@@ -263,9 +273,11 @@ const App = () => (
                         <Route key={item.path} path={item.path} element={<MemberRoute>{item.element}</MemberRoute>} />
                       ))}
 
-                      {/* 员工公开路由 */}
+                      {/* 员工公开路由 - 仅员工域名可访问 */}
                       {staffPublicRoutes.map((item) => (
-                        <Route key={item.path} path={item.path} element={item.element} />
+                        <Route key={item.path} path={item.path} element={
+                          isAdminDomain() ? item.element : <Navigate to="/member/login" replace />
+                        } />
                       ))}
 
                       {/* 通用公开路由 */}
@@ -282,10 +294,10 @@ const App = () => (
                       ))}
 
                       {/* 平台管理路由迁移到 /staff/admin */}
-                      <Route path={ROUTES.STAFF.ADMIN_ROOT} element={<Navigate to={ROUTES.STAFF.ADMIN_TENANTS} replace />} />
+                      <Route path={ROUTES.STAFF.ADMIN_ROOT} element={isAdminDomain() ? <Navigate to={ROUTES.STAFF.ADMIN_TENANTS} replace /> : <Navigate to="/member/login" replace />} />
                       <Route path={ROUTES.STAFF.ADMIN_TENANTS} element={<StaffPlatformRoute><CompanyManagement /></StaffPlatformRoute>} />
                       <Route path={ROUTES.STAFF.ADMIN_TENANT_VIEW} element={<StaffPlatformRoute><PlatformTenantView /></StaffPlatformRoute>} />
-                      <Route path={ROUTES.STAFF.ADMIN_SETTINGS} element={<Navigate to={ROUTES.STAFF.ADMIN_SETTINGS_DEFAULT} replace />} />
+                      <Route path={ROUTES.STAFF.ADMIN_SETTINGS} element={isAdminDomain() ? <Navigate to={ROUTES.STAFF.ADMIN_SETTINGS_DEFAULT} replace /> : <Navigate to="/member/login" replace />} />
                       <Route path={ROUTES.STAFF.ADMIN_SETTINGS_TAB} element={<StaffPlatformRoute><PlatformSettingsPage /></StaffPlatformRoute>} />
 
                       {/* 兼容旧员工路径 */}
@@ -296,7 +308,7 @@ const App = () => (
                           element={<LegacyRedirect to={item.to} />}
                         />
                       ))}
-                      <Route path="/admin/settings/:tab" element={<LegacyAdminSettingsTabRedirect />} />
+                      <Route path="/admin/settings/:tab" element={isAdminDomain() ? <LegacyAdminSettingsTabRedirect /> : <Navigate to="/member/login" replace />} />
                   
                   {/* 404 */}
                   <Route path={ROUTES.NOT_FOUND} element={<NotFound />} />

@@ -27,42 +27,38 @@ function throwOnError(r: { success?: boolean; error?: { code?: string }; code?: 
 }
 
 export async function extractPhones(tenantId: string, count: number): Promise<ExtractedPhone[]> {
-  const res = await apiClient.post<{ success?: boolean; data?: ExtractedPhone[]; error?: { code?: string } }>(
+  const res = await apiClient.post<ExtractedPhone[] | { success?: boolean; error?: { code?: string }; code?: string }>(
     '/api/phone-pool/extract',
     { tenant_id: tenantId, count }
   );
-  const r = res as { success?: boolean; data?: ExtractedPhone[]; error?: { code?: string } };
-  if (r.success && Array.isArray(r.data)) return r.data;
-  throwOnError(r);
+  if (Array.isArray(res)) return res;
+  throwOnError(res as { success?: boolean; error?: { code?: string }; code?: string });
 }
 
 export async function returnPhones(phoneIds: number[]): Promise<number[]> {
   if (!phoneIds?.length) return [];
-  const res = await apiClient.post<{ success?: boolean; data?: number[] }>(
+  const res = await apiClient.post<number[]>(
     '/api/phone-pool/return',
     { phone_ids: phoneIds }
   );
-  const r = res as { success?: boolean; data?: number[] };
-  if (r.success && Array.isArray(r.data)) return r.data;
-  return [];
+  return Array.isArray(res) ? res : [];
 }
 
 export async function consumePhones(phoneIds: number[]): Promise<number[]> {
   if (!phoneIds?.length) return [];
-  const res = await apiClient.post<{ success?: boolean; data?: number[] }>(
+  const res = await apiClient.post<number[]>(
     '/api/phone-pool/consume',
     { phone_ids: phoneIds }
   );
-  const r = res as { success?: boolean; data?: number[] };
-  if (r.success && Array.isArray(r.data)) return r.data;
-  return [];
+  return Array.isArray(res) ? res : [];
 }
 
 export async function getPhoneStats(tenantId: string): Promise<PhoneStats> {
   const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : '';
-  const res = await apiClient.get<{ success?: boolean; data?: PhoneStats }>(`/api/phone-pool/stats${q}`);
-  const r = res as { success?: boolean; data?: PhoneStats };
-  if (r.success && r.data) return r.data;
+  const res = await apiClient.get<PhoneStats>(`/api/phone-pool/stats${q}`);
+  if (res && typeof res === 'object' && typeof (res as PhoneStats).total_available === 'number') {
+    return res as PhoneStats;
+  }
   return {
     total_available: 0,
     total_reserved: 0,
@@ -75,12 +71,10 @@ export async function getMyReservedPhones(tenantId: string, limit?: number): Pro
   const params = new URLSearchParams();
   params.set('tenant_id', tenantId);
   if (limit != null) params.set('limit', String(limit));
-  const res = await apiClient.get<{ success?: boolean; data?: ExtractedPhone[] }>(
+  const res = await apiClient.get<ExtractedPhone[]>(
     `/api/phone-pool/my-reserved?${params.toString()}`
   );
-  const r = res as { success?: boolean; data?: ExtractedPhone[] };
-  if (r.success && Array.isArray(r.data)) return r.data;
-  return [];
+  return Array.isArray(res) ? res : [];
 }
 
 export interface ExtractSettings {
@@ -116,9 +110,10 @@ export async function clearPhonePool(tenantId: string): Promise<void> {
 }
 
 export async function getExtractSettings(): Promise<ExtractSettings> {
-  const res = await apiClient.get<{ success?: boolean; data?: ExtractSettings }>('/api/phone-pool/settings');
-  const r = res as { success?: boolean; data?: ExtractSettings };
-  if (r.success && r.data) return r.data;
+  const res = await apiClient.get<ExtractSettings>('/api/phone-pool/settings');
+  if (res && typeof res === 'object' && typeof (res as ExtractSettings).per_extract_limit === 'number') {
+    return res as ExtractSettings;
+  }
   return { per_extract_limit: 100, per_user_daily_limit: 5 };
 }
 
@@ -126,12 +121,10 @@ export async function getExtractRecords(tenantId: string, limit?: number): Promi
   const params = new URLSearchParams();
   params.set('tenant_id', tenantId);
   if (limit != null) params.set('limit', String(limit));
-  const res = await apiClient.get<{ success?: boolean; data?: ExtractRecord[] }>(
+  const res = await apiClient.get<ExtractRecord[]>(
     `/api/phone-pool/records?${params.toString()}`
   );
-  const r = res as { success?: boolean; data?: ExtractRecord[] };
-  if (r.success && Array.isArray(r.data)) return r.data;
-  return [];
+  return Array.isArray(res) ? res : [];
 }
 
 export async function updateExtractSettings(

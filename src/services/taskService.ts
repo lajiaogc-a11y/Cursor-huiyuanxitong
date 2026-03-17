@@ -2,6 +2,9 @@
  * 工作任务服务 - 客户维护、发动态
  */
 import { supabase } from "@/integrations/supabase/client";
+import { listEmployeesApi } from "@/api/employees";
+import { listMembersApi } from "@/services/members/membersApiService";
+import { getOrdersFullApi, getUsdtOrdersFullApi } from "@/services/orders/ordersApiService";
 import { fail, getErrorMessage, ok, ServiceResult } from "@/services/serviceResult";
 
 export type TaskTemplateModule = "customer_maintenance" | "post_dynamic";
@@ -106,13 +109,11 @@ export function getDateRangeForPreset(preset: DateRangePreset): { start: string;
 
 /**
  * 未交易客户判定方法：
- * 1. 获取指定日期范围内所有订单（status: completed/pending）
- * 2. 提取有交易的会员：orders.member_id 或 orders.phone_number 匹配
- * 3. 未交易 = 会员表中存在，但在该日期范围内无任何订单的会员
- * 4. 过滤：手机号长度>=10 的会员
- * 5. 排除新入会会员：仅统计在搜索日期范围结束前已入会的会员（created_at <= end），
- *    本月新入会的会员在查询上月订单时必然无交易，不应计入未交易名单
- * 6. 租户隔离：传入 tenantId 时仅统计该租户的会员与订单（creator_id/recorder_id/sales_user_id 关联该租户员工）
+ * 1. 通过后端 API 获取会员与订单（与会员管理同源，不受 Supabase RLS 限制）
+ * 2. 在选定日期范围内有 completed/pending 订单的会员 = 有交易
+ * 3. 未交易 = 会员存在但在该范围内无任何订单
+ * 4. 过滤：手机号长度>=10
+ * 5. 排除新入会会员：created_at <= end
  */
 export async function generateCustomerList(params?: {
   start_date?: string;
@@ -127,56 +128,57 @@ export async function generateCustomerList(params?: {
     ? { start: params.start_date, end: params.end_date }
     : getLastWeekRange();
 
-  // 租户隔离：获取该租户员工 ID 列表，用于过滤 members 和 orders
-  let empIds: string[] = [];
-  if (params?.tenantId) {
-    const { data: emps } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("tenant_id", params.tenantId);
-    empIds = (emps || []).map((e: { id: string }) => e.id);
-    if (empIds.length === 0) return { count: 0, phones: [], sample: [] };
-  }
+  const tenantId = params?.tenantId;
+  if (!tenantId) return { count: 0, phones: [], sample: [] };
 
-  let membersQuery = supabase
-    .from("members")
-    .select("id, phone_number, created_at");
-  // 排除在搜索日期范围结束之后才入会的会员（如查上月未交易，排除本月新入会的）
-  membersQuery = membersQuery.lte("created_at", `${end}T23:59:59.999Z`);
-  if (empIds.length > 0) {
-    membersQuery = membersQuery.or(`creator_id.in.(${empIds.join(",")}),recorder_id.in.(${empIds.join(",")})`);
-  }
-  const { data: members, error: membersError } = await membersQuery;
+  const startTs = `${start}T00:00:00Z`;
+  const endTs = `${end}T23:59:59.999Z`;
 
-  if (membersError) throw membersError;
-  if (!members?.length) return { count: 0, phones: [], sample: [] };
+  // 通过 API 获取会员（与会员管理同源，不受 Supabase RLS 限制）
+  let members: { id: string; phone_number?: string; created_at?: string }[] = [];
+  try {
+    const allMembers = await listMembersApi({ tenant_id: tenantId, limit: 100000 });
+    members = (allMembers || []).filter((m) => {
+      const created = m.created_at;
+      if (!created) return true;
+      return created <= endTs;
+    });
+  } catch (_) {}
 
-  let ordersQuery = supabase
-    .from("orders")
-    .select("member_id, phone_number")
-    .gte("created_at", `${start}T00:00:00Z`)
-    .lte("created_at", `${end}T23:59:59Z`)
-    .in("status", ["completed", "pending"]);
-  if (empIds.length > 0) {
-    ordersQuery = ordersQuery.or(`creator_id.in.(${empIds.join(",")}),sales_user_id.in.(${empIds.join(",")})`);
-  }
-  const { data: ordersInRange } = await ordersQuery;
+  if (!members.length) return { count: 0, phones: [], sample: [] };
+
+  // 通过 API 获取订单（含 NGN/GHS 与 USDT），筛选日期范围内 status 为 completed/pending 的
+  let ordersInRange: { member_id?: string; phone_number?: string }[] = [];
+  try {
+    const [ngnOrders, usdtOrders] = await Promise.all([
+      getOrdersFullApi(tenantId),
+      getUsdtOrdersFullApi(tenantId),
+    ]);
+    const allOrders = [...(ngnOrders || []), ...(usdtOrders || [])];
+    ordersInRange = allOrders.filter((o: any) => {
+      const status = (o.status || "").toLowerCase();
+      if (status !== "completed" && status !== "pending") return false;
+      const created = o.created_at;
+      if (!created) return false;
+      return created >= startTs && created <= endTs;
+    });
+  } catch (_) {}
 
   const tradedMemberIds = new Set<string>();
   const tradedPhones = new Set<string>();
-  ordersInRange?.forEach((o: any) => {
+  ordersInRange.forEach((o) => {
     if (o.member_id) tradedMemberIds.add(o.member_id);
     if (o.phone_number) tradedPhones.add((o.phone_number || "").replace(/\D/g, ""));
   });
 
-  const untraded = members.filter((m: any) => {
+  const untraded = members.filter((m) => {
     const phone = (m.phone_number || "").replace(/\D/g, "");
     if (tradedPhones.has(phone)) return false;
     if (tradedMemberIds.has(m.id)) return false;
     return phone.length >= 10;
   });
 
-  const phones = untraded.map((m: any) => m.phone_number || "").filter(Boolean);
+  const phones = untraded.map((m) => m.phone_number || "").filter(Boolean);
 
   return {
     count: phones.length,
@@ -276,52 +278,14 @@ export async function getMyTaskItems(employeeId: string): Promise<
   { task: Task; items: TaskItemWithPoster[]; doneCount: number }[]
 > {
   try {
-    const { data: rpcData, error: rpcError } = await supabase.rpc("get_my_task_items");
-    if (!rpcError && rpcData != null) {
-      const arr = Array.isArray(rpcData) ? rpcData : [];
-      return arr as { task: Task; items: TaskItemWithPoster[]; doneCount: number }[];
-    }
-  } catch (_) {}
-
-  const { data: items, error } = await supabase
-    .from("task_items")
-    .select("*")
-    .eq("assigned_to", employeeId)
-    .in("status", ["todo", "done"])
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-  if (!items?.length) return [];
-
-  const posterIds = [...new Set(items.map((i: any) => i.poster_id).filter(Boolean))];
-  let postersMap = new Map<string, string>();
-  if (posterIds.length > 0) {
-    const { data: posters } = await supabase
-      .from("task_posters")
-      .select("id, data_url")
-      .in("id", posterIds);
-    postersMap = new Map((posters || []).map((p: any) => [p.id, p.data_url]));
+    const { getMyTaskItemsApi } = await import('@/api/tasks');
+    const data = await getMyTaskItemsApi();
+    if (data?.length !== undefined) return data as { task: Task; items: TaskItemWithPoster[]; doneCount: number }[];
+  } catch (apiErr) {
+    // 员工使用 JWT 登录，需通过后端 API 获取任务；Supabase RLS 无 session 会失败
+    throw apiErr;
   }
-
-  const taskIds = [...new Set(items.map((i: any) => i.task_id))];
-  const { data: tasksData } = await supabase.from("tasks").select("*").in("id", taskIds);
-  const tasksMap = new Map((tasksData || []).map((t: any) => [t.id, t]));
-
-  const byTask = new Map<string, { task: Task; items: TaskItemWithPoster[] }>();
-  items.forEach((row: any) => {
-    const t = tasksMap.get(row.task_id);
-    if (!t || t.status !== "open") return;
-    const item: TaskItemWithPoster = { ...row };
-    if (row.poster_id) item.poster_data_url = postersMap.get(row.poster_id) || null;
-    if (!byTask.has(row.task_id)) byTask.set(row.task_id, { task: t as Task, items: [] });
-    byTask.get(row.task_id)!.items.push(item);
-  });
-
-  return Array.from(byTask.values()).map((g) => ({
-    task: g.task,
-    items: g.items,
-    doneCount: g.items.filter((i) => i.status === "done").length,
-  }));
+  return [];
 }
 
 /** 标记任务项备注 */
@@ -906,10 +870,23 @@ export async function createCustomerMaintenanceTaskResult(params: {
   tenantId: string;
 }): Promise<ServiceResult<{ task_id: string; distributed: Record<string, number> }>> {
   try {
-    const data = await createCustomerMaintenanceTask(params);
+    const { createCustomerMaintenanceTaskApi } = await import('@/api/tasks');
+    const data = await createCustomerMaintenanceTaskApi({
+      title: params.title,
+      phones: params.phones,
+      assignTo: params.assignTo,
+      distribute: params.distribute,
+      manualMap: params.manualMap,
+      tenantId: params.tenantId,
+    });
     return ok(data);
-  } catch (error) {
-    return mapTaskError(error);
+  } catch (apiErr) {
+    try {
+      const data = await createCustomerMaintenanceTask(params);
+      return ok(data);
+    } catch (error) {
+      return mapTaskError(error);
+    }
   }
 }
 
@@ -923,10 +900,23 @@ export async function createPosterTaskResult(params: {
   tenantId: string;
 }): Promise<ServiceResult<{ task_id: string; distributed: Record<string, number> }>> {
   try {
-    const data = await createPosterTask(params);
+    const { createPosterTaskApi } = await import('@/api/tasks');
+    const data = await createPosterTaskApi({
+      title: params.title,
+      posterIds: params.posterIds,
+      assignTo: params.assignTo,
+      distribute: params.distribute,
+      manualMap: params.manualMap,
+      tenantId: params.tenantId,
+    });
     return ok(data);
-  } catch (error) {
-    return mapTaskError(error);
+  } catch (apiErr) {
+    try {
+      const data = await createPosterTask(params);
+      return ok(data);
+    } catch (error) {
+      return mapTaskError(error);
+    }
   }
 }
 

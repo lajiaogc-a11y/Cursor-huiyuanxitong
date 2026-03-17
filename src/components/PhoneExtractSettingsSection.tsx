@@ -281,7 +281,19 @@ export function PhoneExtractSettingsSection() {
 
   const isAdmin = employee?.role === "admin";
 
-  if (!effectiveTenantId) return null;
+  if (!effectiveTenantId) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-muted-foreground">
+          <p className="text-sm">
+            {employee?.is_platform_super_admin
+              ? t("请先在「租户管理」中选择一个租户进入，再查看提取设置。", "Please select a tenant in Tenant Management first to view extract settings.")
+              : t("无法获取租户信息，请重新登录或联系管理员。", "Unable to get tenant info. Please re-login or contact admin.")}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>

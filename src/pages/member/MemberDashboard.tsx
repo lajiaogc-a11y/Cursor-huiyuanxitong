@@ -267,15 +267,19 @@ export default function MemberDashboard() {
           <div style={{ position: "absolute", top: -60, right: -60, width: 200, height: 200, borderRadius: "50%", background: "rgba(245,158,11,0.08)", pointerEvents: "none" }} />
           <div style={{ position: "absolute", bottom: -30, left: -30, width: 120, height: 120, borderRadius: "50%", background: "rgba(245,158,11,0.05)", pointerEvents: "none" }} />
 
-          {/* 顶部栏 */}
+          {/* 顶部栏：Logo + 公司名 */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
-            <div>
-              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, margin: 0, letterSpacing: "0.5px", textTransform: "uppercase" }}>
-                欢迎回来
-              </p>
-              <h1 style={{ color: "white", fontSize: 20, fontWeight: 700, margin: "4px 0 0", letterSpacing: "-0.3px" }}>
-                {displayName}
-              </h1>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {portalSettings.logo_url ? (
+                <img
+                  src={portalSettings.logo_url}
+                  alt="company-logo"
+                  style={{ width: 28, height: 28, borderRadius: 8, objectFit: "cover", border: "1px solid rgba(255,255,255,0.2)" }}
+                />
+              ) : null}
+              <span style={{ color: "white", fontSize: 18, fontWeight: 800, letterSpacing: "1px" }}>
+                {portalSettings.company_name || "SPIN & WIN"}
+              </span>
             </div>
             <button
               onClick={signOut}
@@ -299,19 +303,15 @@ export default function MemberDashboard() {
 
           {/* 会员卡 */}
           <div className="member-card">
-            {/* 卡片顶部行 */}
+            {/* 卡片顶部行：欢迎回来 + 昵称 */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {portalSettings.logo_url ? (
-                  <img
-                    src={portalSettings.logo_url}
-                    alt="company-logo"
-                    style={{ width: 24, height: 24, borderRadius: 6, objectFit: "cover", border: "1px solid rgba(255,255,255,0.2)" }}
-                  />
-                ) : null}
-                <span style={{ color: "white", fontSize: 14, fontWeight: 800, letterSpacing: "1px" }}>
-                  {portalSettings.company_name || "SPIN & WIN"}
-                </span>
+              <div>
+                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, margin: 0, letterSpacing: "0.5px", textTransform: "uppercase" }}>
+                  欢迎回来
+                </p>
+                <h2 style={{ color: "white", fontSize: 16, fontWeight: 700, margin: "4px 0 0", letterSpacing: "-0.3px" }}>
+                  {displayName}
+                </h2>
               </div>
               <span className="member-badge member-badge-gold">
                 ★ MEMBER
