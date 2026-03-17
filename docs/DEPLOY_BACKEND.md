@@ -1,6 +1,35 @@
 # 后端部署指南 - 解决登录「接口不存在」问题
 
-前端部署在 Cloudflare Pages (crm.fastgc.cc)，后端需单独部署才能登录。
+前端部署在 Cloudflare Pages (crm.fastgc.cc)。**推荐先部署 Edge Function 备用登录**，无需单独部署后端即可登录。
+
+## 方案 A：Supabase Edge Function 备用登录（推荐，无需后端）
+
+当后端未部署时，前端会自动使用 Supabase Edge Function 登录。
+
+### 1. 部署 Edge Functions
+
+```powershell
+supabase login   # 首次需登录
+npm run deploy:edge-auth
+```
+
+### 2. 设置 JWT 密钥（若后端 server 使用自定义 JWT_SECRET）
+
+```powershell
+supabase secrets set JWT_SECRET=你的密钥
+```
+
+### 3. 重新部署前端
+
+```powershell
+npm run deploy:full
+```
+
+完成以上步骤后，生产环境即可登录。
+
+---
+
+## 方案 B：部署完整后端到 Render
 
 ## 一、部署后端到 Render（免费）
 

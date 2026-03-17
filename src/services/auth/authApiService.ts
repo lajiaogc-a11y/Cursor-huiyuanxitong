@@ -1,6 +1,7 @@
 /**
  * Auth API Service - 通过 Backend API 进行认证
  * 替代 supabase.auth
+ * 当后端未部署时，自动回退到 Supabase Edge Function
  */
 import { apiGet, apiPost } from '@/api/client';
 import { setAuthToken, clearAuthToken } from '@/api/client';
@@ -29,6 +30,34 @@ interface MeResponse {
   error?: string;
 }
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '';
+
+/** 使用 Supabase Edge Function 登录（后端未部署时的备用） */
+async function loginViaEdgeFunction(
+  username: string,
+  password: string
+): Promise<{ success: boolean; user?: AuthUser; message?: string }> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, message: '未配置 Supabase' };
+  }
+  const url = `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/employee-login`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify({ username: username.trim(), password }),
+  });
+  const data = (await res.json().catch(() => ({}))) as LoginResponse;
+  if (!data.success || !data.token || !data.user) {
+    return { success: false, message: data.error || '登录失败' };
+  }
+  setAuthToken(data.token);
+  return { success: true, user: data.user };
+}
+
 /** 登录 */
 export async function loginApi(
   username: string,
@@ -46,11 +75,23 @@ export async function loginApi(
     return { success: true, user: res.user };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes('ECONNREFUSED') || msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-      return { success: false, message: '无法连接后端服务，请检查网络或联系管理员确认后端已部署' };
-    }
-    if (msg === '请求失败' || msg.includes('404') || msg.includes('Not Found')) {
-      return { success: false, message: '接口不存在，请确认后端服务已正确部署' };
+    const isBackendUnavailable =
+      msg.includes('ECONNREFUSED') ||
+      msg.includes('Failed to fetch') ||
+      msg.includes('NetworkError') ||
+      msg === '请求失败' ||
+      msg.includes('404') ||
+      msg.includes('Not Found') ||
+      msg.includes('接口不存在');
+    if (isBackendUnavailable) {
+      try {
+        return await loginViaEdgeFunction(username, password);
+      } catch (edgeErr) {
+        return {
+          success: false,
+          message: err instanceof Error ? err.message : '登录失败，请检查网络或联系管理员',
+        };
+      }
     }
     return { success: false, message: msg || '登录失败' };
   }
@@ -66,6 +107,19 @@ export async function logoutApi(): Promise<void> {
   clearAuthToken();
 }
 
+/** 使用 Supabase Edge Function 获取当前用户（后端未部署时的备用） */
+async function getMeViaEdgeFunction(): Promise<AuthUser | null> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('api_access_token') : null;
+  if (!token) return null;
+  const url = `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/employee-me`;
+  const res = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  const data = (await res.json().catch(() => ({}))) as MeResponse;
+  return data.success && data.user ? data.user : null;
+}
+
 /** 获取当前用户信息 */
 export async function getCurrentUserApi(): Promise<AuthUser | null> {
   try {
@@ -73,6 +127,6 @@ export async function getCurrentUserApi(): Promise<AuthUser | null> {
     if (res.success && res.user) return res.user;
     return null;
   } catch {
-    return null;
+    return getMeViaEdgeFunction();
   }
 }

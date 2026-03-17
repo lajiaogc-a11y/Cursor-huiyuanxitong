@@ -3,3 +3,10 @@ project_id = "dhlwefrcowefvbxutsmc"
 # 允许登录时未认证调用（用于密码同步）
 [functions.sync-auth-password]
 verify_jwt = false
+
+# 员工登录备用（后端未部署时）
+[functions.employee-login]
+verify_jwt = false
+
+[functions.employee-me]
+verify_jwt = false
