@@ -21,6 +21,9 @@ if (Test-Path ".env") {
         if ($_ -match '^CLOUDFLARE_ACCOUNT_ID=(.+)$') {
             $env:CLOUDFLARE_ACCOUNT_ID = $matches[1].Trim().Trim('"')
         }
+        if ($_ -match '^VITE_API_BASE=(.+)$') {
+            $env:VITE_API_BASE = $matches[1].Trim().Trim('"')
+        }
     }
 }
 if (-not $env:CLOUDFLARE_API_TOKEN) {
@@ -77,6 +80,9 @@ foreach ($script in $migrationScripts) {
     }
 }
 
+if (-not $env:VITE_API_BASE) {
+    Write-Host "警告: VITE_API_BASE 未设置，登录将失败。请先在 .env 中配置后端地址，详见 docs/DEPLOY_BACKEND.md" -ForegroundColor Yellow
+}
 npm run build
 if ($LASTEXITCODE -ne 0) { Write-Host "Build failed" -ForegroundColor Red; exit 1 }
 

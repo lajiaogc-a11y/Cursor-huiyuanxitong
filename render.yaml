@@ -1,0 +1,23 @@
+# Render Blueprint - 后端 API 一键部署
+# 部署后请在 .env 中设置 VITE_API_BASE=https://你的服务名.onrender.com，然后重新部署前端
+services:
+  - type: web
+    name: gift-system-api
+    runtime: node
+    region: singapore
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        secret: true
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: DATABASE_PASSWORD
+        secret: true
+      - key: JWT_SECRET
+        generateValue: true
