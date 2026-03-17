@@ -80,6 +80,13 @@ export default function Login() {
     if (error) setError(null);
   }, [username, password]);
 
+  /** 将「请求失败」等通用错误转为更明确的提示 */
+  const normalizeErrorMessage = (msg: string): string => {
+    if (!msg) return msg;
+    if (msg === '请求失败' || msg === 'Request failed') return '接口不存在，请确认后端服务已正确部署';
+    return msg;
+  };
+
   const parseErrorCode = (message: string): string => {
     if (message?.includes('USER_NOT_FOUND') || message?.includes('账号不存在')) return 'USER_NOT_FOUND';
     if (message?.includes('WRONG_PASSWORD') || message?.includes('密码错误')) return 'WRONG_PASSWORD';
@@ -115,20 +122,22 @@ export default function Login() {
         navigate(target, { replace: true });
         return;
       } else {
-        const errorCode = parseErrorCode(result.message);
+        const normalizedMsg = normalizeErrorMessage(result.message);
+        const errorCode = parseErrorCode(normalizedMsg);
         const errorConfig = ERROR_CONFIG[errorCode] || ERROR_CONFIG.UNKNOWN;
         const useBackendMessage = ['ACCOUNT_LOCKED', 'MAINTENANCE_MODE', 'SERVER_ERROR'].includes(errorCode)
-          || (errorCode === 'UNKNOWN' && result.message && result.message !== '登录失败');
+          || (errorCode === 'UNKNOWN' && normalizedMsg && normalizedMsg !== '登录失败');
         setError({
           code: errorCode,
-          message: useBackendMessage ? result.message : errorConfig.message
+          message: useBackendMessage ? normalizedMsg : errorConfig.message
         });
       }
     } catch (err: any) {
-      const errorCode = parseErrorCode(err?.message || '');
+      const normalizedMsg = normalizeErrorMessage(err?.message || '');
+      const errorCode = parseErrorCode(normalizedMsg);
       const errorConfig = ERROR_CONFIG[errorCode] || ERROR_CONFIG.UNKNOWN;
-      const useErrMessage = err?.message && (errorCode !== 'UNKNOWN' || !err.message.includes('登录失败'));
-      setError({ code: errorCode, message: useErrMessage ? err.message : errorConfig.message });
+      const useErrMessage = normalizedMsg && (errorCode !== 'UNKNOWN' || !normalizedMsg.includes('登录失败'));
+      setError({ code: errorCode, message: useErrMessage ? normalizedMsg : errorConfig.message });
     } finally {
       setLoading(false);
     }
@@ -181,10 +190,10 @@ export default function Login() {
         </DropdownMenu>
       </div>
 
-      {/* 居中双卡片布局 - 无缝隙合并，整体圆角 */}
-      <div className="flex flex-col lg:flex-row items-center justify-center w-full max-w-[900px] overflow-hidden rounded-2xl shadow-xl">
+      {/* 居中双卡片布局 - 左右严格等宽(50%:50%)，无缝隙合并，整体圆角 */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] w-full max-w-[900px] overflow-hidden rounded-2xl shadow-xl">
         {/* 左侧广告卡片 - 桌面端 */}
-        <div className="hidden lg:flex flex-col flex-1 min-w-0 lg:min-w-[380px] p-8 xl:p-10 bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] min-h-[520px]">
+        <div className="hidden lg:flex flex-col min-w-0 p-8 xl:p-10 bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] min-h-[520px]">
           <div className="flex-1 flex flex-col justify-center">
             <div className="flex items-center gap-3 mb-10">
               <GCLogo size={44} variant="light" />
@@ -216,9 +225,9 @@ export default function Login() {
           </p>
         </div>
 
-        {/* 右侧登录卡片 - 与左侧无缝衔接 */}
+        {/* 右侧登录卡片 - 与左侧严格等宽、无缝衔接，错误提示不改变容器宽度 */}
         <div
-          className="relative w-full lg:min-w-[380px] flex-1 p-8 xl:p-10 bg-white dark:bg-slate-800/90 dark:border-l dark:border-slate-700/50"
+          className="relative w-full min-w-0 max-w-full flex flex-col overflow-hidden p-8 xl:p-10 bg-white dark:bg-slate-800/90 dark:border-l dark:border-slate-700/50"
         >
           {/* 移动端/平板端：广告内容 + Logo（与桌面端左侧一致） */}
           <div className="lg:hidden mb-6 pb-6 border-b border-slate-200 dark:border-slate-600">
@@ -276,9 +285,9 @@ export default function Login() {
             className="space-y-5"
           >
             {error && (
-              <Alert variant="destructive" className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300">
+              <Alert variant="destructive" className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 shrink-0 overflow-hidden">
                 <ErrorIcon className="h-4 w-4 shrink-0" />
-                <AlertDescription className="ml-2 text-sm">{error.message}</AlertDescription>
+                <AlertDescription className="ml-2 text-sm break-words">{error.message}</AlertDescription>
               </Alert>
             )}
 

@@ -47,7 +47,10 @@ export async function loginApi(
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes('ECONNREFUSED') || msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-      return { success: false, message: '无法连接后端服务，请先启动：cd server && npm run dev' };
+      return { success: false, message: '无法连接后端服务，请检查网络或联系管理员确认后端已部署' };
+    }
+    if (msg === '请求失败' || msg.includes('404') || msg.includes('Not Found')) {
+      return { success: false, message: '接口不存在，请确认后端服务已正确部署' };
     }
     return { success: false, message: msg || '登录失败' };
   }

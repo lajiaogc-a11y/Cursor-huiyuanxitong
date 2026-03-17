@@ -107,7 +107,7 @@ function parseApiResponse<T>(body: unknown): ApiResponse<T> | null {
 
 function handleResponseError(res: Response, body: unknown): never {
   const parsed = parseApiResponse<never>(body);
-  let message = '请求失败';
+  let message = res.status === 404 ? '接口不存在，请确认后端服务已正确部署' : '请求失败';
   let code = 'UNKNOWN';
   if (parsed && !parsed.success) {
     message = parsed.message;
