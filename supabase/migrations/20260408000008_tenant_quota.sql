@@ -28,6 +28,7 @@ FOR ALL
 USING (false)
 WITH CHECK (false);
 
+DROP FUNCTION IF EXISTS public.set_tenant_quota(uuid, integer, integer, integer);
 CREATE OR REPLACE FUNCTION public.set_tenant_quota(
   p_tenant_id uuid,
   p_max_employees integer DEFAULT NULL,
@@ -165,6 +166,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.check_my_tenant_quota(text, integer);
 CREATE OR REPLACE FUNCTION public.check_my_tenant_quota(
   p_resource text,
   p_increment integer DEFAULT 1
@@ -225,6 +227,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.list_tenant_quotas();
 CREATE OR REPLACE FUNCTION public.list_tenant_quotas()
 RETURNS TABLE(
   tenant_id uuid,
