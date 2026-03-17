@@ -31,6 +31,7 @@ FOR ALL
 USING (false)
 WITH CHECK (false);
 
+DROP FUNCTION IF EXISTS public.get_tenant_migration_conflict_details(uuid, uuid, integer);
 CREATE OR REPLACE FUNCTION public.get_tenant_migration_conflict_details(
   p_source_tenant_id uuid,
   p_target_tenant_id uuid,
@@ -92,6 +93,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.execute_tenant_data_migration(uuid, uuid, text, integer);
 CREATE OR REPLACE FUNCTION public.execute_tenant_data_migration(
   p_source_tenant_id uuid,
   p_target_tenant_id uuid,
@@ -257,6 +259,7 @@ EXCEPTION WHEN others THEN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.rollback_tenant_migration_job(uuid);
 CREATE OR REPLACE FUNCTION public.rollback_tenant_migration_job(
   p_job_id uuid
 )
