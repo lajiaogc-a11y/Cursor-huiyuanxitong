@@ -4,7 +4,7 @@ import { Building2, Users, ClipboardList, ShieldAlert, RefreshCw, Settings, Eye,
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { getDashboardStatsApi } from "@/services/reports/reportsApiService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { STAFF } from "@/config/paths";
 
@@ -30,23 +30,24 @@ export default function AdminOverview() {
 
   const loadStats = async () => {
     setLoading(true);
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    const [tenantsRes, employeesRes, ordersRes, auditsRes] = await Promise.all([
-      supabase.from("tenants").select("*", { count: "exact", head: true }),
-      supabase.from("employees").select("*", { count: "exact", head: true }).eq("status", "active"),
-      supabase.from("orders").select("*", { count: "exact", head: true }).gte("created_at", todayStart.toISOString()),
-      supabase.from("audit_records").select("*", { count: "exact", head: true }).eq("status", "pending"),
-    ]);
-
-    setStats({
-      tenants: tenantsRes.error ? null : (tenantsRes.count ?? 0),
-      activeEmployees: employeesRes.error ? null : (employeesRes.count ?? 0),
-      todayOrders: ordersRes.error ? null : (ordersRes.count ?? 0),
-      pendingAudits: auditsRes.error ? null : (auditsRes.count ?? 0),
-    });
-    setLoading(false);
+    try {
+      const data = await getDashboardStatsApi();
+      setStats({
+        tenants: data.tenants,
+        activeEmployees: data.activeEmployees,
+        todayOrders: data.todayOrders,
+        pendingAudits: data.pendingAudits,
+      });
+    } catch {
+      setStats({
+        tenants: null,
+        activeEmployees: null,
+        todayOrders: null,
+        pendingAudits: null,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

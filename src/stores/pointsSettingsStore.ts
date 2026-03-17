@@ -1,7 +1,7 @@
 // Points Settings Store - 积分规则配置
 // 所有数据存储在线上数据库，不使用本地存储
 
-import { loadSharedData, saveSharedData, saveSharedDataSync } from '@/services/sharedDataService';
+import { loadSharedData, saveSharedData, saveSharedDataSync } from '@/services/finance/sharedDataService';
 import { logOperation } from './auditLogStore';
 
 export type PointsMode = 'auto' | 'manual';

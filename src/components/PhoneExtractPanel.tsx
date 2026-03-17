@@ -27,6 +27,8 @@ import {
   type PhoneStats,
 } from "@/services/phonePoolService";
 import { showServiceErrorToast } from "@/services/serviceErrorToast";
+import { useTenantFeatureFlag } from "@/hooks/useTenantFeatureFlag";
+import { FEATURE_FLAGS } from "@/services/featureFlagService";
 
 export function PhoneExtractPanel() {
   const { viewingTenantId } = useTenantView() || {};
@@ -35,6 +37,10 @@ export function PhoneExtractPanel() {
   const tenantId = viewingTenantId || employee?.tenant_id;
   const effectiveTenantId = tenantId ?? "";
   const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
+  const { enabled: phoneExtractEnabled, loading: phoneExtractFlagLoading } = useTenantFeatureFlag(
+    FEATURE_FLAGS.PHONE_EXTRACT,
+    true
+  );
 
   const [extractedList, setExtractedList] = useState<ExtractedPhone[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -155,6 +161,10 @@ export function PhoneExtractPanel() {
 
   const executeExtract = async () => {
     if (!effectiveTenantId) return;
+    if (!phoneExtractEnabled) {
+      toast.error(t("该租户已关闭号码提取功能", "Phone extract is disabled for this tenant"));
+      return;
+    }
     if (isPlatformAdminReadonlyView) {
       toast.error(t("平台总管理查看租户时为只读，无法提取号码", "Read-only in platform admin tenant view"));
       return;
@@ -211,6 +221,10 @@ export function PhoneExtractPanel() {
   };
 
   const executeReturn = async () => {
+    if (!phoneExtractEnabled) {
+      toast.error(t("该租户已关闭号码提取功能", "Phone extract is disabled for this tenant"));
+      return;
+    }
     if (isPlatformAdminReadonlyView) {
       toast.error(t("平台总管理查看租户时为只读，无法归还号码", "Read-only in platform admin tenant view"));
       return;
@@ -269,6 +283,10 @@ export function PhoneExtractPanel() {
 
   const executeConsume = async () => {
     if (!effectiveTenantId) return;
+    if (!phoneExtractEnabled) {
+      toast.error(t("该租户已关闭号码提取功能", "Phone extract is disabled for this tenant"));
+      return;
+    }
     if (isPlatformAdminReadonlyView) {
       toast.error(t("平台总管理查看租户时为只读，无法删除号码", "Read-only in platform admin tenant view"));
       return;
@@ -309,6 +327,10 @@ export function PhoneExtractPanel() {
   };
 
   const openPasswordDialog = (action: "extract" | "return" | "consume") => {
+    if (!phoneExtractEnabled) {
+      toast.error(t("该租户已关闭号码提取功能", "Phone extract is disabled for this tenant"));
+      return;
+    }
     setConfirmPassword("");
     setPasswordDialogAction(action);
   };
@@ -366,6 +388,30 @@ export function PhoneExtractPanel() {
   };
 
   if (!effectiveTenantId) return null;
+  if (phoneExtractFlagLoading) {
+    return (
+      <Card>
+        <CardContent className="py-6 text-sm text-muted-foreground">
+          {t("正在加载功能开关...", "Loading feature flags...")}
+        </CardContent>
+      </Card>
+    );
+  }
+  if (!phoneExtractEnabled) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Phone className="h-4 w-4" />
+            {t("号码提取", "Phone Extract")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          {t("该租户已关闭号码提取功能，如需启用请联系平台管理员在「平台设置 > 功能开关」开启。", "Phone extract is disabled for this tenant. Contact platform admin to enable it in Platform Settings > Feature Flags.")}
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -393,15 +439,15 @@ export function PhoneExtractPanel() {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Stats */}
+        {/* Stats: 可用、今日净提取/次数、当前持有 */}
         <div className="grid grid-cols-3 gap-1.5">
           {[
-            { label: t("可用", "Avail"),  value: statsLoading ? "…" : (stats ? stats.total_available : "-") },
+            { label: t("可用", "Avail"), value: statsLoading ? "…" : (stats ? String(stats.total_available) : "-") },
             {
-              label: t("净提取/次数", "Net/Acts"),
-              value: statsLoading ? "…" : (stats ? `${stats.user_today_extracted} / ${stats.user_today_extract_actions}次` : "-"),
+              label: t("今日/次数", "Today/Acts"),
+              value: statsLoading ? "…" : (stats ? `${stats.user_today_extracted} / ${stats.user_today_extract_actions}` : "-"),
             },
-            { label: t("持有", "Hold"),   value: statsLoading ? "…" : extractedList.length },
+            { label: t("持有", "Hold"), value: statsLoading ? "…" : String(extractedList.length) },
           ].map(({ label, value }) => (
             <div key={label} className="rounded border bg-muted/30 py-1.5 px-1 text-center">
               <p className="text-[10px] text-muted-foreground">{label}</p>

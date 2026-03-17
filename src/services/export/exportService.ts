@@ -83,15 +83,16 @@ async function getOrderExportData(options?: ExportOrdersOptions): Promise<any[]>
   const employeeMap: Record<string, string> = {};
   employees?.forEach(e => { employeeMap[e.id] = e.real_name; });
 
-  const { data: cards } = await supabase.from('cards').select('id, name');
+  const { listCardsApi, listVendorsApi, listPaymentProvidersApi } = await import('@/services/giftcards/giftcardsApiService');
+  const cards = await listCardsApi();
   const cardMap: Record<string, string> = {};
   cards?.forEach(c => { cardMap[c.id] = c.name; });
 
-  const { data: vendors } = await supabase.from('vendors').select('id, name');
+  const vendors = await listVendorsApi();
   const vendorMap: Record<string, string> = {};
   vendors?.forEach(v => { vendorMap[v.id] = v.name; });
 
-  const { data: providers } = await supabase.from('payment_providers').select('id, name');
+  const providers = await listPaymentProvidersApi();
   const providerMap: Record<string, string> = {};
   providers?.forEach(p => { providerMap[p.id] = p.name; });
 

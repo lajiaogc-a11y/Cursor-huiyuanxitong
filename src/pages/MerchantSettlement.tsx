@@ -47,7 +47,7 @@ const toast = (opts: { title: string; variant?: string; description?: string }) 
 };
 import { showSubmissionError } from "@/services/submissionErrorService";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { notifyDataMutation } from "@/services/dataRefreshManager";
+import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 import { safeNumber, safeToFixed } from "@/lib/safeCalc";
 import {
   getCardMerchantSettlements,
@@ -92,8 +92,10 @@ import {
   fetchMerchantCards,
   fetchMerchantPaymentProviders,
   fetchMerchantVendors,
-} from "@/services/merchantConfigReadService";
+} from "@/services/finance/merchantConfigReadService";
 import { supabase } from "@/integrations/supabase/client";
+import { listEmployeesApi } from "@/api/employees";
+import { getActivityDataApi } from "@/api/data";
 import { useMerchantNameResolver, getEmployeeNameById } from "@/hooks/useNameResolver";
 import ShiftHandoverHistoryTab from "@/components/ShiftHandoverHistoryTab";
 import { CardMerchantSettlementTab, PaymentProviderSettlementTab } from "@/components/merchant-settlement";
@@ -102,7 +104,7 @@ import {
   calculateAllProviderBalances,
   VendorBalanceResult,
   ProviderBalanceResult,
-} from "@/services/settlementCalculationService";
+} from "@/services/finance/settlementCalculationService";
 import { useSortableData } from "@/components/ui/sortable-table-head";
 import {
   ensureUserPreferencesLoaded,
@@ -276,6 +278,20 @@ export default function MerchantSettlement() {
     initData();
   }, []);
 
+  // 租户切换时清除缓存并重新加载（跳过首次挂载，避免与 initData 重复）
+  const prevTenantRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (prevTenantRef.current === undefined) {
+      prevTenantRef.current = effectiveTenantId;
+      return;
+    }
+    if (prevTenantRef.current !== effectiveTenantId) {
+      prevTenantRef.current = effectiveTenantId;
+      _msCache = null;
+      loadData().then(() => loadEmployees());
+    }
+  }, [effectiveTenantId]);
+
   // Local save guard: suppress Realtime reloads during local saves to prevent race conditions
   const localSavePendingRef = useRef(false);
   const localSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -293,7 +309,7 @@ export default function MerchantSettlement() {
   // Realtime subscription for settlement data changes
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
-    import('@/services/sharedDataService').then(({ subscribeToSharedData }) => {
+    import('@/services/finance/sharedDataService').then(({ subscribeToSharedData }) => {
       unsubscribe = subscribeToSharedData((key) => {
         if (key === 'cardMerchantSettlements' || key === 'paymentProviderSettlements') {
           // Skip reload if a local save is in progress to prevent race condition overwrite
@@ -358,9 +374,10 @@ export default function MerchantSettlement() {
   }, []);
 
   const loadEmployees = async () => {
-    const { data } = await supabase.from("employees").select("id, real_name");
-    setEmployees(data || []);
-    if (_msCache) _msCache.employees = data || [];
+    const list = await listEmployeesApi(effectiveTenantId ? { tenant_id: effectiveTenantId } : undefined);
+    const data = list.map((e) => ({ id: e.id, real_name: e.real_name }));
+    setEmployees(data);
+    if (_msCache) _msCache.employees = data;
   };
 
   const loadData = async () => {
@@ -370,11 +387,11 @@ export default function MerchantSettlement() {
     const allOrders = [...(normalOrders || []), ...(usdtOrders || [])].sort(
       (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
-    const [cardsRes, vendorsRes, providersRes, giftsRes, cardSettlementsData, providerSettlementsData] = await Promise.all([
+    const [cardsRes, vendorsRes, providersRes, activityDataRes, cardSettlementsData, providerSettlementsData] = await Promise.all([
       fetchMerchantCards(),
       fetchMerchantVendors(),
       fetchMerchantPaymentProviders(),
-      supabase.from("activity_gifts").select("*"),
+      getActivityDataApi(effectiveTenantId ?? undefined),
       getCardMerchantSettlementsAsync(),
       getPaymentProviderSettlementsAsync(),
     ]);
@@ -417,14 +434,14 @@ export default function MerchantSettlement() {
     setVendors(vendorsData);
     setProviders(providersData);
     setDbOrders(allOrders);
-    setActivityGifts(giftsRes.data || []);
+    setActivityGifts(activityDataRes.gifts || []);
     // 使用异步获取的结算数据（展开运算符创建新引用，确保 React 重渲染）
     setCardSettlements([...cardSettlementsData]);
     setProviderSettlements([...providerSettlementsData]);
     // Update module-level cache
     _msCache = {
       cards: cardsData, vendors: vendorsData, providers: providersData,
-      dbOrders: allOrders, activityGifts: giftsRes.data || [],
+      dbOrders: allOrders, activityGifts: activityDataRes.gifts || [],
       cardSettlements: [...cardSettlementsData], providerSettlements: [...providerSettlementsData],
       employees: _msCache?.employees || [], loadedAt: Date.now(),
     };

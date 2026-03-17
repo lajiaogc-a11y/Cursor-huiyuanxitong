@@ -1,7 +1,7 @@
 // Exchange Rate Form Store - Persist form data using shared_data_store
 // 表单数据使用 shared_data_store 存储以支持跨设备同步
 
-import { loadSharedData, saveSharedData } from '@/services/sharedDataService';
+import { loadSharedData, saveSharedData } from '@/services/finance/sharedDataService';
 
 const DATA_KEY = 'exchangeRateFormData' as const;
 

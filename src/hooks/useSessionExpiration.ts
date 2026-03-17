@@ -1,51 +1,36 @@
 import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { hasAuthToken } from '@/api/client';
+import { getCurrentUserApi } from '@/services/auth/authApiService';
+
+const SESSION_CHECK_INTERVAL = 60 * 1000;
 
 /**
- * 监听 Supabase 会话过期事件，弹出重新登录提示
- * 当 token 刷新失败时，引导用户重新登录
+ * 定期验证 JWT 会话有效性
+ * 当 /api/auth/me 返回 401 时，api 客户端会触发 onUnauthorized 清除 token 并跳转登录
  */
 export function useSessionExpiration() {
-  const hasShownToast = useRef(false);
-  const navigate = useNavigate();
+  const checkingRef = useRef(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'TOKEN_REFRESHED') {
-        // Token 刷新成功，重置标记
-        hasShownToast.current = false;
+    const checkSession = async () => {
+      if (checkingRef.current || !hasAuthToken()) return;
+      checkingRef.current = true;
+      try {
+        await getCurrentUserApi();
+      } catch {
+        // 401 等错误由 api 客户端的 onUnauthorized 处理
+      } finally {
+        checkingRef.current = false;
       }
-      
-      if (event === 'SIGNED_OUT') {
-        // 如果不是用户主动登出（检查是否是因 token 过期被踢出）
-        // 仅在有过活跃会话时才提示
-        if (!hasShownToast.current) {
-          hasShownToast.current = true;
-          // 延迟检查，避免与正常登出冲突
-          setTimeout(() => {
-            // 兼容 HashRouter：pathname 可能在 hash 中
-            const path = window.location.hash ? window.location.hash.slice(1) || '/' : window.location.pathname;
-            if (path !== '/staff/login' && path !== '/staff/signup' && path !== '/staff/pending') {
-              toast.error('会话已过期，请重新登录', {
-                duration: 8000,
-                description: 'Your session has expired. Please log in again.',
-                action: {
-                  label: '重新登录',
-                  onClick: () => {
-                    navigate('/staff/login', { replace: true });
-                  },
-                },
-              });
-            }
-          }, 500);
-        }
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
     };
-  }, [navigate]);
+
+    const initialDelay = setTimeout(() => {
+      checkSession();
+    }, 1500);
+    const intervalId = setInterval(checkSession, SESSION_CHECK_INTERVAL);
+    return () => {
+      clearTimeout(initialDelay);
+      clearInterval(intervalId);
+    };
+  }, []);
 }

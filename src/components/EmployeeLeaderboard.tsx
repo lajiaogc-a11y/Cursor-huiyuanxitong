@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Medal, Award, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { listEmployeesApi } from "@/api/employees";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
@@ -44,10 +44,10 @@ export default function EmployeeLeaderboard() {
         : await Promise.all([getMyTenantOrdersFull(), getMyTenantUsdtOrdersFull()]);
       const allOrders = [...(normalOrders || []), ...(usdtOrders || [])]
         .filter((o: any) => !o.is_deleted && new Date(o.created_at) >= startOfMonth);
-      const { data: employeesData } = await supabase.from("employees").select("id, real_name, role, status").eq("status", "active");
+      const employeesList = await listEmployeesApi(effectiveTenantId ? { tenant_id: effectiveTenantId } : undefined);
+      const employees = employeesList.filter((e) => e.status === "active");
 
       const orders = allOrders;
-      const employees = employeesData || [];
 
       const entries: LeaderboardEntry[] = employees.map(emp => {
         const empOrders = orders.filter(o => o.creator_id === emp.id);

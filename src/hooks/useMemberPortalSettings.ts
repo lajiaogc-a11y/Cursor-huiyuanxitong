@@ -3,8 +3,8 @@ import {
   DEFAULT_SETTINGS,
   getMemberPortalSettingsByMember,
   type MemberPortalSettings,
-} from "@/services/memberPortalSettingsService";
-import { subscribeMemberPortalLiveUpdate } from "@/services/memberPortalLiveUpdateService";
+} from "@/services/members/memberPortalSettingsService";
+import { subscribeMemberPortalLiveUpdate } from "@/services/members/memberPortalLiveUpdateService";
 import { supabase } from "@/integrations/supabase/client";
 
 interface State {

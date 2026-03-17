@@ -220,7 +220,9 @@ export function Header() {
     if (!employee) return null;
 
     // 平台总管理员在“查看租户”模式下，仍属于租户上下文
-    if (employee.is_platform_super_admin && !isViewingTenant) {
+    // 平台总管理员：在 /staff/admin/* 或未查看租户时显示「平台后台」
+    const isOnPlatformAdminPage = location.pathname.startsWith('/staff/admin');
+    if (employee.is_platform_super_admin && (isOnPlatformAdminPage || !isViewingTenant)) {
       return (
         <Badge variant="outline" className="ml-2 border-violet-300 text-violet-700 dark:border-violet-700 dark:text-violet-300">
           {t("平台后台", "Platform")}

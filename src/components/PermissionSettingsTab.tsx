@@ -39,7 +39,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { useAuditLog } from "@/hooks/useAuditLog";
-import { loadSharedData, saveSharedData, type SharedDataKey } from "@/services/sharedDataService";
+import { loadSharedData, saveSharedData, type SharedDataKey } from "@/services/finance/sharedDataService";
 import { usePermissionChangeLogs } from "@/hooks/usePermissionChangeLogs";
 import { PermissionChangeHistory } from "@/components/PermissionChangeHistory";
 import { PermissionImportExport } from "@/components/PermissionImportExport";

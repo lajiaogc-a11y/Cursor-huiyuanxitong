@@ -1,11 +1,22 @@
 // ============= Merchant Config Hook - react-query Migration =============
 // react-query 缓存确保页面切换不重复请求
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logOperation } from '@/stores/auditLogStore';
-import { fetchMerchantCards, fetchMerchantVendors, fetchMerchantPaymentProviders } from '@/services/merchantConfigReadService';
+import { fetchMerchantCards, fetchMerchantVendors, fetchMerchantPaymentProviders } from '@/services/finance/merchantConfigReadService';
+import {
+  createCardApi,
+  updateCardApi,
+  deleteCardApi,
+  createVendorApi,
+  updateVendorApi,
+  deleteVendorApi,
+  createPaymentProviderApi,
+  updatePaymentProviderApi,
+  deletePaymentProviderApi,
+} from '@/services/giftcards/giftcardsApiService';
 
 export interface CardItem {
   id: string;
@@ -98,18 +109,21 @@ export function useCards() {
 
   const addCard = async (card: Omit<CardItem, 'id' | 'createdAt'>): Promise<CardItem | null> => {
     try {
-      const { data, error } = await supabase
-        .from('cards')
-        .insert({
-          name: card.name, type: card.type, status: card.status,
-          remark: card.remark, card_vendors: card.cardVendors || [],
-        })
-        .select().single();
-      if (error) throw error;
+      const data = await createCardApi({
+        name: card.name,
+        type: card.type,
+        status: card.status,
+        remark: card.remark,
+        card_vendors: card.cardVendors || [],
+      });
+      if (!data) throw new Error('创建失败');
       const newCard: CardItem = {
-        id: data.id, name: data.name, type: data.type || '',
+        id: data.id,
+        name: data.name,
+        type: data.type || '',
         status: data.status as "active" | "inactive",
-        remark: data.remark || '', createdAt: data.created_at.split('T')[0],
+        remark: data.remark || '',
+        createdAt: data.created_at?.split('T')[0] || '',
         cardVendors: data.card_vendors || [],
       };
       logOperation('merchant_management', 'create', data.id, null, data, `新增卡片: ${card.name}`);
@@ -125,15 +139,14 @@ export function useCards() {
   const updateCard = async (id: string, updates: Partial<CardItem>): Promise<boolean> => {
     try {
       const oldCard = cards.find(c => c.id === id);
-      const { error } = await supabase
-        .from('cards')
-        .update({
-          name: updates.name, type: updates.type,
-          status: updates.status, remark: updates.remark,
-          card_vendors: updates.cardVendors,
-        })
-        .eq('id', id);
-      if (error) throw error;
+      const data = await updateCardApi(id, {
+        name: updates.name,
+        type: updates.type,
+        status: updates.status,
+        remark: updates.remark,
+        card_vendors: updates.cardVendors,
+      });
+      if (!data) throw new Error('更新失败');
       if (oldCard) {
         logOperation('card_management', 'update', id, oldCard, updates, `更新卡片: ${oldCard.name}`);
       }
@@ -148,8 +161,8 @@ export function useCards() {
   const deleteCard = async (id: string): Promise<boolean> => {
     try {
       const cardToDelete = cards.find(c => c.id === id);
-      const { error } = await supabase.from('cards').delete().eq('id', id);
-      if (error) throw error;
+      const ok = await deleteCardApi(id);
+      if (!ok) throw new Error('删除失败');
       if (cardToDelete) {
         const { logOperation } = await import('@/stores/auditLogStore');
         logOperation('card_management', 'delete', id, cardToDelete, null, `删除卡片: ${cardToDelete.name}`);
@@ -166,8 +179,8 @@ export function useCards() {
 
   const updateCardSortOrder = async (id: string, sortOrder: number): Promise<boolean> => {
     try {
-      const { error } = await supabase.from('cards').update({ sort_order: sortOrder }).eq('id', id);
-      if (error) throw error;
+      const data = await updateCardApi(id, { sort_order: sortOrder });
+      if (!data) throw new Error('更新失败');
       await queryClient.invalidateQueries({ queryKey: ['cards'] });
       return true;
     } catch (error) {
@@ -178,11 +191,8 @@ export function useCards() {
 
   const updateCardSortOrders = async (items: { id: string; sortOrder: number }[]): Promise<boolean> => {
     try {
-      const updates = items.map(item =>
-        supabase.from('cards').update({ sort_order: item.sortOrder }).eq('id', item.id)
-      );
-      const results = await Promise.all(updates);
-      if (results.some(r => r.error)) return false;
+      const results = await Promise.all(items.map(item => updateCardApi(item.id, { sort_order: item.sortOrder })));
+      if (results.some(r => !r)) return false;
       await queryClient.invalidateQueries({ queryKey: ['cards'] });
       return true;
     } catch (error) {
@@ -220,15 +230,14 @@ export function useVendors() {
 
   const addVendor = async (vendor: Omit<Vendor, 'id' | 'createdAt'>): Promise<Vendor | null> => {
     try {
-      const { data, error } = await supabase
-        .from('vendors')
-        .insert({ name: vendor.name, status: vendor.status, remark: vendor.remark })
-        .select().single();
-      if (error) throw error;
+      const data = await createVendorApi({ name: vendor.name, status: vendor.status, remark: vendor.remark });
+      if (!data) throw new Error('创建失败');
       const newVendor: Vendor = {
-        id: data.id, name: data.name,
+        id: data.id,
+        name: data.name,
         status: data.status as "active" | "inactive",
-        remark: data.remark || '', createdAt: data.created_at.split('T')[0],
+        remark: data.remark || '',
+        createdAt: data.created_at?.split('T')[0] || '',
       };
       logOperation('merchant_management', 'create', data.id, null, data, `新增卡商: ${vendor.name}`);
       await queryClient.invalidateQueries({ queryKey: ['vendors'] });
@@ -243,42 +252,23 @@ export function useVendors() {
   const updateVendor = async (id: string, updates: Partial<Vendor & { sortOrder?: number }>): Promise<boolean> => {
     try {
       const oldVendor = vendors.find(v => v.id === id);
-      const oldName = oldVendor?.name;
-      
-      const updateData: any = {};
-      if (updates.name !== undefined) updateData.name = updates.name;
-      if (updates.status !== undefined) updateData.status = updates.status;
-      if (updates.remark !== undefined) updateData.remark = updates.remark;
-      if (updates.paymentProviders !== undefined) updateData.payment_providers = updates.paymentProviders;
-      if (updates.sortOrder !== undefined) updateData.sort_order = updates.sortOrder;
+      const body: Record<string, unknown> = {};
+      if (updates.name !== undefined) body.name = updates.name;
+      if (updates.status !== undefined) body.status = updates.status;
+      if (updates.remark !== undefined) body.remark = updates.remark;
+      if (updates.paymentProviders !== undefined) body.payment_providers = updates.paymentProviders;
+      if (updates.sortOrder !== undefined) body.sort_order = updates.sortOrder;
 
-      const { error } = await supabase.from('vendors').update(updateData).eq('id', id);
-      if (error) throw error;
+      const data = await updateVendorApi(id, body);
+      if (!data) throw new Error('更新失败');
       
       if (oldVendor) {
         logOperation('vendor_management', 'update', id, oldVendor, updates, `更新卡商: ${oldVendor.name}`);
       }
       
-      // Sync name changes across related tables
-      if (updates.name && oldName && updates.name !== oldName) {
-        const newName = updates.name;
-        
-        const { data: cardsWithVendor } = await supabase
-          .from('cards').select('id, card_vendors').contains('card_vendors', [oldName]);
-        if (cardsWithVendor) {
-          for (const card of cardsWithVendor) {
-            const updatedVendors = (card.card_vendors || []).map((v: string) => v === oldName ? newName : v);
-            await supabase.from('cards').update({ card_vendors: updatedVendors }).eq('id', card.id);
-          }
-        }
-        
-        await supabase.from('ledger_transactions').update({ account_id: newName })
-          .eq('account_type', 'card_vendor').eq('account_id', oldName);
-        await supabase.from('balance_change_logs').update({ merchant_name: newName })
-          .eq('merchant_type', 'card_vendor').eq('merchant_name', oldName);
-        
+      if (updates.name && oldVendor?.name && updates.name !== oldVendor.name) {
         const { renameVendorSettlement } = await import('@/stores/merchantSettlementStore');
-        await renameVendorSettlement(oldName, newName);
+        await renameVendorSettlement(oldVendor.name, updates.name);
       }
       
       await queryClient.invalidateQueries({ queryKey: ['vendors'] });
@@ -292,25 +282,12 @@ export function useVendors() {
   const deleteVendor = async (id: string): Promise<boolean> => {
     try {
       const vendorToDelete = vendors.find(v => v.id === id);
-      const vendorName = vendorToDelete?.name;
-      
-      const { error } = await supabase.from('vendors').delete().eq('id', id);
-      if (error) throw error;
+      const ok = await deleteVendorApi(id);
+      if (!ok) throw new Error('删除失败');
       
       if (vendorToDelete) {
         const { logOperation } = await import('@/stores/auditLogStore');
-        logOperation('vendor_management', 'delete', id, vendorToDelete, null, `删除卡商: ${vendorName}`);
-      }
-      
-      if (vendorName) {
-        const { data: cardsWithVendor } = await supabase
-          .from('cards').select('id, card_vendors').contains('card_vendors', [vendorName]);
-        if (cardsWithVendor) {
-          for (const card of cardsWithVendor) {
-            const updatedVendors = (card.card_vendors || []).filter((v: string) => v !== vendorName);
-            await supabase.from('cards').update({ card_vendors: updatedVendors }).eq('id', card.id);
-          }
-        }
+        logOperation('vendor_management', 'delete', id, vendorToDelete, null, `删除卡商: ${vendorToDelete.name}`);
       }
       
       await queryClient.invalidateQueries({ queryKey: ['vendors'] });
@@ -326,7 +303,7 @@ export function useVendors() {
   const updateVendorOrder = async (reorderedVendors: Vendor[]): Promise<boolean> => {
     try {
       for (let i = 0; i < reorderedVendors.length; i++) {
-        await supabase.from('vendors').update({ sort_order: i }).eq('id', reorderedVendors[i].id);
+        await updateVendorApi(reorderedVendors[i].id, { sort_order: i });
       }
       await queryClient.invalidateQueries({ queryKey: ['vendors'] });
       return true;
@@ -338,11 +315,8 @@ export function useVendors() {
 
   const updateVendorSortOrders = async (items: { id: string; sortOrder: number }[]): Promise<boolean> => {
     try {
-      const updates = items.map(item =>
-        supabase.from('vendors').update({ sort_order: item.sortOrder }).eq('id', item.id)
-      );
-      const results = await Promise.all(updates);
-      if (results.some(r => r.error)) return false;
+      const results = await Promise.all(items.map(item => updateVendorApi(item.id, { sort_order: item.sortOrder })));
+      if (results.some(r => !r)) return false;
       await queryClient.invalidateQueries({ queryKey: ['vendors'] });
       return true;
     } catch (error) {
@@ -380,15 +354,14 @@ export function usePaymentProviders() {
 
   const addProvider = async (provider: Omit<PaymentProvider, 'id' | 'createdAt'>): Promise<PaymentProvider | null> => {
     try {
-      const { data, error } = await supabase
-        .from('payment_providers')
-        .insert({ name: provider.name, status: provider.status, remark: provider.remark })
-        .select().single();
-      if (error) throw error;
+      const data = await createPaymentProviderApi({ name: provider.name, status: provider.status, remark: provider.remark });
+      if (!data) throw new Error('创建失败');
       const newProvider: PaymentProvider = {
-        id: data.id, name: data.name,
+        id: data.id,
+        name: data.name,
         status: data.status as "active" | "inactive",
-        remark: data.remark || '', createdAt: data.created_at.split('T')[0],
+        remark: data.remark || '',
+        createdAt: data.created_at?.split('T')[0] || '',
       };
       logOperation('merchant_management', 'create', data.id, null, data, `新增代付商家: ${provider.name}`);
       await queryClient.invalidateQueries({ queryKey: ['payment-providers'] });
@@ -403,42 +376,22 @@ export function usePaymentProviders() {
   const updateProvider = async (id: string, updates: Partial<PaymentProvider & { sortOrder?: number }>): Promise<boolean> => {
     try {
       const oldProvider = providers.find(p => p.id === id);
-      const oldName = oldProvider?.name;
-      
-      const updateData: any = {};
-      if (updates.name !== undefined) updateData.name = updates.name;
-      if (updates.status !== undefined) updateData.status = updates.status;
-      if (updates.remark !== undefined) updateData.remark = updates.remark;
-      if (updates.sortOrder !== undefined) updateData.sort_order = updates.sortOrder;
+      const body: Record<string, unknown> = {};
+      if (updates.name !== undefined) body.name = updates.name;
+      if (updates.status !== undefined) body.status = updates.status;
+      if (updates.remark !== undefined) body.remark = updates.remark;
+      if (updates.sortOrder !== undefined) body.sort_order = updates.sortOrder;
 
-      const { error } = await supabase.from('payment_providers').update(updateData).eq('id', id);
-      if (error) throw error;
+      const data = await updatePaymentProviderApi(id, body);
+      if (!data) throw new Error('更新失败');
       
       if (oldProvider) {
         logOperation('provider_management', 'update', id, oldProvider, updates, `更新代付商家: ${oldProvider.name}`);
       }
       
-      if (updates.name && oldName && updates.name !== oldName) {
-        const newName = updates.name;
-        
-        const { data: vendorsWithProvider } = await supabase
-          .from('vendors').select('id, payment_providers').contains('payment_providers', [oldName]);
-        if (vendorsWithProvider) {
-          for (const vendor of vendorsWithProvider) {
-            const updatedProviders = (vendor.payment_providers || []).map((p: string) => p === oldName ? newName : p);
-            await supabase.from('vendors').update({ payment_providers: updatedProviders }).eq('id', vendor.id);
-          }
-        }
-        
-        await supabase.from('ledger_transactions').update({ account_id: newName })
-          .eq('account_type', 'payment_provider').eq('account_id', oldName);
-        await supabase.from('activity_gifts').update({ payment_agent: newName })
-          .eq('payment_agent', oldName);
-        await supabase.from('balance_change_logs').update({ merchant_name: newName })
-          .eq('merchant_type', 'payment_provider').eq('merchant_name', oldName);
-        
+      if (updates.name && oldProvider?.name && updates.name !== oldProvider.name) {
         const { renameProviderSettlement } = await import('@/stores/merchantSettlementStore');
-        await renameProviderSettlement(oldName, newName);
+        await renameProviderSettlement(oldProvider.name, updates.name);
       }
       
       await queryClient.invalidateQueries({ queryKey: ['payment-providers'] });
@@ -452,25 +405,12 @@ export function usePaymentProviders() {
   const deleteProvider = async (id: string): Promise<boolean> => {
     try {
       const providerToDelete = providers.find(p => p.id === id);
-      const providerName = providerToDelete?.name;
-      
-      const { error } = await supabase.from('payment_providers').delete().eq('id', id);
-      if (error) throw error;
+      const ok = await deletePaymentProviderApi(id);
+      if (!ok) throw new Error('删除失败');
       
       if (providerToDelete) {
         const { logOperation } = await import('@/stores/auditLogStore');
-        logOperation('provider_management', 'delete', id, providerToDelete, null, `删除代付商家: ${providerName}`);
-      }
-      
-      if (providerName) {
-        const { data: vendorsWithProvider } = await supabase
-          .from('vendors').select('id, payment_providers').contains('payment_providers', [providerName]);
-        if (vendorsWithProvider) {
-          for (const vendor of vendorsWithProvider) {
-            const updatedProviders = (vendor.payment_providers || []).filter((p: string) => p !== providerName);
-            await supabase.from('vendors').update({ payment_providers: updatedProviders }).eq('id', vendor.id);
-          }
-        }
+        logOperation('provider_management', 'delete', id, providerToDelete, null, `删除代付商家: ${providerToDelete.name}`);
       }
       
       await queryClient.invalidateQueries({ queryKey: ['payment-providers'] });
@@ -486,7 +426,7 @@ export function usePaymentProviders() {
   const updateProviderOrder = async (reorderedProviders: PaymentProvider[]): Promise<boolean> => {
     try {
       for (let i = 0; i < reorderedProviders.length; i++) {
-        await supabase.from('payment_providers').update({ sort_order: i }).eq('id', reorderedProviders[i].id);
+        await updatePaymentProviderApi(reorderedProviders[i].id, { sort_order: i });
       }
       await queryClient.invalidateQueries({ queryKey: ['payment-providers'] });
       return true;
@@ -498,11 +438,8 @@ export function usePaymentProviders() {
 
   const updateProviderSortOrders = async (items: { id: string; sortOrder: number }[]): Promise<boolean> => {
     try {
-      const updates = items.map(item =>
-        supabase.from('payment_providers').update({ sort_order: item.sortOrder }).eq('id', item.id)
-      );
-      const results = await Promise.all(updates);
-      if (results.some(r => r.error)) return false;
+      const results = await Promise.all(items.map(item => updatePaymentProviderApi(item.id, { sort_order: item.sortOrder })));
+      if (results.some(r => !r)) return false;
       await queryClient.invalidateQueries({ queryKey: ['payment-providers'] });
       return true;
     } catch (error) {

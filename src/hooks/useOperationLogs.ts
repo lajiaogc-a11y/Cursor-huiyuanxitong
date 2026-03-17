@@ -138,7 +138,7 @@ export function useOperationLogs() {
   };
 }
 
-// 全局日志记录函数 - 供其他模块调用
+// 全局日志记录函数 - 优先通过后端 API 写入（绕过 RLS）
 export async function logOperationToDb(
   module: string,
   operationType: string,
@@ -149,25 +149,20 @@ export async function logOperationToDb(
   operatorInfo?: { id?: string; account: string; role: string }
 ): Promise<boolean> {
   try {
-    const { getCurrentOperatorSync } = await import('@/services/operatorService');
+    const { getCurrentOperatorSync } = await import('@/services/members/operatorService');
     const currentUser = getCurrentOperatorSync();
-    
-    const { error } = await supabase
-      .from('operation_logs')
-      .insert({
-        timestamp: new Date().toISOString(),
-        operator_id: operatorInfo?.id || currentUser.id || null,
-        operator_account: operatorInfo?.account || currentUser.account || 'system',
-        operator_role: operatorInfo?.role || currentUser.role || 'unknown',
-        module,
-        operation_type: operationType,
-        object_id: objectId,
-        object_description: objectDescription || null,
-        before_data: beforeData,
-        after_data: afterData,
-      });
-
-    if (error) throw error;
+    const { postOperationLog } = await import('@/api/data');
+    await postOperationLog({
+      operatorId: operatorInfo?.id || currentUser.id || null,
+      operatorAccount: operatorInfo?.account || currentUser.account || 'system',
+      operatorRole: operatorInfo?.role || currentUser.role || 'unknown',
+      module,
+      operationType,
+      objectId,
+      objectDescription: objectDescription || null,
+      beforeData,
+      afterData,
+    });
     return true;
   } catch (error) {
     console.error('Failed to log operation:', error);

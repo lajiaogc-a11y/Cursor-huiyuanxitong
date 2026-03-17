@@ -6,8 +6,8 @@ import {
   calculateProfit,
   calculateProfitRate
 } from "@/lib/orderCalculations";
-import { logOrderUpdateBalanceChange, syncMemberActivityOnOrderEdit } from "@/services/balanceLogService";
-import { adjustPointsOnOrderEdit } from "@/services/pointsService";
+import { logOrderUpdateBalanceChange, syncMemberActivityOnOrderEdit } from "@/services/finance/balanceLogService";
+import { adjustPointsOnOrderEdit } from "@/services/points/pointsService";
 import { logOperation } from '@/stores/auditLogStore';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -44,12 +44,12 @@ import { useAuditWorkflow } from "@/hooks/useAuditWorkflow";
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
 import { OrderFilters, OrderEditDialog, OrderUsdtEditDialog, OrderTable, OrderUsdtTable } from "@/components/orders";
 import { queryClient } from "@/lib/queryClient";
-import { notifyDataMutation } from "@/services/dataRefreshManager";
+import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 import {
   fetchMerchantCards,
   fetchMerchantPaymentProviders,
   fetchMerchantVendors,
-} from "@/services/merchantConfigReadService";
+} from "@/services/finance/merchantConfigReadService";
 
 // UUID 校验函数 - 防止把姓名字符串写入 uuid 字段
 const isUuid = (str: string): boolean => {

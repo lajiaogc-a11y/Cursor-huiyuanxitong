@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { validatePassword, getPasswordStrength } from "@/lib/passwordValidation";
 import { GCLogo } from "@/components/GCLogo";
 import { supabase } from "@/integrations/supabase/client";
+import { apiPost } from "@/api/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Signup() {
@@ -37,13 +38,10 @@ export default function Signup() {
         .from('employees')
         .select('id')
         .limit(1);
-      
       if (error) {
-        console.error('Check first user error:', error);
         setIsFirstUser(false);
         return;
       }
-      
       setIsFirstUser(!data || data.length === 0);
     } catch {
       setIsFirstUser(false);
@@ -53,24 +51,18 @@ export default function Signup() {
   const checkNetwork = async () => {
     setNetworkStatus('checking');
     const startTime = Date.now();
-    
     try {
       const { error } = await supabase
         .from('currencies')
         .select('id')
         .limit(1);
-      
       if (error) {
-        console.error('Network check error:', error);
         setNetworkStatus('error');
         return;
       }
-      
-      const latency = Date.now() - startTime;
-      setNetworkLatency(latency);
+      setNetworkLatency(Date.now() - startTime);
       setNetworkStatus('ok');
-    } catch (err) {
-      console.error('Network check failed:', err);
+    } catch {
       setNetworkStatus('error');
     }
   };
@@ -113,28 +105,18 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const response = await supabase.rpc('signup_employee', {
-        p_username: username.trim(),
-        p_password: password,
-        p_real_name: realName.trim(),
-        p_invitation_code: isFirstUser ? null : invitationCode.trim(),
-      });
+      const res = await apiPost<{ success: boolean; error_code?: string; assigned_status?: string; message?: string }>(
+        '/api/auth/register',
+        {
+          username: username.trim(),
+          password,
+          realName: realName.trim(),
+          invitationCode: isFirstUser ? undefined : invitationCode.trim(),
+        }
+      );
 
-      if (response.error) {
-        console.error('Signup RPC error:', response.error);
-        toast.error(t('signup.signupFailed') + ": " + response.error.message);
-        return;
-      }
-
-      if (!response.data || response.data.length === 0) {
-        toast.error(t('signup.signupFailed'));
-        return;
-      }
-
-      const result = response.data[0];
-
-      if (!result.success) {
-        switch (result.error_code) {
+      if (!res.success) {
+        switch (res.error_code) {
           case 'USERNAME_EXISTS':
             toast.error(t('signup.usernameExists'));
             break;
@@ -151,12 +133,12 @@ export default function Signup() {
             toast.error(t('邀请码已被使用完', 'Invitation code usage limit reached'));
             break;
           default:
-            toast.error(t('signup.signupFailed'));
+            toast.error(res.message || t('signup.signupFailed'));
         }
         return;
       }
 
-      if (result.assigned_status === 'active') {
+      if (res.assigned_status === 'active') {
         toast.success(t('signup.signupSuccessAdmin'));
       } else {
         toast.success(t('signup.signupSuccessPending'));

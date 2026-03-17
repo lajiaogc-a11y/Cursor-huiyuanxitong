@@ -6,7 +6,7 @@ import { useCallback, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { loadSharedData } from '@/services/sharedDataService';
+import { loadSharedData } from '@/services/finance/sharedDataService';
 
 // 审核设置类型（与 AuditCenter 一致）
 export interface AuditSettings {

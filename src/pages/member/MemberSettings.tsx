@@ -1,12 +1,24 @@
 import { useState, useEffect } from "react";
 import { Form, Input, Button } from "antd";
-import { UserOutlined, LockOutlined, RightOutlined, LogoutOutlined } from "@ant-design/icons";
+import { UserOutlined, LockOutlined, RightOutlined, LogoutOutlined, TransactionOutlined } from "@ant-design/icons";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ConfigProvider } from "antd";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import "@/styles/member-antd.css";
+
+export interface MemberOrderRow {
+  id: string;
+  created_at: string;
+  order_number: string;
+  card_type: string;
+  card_value: number;
+  actual_payment: number;
+  currency: string;
+  is_usdt: boolean;
+}
 
 export default function MemberSettings() {
   const { t } = useLanguage();
@@ -21,6 +33,36 @@ export default function MemberSettings() {
 
   const [savingNickname, setSavingNickname] = useState(false);
   const [savingPwd, setSavingPwd] = useState(false);
+  const [expandedOrders, setExpandedOrders] = useState(false);
+
+  const queryClient = useQueryClient();
+  const { data: memberOrders = [], isLoading: ordersLoading } = useQuery({
+    queryKey: ["member-orders", member?.id],
+    queryFn: async () => {
+      if (!member?.id) return [];
+      const { data, error } = await supabase.rpc("member_get_orders", { p_member_id: member.id });
+      if (error) throw error;
+      return (data || []) as MemberOrderRow[];
+    },
+    enabled: !!member?.id,
+  });
+
+  const formatOrderTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getDate().toString().padStart(2, "0")} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}:${d.getSeconds().toString().padStart(2, "0")}`;
+  };
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("member-orders-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["member-orders", member?.id] });
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [member?.id, queryClient]);
 
   const handleSaveNickname = async () => {
     if (!member) return;
@@ -305,6 +347,85 @@ export default function MemberSettings() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* 交易记录 */}
+          <p className="member-section-title" style={{ marginBottom: 12 }}>{t("交易记录", "Transaction History")}</p>
+          <div style={{
+            background: "white",
+            borderRadius: 16,
+            padding: "0 16px",
+            boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
+            marginBottom: 16,
+          }}>
+            <button
+              onClick={() => setExpandedOrders(!expandedOrders)}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                width: "100%", padding: "16px 0",
+                background: "none", border: "none", cursor: "pointer",
+                borderBottom: expandedOrders ? "none" : "1px solid rgba(15,23,42,0.06)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  background: "rgba(34,197,94,0.1)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <TransactionOutlined style={{ color: "#22c55e", fontSize: 16 }} />
+                </div>
+                <div style={{ textAlign: "left" }}>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: "#0f172a" }}>
+                    {t("我的订单", "My Orders")}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 12, color: "#94a3b8" }}>
+                    {ordersLoading ? t("加载中...", "Loading...") : `${memberOrders.length} ${t("笔", "records")}`}
+                  </p>
+                </div>
+              </div>
+              <RightOutlined style={{
+                color: "#94a3b8", fontSize: 12,
+                transform: expandedOrders ? "rotate(90deg)" : "none",
+                transition: "transform 0.2s ease",
+              }} />
+            </button>
+            {expandedOrders && (
+              <div style={{ padding: "0 0 16px", borderBottom: "1px solid rgba(15,23,42,0.06)" }}>
+                {ordersLoading ? (
+                  <p style={{ padding: 16, margin: 0, color: "#94a3b8", fontSize: 13 }}>{t("加载中...", "Loading...")}</p>
+                ) : memberOrders.length === 0 ? (
+                  <p style={{ padding: 16, margin: 0, color: "#94a3b8", fontSize: 13 }}>{t("暂无订单记录", "No orders yet")}</p>
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid rgba(15,23,42,0.08)" }}>
+                          <th style={{ padding: "10px 8px", textAlign: "left", fontWeight: 600, color: "#64748b" }}>{t("创建时间", "Created")}</th>
+                          <th style={{ padding: "10px 8px", textAlign: "left", fontWeight: 600, color: "#64748b" }}>{t("订单ID", "Order ID")}</th>
+                          <th style={{ padding: "10px 8px", textAlign: "left", fontWeight: 600, color: "#64748b" }}>{t("卡类型", "Card Type")}</th>
+                          <th style={{ padding: "10px 8px", textAlign: "right", fontWeight: 600, color: "#64748b" }}>{t("面值", "Value")}</th>
+                          <th style={{ padding: "10px 8px", textAlign: "right", fontWeight: 600, color: "#64748b" }}>{t("实付", "Paid")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {memberOrders.map((order) => (
+                          <tr key={order.id} style={{ borderBottom: "1px solid rgba(15,23,42,0.06)" }}>
+                            <td style={{ padding: "10px 8px", color: "#0f172a" }}>{formatOrderTime(order.created_at)}</td>
+                            <td style={{ padding: "10px 8px", color: "#0f172a", fontFamily: "monospace", fontSize: 12 }}>{order.order_number || order.id?.slice(0, 8)}</td>
+                            <td style={{ padding: "10px 8px", color: "#0f172a" }}>{order.card_type || "-"}</td>
+                            <td style={{ padding: "10px 8px", textAlign: "right", color: "#0f172a" }}>{Number(order.card_value || 0).toLocaleString()}</td>
+                            <td style={{ padding: "10px 8px", textAlign: "right", color: "#0f172a" }}>
+                              {order.is_usdt ? `${Number(order.actual_payment || 0).toLocaleString()} U` : Number(order.actual_payment || 0).toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 安全提示 */}

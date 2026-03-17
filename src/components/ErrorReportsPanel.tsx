@@ -15,6 +15,7 @@ import { classifyError, getSeverityColor, type ErrorSeverity } from "@/lib/error
 
 interface ErrorReport {
   id: string;
+  error_id?: string | null;
   created_at: string;
   error_message: string;
   error_stack: string | null;
@@ -206,6 +207,11 @@ export default function ErrorReportsPanel() {
                         <span className="text-xs text-muted-foreground">
                           {format(new Date(report.created_at), "yyyy-MM-dd HH:mm:ss")}
                         </span>
+                        {report.error_id && (
+                          <Badge variant="outline" className="text-[10px] font-mono">
+                            {report.error_id}
+                          </Badge>
+                        )}
                         {report.url && (
                           <span className="text-xs text-muted-foreground flex items-center gap-0.5 truncate max-w-[200px]">
                             <ExternalLink className="h-3 w-3 shrink-0" />

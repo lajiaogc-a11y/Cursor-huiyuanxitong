@@ -5,12 +5,15 @@
 import { useState, useEffect } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTenantView } from '@/contexts/TenantViewContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { AlertCircle, RefreshCw, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LayoutSkeleton } from '@/components/skeletons/LayoutSkeleton';
 import { Loader2 } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { useMaintenanceMode } from '@/hooks/useMaintenanceMode';
+import { MaintenanceBlockedView } from '@/components/MaintenanceBlockedView';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -29,7 +32,11 @@ export function ProtectedRoute({ children, requireAdmin, requireManager, require
   const location = useLocation();
   const navigate = useNavigate();
   const [employeeLoadTimeout, setEmployeeLoadTimeout] = useState(false);
+  const [authLoadTimeout, setAuthLoadTimeout] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [autoRecovering, setAutoRecovering] = useState(false);
+  const [autoRecoveredOnce, setAutoRecoveredOnce] = useState(false);
+  const { loading: maintenanceLoading, status: maintenanceStatus } = useMaintenanceMode(employee?.tenant_id ?? null);
 
   // 员工信息加载超时检测
   useEffect(() => {
@@ -44,6 +51,15 @@ export function ProtectedRoute({ children, requireAdmin, requireManager, require
       setEmployeeLoadTimeout(false);
     }
   }, [loading, session, employee]);
+
+  // 认证 loading 超时兜底：避免极端情况下永久骨架屏
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => setAuthLoadTimeout(true), EMPLOYEE_LOAD_TIMEOUT);
+      return () => clearTimeout(timer);
+    }
+    setAuthLoadTimeout(false);
+  }, [loading]);
 
   // 重试加载员工信息（不刷新页面）
   const handleRetry = async () => {
@@ -62,31 +78,53 @@ export function ProtectedRoute({ children, requireAdmin, requireManager, require
     navigate('/staff/login', { replace: true });
   };
 
+  // 自动自愈：有 session 但 employee 长时间为空时，先自动重试一次；失败则自动回登录
+  useEffect(() => {
+    if (!employeeLoadTimeout || !session || employee || autoRecovering) return;
+    let active = true;
+    setAutoRecovering(true);
+    (async () => {
+      if (!autoRecoveredOnce) {
+        try {
+          await refreshEmployee();
+          setAutoRecoveredOnce(true);
+          return;
+        } catch {
+          // ignore
+        }
+      }
+      if (active) {
+        await signOut();
+        navigate('/staff/login', { replace: true });
+      }
+    })().finally(() => {
+      if (active) setAutoRecovering(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [employeeLoadTimeout, session, employee, autoRecovering, autoRecoveredOnce, refreshEmployee, signOut, navigate]);
+
   // 初始加载状态 - 显示完整的布局骨架屏，而不是白屏
-  if (loading) {
+  if (loading && employee) {
+    // 有缓存员工信息时乐观渲染，后台继续完成会话确认
+    return <MainLayout>{children}</MainLayout>;
+  }
+
+  if (loading && !authLoadTimeout) {
     return <LayoutSkeleton />;
   }
 
-  // 有缓存员工信息但 session 尚未从 Supabase 返回：乐观渲染，等待后台确认
-  // （onAuthStateChange / getSession 完成后若无 session 会清缓存并重定向）
-  if (!session && employee) {
-    // 直接继续往下走，让页面正常渲染；若 session 无效 onAuthStateChange 会清状态
-  } else if (!session) {
-    // 彻底未登录（无 session，无缓存）才跳登录页
-    return <Navigate to="/staff/login" state={{ from: location }} replace />;
-  }
-
-  // 有 session 但员工信息加载超时
-  if (!employee && employeeLoadTimeout) {
+  if (loading && authLoadTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4 text-center max-w-md mx-4">
           <AlertCircle className="h-12 w-12 text-destructive" />
-          <h1 className="text-xl font-bold text-foreground">{t('加载失败', 'Loading Failed')}</h1>
+          <h1 className="text-xl font-bold text-foreground">{t('登录状态加载超时', 'Authentication Loading Timeout')}</h1>
           <p className="text-muted-foreground">
             {t(
-              '无法加载您的用户信息。这可能是因为您的账号尚未关联员工信息，或网络连接问题。',
-              'Unable to load your user information. This could be because your account is not linked to an employee profile, or a network issue.'
+              '认证状态长时间未完成，请点击重试，或重新登录。',
+              'Authentication did not finish in time. Please retry or login again.'
             )}
           </p>
           <div className="flex gap-3">
@@ -103,6 +141,33 @@ export function ProtectedRoute({ children, requireAdmin, requireManager, require
               {t('重新登录', 'Login Again')}
             </Button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 有缓存员工信息但 session 尚未从 Supabase 返回：乐观渲染，等待后台确认
+  // （onAuthStateChange / getSession 完成后若无 session 会清缓存并重定向）
+  if (!session && employee) {
+    // 直接继续往下走，让页面正常渲染；若 session 无效 onAuthStateChange 会清状态
+  } else if (!session) {
+    // 彻底未登录（无 session，无缓存）才跳登录页
+    return <Navigate to="/staff/login" state={{ from: location }} replace />;
+  }
+
+  // 有 session 但员工信息加载超时
+  if (!employee && employeeLoadTimeout) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4 text-center max-w-md mx-4">
+          <Loader2 className="h-12 w-12 text-primary animate-spin" />
+          <h1 className="text-xl font-bold text-foreground">{t('正在恢复登录状态', 'Recovering login state')}</h1>
+          <p className="text-muted-foreground">
+            {t(
+              '系统正在自动重试，若仍失败将自动返回登录页。',
+              'System is retrying automatically and will return to login if still failing.'
+            )}
+          </p>
         </div>
       </div>
     );
@@ -137,8 +202,29 @@ export function ProtectedRoute({ children, requireAdmin, requireManager, require
     );
   }
 
-  // 平台总管理员硬锁定：任何非 /staff/admin/* 路径强制回平台后台
-  if (employee.is_platform_super_admin && !location.pathname.startsWith('/staff/admin')) {
+  // 维护模式拦截（平台总管理员不受限制）
+  if (!employee.is_platform_super_admin) {
+    if (maintenanceLoading) {
+      return <LayoutSkeleton />;
+    }
+    if (maintenanceStatus.effectiveEnabled) {
+      const message =
+        maintenanceStatus.scope === 'global'
+          ? maintenanceStatus.globalMessage
+          : maintenanceStatus.tenantMessage;
+      return (
+        <MaintenanceBlockedView
+          scope={maintenanceStatus.scope === 'global' ? 'global' : 'tenant'}
+          message={message}
+          onLogout={handleLogout}
+        />
+      );
+    }
+  }
+
+  // 平台总管理员硬锁定：任何非 /staff/admin/* 路径强制回平台后台（已进入租户查看时允许访问 /staff/*）
+  const { isViewingTenant } = useTenantView() || {};
+  if (employee.is_platform_super_admin && !location.pathname.startsWith('/staff/admin') && !isViewingTenant) {
     return <Navigate to="/staff/admin/tenants" replace />;
   }
 

@@ -3,9 +3,10 @@
  * - 消费积分：自己消费产生的积分
  * - 推广积分：推广用户兑换产生的积分
  * - 总积分：消费积分 + 推广积分
+ * 统一调用 points/memberPointsRpcService
  */
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getMemberPointsBreakdownRpc } from "@/services/points/memberPointsRpcService";
 
 export interface PointsBreakdown {
   consumption_points: number;
@@ -29,19 +30,12 @@ export function useMemberPointsBreakdown(memberId: string | undefined) {
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc("member_get_points_breakdown", {
-        p_member_id: memberId,
-      });
-      if (error) {
-        setBreakdown({ consumption_points: 0, referral_points: 0, total_points: 0 });
-        return;
-      }
-      const r = data as { success?: boolean; consumption_points?: number; referral_points?: number; total_points?: number };
-      if (r?.success) {
+      const result = await getMemberPointsBreakdownRpc(memberId);
+      if (result.success) {
         setBreakdown({
-          consumption_points: Number(r.consumption_points ?? 0),
-          referral_points: Number(r.referral_points ?? 0),
-          total_points: Number(r.total_points ?? 0),
+          consumption_points: result.consumption_points,
+          referral_points: result.referral_points,
+          total_points: result.total_points,
         });
       } else {
         setBreakdown({ consumption_points: 0, referral_points: 0, total_points: 0 });

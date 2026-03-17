@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
   getActivitySettings,
+  getActivitySettingsAsync,
   saveActivitySettings,
   AccumulatedRewardTier,
   ActivitySettings,
@@ -29,6 +30,7 @@ export default function ActivitySettingsTab() {
   const { t, language } = useLanguage();
   
   const [settings, setSettings] = useState<ActivitySettings>(getActivitySettings());
+  const [isLoading, setIsLoading] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
   
   // 新增档位表单
@@ -40,7 +42,21 @@ export default function ActivitySettingsTab() {
   });
 
   useEffect(() => {
-    setSettings(getActivitySettings());
+    let mounted = true;
+    getActivitySettingsAsync()
+      .then((data) => {
+        if (mounted) setSettings(data);
+      })
+      .catch((error) => {
+        console.error('Failed to load activity settings:', error);
+        if (mounted) setSettings(getActivitySettings());
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const handleTierChange = (tierId: string, field: keyof AccumulatedRewardTier, value: any) => {
@@ -215,6 +231,16 @@ export default function ActivitySettingsTab() {
     }
     return `${tier.minPoints} - ${tier.maxPoints}`;
   };
+
+  if (isLoading) {
+    return (
+      <SettingsPageContainer>
+        <div className="py-10 text-center text-sm text-muted-foreground">
+          {t("加载设置中...", "Loading settings...")}
+        </div>
+      </SettingsPageContainer>
+    );
+  }
 
   return (
     <SettingsPageContainer>

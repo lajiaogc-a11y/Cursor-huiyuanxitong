@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { RefreshCw } from "lucide-react";
-import { subscribeMemberPortalLiveUpdate } from "@/services/memberPortalLiveUpdateService";
+import { subscribeMemberPortalLiveUpdate } from "@/services/members/memberPortalLiveUpdateService";
 
 export function UpdatePrompt() {
   const { t } = useLanguage();

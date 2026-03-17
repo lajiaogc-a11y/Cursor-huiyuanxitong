@@ -15,6 +15,12 @@ const ResourceMonitorTab = lazy(() => import("@/components/ResourceMonitorTab").
 import DataRepairTab from "@/components/DataRepairTab";
 import DataBackupTab from "@/components/DataBackupTab";
 import InvitationCodeManagement from "@/components/InvitationCodeManagement";
+import FeatureFlagsTab from "@/components/FeatureFlagsTab";
+import MaintenanceModeTab from "@/components/MaintenanceModeTab";
+import AnnouncementsTab from "@/components/AnnouncementsTab";
+import Login2FATab from "@/components/Login2FATab";
+import TenantQuotaTab from "@/components/TenantQuotaTab";
+import DataMigrationToolsTab from "@/components/DataMigrationToolsTab";
 
 const tabContentMap: Record<string, React.ReactNode> = {
   "ip-control": <Suspense fallback={null}><IpAccessControlTab /></Suspense>,
@@ -25,6 +31,12 @@ const tabContentMap: Record<string, React.ReactNode> = {
   "data-backup": <DataBackupTab />,
   "data-repair": <DataRepairTab />,
   "invitation-codes": <InvitationCodeManagement />,
+  "feature-flags": <FeatureFlagsTab />,
+  "maintenance-mode": <MaintenanceModeTab />,
+  "announcements": <AnnouncementsTab />,
+  "login-2fa": <Login2FATab />,
+  "tenant-quota": <TenantQuotaTab />,
+  "data-migration-tools": <DataMigrationToolsTab />,
 };
 
 const VALID_TABS = new Set(Object.keys(tabContentMap));
@@ -37,6 +49,12 @@ const SETTINGS_TABS = [
   { key: "data-backup", zh: "数据备份", en: "Data Backup" },
   { key: "data-repair", zh: "数据修复", en: "Data Repair" },
   { key: "invitation-codes", zh: "邀请码", en: "Invitation Codes" },
+  { key: "feature-flags", zh: "功能开关", en: "Feature Flags" },
+  { key: "maintenance-mode", zh: "维护模式", en: "Maintenance Mode" },
+  { key: "announcements", zh: "公告/站内信", en: "Announcements" },
+  { key: "login-2fa", zh: "登录2FA", en: "Login 2FA" },
+  { key: "tenant-quota", zh: "租户配额", en: "Tenant Quota" },
+  { key: "data-migration-tools", zh: "数据迁移工具", en: "Data Migration Tools" },
 ] as const;
 
 export default function PlatformSettings() {

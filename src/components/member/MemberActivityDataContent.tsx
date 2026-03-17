@@ -67,7 +67,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { CurrencyCode } from "@/config/currencies";
 import { getExchangeRateFormData } from "@/stores/exchangeRateFormStore";
 import { getFinalRates } from "@/stores/exchangeRateStore";
-import { getExchangePreview, canExchange, getExchangeDisabledMessage, getActiveActivityType } from "@/services/exchangeService";
+import { getExchangePreview, canExchange, getExchangeDisabledMessage, getActiveActivityType } from "@/services/finance/exchangeService";
 import { isDateInRange, DateRange } from "@/lib/dateFilter";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantView } from "@/contexts/TenantViewContext";
@@ -79,7 +79,7 @@ import { useMembers } from "@/hooks/useMembers";
 import { useActivityDataContent } from "@/hooks/useActivityDataContent";
 import { TablePageSkeleton } from "@/components/skeletons/TablePageSkeleton";
 import { generateEnglishCopyText, refreshCopySettings } from "@/components/CopySettingsTab";
-import { getMemberPointsSummary } from "@/services/pointsCalculationService";
+import { getMemberPointsSummary } from "@/services/points/pointsCalculationService";
 
 // 类型定义
 interface Member {
@@ -786,7 +786,7 @@ export default function MemberActivityDataContent() {
       // 🔧 记录代付商家余额变动日志（兑换积分产生的赠送支出）
       if (selectedPaymentProvider && giftValue > 0) {
         try {
-          const { logGiftBalanceChange } = await import('@/services/balanceLogService');
+          const { logGiftBalanceChange } = await import('@/services/finance/balanceLogService');
           await logGiftBalanceChange({
             providerName: selectedPaymentProvider,
             giftValue: giftValue,

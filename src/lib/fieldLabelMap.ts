@@ -7,7 +7,7 @@ import {
   resolveProviderName,
   getEmployeeNameById,
   getActivityTypeLabelByValue,
-} from '@/services/nameResolver';
+} from '@/services/members/nameResolver';
 
 // ======= 应在展示时隐藏的内部字段 =======
 export const HIDDEN_LOG_FIELDS = new Set([
@@ -461,6 +461,11 @@ export function getReadableObjectId(log: {
 }): string {
   const data = log.beforeData || log.afterData;
 
+  if (log.objectDescription) {
+    const cleaned = cleanDescription(log.objectDescription);
+    if (cleaned && cleaned !== '-' && cleaned.length > 1) return cleaned.substring(0, 40);
+  }
+
   // 优先从数据中提取非 UUID 的 id（如订单号）
   if (data?.id && !UUID_REGEX.test(String(data.id))) return String(data.id);
   if (data?.order_number) return data.order_number;
@@ -483,15 +488,6 @@ export function getReadableObjectId(log: {
     if (/^PSETTLE_/.test(log.objectId) && (data?.providerName || data?.vendorName)) {
       return data.providerName || data.vendorName;
     }
-  }
-
-  // 从描述中清除 UUID
-  if (log.objectDescription) {
-    const cleaned = log.objectDescription
-      .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '')
-      .replace(/\s{2,}/g, ' ')
-      .trim();
-    if (cleaned && cleaned.length > 1) return cleaned.substring(0, 40);
   }
 
   // 如果 objectId 不是 UUID 且不是内部前缀格式，直接显示
@@ -581,4 +577,18 @@ export function cleanDescription(description: string | null | undefined): string
     .replace(/\s{2,}/g, ' ')
     .replace(/:\s*$/, '')
     .trim() || description;
+}
+
+export function formatIpAddress(ip: string | null | undefined): string {
+  if (!ip) return '-';
+  const trimmed = ip.trim();
+  if (!trimmed || trimmed === 'unknown') return '-';
+  const normalized = trimmed.startsWith('::ffff:') ? trimmed.slice(7) : trimmed;
+  if (normalized === '127.0.0.1' || normalized === '::1' || normalized === 'localhost') {
+    return '本机';
+  }
+  if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(normalized)) {
+    return `内网(${normalized})`;
+  }
+  return normalized;
 }

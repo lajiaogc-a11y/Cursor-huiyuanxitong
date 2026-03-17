@@ -20,13 +20,8 @@ export function useCustomerSources() {
 
   const fetchSources = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('customer_sources')
-        .select('*')
-        .order('sort_order', { ascending: true });
-
-      if (error) throw error;
-      
+      const { getCustomerSourcesApi } = await import('@/api/data');
+      const data = await getCustomerSourcesApi();
       setSources((data || []).map(s => ({
         id: s.id,
         name: s.name,
@@ -76,12 +71,8 @@ export async function initializeCustomerSourceCache(): Promise<void> {
   if (cacheInitialized) return;
   
   try {
-    const { data, error } = await supabase
-      .from('customer_sources')
-      .select('*')
-      .order('sort_order', { ascending: true });
-    
-    if (error) throw error;
+    const { getCustomerSourcesApi } = await import('@/api/data');
+    const data = await getCustomerSourcesApi();
     
     sourcesCache = (data || []).map(s => ({
       id: s.id,
@@ -102,12 +93,8 @@ export async function initializeCustomerSourceCache(): Promise<void> {
 // ============= 刷新缓存 =============
 async function refreshCache(): Promise<void> {
   try {
-    const { data, error } = await supabase
-      .from('customer_sources')
-      .select('*')
-      .order('sort_order', { ascending: true });
-    
-    if (error) throw error;
+    const { getCustomerSourcesApi } = await import('@/api/data');
+    const data = await getCustomerSourcesApi();
     
     sourcesCache = (data || []).map(s => ({
       id: s.id,

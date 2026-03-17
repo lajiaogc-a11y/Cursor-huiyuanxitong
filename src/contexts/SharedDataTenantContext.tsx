@@ -5,7 +5,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
-import { setSharedDataTenantId, clearSharedDataCacheForTenantSwitch } from '@/services/sharedDataService';
+import { setSharedDataTenantId, clearSharedDataCacheForTenantSwitch } from '@/services/finance/sharedDataService';
 
 export function SharedDataTenantProvider({ children }: { children: ReactNode }) {
   const { employee } = useAuth();

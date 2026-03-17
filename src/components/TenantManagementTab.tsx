@@ -21,7 +21,6 @@ import {
   getTenantEmployeesFull,
   type TenantItem,
 } from "@/services/tenantService";
-import { syncAuthPassword } from "@/services/authPasswordSyncService";
 import { showServiceErrorToast } from "@/services/serviceErrorToast";
 
 const TENANT_FORM_DRAFT_KEY = "tenant_management_form_draft_v1";
@@ -137,16 +136,12 @@ export default function TenantManagementTab() {
         showServiceErrorToast(result.error, t, "创建租户失败", "Create tenant failed");
         return;
       }
-      // 同步到 Supabase Auth，确保新租户管理员可直接登录
-      try {
-        const syncResult = await syncAuthPassword(adminUsername.trim(), adminPassword);
-        if (!syncResult.success) {
-          console.warn("[TenantManagement] Auth sync after create failed:", syncResult.message);
-          toast.warning(t("租户已创建，但认证同步失败，管理员可能无法登录，请通过平台重置密码", "Tenant created but auth sync failed. Admin may not be able to login. Please reset password via platform."));
-        }
-      } catch (e) {
-        console.warn("[TenantManagement] Auth sync error:", e);
-        toast.warning(t("租户已创建，若管理员无法登录请通过平台重置密码", "Tenant created. If admin cannot login, please reset password via platform."));
+      if (result.data?.authSyncSuccess === false) {
+        toast.warning(
+          result.data.authSyncMessage
+            ? t(`租户已创建，但认证同步失败：${result.data.authSyncMessage}`, `Tenant created, but auth sync failed: ${result.data.authSyncMessage}`)
+            : t("租户已创建，但认证同步失败，管理员可能无法登录，请通过平台重置密码", "Tenant created but auth sync failed. Admin may not be able to login. Please reset password via platform.")
+        );
       }
       toast.success(t("租户创建成功", "Tenant created successfully"));
       resetForm();
@@ -208,21 +203,14 @@ export default function TenantManagementTab() {
         showServiceErrorToast(result.error, t, "重置管理员密码失败", "Reset admin password failed");
         return;
       }
-      // 同步到 Supabase Auth，确保重置后能立即登录
-      const adminUsername = result.adminUsername || resetPwdTenant.admin_username;
-      if (adminUsername) {
-        try {
-          const syncResult = await syncAuthPassword(adminUsername, newAdminPassword);
-          if (!syncResult.success) {
-            console.warn("[TenantManagement] Auth sync failed:", syncResult.message);
-            toast.warning(t("密码已重置，但认证同步失败，请重试登录", "Password reset but auth sync failed, please try login again"));
-          }
-        } catch (e) {
-          console.warn("[TenantManagement] Auth sync error:", e);
-          toast.warning(t("密码已重置，若无法登录请重试", "Password reset. If login fails, please try again"));
-        }
+      if (result.data?.authSyncSuccess === false) {
+        toast.warning(
+          result.data.authSyncMessage
+            ? t(`密码已重置，但认证同步失败：${result.data.authSyncMessage}`, `Password reset, but auth sync failed: ${result.data.authSyncMessage}`)
+            : t("密码已重置，但认证同步失败，请重试登录", "Password reset but auth sync failed, please try login again")
+        );
       }
-      toast.success(t(`已重置管理员密码：${result.adminRealName || ""}(${result.adminUsername || ""})`, `Admin password reset: ${result.adminRealName || ""} (${result.adminUsername || ""})`));
+      toast.success(t(`已重置管理员密码：${result.data?.adminRealName || ""}(${result.data?.adminUsername || ""})`, `Admin password reset: ${result.data?.adminRealName || ""} (${result.data?.adminUsername || ""})`));
       closeResetPwdDialog();
       await loadTenants();
     } catch (error: unknown) {

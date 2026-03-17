@@ -10,7 +10,9 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, User, Coins } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { getCustomerDetailByPhone, type CustomerDetail } from "@/services/customerDetailService";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTenantView } from "@/contexts/TenantViewContext";
+import { getCustomerDetailByPhone, type CustomerDetail } from "@/services/members/customerDetailService";
 import { cn } from "@/lib/utils";
 
 interface CustomerDetailHoverCardProps {
@@ -31,6 +33,9 @@ function formatDate(iso: string) {
 
 export default function CustomerDetailHoverCard({ phone, children, className }: CustomerDetailHoverCardProps) {
   const { t } = useLanguage();
+  const { employee } = useAuth();
+  const { viewingTenantId } = useTenantView() || {};
+  const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
   const [detail, setDetail] = useState<CustomerDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
@@ -39,14 +44,14 @@ export default function CustomerDetailHoverCard({ phone, children, className }: 
     if (!phone?.trim()) return;
     setLoading(true);
     try {
-      const data = await getCustomerDetailByPhone(phone);
+      const data = await getCustomerDetailByPhone(phone, effectiveTenantId);
       setDetail(data);
     } catch {
       setDetail(null);
     } finally {
       setLoading(false);
     }
-  }, [phone]);
+  }, [phone, effectiveTenantId]);
 
   const handleOpen = () => {
     setOpen(true);

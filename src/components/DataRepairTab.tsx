@@ -20,11 +20,11 @@ import {
   deleteOrphanedLogs,
   type MissingLogSummary,
   type OrphanedLogSummary,
-} from '@/services/balanceLogRepairService';
+} from '@/services/finance/balanceLogRepairService';
 import {
   repairMisattributedProviderOrderExpenseLogs,
   repairMisattributedVendorOrderIncomeLogs,
-} from '@/services/balanceLogReconcileService';
+} from '@/services/finance/balanceLogReconcileService';
 
 const DataRepairTab = forwardRef<HTMLDivElement>(function DataRepairTab(_, ref) {
   const { language } = useLanguage();

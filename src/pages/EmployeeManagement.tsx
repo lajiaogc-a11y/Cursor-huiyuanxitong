@@ -42,21 +42,22 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { TablePagination } from "@/components/ui/table-pagination";
-import { Search, RefreshCw, Users, Pencil, Plus, Loader2, KeyRound, History, Clock, Trash2 } from "lucide-react";
+import { Search, RefreshCw, Users, Pencil, Plus, Loader2, KeyRound, History, Clock, Trash2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
-import { supabase } from "@/integrations/supabase/client";
 import {
   getEmployees,
   getEmployeesForTenant,
   addEmployee,
   updateEmployee,
   deleteEmployee,
+  forceLogoutEmployee,
   toggleEmployeeStatus,
   getEmployeeNameHistory,
+  resetEmployeePassword,
   Employee,
   AppRole,
   ROLE_LABELS,
@@ -66,6 +67,7 @@ import { format } from "date-fns";
 import { trackRender } from "@/lib/performanceUtils";
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobileCardActions, MobilePagination } from "@/components/ui/mobile-data-card";
+import { checkMyTenantQuotaResult, getQuotaExceededText, getQuotaSoftExceededText } from "@/services/tenantQuotaService";
 
 export default function EmployeeManagement() {
   // Performance tracking
@@ -73,6 +75,9 @@ export default function EmployeeManagement() {
   
   const { employee: currentEmployee } = useAuth();
   const { isViewingTenant, viewingTenantId } = useTenantView() || {};
+  const effectiveTenantId = currentEmployee?.is_platform_super_admin
+    ? viewingTenantId
+    : (viewingTenantId || currentEmployee?.tenant_id);
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
@@ -80,10 +85,10 @@ export default function EmployeeManagement() {
   const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
   const queryClient = useQueryClient();
   const { data: employees = [], isLoading } = useQuery({
-    queryKey: ['employees-management', viewingTenantId ?? '', currentEmployee?.tenant_id ?? ''],
+    queryKey: ['employees-management', effectiveTenantId ?? '', currentEmployee?.tenant_id ?? ''],
     queryFn: () =>
-      viewingTenantId
-        ? getEmployeesForTenant(viewingTenantId)
+      effectiveTenantId
+        ? getEmployeesForTenant(effectiveTenantId)
         : getEmployees(currentEmployee?.tenant_id),
   });
   const refetch = () => queryClient.invalidateQueries({ queryKey: ['employees-management'] });
@@ -171,34 +176,12 @@ export default function EmployeeManagement() {
 
     setIsResetting(true);
     try {
-      const { data, error } = await supabase.rpc('admin_reset_password', {
-        p_admin_id: currentEmployee?.id || '',
-        p_target_employee_id: resetTarget.id,
-        p_new_password: newPassword
-      });
-
-      if (error) {
-        toast.error(t('employees.resetFailed') + ": " + error.message);
-        return;
-      }
-
-      if (data && data.length > 0 && data[0].success) {
-        // 同步密码到 Auth 系统
-        try {
-          const { error: syncError } = await supabase.functions.invoke('sync-auth-password', {
-            body: { username: resetTarget.username, password: newPassword }
-          });
-          if (syncError) {
-            console.warn('Auth sync warning:', syncError.message);
-          }
-        } catch (syncErr) {
-          console.warn('Auth sync failed:', syncErr);
-        }
-        
+      const success = await resetEmployeePassword(resetTarget.id, newPassword);
+      if (success) {
         toast.success(t(`已重置 ${resetTarget.real_name} 的密码`, `Reset ${resetTarget.real_name}'s password`));
         setIsResetPasswordOpen(false);
       } else {
-        toast.error(data?.[0]?.message || t('employees.resetFailed'));
+        toast.error(t('employees.resetFailed'));
       }
     } catch (e: any) {
       toast.error(t('employees.resetFailed') + ": " + e.message);
@@ -207,18 +190,50 @@ export default function EmployeeManagement() {
     }
   };
 
+  const handleForceLogout = async (target: Employee) => {
+    if (blockReadonly("强制下线", "force logout")) return;
+    if (!canModifyEmployee(target)) {
+      toast.error(t("权限不足，无法强制下线该员工", "No permission to force logout this employee"));
+      return;
+    }
+    if (target.id === currentEmployee?.id) {
+      toast.error(t("不能强制下线当前登录账号", "Cannot force logout current account"));
+      return;
+    }
+    const confirmed = window.confirm(
+      t(
+        `确认强制下线 ${target.real_name}（${target.username}）的所有会话？`,
+        `Force logout all sessions of ${target.real_name} (${target.username})?`
+      )
+    );
+    if (!confirmed) return;
+
+    try {
+      const success = await forceLogoutEmployee(target.id, "admin_force_logout");
+      if (!success) {
+        toast.error(t("强制下线失败", "Force logout failed"));
+        return;
+      }
+
+      logOperation(
+        "employee_management",
+        "force_logout",
+        target.id,
+        { target_username: target.username },
+        { forced: true },
+        `强制下线员工: ${target.username}`
+      );
+      toast.success(t("已强制下线该员工所有会话", "All sessions have been force logged out"));
+    } catch (e: any) {
+      toast.error(t("强制下线失败", "Force logout failed") + `: ${e?.message || "unknown"}`);
+    }
+  };
+
   // Realtime: auto-refresh employee list on DB changes / account switch
   useEffect(() => {
-    const channel = supabase
-      .channel('employees-management-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['employees-management'] });
-      })
-      .subscribe();
     const handleUserSynced = () => queryClient.invalidateQueries({ queryKey: ['employees-management'] });
     window.addEventListener('userDataSynced', handleUserSynced);
     return () => {
-      supabase.removeChannel(channel);
       window.removeEventListener('userDataSynced', handleUserSynced);
     };
   }, [queryClient]);
@@ -335,6 +350,16 @@ export default function EmployeeManagement() {
           toast.error(result.message || t('employees.updateFailed'));
         }
       } else {
+        const quotaResult = await checkMyTenantQuotaResult("employees");
+        if (!quotaResult.ok) {
+          const quotaText = getQuotaExceededText(quotaResult.error.message);
+          toast.error(quotaText ? t(quotaText.zh, quotaText.en) : t("员工数量已达到租户配额上限", "Employee quota exceeded"));
+          return;
+        }
+        const softQuotaText = getQuotaSoftExceededText(quotaResult.data?.message);
+        if (softQuotaText) {
+          toast.warning(t(softQuotaText.zh, softQuotaText.en));
+        }
         const result = await addEmployee({
           username: formData.username,
           real_name: formData.real_name,
@@ -553,6 +578,11 @@ export default function EmployeeManagement() {
                             <Trash2 className="h-3 w-3 mr-1" />{t("删除", "Delete")}
                           </Button>
                         )}
+                        {canModifyEmployee(employee) && (
+                          <Button size="sm" variant="outline" className="flex-1 h-8" onClick={() => handleForceLogout(employee)}>
+                            <LogOut className="h-3 w-3 mr-1" />{t("强制下线", "Force Logout")}
+                          </Button>
+                        )}
                         <Button size="sm" variant="ghost" className="h-8 w-8 px-0" onClick={() => handleViewHistory(employee)}>
                           <History className="h-4 w-4" />
                         </Button>
@@ -662,6 +692,17 @@ export default function EmployeeManagement() {
                                   title={t('employees.resetPassword')}
                                 >
                                   <KeyRound className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {canModifyEmployee(employee) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handleForceLogout(employee)}
+                                  title={t("强制下线", "Force Logout")}
+                                >
+                                  <LogOut className="h-4 w-4" />
                                 </Button>
                               )}
                               {canModifyEmployee(employee) && (

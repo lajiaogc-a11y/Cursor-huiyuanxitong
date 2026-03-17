@@ -26,7 +26,12 @@ export type ServiceErrorCode =
   | "INVALID_PASSWORD"
   | "TASK_NOT_FOUND"
   | "TASK_ALREADY_CLOSED"
-  | "POSTER_NOT_FOUND";
+  | "POSTER_NOT_FOUND"
+  | "FEATURE_DISABLED"
+  | "QUOTA_EXCEEDED"
+  | "MAINTENANCE_MODE"
+  | "TARGET_NOT_FOUND"
+  | "INVALID_FLAG_KEY";
 
 export interface ServiceError {
   code: ServiceErrorCode;

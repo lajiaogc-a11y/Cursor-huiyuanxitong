@@ -64,7 +64,7 @@ import {
   calculateAllProviderBalances,
   VendorBalanceResult,
   ProviderBalanceResult,
-} from '@/services/settlementCalculationService';
+} from '@/services/finance/settlementCalculationService';
 import { useShiftHandoverFormPersistence } from '@/hooks/useShiftHandoverFormPersistence';
 
 interface VendorBalance {
@@ -155,12 +155,10 @@ export default function ShiftHandoverTab() {
         ? await Promise.all([getTenantOrdersFull(effectiveTenantId), getTenantUsdtOrdersFull(effectiveTenantId)])
         : await Promise.all([getMyTenantOrdersFull(), getMyTenantUsdtOrdersFull()]);
       const ordersList = [...(normalOrders || []), ...(usdtOrders || [])].filter((o: any) => !o.is_deleted);
-      const [vendorsRes, providersRes] = await Promise.all([
-        supabase.from('vendors').select('id, name, status').eq('status', 'active').order('sort_order', { ascending: true }),
-        supabase.from('payment_providers').select('id, name, status').eq('status', 'active').order('sort_order', { ascending: true }),
+      const [vendorsList, providersList] = await Promise.all([
+        import('@/services/giftcards/giftcardsApiService').then(m => m.listVendorsApi('active')),
+        import('@/services/giftcards/giftcardsApiService').then(m => m.listPaymentProvidersApi('active')),
       ]);
-      const vendorsList = vendorsRes.data || [];
-      const providersList = providersRes.data || [];
       
       const cardSettlements = getCardMerchantSettlements();
       const providerSettlements = getPaymentProviderSettlements();
@@ -236,13 +234,11 @@ export default function ShiftHandoverTab() {
         ? await Promise.all([getTenantOrdersFull(effectiveTenantId), getTenantUsdtOrdersFull(effectiveTenantId)])
         : await Promise.all([getMyTenantOrdersFull(), getMyTenantUsdtOrdersFull()]);
       const ordersList = [...(normalOrders || []), ...(usdtOrders || [])].filter((o: any) => !o.is_deleted);
-      const [vendorsRes, providersRes, receiversData] = await Promise.all([
-        supabase.from('vendors').select('id, name, status').eq('status', 'active').order('sort_order', { ascending: true }),
-        supabase.from('payment_providers').select('id, name, status').eq('status', 'active').order('sort_order', { ascending: true }),
+      const [vendorsList, providersList, receiversData] = await Promise.all([
+        import('@/services/giftcards/giftcardsApiService').then(m => m.listVendorsApi('active')),
+        import('@/services/giftcards/giftcardsApiService').then(m => m.listPaymentProvidersApi('active')),
         getShiftReceivers(),
       ]);
-      const vendorsList = vendorsRes.data || [];
-      const providersList = providersRes.data || [];
       
       setReceivers(receiversData);
       

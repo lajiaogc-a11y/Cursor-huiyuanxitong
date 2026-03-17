@@ -87,6 +87,26 @@ const ERROR_MESSAGES: Record<string, { zh: string; en: string }> = {
     zh: "更新失败: 未找到匹配的订单记录",
     en: "Update failed: No matching order found",
   },
+  FEATURE_DISABLED: {
+    zh: "该功能当前已关闭",
+    en: "This feature is currently disabled",
+  },
+  QUOTA_EXCEEDED: {
+    zh: "已达到租户配额上限，请联系平台管理员调整",
+    en: "Tenant quota exceeded, please contact platform admin",
+  },
+  INVALID_FLAG_KEY: {
+    zh: "功能开关键无效",
+    en: "Invalid feature flag key",
+  },
+  TARGET_NOT_FOUND: {
+    zh: "目标记录不存在",
+    en: "Target record not found",
+  },
+  MAINTENANCE_MODE: {
+    zh: "系统维护中，请稍后再试",
+    en: "System is under maintenance, please try later",
+  },
 };
 
 export function showServiceErrorToast(

@@ -2,7 +2,7 @@
 // 系统生产锁定管理 - 禁止所有自动数据生成
 // 数据存储在 shared_data_store 表中
 
-import { loadSharedData, saveSharedData, getSharedDataSync, saveSharedDataSync } from '@/services/sharedDataService';
+import { loadSharedData, saveSharedData, getSharedDataSync, saveSharedDataSync } from '@/services/finance/sharedDataService';
 
 interface ProductionLockData {
   isLocked: boolean;

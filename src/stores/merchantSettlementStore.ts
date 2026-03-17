@@ -2,9 +2,9 @@
 // 使用 shared_data_store 作为唯一数据源
 
 import { logOperation } from './auditLogStore';
-import { loadSharedData, saveSharedData } from '@/services/sharedDataService';
-import { createLedgerEntry, createAdjustmentEntry, softDeleteLedgerEntry, setInitialBalanceLedger, reverseAllEntriesForSource, reverseInitialBalanceEntry } from '@/services/ledgerTransactionService';
-import { notifyDataMutation } from '@/services/dataRefreshManager';
+import { loadSharedData, saveSharedData } from '@/services/finance/sharedDataService';
+import { createLedgerEntry, createAdjustmentEntry, softDeleteLedgerEntry, setInitialBalanceLedger, reverseAllEntriesForSource, reverseInitialBalanceEntry } from '@/services/finance/ledgerTransactionService';
+import { notifyDataMutation } from '@/services/system/dataRefreshManager';
 
 // 获取当前用户信息的辅助函数
 let currentOperatorId: string | null = null;
@@ -112,7 +112,7 @@ export async function initializeSettlementCache(): Promise<void> {
 export async function forceRefreshSettlementCache(): Promise<void> {
   cacheInitialized = false;
   // Clear shared data cache to force DB read (prevent stale cache from Realtime)
-  const { clearSharedCacheKey } = await import('@/services/sharedDataService');
+  const { clearSharedCacheKey } = await import('@/services/finance/sharedDataService');
   clearSharedCacheKey('cardMerchantSettlements');
   clearSharedCacheKey('paymentProviderSettlements');
   await initializeSettlementCacheInternal();

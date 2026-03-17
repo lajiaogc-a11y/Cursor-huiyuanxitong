@@ -4,8 +4,11 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Search, ShoppingCart, Star, ArrowLeft, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { GCLogo } from '@/components/GCLogo';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTenantView } from '@/contexts/TenantViewContext';
+import { getCustomerDetailByPhoneApi } from '@/services/members/membersApiService';
+import { getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getTenantOrdersFull, getTenantUsdtOrdersFull } from '@/services/tenantService';
 
 interface QueryResult {
   memberCode: string;
@@ -16,6 +19,10 @@ interface QueryResult {
 }
 
 export default function CustomerQuery() {
+  const { employee } = useAuth();
+  const { viewingTenantId } = useTenantView() || {};
+  const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
+  const useMyTenantRpc = !!(effectiveTenantId && employee?.tenant_id && effectiveTenantId === employee.tenant_id);
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<QueryResult | null>(null);
@@ -30,12 +37,8 @@ export default function CustomerQuery() {
     setError('');
     setResult(null);
     try {
-      // Look up member
-      const { data: member } = await supabase
-        .from('members')
-        .select('id, member_code, phone_number')
-        .eq('phone_number', phone)
-        .maybeSingle();
+      const detail = await getCustomerDetailByPhoneApi(phone, effectiveTenantId);
+      const member = detail.member;
       
       if (!member) {
         setError('未找到该手机号对应的会员记录 / No member found with this phone number');
@@ -43,28 +46,30 @@ export default function CustomerQuery() {
         return;
       }
 
-      // Get activity data
-      const { data: activity } = await supabase
-        .from('member_activity')
-        .select('accumulated_points, remaining_points, order_count')
-        .eq('member_id', member.id)
-        .maybeSingle();
-
-      // Get recent orders
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('order_number, status, created_at, amount, currency')
-        .eq('member_id', member.id)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: false })
-        .limit(5);
+      const [normalOrders, usdtOrders] = (effectiveTenantId && !useMyTenantRpc)
+        ? await Promise.all([getTenantOrdersFull(effectiveTenantId), getTenantUsdtOrdersFull(effectiveTenantId)])
+        : await Promise.all([getMyTenantOrdersFull(), getMyTenantUsdtOrdersFull()]);
+      const recentOrders = [...(normalOrders || []), ...(usdtOrders || [])]
+        .filter((order: any) =>
+          !order.is_deleted &&
+          (order.member_id === member.id || order.phone_number === member.phone_number)
+        )
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 5)
+        .map((order: any) => ({
+          order_number: order.order_number,
+          status: order.status,
+          created_at: order.created_at,
+          amount: Number(order.amount) || Number(order.actual_payment) || 0,
+          currency: order.currency,
+        }));
 
       setResult({
         memberCode: member.member_code,
         phone: member.phone_number,
-        points: activity?.remaining_points || 0,
-        orderCount: activity?.order_count || 0,
-        recentOrders: orders || [],
+        points: detail.activity?.remaining_points || 0,
+        orderCount: detail.activity?.order_count || 0,
+        recentOrders,
       });
     } catch {
       setError('查询失败，请稍后重试 / Query failed, please try again');

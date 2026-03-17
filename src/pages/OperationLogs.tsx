@@ -71,13 +71,14 @@ import {
   DateRange,
   getTimeRangeDates,
 } from "@/lib/dateFilter";
-import { translateFieldName, formatDisplayValue, formatLogFieldValue, getReadableObjectId, cleanDescription, HIDDEN_LOG_FIELDS } from "@/lib/fieldLabelMap";
+import { translateFieldName, formatDisplayValue, formatLogFieldValue, getReadableObjectId, cleanDescription, HIDDEN_LOG_FIELDS, formatIpAddress } from "@/lib/fieldLabelMap";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTenantView } from "@/contexts/TenantViewContext";
 import { exportToCSV, formatDateTimeForExport } from "@/lib/exportUtils";
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobileCardActions, MobilePagination } from "@/components/ui/mobile-data-card";
-import { notifyDataMutation } from "@/services/dataRefreshManager";
+import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 
 // Legacy support
 export interface OperationLog {
@@ -109,6 +110,7 @@ export const addOperationLog = async (log: Omit<OperationLog, 'id' | 'timestamp'
 
 export default function OperationLogs() {
   const { employee, isAdmin: userIsAdmin } = useAuth();
+  const { viewingTenantId } = useTenantView() || {};
   const { t, language } = useLanguage();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
@@ -117,6 +119,7 @@ export default function OperationLogs() {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const useCompactLayout = isMobile || isTablet;
   const queryClient = useQueryClient();
+  const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [moduleFilter, setModuleFilter] = useState<string>("all");
@@ -142,8 +145,8 @@ export default function OperationLogs() {
   const PAGE_SIZE = 50;
   const [currentPage, setCurrentPage] = useState(1);
 
-  const { data: auditLogsPage, isLoading: loading } = useQuery({
-    queryKey: ['operation-logs', currentPage, searchTerm, moduleFilter, operationFilter, operatorFilter, restoreStatusFilter, dateRange],
+  const { data: auditLogsPage, isLoading: loading, isError: isErrorLogs } = useQuery({
+    queryKey: ['operation-logs', effectiveTenantId ?? '', currentPage, searchTerm, moduleFilter, operationFilter, operatorFilter, restoreStatusFilter, dateRange],
     queryFn: async () => {
       return fetchAuditLogsPage(currentPage, PAGE_SIZE, {
         module: moduleFilter,
@@ -151,6 +154,7 @@ export default function OperationLogs() {
         operatorAccount: operatorFilter,
         restoreStatus: restoreStatusFilter,
         searchTerm: searchTerm || undefined,
+        tenantId: effectiveTenantId,
         dateRange: dateRange.start || dateRange.end ? { start: dateRange.start, end: dateRange.end } : undefined,
       });
     },
@@ -342,7 +346,7 @@ export default function OperationLogs() {
         }
         case 'order_management': {
           // 导入积分恢复服务
-          const { restorePointsOnOrderRestore } = await import('@/services/pointsService');
+          const { restorePointsOnOrderRestore } = await import('@/services/points/pointsService');
           const { normalizeCurrencyCode } = await import('@/config/currencies');
           
           // objectId可能是UUID或订单号，需要智能处理
@@ -387,8 +391,8 @@ export default function OperationLogs() {
             
             // 🔧 恢复订单后记录余额变动
             try {
-              const { logOrderRestoreBalanceChange } = await import('@/services/balanceLogService');
-              const { resolveVendorName, resolveProviderName } = await import('@/services/nameResolver');
+              const { logOrderRestoreBalanceChange } = await import('@/services/finance/balanceLogService');
+              const { resolveVendorName, resolveProviderName } = await import('@/services/members/nameResolver');
               
               await logOrderRestoreBalanceChange({
                 vendorName: resolveVendorName(orderByNumber.card_merchant_id),
@@ -451,8 +455,8 @@ export default function OperationLogs() {
               
               // 🔧 恢复订单后记录余额变动（物理删除恢复场景，使用 beforeData）
               try {
-                const { logOrderRestoreBalanceChange } = await import('@/services/balanceLogService');
-                const { resolveVendorName, resolveProviderName } = await import('@/services/nameResolver');
+                const { logOrderRestoreBalanceChange } = await import('@/services/finance/balanceLogService');
+                const { resolveVendorName, resolveProviderName } = await import('@/services/members/nameResolver');
                 
                 await logOrderRestoreBalanceChange({
                   vendorName: resolveVendorName(log.beforeData?.vendor || log.beforeData?.card_merchant_id),
@@ -505,8 +509,8 @@ export default function OperationLogs() {
               
               // 🔧 恢复订单后记录余额变动
               try {
-                const { logOrderRestoreBalanceChange } = await import('@/services/balanceLogService');
-                const { resolveVendorName, resolveProviderName } = await import('@/services/nameResolver');
+                const { logOrderRestoreBalanceChange } = await import('@/services/finance/balanceLogService');
+                const { resolveVendorName, resolveProviderName } = await import('@/services/members/nameResolver');
                 
                 const vendorName = resolveVendorName(currentOrder.card_merchant_id);
                 const providerName = resolveProviderName(currentOrder.vendor_id);
@@ -646,7 +650,7 @@ export default function OperationLogs() {
             
             // 🔧 修复：恢复赠送时记录余额变动明细
             try {
-              const { logGiftRestoreBalanceChange } = await import('@/services/balanceLogService');
+              const { logGiftRestoreBalanceChange } = await import('@/services/finance/balanceLogService');
               const giftData = log.beforeData;
               if (giftData?.payment_agent && (giftData?.gift_value ?? 0) > 0) {
                 await logGiftRestoreBalanceChange({
@@ -685,7 +689,7 @@ export default function OperationLogs() {
               
               if (currentAgent !== restoreAgent) {
                 // 代付商家变更：旧商家恢复余额，新商家扣减余额
-                const { logGiftDeleteBalanceChange, logGiftRestoreBalanceChange } = await import('@/services/balanceLogService');
+                const { logGiftDeleteBalanceChange, logGiftRestoreBalanceChange } = await import('@/services/finance/balanceLogService');
                 if (currentAgent && currentGiftValue > 0) {
                   await logGiftDeleteBalanceChange({
                     providerName: currentAgent,
@@ -709,7 +713,7 @@ export default function OperationLogs() {
                 }
               } else if (currentGiftValue !== restoreGiftValue && currentAgent) {
                 // 同商家，金额变化：记录差额调整
-                const { logGiftUpdateBalanceChange } = await import('@/services/balanceLogService');
+                const { logGiftUpdateBalanceChange } = await import('@/services/finance/balanceLogService');
                 await logGiftUpdateBalanceChange({
                   providerName: currentAgent,
                   oldGiftValue: currentGiftValue,
@@ -1054,7 +1058,7 @@ export default function OperationLogs() {
           break;
         }
         case 'system_settings': {
-          const { saveSharedData, loadSharedData } = await import('@/services/sharedDataService');
+          const { saveSharedData, loadSharedData } = await import('@/services/finance/sharedDataService');
           const currentData = await loadSharedData(log.objectId as any);
           await saveSharedData(log.objectId as any, log.beforeData);
           
@@ -1070,7 +1074,7 @@ export default function OperationLogs() {
             addWithdrawal,
             addRecharge,
           } = await import('@/stores/merchantSettlementStore');
-          const { createLedgerEntry } = await import('@/services/ledgerTransactionService');
+          const { createLedgerEntry } = await import('@/services/finance/ledgerTransactionService');
           
           const beforeData = log.beforeData;
           if (!beforeData) {
@@ -1106,7 +1110,7 @@ export default function OperationLogs() {
               
               // Restore the record
               settlement.withdrawals.push(beforeData);
-              const { saveSharedData } = await import('@/services/sharedDataService');
+              const { saveSharedData } = await import('@/services/finance/sharedDataService');
               await saveSharedData('cardMerchantSettlements', settlements);
               
               // Re-create ledger entry
@@ -1148,7 +1152,7 @@ export default function OperationLogs() {
               }
               
               settlement.recharges.push(beforeData);
-              const { saveSharedData } = await import('@/services/sharedDataService');
+              const { saveSharedData } = await import('@/services/finance/sharedDataService');
               await saveSharedData('paymentProviderSettlements', settlements);
               
               await createLedgerEntry({
@@ -1170,8 +1174,8 @@ export default function OperationLogs() {
           } else {
             // Handle update operations (initial balance, withdrawal edits, recharge edits)
             // beforeData contains the previous state of the settlement
-            const { saveSharedData } = await import('@/services/sharedDataService');
-            const { createLedgerEntry, createAdjustmentEntry, setInitialBalanceLedger } = await import('@/services/ledgerTransactionService');
+            const { saveSharedData } = await import('@/services/finance/sharedDataService');
+            const { createLedgerEntry, createAdjustmentEntry, setInitialBalanceLedger } = await import('@/services/finance/ledgerTransactionService');
             
             // Determine if this is a card vendor or payment provider operation
             const isProviderOp = description.includes('代付') || description.includes('充值');
@@ -1182,7 +1186,7 @@ export default function OperationLogs() {
               const vendorName = beforeData.vendorName || objectId;
               const settlements = await getCardMerchantSettlementsAsync();
               const idx = settlements.findIndex(s => s.vendorName === vendorName);
-              const { reverseAllEntriesForSource } = await import('@/services/ledgerTransactionService');
+              const { reverseAllEntriesForSource } = await import('@/services/finance/ledgerTransactionService');
               
               if (idx !== -1) {
                 const currentSettlement = settlements[idx];
@@ -1259,7 +1263,7 @@ export default function OperationLogs() {
               const providerName = beforeData.providerName || objectId;
               const settlements = await getPaymentProviderSettlementsAsync();
               const idx = settlements.findIndex(s => s.providerName === providerName);
-              const { reverseAllEntriesForSource } = await import('@/services/ledgerTransactionService');
+              const { reverseAllEntriesForSource } = await import('@/services/finance/ledgerTransactionService');
               
               if (idx !== -1) {
                 const currentSettlement = settlements[idx];
@@ -1458,6 +1462,18 @@ export default function OperationLogs() {
     return Object.entries(data).filter(([key]) => !HIDDEN_LOG_FIELDS.has(key));
   };
 
+  if (isErrorLogs) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-4">
+        <p className="text-muted-foreground text-sm">{t("操作日志加载失败，请确保后端服务已启动", "Operation logs failed to load. Please ensure backend is running.")}</p>
+        <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['operation-logs'] })}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          {t("重试", "Retry")}
+        </Button>
+      </div>
+    );
+  }
+
   if (loading) {
     return <TablePageSkeleton />;
   }
@@ -1651,7 +1667,7 @@ export default function OperationLogs() {
                   <MobileCardRow label={t("对象", "Object")} value={getReadableObjectId(log)} />
                   <MobileCardRow label={t("角色", "Role")} value={formatLogFieldValue('role', log.operatorRole, language as 'zh' | 'en')} />
                   <MobileCardCollapsible>
-                    <MobileCardRow label="IP" value={log.ipAddress} />
+                    <MobileCardRow label="IP" value={formatIpAddress(log.ipAddress)} />
                     {log.objectDescription && <MobileCardRow label={t("描述", "Desc")} value={cleanDescription(log.objectDescription)} />}
                   </MobileCardCollapsible>
                   <MobileCardActions>
@@ -1725,7 +1741,7 @@ export default function OperationLogs() {
                       {getOperationBadge(log.operationType)}
                       {log.isRestored && <Badge variant="outline" className="ml-1 text-xs">{t("已恢复", "Restored")}</Badge>}
                     </TableCell>
-                    <TableCell className="text-muted-foreground whitespace-nowrap px-1.5">{log.ipAddress}</TableCell>
+                    <TableCell className="text-muted-foreground whitespace-nowrap px-1.5">{formatIpAddress(log.ipAddress)}</TableCell>
                     <TableCell className="text-center whitespace-nowrap px-1.5 sticky right-0 z-10 bg-background shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">
                       <div className="flex items-center justify-center gap-1">
                         <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setViewingLog(log)}>

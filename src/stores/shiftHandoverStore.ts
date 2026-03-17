@@ -40,18 +40,14 @@ export interface ShiftHandover {
 
 // 获取所有接班人列表
 export async function getShiftReceivers(): Promise<ShiftReceiver[]> {
-  const { data, error } = await supabase
-    .from('shift_receivers')
-    .select('*')
-    .order('sort_order', { ascending: true })
-    .order('name', { ascending: true });
-  
-  if (error) {
+  try {
+    const { getShiftReceiversApi } = await import('@/api/data');
+    const data = await getShiftReceiversApi();
+    return data || [];
+  } catch (error) {
     console.error('Failed to fetch shift receivers:', error);
     return [];
   }
-  
-  return data || [];
 }
 
 // 添加新接班人（需要传入当前员工ID以实现用户隔离）
@@ -62,15 +58,9 @@ export async function addShiftReceiver(name: string, creatorId?: string): Promis
   // 如果没有传入 creatorId，尝试从当前会话获取
   let employeeId = creatorId;
   if (!employeeId) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('employee_id')
-        .eq('id', user.id)
-        .single();
-      employeeId = profile?.employee_id || undefined;
-    }
+    const { getCurrentOperatorSync } = await import('@/services/members/operatorService');
+    const op = getCurrentOperatorSync();
+    if (op?.id) employeeId = op.id;
   }
   
   const { data, error } = await supabase
@@ -138,22 +128,18 @@ export async function deleteShiftReceiver(id: string, name?: string): Promise<bo
 
 // 获取所有交班记录
 export async function getShiftHandovers(): Promise<ShiftHandover[]> {
-  const { data, error } = await supabase
-    .from('shift_handovers')
-    .select('*')
-    .order('handover_time', { ascending: false });
-  
-  if (error) {
+  try {
+    const { getShiftHandoversApi } = await import('@/api/data');
+    const data = await getShiftHandoversApi();
+    return (data || []).map(item => ({
+      ...item,
+      card_merchant_data: (item.card_merchant_data as unknown as CardMerchantHandoverData[]) || [],
+      payment_provider_data: (item.payment_provider_data as unknown as PaymentProviderHandoverData[]) || [],
+    }));
+  } catch (error) {
     console.error('Failed to fetch shift handovers:', error);
     return [];
   }
-  
-  // 转换 JSON 数据
-  return (data || []).map(item => ({
-    ...item,
-    card_merchant_data: (item.card_merchant_data as unknown as CardMerchantHandoverData[]) || [],
-    payment_provider_data: (item.payment_provider_data as unknown as PaymentProviderHandoverData[]) || [],
-  }));
 }
 
 // 创建交班记录

@@ -13,16 +13,8 @@ export function usePendingAuditCount() {
 
   const fetchPendingCount = async () => {
     try {
-      const { count, error } = await supabase
-        .from('audit_records')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
-
-      if (error) {
-        console.error('Error fetching pending audit count:', error);
-        return;
-      }
-
+      const { getPendingAuditCountApi } = await import('@/api/data');
+      const count = await getPendingAuditCountApi();
       setPendingCount(count || 0);
     } catch (err) {
       console.error('Error in fetchPendingCount:', err);

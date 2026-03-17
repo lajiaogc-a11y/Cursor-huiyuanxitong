@@ -36,15 +36,17 @@ export function TenantViewProvider({ children }: { children: ReactNode }) {
     } catch (_) {}
   }, [employee?.is_platform_super_admin]);
 
-  // 租户员工：直接设置 viewingTenantId = employee.tenant_id，不查 tenants 表（避免 RLS 拦截）
+  // 租户员工（非平台总管理）：直接设置 viewingTenantId = employee.tenant_id
+  // 平台总管理员即使有 tenant_id 也不自动进入租户，应停留在平台后台
   useEffect(() => {
+    if (employee?.is_platform_super_admin) return;
     if (!employee?.tenant_id || viewingTenantId || autoSetRef.current) return;
     const tid = employee.tenant_id;
     autoSetRef.current = true;
     setViewingTenantId(tid);
     setViewingTenantName(null);
     setViewingTenantCode(null);
-  }, [employee?.tenant_id, viewingTenantId]);
+  }, [employee?.tenant_id, employee?.is_platform_super_admin, viewingTenantId]);
 
   const enterTenant = useCallback(
     async (tenantId: string, tenantName: string, tenantCode: string) => {
@@ -78,20 +80,21 @@ export function TenantViewProvider({ children }: { children: ReactNode }) {
   }, [navigate]);
 
   useEffect(() => {
-    // 平台总管理员不从 sessionStorage 恢复租户查看态，避免刷新后漂移到租户视图
+    // 平台总管理员不从 sessionStorage 恢复，避免刷新后漂移到租户视图
     if (employee?.is_platform_super_admin) return;
+    // 租户员工：仅当 sessionStorage 中的 tenantId 与本人所属租户一致时才恢复，避免误用平台管理员的历史
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY);
       if (raw) {
         const { tenantId, tenantName, tenantCode } = JSON.parse(raw);
-        if (tenantId) {
+        if (tenantId && (!employee?.tenant_id || tenantId === employee.tenant_id)) {
           setViewingTenantId(tenantId);
           setViewingTenantName(tenantName || null);
           setViewingTenantCode(tenantCode || null);
         }
       }
     } catch (_) {}
-  }, [employee?.is_platform_super_admin]);
+  }, [employee?.is_platform_super_admin, employee?.tenant_id]);
 
   return (
     <TenantViewContext.Provider

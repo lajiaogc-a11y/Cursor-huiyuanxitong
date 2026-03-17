@@ -5,7 +5,7 @@ import { StarOutlined, ShoppingCartOutlined } from "@ant-design/icons";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useMemberPoints } from "@/hooks/useMemberPoints";
 import { supabase } from "@/integrations/supabase/client";
-import { listMemberPointsMallItems, redeemPointsMallItem, type PointsMallItem } from "@/services/memberPointsMallService";
+import { listMemberPointsMallItems, redeemPointsMallItem, type PointsMallItem } from "@/services/members/memberPointsMallService";
 import { toast } from "sonner";
 import { ConfigProvider } from "antd";
 import "@/styles/member-antd.css";

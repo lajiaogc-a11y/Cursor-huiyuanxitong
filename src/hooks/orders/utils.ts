@@ -1,7 +1,7 @@
 // 订单相关工具函数 - 从 useOrders 提取，不修改业务逻辑
 import { CurrencyCode } from '@/config/currencies';
 import { getPointsSettings, getPointsSettingsAsync } from '@/stores/pointsSettingsStore';
-import { getEmployeeNameById, getVendorId, getProviderId, getCardIdByName } from '@/services/nameResolver';
+import { getEmployeeNameById, getVendorId, getProviderId, getCardIdByName } from '@/services/members/nameResolver';
 import {
   calculateCardWorth,
   calculatePaymentValue,

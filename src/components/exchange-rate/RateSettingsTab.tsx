@@ -69,7 +69,7 @@ import {
   type PosterColumnKey,
 } from "@/stores/systemSettings";
 import { getCountriesAsync } from "@/stores/systemSettings";
-import { subscribeToSharedData } from "@/services/sharedDataService";
+import { subscribeToSharedData } from "@/services/finance/sharedDataService";
 
 interface CurrencyRates {
   USD_NGN: number;

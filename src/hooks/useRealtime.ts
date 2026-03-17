@@ -8,7 +8,7 @@ import {
   subscribeRealtimeEvents,
   type RealtimeEventType,
   type RealtimeEventPayload,
-} from "@/services/realtimeManager";
+} from "@/services/system/realtimeManager";
 
 /** 订阅指定类型事件 */
 export function useRealtimeEvent(

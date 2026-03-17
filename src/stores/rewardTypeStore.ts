@@ -1,7 +1,7 @@
 // Reward Type Store - 奖励类型配置管理
 // 迁移到数据库 - 使用 shared_data_store 表存储
 
-import { loadSharedData, saveSharedData, saveSharedDataSync } from '@/services/sharedDataService';
+import { loadSharedData, saveSharedData, saveSharedDataSync } from '@/services/finance/sharedDataService';
 
 export interface RewardType {
   id: string;

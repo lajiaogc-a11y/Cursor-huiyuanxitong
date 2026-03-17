@@ -31,7 +31,7 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFeeSettings, getUsdtFee, FeeSettings, getGiftDistributionSettings, getEmployeeManualGiftRatios, updateEmployeeManualGiftRatio } from "@/stores/systemSettings";
-import { loadSharedData } from "@/services/sharedDataService";
+import { loadSharedData } from "@/services/finance/sharedDataService";
 import { trackRender } from "@/lib/performanceUtils";
 import { exportToCSV, formatNumberForExport, formatPercentForExport } from "@/lib/exportUtils";
 import { SortableTableHead, useSortableData, SortConfig } from "@/components/ui/sortable-table-head";
@@ -804,6 +804,8 @@ export default function ReportManagement() {
         activityTypeLabel = '活动1兑换';
       } else if (activityType === 'activity_2') {
         activityTypeLabel = '活动2兑换';
+      } else if (/^type_\d+$/i.test(activityType)) {
+        activityTypeLabel = '自定义活动';
       }
       
       result.push({

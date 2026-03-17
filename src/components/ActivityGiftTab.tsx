@@ -26,6 +26,7 @@ import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewi
 import { markInputActive } from "@/lib/performanceUtils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { getActivityTypesApi } from "@/api/data";
 
 interface ActivityGift {
   id: string;
@@ -68,7 +69,7 @@ let formStateCache: ActivityGiftFormState | null = null;
 // 从数据库加载表单状态（异步）
 async function loadFormStateAsync(): Promise<ActivityGiftFormState | null> {
   try {
-    const { loadSharedData } = await import('@/services/sharedDataService');
+    const { loadSharedData } = await import('@/services/finance/sharedDataService');
     const saved = await loadSharedData<ActivityGiftFormState>(FORM_DATA_KEY);
     if (saved) {
       formStateCache = saved;
@@ -95,7 +96,7 @@ async function saveFormStateDebounced(state: any, skipPersist = false) {
   saveTimeoutId = setTimeout(async () => {
     try {
       formStateCache = state;
-      const { saveSharedData } = await import('@/services/sharedDataService');
+      const { saveSharedData } = await import('@/services/finance/sharedDataService');
       await saveSharedData(FORM_DATA_KEY, state);
     } catch (e) {
       console.error('[ActivityGiftTab] Failed to save form state:', e);
@@ -111,7 +112,7 @@ async function clearFormState(skipPersist = false) {
   formStateCache = null;
   if (skipPersist) return;
   try {
-    const { saveSharedData } = await import('@/services/sharedDataService');
+    const { saveSharedData } = await import('@/services/finance/sharedDataService');
     await saveSharedData(FORM_DATA_KEY, null);
   } catch (e) {
     console.error('[ActivityGiftTab] Failed to clear form state:', e);
@@ -164,16 +165,10 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
   useEffect(() => {
     const loadActivityTypes = async () => {
       try {
-        const { supabase } = await import('@/integrations/supabase/client');
-        const { data, error } = await supabase
-          .from('activity_types')
-          .select('value, label')
-          .eq('is_active', true)
-          .order('sort_order', { ascending: true });
-        
-        if (error) throw error;
-        
-        const types = (data || []).map(t => ({ value: t.value, label: t.label }));
+        const data = await getActivityTypesApi();
+        const types = (data || [])
+          .filter((item) => item.is_active !== false)
+          .map((t) => ({ value: t.value, label: t.label }));
         setActivityTypes(types);
         
         if (types.length > 0 && !giftType) {

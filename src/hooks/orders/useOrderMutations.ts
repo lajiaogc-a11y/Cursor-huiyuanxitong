@@ -1,12 +1,11 @@
 // 普通订单 Mutations - 从 useOrders 提取，不修改业务逻辑
 import { useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { normalizeCurrencyCode } from '@/config/currencies';
 import {
   reversePointsOnOrderCancel,
   restorePointsOnOrderRestore,
-} from '@/services/pointsService';
+} from '@/services/points/pointsService';
 import { mapDbOrderToOrder, mapOrderToDbAsync, calculateOrderPointsAsync } from './utils';
 import type { Order, OrderResult } from './types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,7 +15,18 @@ import {
   runCancelOrderSideEffects,
   runRestoreOrderSideEffects,
   runDeleteOrderSideEffects,
-} from '@/services/orderSideEffectOrchestrator';
+} from '@/application/order/useCases/orderSideEffectUseCases';
+import { checkMyTenantQuotaResult, getQuotaExceededText, getQuotaSoftExceededText } from '@/services/tenantQuotaService';
+import { canMutateOrderInCurrentView } from '@/domain/order/rules/canMutateOrder';
+import {
+  cancelOrderUseCase,
+  createOrderUseCase,
+  getOrderDeleteStateUseCase,
+  restoreOrderUseCase,
+  softDeleteOrderUseCase,
+  updateOrderPointsStatusUseCase,
+  updateOrderUseCase,
+} from '@/application/order/useCases/orderLifecycleUseCases';
 
 export interface UseOrderMutationsParams {
   orders: Order[];
@@ -30,12 +40,12 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
   const { orders, setOrders, fetchOrders, viewingTenantId, queryClient } = params;
   const { employee } = useAuth() || {};
   const { isViewingTenant } = useTenantView() || {};
-  const isPlatformAdminReadonlyView = !!(
-    employee?.is_platform_super_admin &&
-    isViewingTenant &&
-    viewingTenantId &&
-    viewingTenantId !== employee?.tenant_id
-  );
+  const isPlatformAdminReadonlyView = !canMutateOrderInCurrentView({
+    isPlatformSuperAdmin: employee?.is_platform_super_admin,
+    isViewingTenant,
+    viewingTenantId,
+    ownTenantId: employee?.tenant_id,
+  });
 
   const addOrder = useCallback(
     async (
@@ -49,17 +59,21 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         return { order: null, earnedPoints: 0 };
       }
       try {
+        const quotaResult = await checkMyTenantQuotaResult("daily_orders");
+        if (!quotaResult.ok) {
+          const quotaText = getQuotaExceededText(quotaResult.error.message);
+          toast.error(quotaText?.zh || '今日订单数量已达到租户配额上限');
+          return { order: null, earnedPoints: 0 };
+        }
+        const softQuotaText = getQuotaSoftExceededText(quotaResult.data?.message);
+        if (softQuotaText) {
+          toast.warning(softQuotaText.zh);
+        }
         const currency = normalizeCurrencyCode(orderData.demandCurrency);
         const orderPoints = currency ? await calculateOrderPointsAsync(orderData.actualPaid, currency) : 0;
         const dbOrder = await mapOrderToDbAsync(orderData, orderPoints, memberId, employeeId, memberCode);
 
-        const { data, error } = await supabase
-          .from('orders')
-          .insert(dbOrder)
-          .select('*')
-          .single();
-
-        if (error) throw error;
+        const data = await createOrderUseCase(dbOrder as Record<string, unknown>);
 
         const dbUuid = data.id;
         const newOrder = {
@@ -108,17 +122,10 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         return null;
       }
       try {
-        const { data, error } = await supabase
-          .from('orders')
-          .update({
-            remark: updates.remark,
-            status: updates.status,
-          })
-          .eq('id', dbId)
-          .select()
-          .single();
-
-        if (error) throw error;
+        const data = await updateOrderUseCase(dbId, {
+          remark: updates.remark,
+          status: updates.status,
+        });
         return mapDbOrderToOrder(data);
       } catch (error) {
         console.error('Failed to update order:', error);
@@ -149,19 +156,11 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         if (order.points_status === 'added') {
           const reversed = await reversePointsOnOrderCancel(dbId);
           if (reversed) {
-            await supabase
-              .from('orders')
-              .update({ points_status: 'reversed' })
-              .eq('id', dbId);
+            await updateOrderPointsStatusUseCase(dbId, 'reversed');
           }
         }
 
-        const { error } = await supabase
-          .from('orders')
-          .update({ status: 'cancelled' })
-          .eq('id', dbId);
-
-        if (error) throw error;
+        await cancelOrderUseCase(dbId);
 
         setOrders(prev => prev.map(o => o.dbId === dbId ? { ...o, status: 'cancelled' as const } : o));
 
@@ -222,20 +221,12 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
             });
 
             if (restored.success) {
-              await supabase
-                .from('orders')
-                .update({ points_status: 'added' })
-                .eq('id', dbId);
+              await updateOrderPointsStatusUseCase(dbId, 'added');
             }
           }
         }
 
-        const { error } = await supabase
-          .from('orders')
-          .update({ status: 'completed' })
-          .eq('id', dbId);
-
-        if (error) throw error;
+        await restoreOrderUseCase(dbId);
 
         setOrders(prev => prev.map(o => o.dbId === dbId ? { ...o, status: 'completed' as const } : o));
 
@@ -283,11 +274,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         if (!order) return false;
 
         if (order.status === 'cancelled') {
-          const { data: existing } = await supabase
-            .from('orders')
-            .select('is_deleted')
-            .eq('id', dbId)
-            .single();
+          const existing = await getOrderDeleteStateUseCase(dbId);
 
           if (existing?.is_deleted) {
             console.warn(`Order ${dbId} is already deleted.`);
@@ -300,23 +287,11 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         if (needsReversal) {
           const reversed = await reversePointsOnOrderCancel(dbId);
           if (reversed && order.points_status === 'added') {
-            await supabase
-              .from('orders')
-              .update({ points_status: 'reversed' })
-              .eq('id', dbId);
+            await updateOrderPointsStatusUseCase(dbId, 'reversed');
           }
         }
 
-        const { error } = await supabase
-          .from('orders')
-          .update({
-            status: 'cancelled',
-            is_deleted: true,
-            deleted_at: new Date().toISOString()
-          })
-          .eq('id', dbId);
-
-        if (error) throw error;
+        await softDeleteOrderUseCase(dbId);
 
         setOrders(prev => prev.filter(o => o.dbId !== dbId));
 

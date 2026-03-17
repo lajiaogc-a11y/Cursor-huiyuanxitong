@@ -4,7 +4,7 @@
 // 性能优化：增加防抖间隔至1500ms，减少数据库写入频率
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { loadSharedData, saveSharedData } from '@/services/sharedDataService';
+import { loadSharedData, saveSharedData } from '@/services/finance/sharedDataService';
 import { markInputActive } from '@/lib/performanceUtils';
 
 // 自动保存防抖时间（毫秒）- 增加以减少写入频率

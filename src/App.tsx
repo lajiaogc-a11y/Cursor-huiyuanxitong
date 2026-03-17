@@ -34,7 +34,6 @@ const CustomerQuery = lazy(() => import("./pages/CustomerQuery"));
 const MerchantManagement = lazy(() => import("./pages/MerchantManagement"));
 const MerchantSettlement = lazy(() => import("./pages/MerchantSettlement"));
 const ActivityReports = lazy(() => import("./pages/ActivityReports"));
-const MemberActivityData = lazy(() => import("./pages/MemberActivityData"));
 const ReportManagement = lazyWithRetry(() => import("./pages/ReportManagement"));
 const OperationLogs = lazy(() => import("./pages/OperationLogs"));
 const LoginLogs = lazy(() => import("./pages/LoginLogs"));
@@ -191,7 +190,7 @@ const staffExtendedRoutes: Array<{ path: string; element: ReactNode }> = [
   { path: ROUTES.STAFF.MERCHANTS, element: <MerchantManagement /> },
   { path: ROUTES.STAFF.MERCHANT_SETTLEMENT, element: <MerchantSettlement /> },
   { path: ROUTES.STAFF.ACTIVITY_REPORTS, element: <LegacyActivityReportsRedirect /> },
-  { path: ROUTES.STAFF.MEMBER_ACTIVITY, element: <MemberActivityData /> },
+  { path: ROUTES.STAFF.MEMBER_ACTIVITY, element: <LegacyActivityReportsRedirect /> },
   { path: ROUTES.STAFF.OPERATION_LOGS, element: <OperationLogs /> },
   { path: ROUTES.STAFF.LOGIN_LOGS, element: <LoginLogs /> },
   { path: ROUTES.STAFF.AUDIT_CENTER, element: <AuditCenter /> },

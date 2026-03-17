@@ -2,7 +2,7 @@
 // 所有数据存储在线上数据库，不使用本地存储
 
 import { CurrencyCode } from "@/config/currencies";
-import { loadSharedData, saveSharedData, saveSharedDataSync } from '@/services/sharedDataService';
+import { loadSharedData, saveSharedData, saveSharedDataSync } from '@/services/finance/sharedDataService';
 import { supabase } from '@/integrations/supabase/client';
 import { logOperation } from './auditLogStore';
 
@@ -63,6 +63,11 @@ const DEFAULT_ACTIVITY_SETTINGS: ActivitySettings = {
 
 // 内存缓存
 let settingsCache: ActivitySettings | null = null;
+
+/** 数据变更时重置缓存（由 dataRefreshManager 在 shared_data_store 变更时调用） */
+export function resetActivitySettingsCache(): void {
+  settingsCache = null;
+}
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15);

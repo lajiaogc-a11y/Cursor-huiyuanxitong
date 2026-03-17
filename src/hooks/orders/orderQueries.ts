@@ -1,5 +1,5 @@
 // 订单查询函数 - 从 useOrders 提取，不修改业务逻辑
-import { getEmployeeNameById } from '@/services/nameResolver';
+import { getEmployeeNameById } from '@/services/members/nameResolver';
 import { calculateUsdtOrderDerivedValues } from '@/lib/orderCalculations';
 import { getTenantOrdersFull, getTenantUsdtOrdersFull, getTenantMembersFull, getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getMyTenantMembersFull } from '@/services/tenantService';
 import { mapDbOrderToOrder, formatBeijingTime } from './utils';

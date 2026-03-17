@@ -12,7 +12,7 @@ import {
   getDefaultMemberPortalSettings,
   getMemberPortalSettingsByAccount,
   type MemberPortalSettings,
-} from "@/services/memberPortalSettingsService";
+} from "@/services/members/memberPortalSettingsService";
 import "@/styles/member-antd.css";
 
 export default function MemberLogin() {
@@ -81,7 +81,14 @@ export default function MemberLogin() {
       const result = await signIn(values.phone.trim(), values.password);
       if (result.success) {
         toast.success(result.message);
-        navigate("/member/dashboard", { replace: true });
+        // 整页重定向：新页面以会员 session 重新加载，避免 SPA 路由竞态导致闪退
+        const target = "/member/dashboard";
+        if (import.meta.env.PROD) {
+          window.location.replace(window.location.pathname + window.location.search + "#" + target);
+        } else {
+          window.location.replace(target);
+        }
+        return;
       } else {
         toast.error(result.message);
       }

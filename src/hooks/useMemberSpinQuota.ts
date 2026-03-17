@@ -1,8 +1,9 @@
 /**
  * 会员抽奖次数 Hook - 通过 RPC 获取
+ * 统一调用 points/memberPointsRpcService
  */
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getMemberSpinQuotaRpc } from "@/services/points/memberPointsRpcService";
 
 export function useMemberSpinQuota(memberId: string | undefined) {
   const [remaining, setRemaining] = useState(0);
@@ -16,15 +17,8 @@ export function useMemberSpinQuota(memberId: string | undefined) {
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc("member_get_spin_quota", {
-        p_member_id: memberId,
-      });
-      if (error) {
-        setRemaining(0);
-        return;
-      }
-      const r = data as { success?: boolean; remaining?: number };
-      setRemaining(r?.success ? Number(r.remaining ?? 0) : 0);
+      const result = await getMemberSpinQuotaRpc(memberId);
+      setRemaining(result.remaining);
     } catch {
       setRemaining(0);
     } finally {

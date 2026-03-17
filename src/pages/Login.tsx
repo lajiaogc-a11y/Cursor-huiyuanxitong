@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { GCLogo } from "@/components/GCLogo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { isSupabaseConfigured } from "@/integrations/supabase/client";
 import { withTimeout, TIMEOUT } from "@/lib/withTimeout";
 import {
   DropdownMenu,
@@ -35,22 +34,26 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
+  const redirectingRef = useRef(false);
 
   const ERROR_CONFIG: Record<string, { icon: typeof AlertCircle; message: string }> = {
     USER_NOT_FOUND: { icon: User, message: t('login.userNotFound') },
     WRONG_PASSWORD: { icon: KeyRound, message: t('login.wrongPassword') },
     ACCOUNT_DISABLED: { icon: ShieldX, message: t('login.accountDisabled') },
+    ACCOUNT_LOCKED: { icon: Lock, message: t('账号已临时锁定，请稍后重试', 'Account temporarily locked. Please try again later.') },
+    MAINTENANCE_MODE: { icon: AlertCircle, message: t('系统维护中，请稍后再试', 'System is under maintenance, please try later.') },
     IP_COUNTRY_NOT_ALLOWED: { icon: MapPinOff, message: t('login.ipNotAllowed') },
     NETWORK_ERROR: { icon: WifiOff, message: t('login.networkError') },
     TIMEOUT: { icon: WifiOff, message: t('login.timeout') },
     PASSWORD_SYNC_ERROR: { icon: KeyRound, message: t('login.passwordSyncError') },
+    SERVER_ERROR: { icon: AlertCircle, message: t('服务器异常，请检查后端配置或联系管理员', 'Server error. Please check backend config or contact admin.') },
     UNKNOWN: { icon: AlertCircle, message: t('login.unknownError') },
   };
 
-  const resolveAfterLoginPath = (fromPath?: string) => {
+  const resolveAfterLoginPath = (fromPath?: string, user?: { is_platform_super_admin?: boolean } | null) => {
     const from = fromPath || "";
     const isAdminPath = from.startsWith("/staff/admin");
-    const isPlatformSuperAdmin = !!employee?.is_platform_super_admin;
+    const isPlatformSuperAdmin = !!(user?.is_platform_super_admin ?? employee?.is_platform_super_admin);
 
     // 平台总管理员：无条件锁定到平台后台
     if (isPlatformSuperAdmin) return "/staff/admin/tenants";
@@ -62,7 +65,12 @@ export default function Login() {
   };
 
   useEffect(() => {
-    if (isAuthenticated && !authLoading) {
+    if (!isAuthenticated) {
+      redirectingRef.current = false;
+      return;
+    }
+    if (isAuthenticated && !authLoading && !redirectingRef.current) {
+      redirectingRef.current = true;
       const fromPath = (location.state as any)?.from?.pathname || "";
       navigate(resolveAfterLoginPath(fromPath), { replace: true });
     }
@@ -76,15 +84,17 @@ export default function Login() {
     if (message?.includes('USER_NOT_FOUND') || message?.includes('账号不存在')) return 'USER_NOT_FOUND';
     if (message?.includes('WRONG_PASSWORD') || message?.includes('密码错误')) return 'WRONG_PASSWORD';
     if (message?.includes('ACCOUNT_DISABLED') || message?.includes('已被禁用')) return 'ACCOUNT_DISABLED';
+    if (message?.includes('账号已临时锁定') || message?.includes('锁定') || message?.toLowerCase().includes('locked')) return 'ACCOUNT_LOCKED';
+    if (message?.includes('维护') || message?.toLowerCase().includes('maintenance')) return 'MAINTENANCE_MODE';
     if (message?.includes('IP_COUNTRY_NOT_ALLOWED') || message?.includes('区域')) return 'IP_COUNTRY_NOT_ALLOWED';
     if (message?.includes('密码不同步') || message?.includes('认证服务同步失败') || message?.includes('password sync') || message?.includes('out of sync') || message?.includes('Invalid login credentials') || message?.includes('重置密码')) return 'PASSWORD_SYNC_ERROR';
     if (message?.includes('超时') || message?.includes('timeout')) return 'TIMEOUT';
-    if (message?.includes('网络') || message?.includes('network') || message?.includes('fetch')) return 'NETWORK_ERROR';
+    if (message?.includes('网络') || message?.includes('network') || message?.includes('fetch') || message?.includes('无法连接后端')) return 'NETWORK_ERROR';
+    if (message?.includes('Internal Server Error') || message?.includes('服务器异常') || message?.includes('服务器错误') || message?.includes('SUPABASE_SERVICE_ROLE_KEY') || message?.includes('后端配置')) return 'SERVER_ERROR';
     return 'UNKNOWN';
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (_e: React.FormEvent) => {
     setError(null);
     if (!username.trim()) {
       setError({ code: 'VALIDATION', message: t('login.validationUsername') });
@@ -100,16 +110,25 @@ export default function Login() {
       if (result.success) {
         toast.success(result.message);
         const fromPath = (location.state as any)?.from?.pathname || "";
-        navigate(resolveAfterLoginPath(fromPath), { replace: true });
+        const target = resolveAfterLoginPath(fromPath, result.user);
+        redirectingRef.current = true;
+        navigate(target, { replace: true });
+        return;
       } else {
         const errorCode = parseErrorCode(result.message);
         const errorConfig = ERROR_CONFIG[errorCode] || ERROR_CONFIG.UNKNOWN;
-        setError({ code: errorCode, message: errorConfig.message });
+        const useBackendMessage = ['ACCOUNT_LOCKED', 'MAINTENANCE_MODE', 'SERVER_ERROR'].includes(errorCode)
+          || (errorCode === 'UNKNOWN' && result.message && result.message !== '登录失败');
+        setError({
+          code: errorCode,
+          message: useBackendMessage ? result.message : errorConfig.message
+        });
       }
     } catch (err: any) {
-      const errorCode = parseErrorCode(err.message);
+      const errorCode = parseErrorCode(err?.message || '');
       const errorConfig = ERROR_CONFIG[errorCode] || ERROR_CONFIG.UNKNOWN;
-      setError({ code: errorCode, message: errorConfig.message });
+      const useErrMessage = err?.message && (errorCode !== 'UNKNOWN' || !err.message.includes('登录失败'));
+      setError({ code: errorCode, message: useErrMessage ? err.message : errorConfig.message });
     } finally {
       setLoading(false);
     }
@@ -249,15 +268,13 @@ export default function Login() {
             </Link>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
-            {!isSupabaseConfigured && (
-              <Alert variant="default" className="bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <AlertDescription className="ml-2 text-sm">
-                  请先在 .env 中配置 Supabase：VITE_SUPABASE_URL 和 VITE_SUPABASE_PUBLISHABLE_KEY（在 supabase.com 项目设置中获取）
-                </AlertDescription>
-              </Alert>
-            )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleLogin(e);
+            }}
+            className="space-y-5"
+          >
             {error && (
               <Alert variant="destructive" className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300">
                 <ErrorIcon className="h-4 w-4 shrink-0" />
@@ -314,7 +331,8 @@ export default function Login() {
             </div>
 
             <Button
-              type="submit"
+              type="button"
+              onClick={() => void handleLogin({ preventDefault: () => {} } as React.FormEvent)}
               className="w-full h-11 mt-1 font-medium rounded-lg text-white hover:opacity-95 transition-opacity"
               style={{ height: 44, backgroundColor: '#2563EB' }}
               disabled={loading}

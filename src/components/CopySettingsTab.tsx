@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Copy, Save, Info, PlayCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { loadSharedData, saveSharedData } from "@/services/sharedDataService";
+import { loadSharedData, saveSharedData } from "@/services/finance/sharedDataService";
 import { getActivitySettings } from "@/stores/activitySettingsStore";
 
 export interface CopySettings {

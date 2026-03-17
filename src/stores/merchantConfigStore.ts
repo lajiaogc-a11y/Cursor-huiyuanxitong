@@ -4,7 +4,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { logOperation } from './auditLogStore';
-import { fetchMerchantCards, fetchMerchantPaymentProviders, fetchMerchantVendors } from '@/services/merchantConfigReadService';
+import { fetchMerchantCards, fetchMerchantPaymentProviders, fetchMerchantVendors } from '@/services/finance/merchantConfigReadService';
 
 // ============= Types =============
 

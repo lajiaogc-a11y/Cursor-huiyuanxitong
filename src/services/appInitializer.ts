@@ -17,7 +17,7 @@
 
 import { initializePointsSettings } from '@/stores/pointsSettingsStore';
 import { initializeCacheManager } from '@/services/cacheManager';
-import { ensureDefaultSharedData, loadSharedData } from '@/services/sharedDataService';
+import { ensureDefaultSharedData, loadSharedData } from '@/services/finance/sharedDataService';
 import { initializeCopySettings } from '@/components/CopySettingsTab';
 
 let initialized = false;

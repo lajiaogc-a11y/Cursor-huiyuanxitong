@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Bitcoin, RefreshCw, Timer, Loader2, TrendingUp, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { loadSharedData, saveSharedData, subscribeToSharedData } from "@/services/sharedDataService";
+import { loadSharedData, saveSharedData, subscribeToSharedData } from "@/services/finance/sharedDataService";
 
 // BTC配置类型
 export interface BtcPriceConfig {

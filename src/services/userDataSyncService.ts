@@ -4,6 +4,7 @@
 // 此服务主要用于用户级别的个人偏好设置同步
 
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserApi } from "@/services/auth/authApiService";
 
 // 定义需要同步的用户个人数据键
 // 注意：以下数据已迁移到专用数据库表，不再通过此服务同步：
@@ -30,10 +31,10 @@ export const SYNC_KEYS = {
 
 export type SyncKey = typeof SYNC_KEYS[keyof typeof SYNC_KEYS];
 
-// 获取当前用户ID
+// 获取当前用户ID（employee_id，用于 user_data_store 隔离）
 async function getCurrentUserId(): Promise<string | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  return user?.id || null;
+  const authUser = await getCurrentUserApi();
+  return authUser?.id || null;
 }
 
 // 从数据库加载数据

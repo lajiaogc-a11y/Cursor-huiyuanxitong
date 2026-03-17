@@ -16,20 +16,26 @@ export interface ActivityType {
 
 // Standalone fetch function
 export async function fetchActivityTypesFromDb(): Promise<ActivityType[]> {
-  const { data, error } = await supabase
-    .from('activity_types')
-    .select('*')
-    .order('sort_order', { ascending: true });
+  try {
+    const { getActivityTypesApi } = await import('@/api/data');
+    const data = await getActivityTypesApi();
+    if (Array.isArray(data) && data.length > 0) {
+      return data.map(item => ({
+        id: item.id,
+        value: item.value,
+        label: item.label,
+        isActive: item.is_active,
+        sortOrder: item.sort_order,
+      }));
+    }
+  } catch (error) {
+    console.error('[useActivityTypes] API fetch failed:', error);
+  }
 
-  if (error) throw error;
-
-  return (data || []).map(item => ({
-    id: item.id,
-    value: item.value,
-    label: item.label,
-    isActive: item.is_active,
-    sortOrder: item.sort_order,
-  }));
+  return [
+    { id: 'default-activity-1', value: 'activity_1', label: '活动1', isActive: true, sortOrder: 1 },
+    { id: 'default-activity-2', value: 'activity_2', label: '活动2', isActive: true, sortOrder: 2 },
+  ];
 }
 
 export function useActivityTypes() {

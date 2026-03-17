@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTenantView } from '@/contexts/TenantViewContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -41,19 +42,6 @@ function getMonthRange(monthsAgo: number) {
   return { start, end };
 }
 
-async function fetchPeriodOrders(start: Date, end: Date) {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('profit_ngn, profit_usdt, created_at')
-    .eq('is_deleted', false)
-    .eq('status', 'completed')
-    .gte('created_at', start.toISOString())
-    .lte('created_at', end.toISOString())
-    .limit(1000);
-  if (error) throw error;
-  return data || [];
-}
-
 function ChangeIndicator({ current, previous, suffix = '' }: { current: number; previous: number; suffix?: string }) {
   if (previous === 0 && current === 0) return <Minus className="h-4 w-4 text-muted-foreground" />;
   const pct = previous === 0 ? 100 : ((current - previous) / Math.abs(previous)) * 100;
@@ -72,19 +60,36 @@ function ChangeIndicator({ current, previous, suffix = '' }: { current: number; 
 
 export default function ProfitComparisonTab() {
   const { t } = useLanguage();
+  const { employee } = useAuth();
+  const { viewingTenantId } = useTenantView() || {};
+  const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
   const [mode, setMode] = useState<CompareMode>('wow');
 
   const currentRange = mode === 'wow' ? getWeekRange(0) : getMonthRange(0);
   const previousRange = mode === 'wow' ? getWeekRange(1) : getMonthRange(1);
 
   const { data: currentOrders = [] } = useQuery({
-    queryKey: ['profit-compare-current', mode, currentRange.start.toISOString()],
-    queryFn: () => fetchPeriodOrders(currentRange.start, currentRange.end),
+    queryKey: ['profit-compare-current', mode, currentRange.start.toISOString(), effectiveTenantId ?? ''],
+    queryFn: async () => {
+      const { getOrdersReportApi } = await import('@/services/reports/reportsApiService');
+      return getOrdersReportApi({
+        startDate: currentRange.start.toISOString(),
+        endDate: currentRange.end.toISOString(),
+        tenantId: effectiveTenantId,
+      });
+    },
   });
 
   const { data: previousOrders = [] } = useQuery({
-    queryKey: ['profit-compare-previous', mode, previousRange.start.toISOString()],
-    queryFn: () => fetchPeriodOrders(previousRange.start, previousRange.end),
+    queryKey: ['profit-compare-previous', mode, previousRange.start.toISOString(), effectiveTenantId ?? ''],
+    queryFn: async () => {
+      const { getOrdersReportApi } = await import('@/services/reports/reportsApiService');
+      return getOrdersReportApi({
+        startDate: previousRange.start.toISOString(),
+        endDate: previousRange.end.toISOString(),
+        tenantId: effectiveTenantId,
+      });
+    },
   });
 
   const current: PeriodData = useMemo(() => ({

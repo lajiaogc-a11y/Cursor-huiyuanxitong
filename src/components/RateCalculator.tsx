@@ -62,12 +62,12 @@ import { getMemberLastResetTime } from "@/stores/pointsAccountStore";
 import { getCopySettings, generateEnglishCopyText } from "@/components/CopySettingsTab";
 import { useAuth } from "@/contexts/AuthContext";
 import { getReferralRelations } from "@/stores/referralStore";
-import { getExchangePreview, canExchange, getExchangeDisabledMessage, getActiveActivityType } from "@/services/exchangeService";
+import { getExchangePreview, canExchange, getExchangeDisabledMessage, getActiveActivityType } from "@/services/finance/exchangeService";
 import { getExchangeRateFormData } from "@/stores/exchangeRateFormStore";
 import { CurrencyCode } from "@/config/currencies";
 import { supabase } from "@/integrations/supabase/client";
-import { getMemberPointsSummary, MemberPointsSummary } from "@/services/pointsCalculationService";
-import { notifyDataMutation } from "@/services/dataRefreshManager";
+import { getMemberPointsSummary, MemberPointsSummary } from "@/services/points/pointsCalculationService";
+import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 
 // 会员等级选项
 const memberLevels = ["A", "B", "C", "D"];
@@ -352,7 +352,7 @@ export default function RateCalculator({
     if (cleanedValue.length >= 8) {
       phoneSearchTimeoutRef.current = setTimeout(async () => {
         try {
-          const { getMemberByPhoneForMyTenant } = await import('@/services/memberLookupService');
+          const { getMemberByPhoneForMyTenant } = await import('@/services/members/memberLookupService');
           const dbMember = await getMemberByPhoneForMyTenant(cleanedValue);
           
         if (dbMember) {
@@ -551,7 +551,7 @@ export default function RateCalculator({
     // 内存中未找到时，用 RPC 查数据库兜底（避免 RLS 拦截）
     if (!existingMember?.id) {
       try {
-        const { getMemberByPhoneForMyTenant } = await import('@/services/memberLookupService');
+        const { getMemberByPhoneForMyTenant } = await import('@/services/members/memberLookupService');
         const dbMember = await getMemberByPhoneForMyTenant(formData.phoneNumber);
         if (dbMember) {
           existingMember = { id: dbMember.id, phoneNumber: dbMember.phone_number, memberCode: dbMember.member_code } as any;
@@ -621,7 +621,7 @@ export default function RateCalculator({
       // 记录赠送余额变动到商家结算账本
       if (redeemPaymentProvider && giftValue > 0 && rpcResult.gift_id) {
         try {
-          const { logGiftBalanceChange } = await import('@/services/balanceLogService');
+          const { logGiftBalanceChange } = await import('@/services/finance/balanceLogService');
           await logGiftBalanceChange({
             providerName: redeemPaymentProvider,
             giftValue: giftValue,
@@ -888,7 +888,7 @@ export default function RateCalculator({
 
       let existingMember = findMemberByPhone(formData.phoneNumber);
       if (!existingMember?.id) {
-        const { getMemberByPhoneForMyTenant } = await import('@/services/memberLookupService');
+        const { getMemberByPhoneForMyTenant } = await import('@/services/members/memberLookupService');
         const dbMember = await getMemberByPhoneForMyTenant(formData.phoneNumber);
         if (dbMember) {
           existingMember = { id: dbMember.id, phoneNumber: dbMember.phone_number, memberCode: dbMember.member_code, level: dbMember.member_level || 'D', commonCards: dbMember.common_cards || [], customerFeature: dbMember.customer_feature || '', bankCard: dbMember.bank_card || '', remark: dbMember.remark || '', preferredCurrency: dbMember.currency_preferences || [], sourceId: dbMember.source_id || '' } as any;

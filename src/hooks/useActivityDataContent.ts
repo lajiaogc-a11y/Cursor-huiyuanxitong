@@ -1,16 +1,17 @@
 /**
  * 活动数据内容 Hook - react-query 缓存，页面切换秒开
+ * 通过后端 API 获取，租户员工仅能查看本租户数据
  */
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import {
   getMyTenantOrdersFullResult,
   getMyTenantUsdtOrdersFullResult,
   getTenantOrdersFullResult,
   getTenantUsdtOrdersFullResult,
 } from '@/services/tenantService';
-import { loadSharedData } from '@/services/sharedDataService';
+import { loadSharedData } from '@/services/finance/sharedDataService';
+import { getActivityDataApi } from '@/api/data';
 
 const STALE_TIME = 5 * 60 * 1000; // 5 分钟
 
@@ -29,33 +30,29 @@ async function fetchActivityDataContent(
   effectiveTenantId: string | null,
   useMyTenantRpc: boolean
 ): Promise<ActivityDataContentResult> {
-  const [normalOrdersRes, usdtOrdersRes] = effectiveTenantId && !useMyTenantRpc
-    ? await Promise.all([getTenantOrdersFullResult(effectiveTenantId), getTenantUsdtOrdersFullResult(effectiveTenantId)])
-    : await Promise.all([getMyTenantOrdersFullResult(), getMyTenantUsdtOrdersFullResult()]);
+  const [ordersPair, activityDataRes, ratesData, providersRes] = await Promise.all([
+    effectiveTenantId && !useMyTenantRpc
+      ? Promise.all([getTenantOrdersFullResult(effectiveTenantId), getTenantUsdtOrdersFullResult(effectiveTenantId)])
+      : Promise.all([getMyTenantOrdersFullResult(), getMyTenantUsdtOrdersFullResult()]),
+    getActivityDataApi(effectiveTenantId ?? undefined),
+    loadSharedData<{ nairaRate: number; cediRate: number; usdtRate: number; lastUpdated: string }>('calculatorInputRates'),
+    import('@/services/giftcards/giftcardsApiService').then(m => m.listPaymentProvidersApi('active')),
+  ]);
+  const [normalOrdersRes, usdtOrdersRes] = ordersPair;
   const normalOrders = normalOrdersRes.ok ? normalOrdersRes.data : [];
   const usdtOrders = usdtOrdersRes.ok ? usdtOrdersRes.data : [];
   const allOrders = [...(normalOrders || []), ...(usdtOrders || [])].sort(
     (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 
-  const [ratesData, giftsRes, providersRes, referralsRes, activitiesRes, pointsLedgerRes, pointsAccountsRes] = await Promise.all([
-    loadSharedData<{ nairaRate: number; cediRate: number; usdtRate: number; lastUpdated: string }>('calculatorInputRates'),
-    supabase.from('activity_gifts').select('*'),
-    supabase.from('payment_providers').select('*').eq('status', 'active').order('sort_order', { ascending: true }),
-    supabase.from('referral_relations').select('*'),
-    supabase.from('member_activity').select('*'),
-    supabase.from('points_ledger').select('*').order('created_at', { ascending: false }),
-    supabase.from('points_accounts').select('*'),
-  ]);
-
   return {
     orders: allOrders,
-    gifts: giftsRes.data || [],
-    paymentProviders: providersRes.data || [],
-    referrals: referralsRes.data || [],
-    memberActivities: activitiesRes.data || [],
-    pointsLedgerData: pointsLedgerRes.data || [],
-    pointsAccountsData: pointsAccountsRes.data || [],
+    gifts: activityDataRes.gifts || [],
+    paymentProviders: providersRes || [],
+    referrals: activityDataRes.referrals || [],
+    memberActivities: activityDataRes.memberActivities || [],
+    pointsLedgerData: activityDataRes.pointsLedgerData || [],
+    pointsAccountsData: activityDataRes.pointsAccountsData || [],
     cachedRates: ratesData || null,
   };
 }
@@ -72,22 +69,6 @@ export function useActivityDataContent(effectiveTenantId: string | null, useMyTe
   });
 
   useEffect(() => {
-    const channel = supabase
-      .channel('activity-data-content-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_gifts' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'member_activity' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'points_ledger' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
-      })
-      .subscribe();
-
     const handleGiftsUpdated = () => queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
     const handlePointsUpdated = () => queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
     const onDataRefresh = (event: Event) => {
@@ -109,7 +90,6 @@ export function useActivityDataContent(effectiveTenantId: string | null, useMyTe
     window.addEventListener('data-refresh', onDataRefresh as EventListener);
 
     return () => {
-      supabase.removeChannel(channel);
       window.removeEventListener('activity-gifts-updated', handleGiftsUpdated);
       window.removeEventListener('points-updated', handlePointsUpdated);
       window.removeEventListener('data-refresh', onDataRefresh as EventListener);

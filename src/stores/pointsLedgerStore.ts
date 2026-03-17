@@ -11,7 +11,7 @@ import {
   createPointsOnOrderCreate, 
   reversePointsOnOrderCancel,
   type CreatePointsParams,
-} from '@/services/pointsService';
+} from '@/services/points/pointsService';
 
 // ============= Types =============
 

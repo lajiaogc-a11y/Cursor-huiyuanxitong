@@ -3,6 +3,9 @@ import App from "./App.tsx";
 import "nprogress/nprogress.css";
 import "./index.css";
 import { initWebVitals } from "./services/webVitalsService";
+import { initApiClient } from "./api/init";
+
+initApiClient();
 
 async function cleanupLegacyServiceWorker() {
   if (!import.meta.env.PROD) return;

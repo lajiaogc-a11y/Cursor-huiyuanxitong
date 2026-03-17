@@ -9,13 +9,29 @@ import { toast } from "sonner";
 import { getFeeSettings, saveFeeSettings, FeeSettings, saveUsdtFee } from "@/stores/systemSettings";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CURRENCIES } from "@/config/currencies";
-import { loadSharedData, saveSharedData } from "@/services/sharedDataService";
+import { loadSharedData, saveSharedData } from "@/services/finance/sharedDataService";
 
 export default function FeeSettingsTab() {
   const { t } = useLanguage();
   const [feeSettings, setFeeSettings] = useState<FeeSettings>(getFeeSettings());
+  const [isLoadingFeeSettings, setIsLoadingFeeSettings] = useState(true);
   const [usdtFee, setUsdtFee] = useState<string>("");
   const [isLoadingUsdtFee, setIsLoadingUsdtFee] = useState(true);
+
+  useEffect(() => {
+    const loadFeeSettingsFromDb = async () => {
+      try {
+        const savedSettings = await loadSharedData<FeeSettings>('feeSettings');
+        setFeeSettings(savedSettings ?? getFeeSettings());
+      } catch (error) {
+        console.error('Failed to load fee settings:', error);
+        setFeeSettings(getFeeSettings());
+      } finally {
+        setIsLoadingFeeSettings(false);
+      }
+    };
+    loadFeeSettingsFromDb();
+  }, []);
 
   // 初始化时加载USDT手续费
   useEffect(() => {
@@ -56,6 +72,16 @@ export default function FeeSettingsTab() {
       toast.success(t("USDT手续费已清除", "USDT fee cleared"));
     }
   };
+
+  if (isLoadingFeeSettings || isLoadingUsdtFee) {
+    return (
+      <SettingsPageContainer>
+        <div className="py-10 text-center text-sm text-muted-foreground">
+          {t("加载设置中...", "Loading settings...")}
+        </div>
+      </SettingsPageContainer>
+    );
+  }
 
   return (
     <SettingsPageContainer>

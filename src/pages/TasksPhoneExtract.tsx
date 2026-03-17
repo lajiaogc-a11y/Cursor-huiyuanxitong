@@ -6,9 +6,15 @@ import { PhoneExtractSettingsSection } from "@/components/PhoneExtractSettingsSe
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "react-router-dom";
 import { ExternalLink } from "lucide-react";
+import { useTenantFeatureFlag } from "@/hooks/useTenantFeatureFlag";
+import { FEATURE_FLAGS } from "@/services/featureFlagService";
 
 export default function TasksPhoneExtract() {
   const { t } = useLanguage();
+  const { enabled: phoneExtractEnabled, loading: phoneExtractFlagLoading } = useTenantFeatureFlag(
+    FEATURE_FLAGS.PHONE_EXTRACT,
+    true
+  );
 
   return (
     <div className="space-y-6">
@@ -28,7 +34,17 @@ export default function TasksPhoneExtract() {
         </Link>
       </div>
 
-      <PhoneExtractSettingsSection />
+      {phoneExtractFlagLoading ? (
+        <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+          {t("正在加载功能开关...", "Loading feature flags...")}
+        </div>
+      ) : phoneExtractEnabled ? (
+        <PhoneExtractSettingsSection />
+      ) : (
+        <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+          {t("该租户已关闭号码提取功能。请联系平台管理员在「平台设置 > 功能开关」中开启。", "Phone extract is disabled for this tenant. Contact platform admin to enable it in Platform Settings > Feature Flags.")}
+        </div>
+      )}
     </div>
   );
 }

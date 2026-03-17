@@ -33,7 +33,7 @@ import {
   type MemberPortalVersionItem,
   type MemberPortalSettings,
   type SpinWheelPrizeItem,
-} from "@/services/memberPortalSettingsService";
+} from "@/services/members/memberPortalSettingsService";
 import { cn } from "@/lib/utils";
 import {
   listMyPointsMallItems,
@@ -42,11 +42,11 @@ import {
   upsertMyPointsMallItems,
   type PointsMallRedemptionOrder,
   type PointsMallItem,
-} from "@/services/memberPointsMallService";
+} from "@/services/members/memberPointsMallService";
 import {
   emitForceRefreshPrompt,
   emitPortalSettingsUpdated,
-} from "@/services/memberPortalLiveUpdateService";
+} from "@/services/members/memberPortalLiveUpdateService";
 import "@/styles/member-antd.css";
 
 // ─── 预览 Tab 类型 ────────────────────────────────────────────────────────────
@@ -559,7 +559,7 @@ export default function MemberPortalSettingsPage() {
     setSaving(true);
     try {
       if (canPublish) {
-        const result = await createMyMemberPortalSettingsVersion(payload, publishNote.trim() || undefined, scheduleAt || null);
+        const result = await createMyMemberPortalSettingsVersion(payload, publishNote.trim() || undefined, scheduleAt || null, tenantId);
         if (!result.success) { showServiceErrorToast({ message: result.error }, t, "发布失败", "Publish failed"); return; }
         if (result.is_applied) {
           void emitPortalSettingsUpdated(tenantId);

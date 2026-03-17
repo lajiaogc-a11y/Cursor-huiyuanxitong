@@ -46,39 +46,21 @@ export function useKnowledgeCategories(
 ) {
   const queryClient = useQueryClient();
   const { viewingTenantId } = useTenantView() || {};
+  const { employee } = useAuth();
+  const effectiveTenantId = employee?.is_platform_super_admin
+    ? (viewingTenantId || null)
+    : (viewingTenantId || employee?.tenant_id || null);
 
-  const { data: categories = [], isLoading: loading } = useQuery({
+  const { data: categories = [], isLoading: loading, isError: isErrorCategories } = useQuery({
     queryKey: ['knowledge-categories', currentEmployeeId, isSuperAdmin, isPlatformSuperAdmin, viewingTenantId ?? ''],
     staleTime: 5 * 60 * 1000,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     queryFn: async () => {
-      // 仅平台总管理员进入租户视图时才走平台 RPC；
-      // 租户员工虽然也有 viewingTenantId，但无权调用平台 RPC，否则会返回空数据。
-      if (viewingTenantId && isPlatformSuperAdmin) {
-        const { data, error } = await supabase.rpc('platform_get_tenant_knowledge_categories', {
-          p_tenant_id: viewingTenantId,
-        });
-        if (!error) {
-          return (data || []) as KnowledgeCategory[];
-        }
-        // RPC 失败时回退到表查询，避免空白页面
-        console.warn('[Knowledge] platform_get_tenant_knowledge_categories failed, fallback to table query:', error.message);
-      }
-      const { data, error } = await supabase
-        .from('knowledge_categories')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order');
-
-      if (error) throw error;
-      
-      return (data || []).filter((cat: any) => {
-        if (isSuperAdmin) return true;
-        if (cat.visibility === 'public') return true;
-        if (cat.created_by === currentEmployeeId) return true;
-        return false;
-      }) as KnowledgeCategory[];
+      const { getKnowledgeCategories } = await import('@/api/data');
+      const data = await getKnowledgeCategories(viewingTenantId || undefined);
+      const list = (data || []) as Array<KnowledgeCategory & { is_active?: boolean }>;
+      return list.filter((r) => r.is_active !== false) as KnowledgeCategory[];
     },
   });
 
@@ -104,20 +86,16 @@ export function useKnowledgeCategories(
     try {
       const maxOrder = categories.reduce((max, c) => Math.max(max, c.sort_order), 0);
       const finalVisibility = isSuperAdmin ? visibility : 'private';
-      
-      const { data, error } = await supabase
-        .from('knowledge_categories')
-        .insert({
-          name,
-          content_type: contentType,
-          sort_order: maxOrder + 1,
-          visibility: finalVisibility,
-          created_by: createdBy || currentEmployeeId,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+      const { createKnowledgeCategory } = await import('@/api/data');
+      const data = await createKnowledgeCategory({
+        name,
+        content_type: contentType,
+        sort_order: maxOrder + 1,
+        visibility: finalVisibility,
+        created_by: createdBy || currentEmployeeId || null,
+        tenant_id: effectiveTenantId,
+      });
+      if (!data) throw new Error('create category failed');
       
       await logOperationToDb(
         'knowledge_base',
@@ -141,13 +119,9 @@ export function useKnowledgeCategories(
   const updateCategory = async (id: string, updates: Partial<KnowledgeCategory>) => {
     try {
       const currentCategory = categories.find(c => c.id === id);
-      
-      const { error } = await supabase
-        .from('knowledge_categories')
-        .update(updates)
-        .eq('id', id);
-
-      if (error) throw error;
+      const { updateKnowledgeCategory } = await import('@/api/data');
+      const data = await updateKnowledgeCategory(id, { ...updates, tenant_id: effectiveTenantId });
+      if (!data) throw new Error('update category failed');
       
       await logOperationToDb(
         'knowledge_base',
@@ -171,13 +145,9 @@ export function useKnowledgeCategories(
   const deleteCategory = async (id: string) => {
     try {
       const currentCategory = categories.find(c => c.id === id);
-      
-      const { error } = await supabase
-        .from('knowledge_categories')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      const { deleteKnowledgeCategory } = await import('@/api/data');
+      const ok = await deleteKnowledgeCategory(id, effectiveTenantId);
+      if (!ok) throw new Error('delete category failed');
       
       await logOperationToDb(
         'knowledge_base',
@@ -203,12 +173,12 @@ export function useKnowledgeCategories(
       const beforeOrder = categories.map(c => c.name);
       
       for (let i = 0; i < newOrderedCategories.length; i++) {
-        const { error } = await supabase
-          .from('knowledge_categories')
-          .update({ sort_order: i + 1 })
-          .eq('id', newOrderedCategories[i].id);
-        
-        if (error) throw error;
+        const { updateKnowledgeCategory } = await import('@/api/data');
+        const ok = await updateKnowledgeCategory(newOrderedCategories[i].id, {
+          sort_order: i + 1,
+          tenant_id: effectiveTenantId,
+        });
+        if (!ok) throw new Error('reorder category failed');
       }
       
       await logOperationToDb(
@@ -230,7 +200,7 @@ export function useKnowledgeCategories(
     }
   };
 
-  return { categories, loading, fetchCategories, addCategory, updateCategory, deleteCategory, reorderCategories };
+  return { categories, loading, isError: isErrorCategories, fetchCategories, addCategory, updateCategory, deleteCategory, reorderCategories };
 }
 
 export function useKnowledgeArticles(
@@ -241,6 +211,10 @@ export function useKnowledgeArticles(
 ) {
   const queryClient = useQueryClient();
   const { viewingTenantId } = useTenantView() || {};
+  const { employee } = useAuth();
+  const effectiveTenantId = employee?.is_platform_super_admin
+    ? (viewingTenantId || null)
+    : (viewingTenantId || employee?.tenant_id || null);
 
   const { data: articles = [], isLoading: loading } = useQuery({
     queryKey: ['knowledge-articles', categoryId, currentEmployeeId, isSuperAdmin, isPlatformSuperAdmin, viewingTenantId ?? ''],
@@ -248,37 +222,10 @@ export function useKnowledgeArticles(
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     queryFn: async () => {
-      // 仅平台总管理员进入租户视图时使用平台 RPC
-      if (viewingTenantId && categoryId && isPlatformSuperAdmin) {
-        const { data, error } = await supabase.rpc('platform_get_tenant_knowledge_articles', {
-          p_category_id: categoryId,
-          p_tenant_id: viewingTenantId,
-        });
-        if (!error) {
-          return (data || []) as KnowledgeArticle[];
-        }
-        console.warn('[Knowledge] platform_get_tenant_knowledge_articles failed, fallback to table query:', error.message);
-      }
-      let query = supabase
-        .from('knowledge_articles')
-        .select('*')
-        .eq('is_published', true)
-        .order('sort_order')
-        .order('created_at', { ascending: false });
-
-      if (categoryId) {
-        query = query.eq('category_id', categoryId);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      
-      return (data || []).filter((article: any) => {
-        if (isSuperAdmin) return true;
-        if (article.created_by === currentEmployeeId) return true;
-        if (article.visibility === 'public') return true;
-        return false;
-      }) as KnowledgeArticle[];
+      if (!categoryId) return [];
+      const { getKnowledgeArticles } = await import('@/api/data');
+      const data = await getKnowledgeArticles(categoryId, viewingTenantId || undefined);
+      return ((data || []) as KnowledgeArticle[]).filter((a) => a.is_published).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     },
   });
 
@@ -288,18 +235,14 @@ export function useKnowledgeArticles(
 
   const addArticle = async (article: Omit<KnowledgeArticle, 'id' | 'created_at' | 'updated_at' | 'created_by'>) => {
     try {
-      const { data, error } = await supabase
-        .from('knowledge_articles')
-        .insert(article)
-        .select()
-        .single();
-
-      if (error) throw error;
+      const { createKnowledgeArticle } = await import('@/api/data');
+      const data = await createKnowledgeArticle({ ...article, tenant_id: effectiveTenantId });
+      if (!data) throw new Error('create article failed');
       
       await logOperationToDb(
         'knowledge_base',
         'create',
-        data?.id || null,
+        (data?.id as string) || null,
         null,
         { title_zh: article.title_zh, title_en: article.title_en, content: article.content?.substring(0, 100) },
         `新增文章: ${article.title_zh}`
@@ -308,12 +251,8 @@ export function useKnowledgeArticles(
       // Auto-mark as read for the creator
       if (data?.id && currentEmployeeId) {
         try {
-          await supabase
-            .from('knowledge_read_status')
-            .upsert({
-              employee_id: currentEmployeeId,
-              article_id: data.id,
-            }, { onConflict: 'employee_id,article_id' });
+          const { postKnowledgeMarkRead } = await import('@/api/data');
+          await postKnowledgeMarkRead(String(data.id));
         } catch (e) {
           console.warn('Auto-mark read failed:', e);
         }
@@ -332,13 +271,9 @@ export function useKnowledgeArticles(
   const updateArticle = async (id: string, updates: Partial<KnowledgeArticle>) => {
     try {
       const currentArticle = articles.find(a => a.id === id);
-      
-      const { error } = await supabase
-        .from('knowledge_articles')
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq('id', id);
-
-      if (error) throw error;
+      const { updateKnowledgeArticle } = await import('@/api/data');
+      const data = await updateKnowledgeArticle(id, { ...updates, tenant_id: effectiveTenantId });
+      if (!data) throw new Error('update article failed');
       
       await logOperationToDb(
         'knowledge_base',
@@ -362,13 +297,9 @@ export function useKnowledgeArticles(
   const deleteArticle = async (id: string) => {
     try {
       const currentArticle = articles.find(a => a.id === id);
-      
-      const { error } = await supabase
-        .from('knowledge_articles')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      const { deleteKnowledgeArticle } = await import('@/api/data');
+      const ok = await deleteKnowledgeArticle(id, effectiveTenantId);
+      if (!ok) throw new Error('delete article failed');
       
       await logOperationToDb(
         'knowledge_base',
@@ -392,12 +323,9 @@ export function useKnowledgeArticles(
   const updateArticleSortOrders = async (updates: { id: string; sort_order: number }[]) => {
     try {
       for (const update of updates) {
-        const { error } = await supabase
-          .from('knowledge_articles')
-          .update({ sort_order: update.sort_order })
-          .eq('id', update.id);
-        
-        if (error) throw error;
+        const { updateKnowledgeArticle } = await import('@/api/data');
+        const ok = await updateKnowledgeArticle(update.id, { sort_order: update.sort_order, tenant_id: effectiveTenantId });
+        if (!ok) throw new Error('reorder article failed');
       }
       
       await logOperationToDb(
@@ -423,38 +351,22 @@ export function useKnowledgeArticles(
 
 export function useUnreadCount() {
   const { employee } = useAuth();
+  const { viewingTenantId } = useTenantView() || {};
   const [unreadCount, setUnreadCount] = useState(0);
+  const effectiveTenantId = employee?.is_platform_super_admin
+    ? (viewingTenantId || null)
+    : (viewingTenantId || employee?.tenant_id || null);
 
   const fetchUnreadCount = useCallback(async () => {
     if (!employee?.id) return;
 
     try {
-      // 🔧 修复：只统计公开的已发布文章，且排除自己创建的文章
-      const { data: articles, error: articlesError } = await supabase
-        .from('knowledge_articles')
-        .select('id')
-        .eq('is_published', true)
-        .eq('visibility', 'public')
-        .neq('created_by', employee.id);
-
-      if (articlesError) throw articlesError;
-
-      // Get read articles for this employee
-      const { data: readStatus, error: readError } = await supabase
-        .from('knowledge_read_status')
-        .select('article_id')
-        .eq('employee_id', employee.id);
-
-      if (readError) throw readError;
-
-      const readArticleIds = new Set((readStatus || []).map(r => r.article_id));
-      const unread = (articles || []).filter(a => !readArticleIds.has(a.id));
-      
-      setUnreadCount(unread.length);
+      const { getKnowledgeUnreadCount } = await import('@/api/data');
+      setUnreadCount(await getKnowledgeUnreadCount(effectiveTenantId));
     } catch (error) {
       console.error('Error fetching unread count:', error);
     }
-  }, [employee?.id]);
+  }, [employee?.id, effectiveTenantId]);
 
   useEffect(() => {
     fetchUnreadCount();
@@ -496,16 +408,9 @@ export function useUnreadCount() {
     if (!employee?.id) return;
 
     try {
-      const { error } = await supabase
-        .from('knowledge_read_status')
-        .upsert({
-          employee_id: employee.id,
-          article_id: articleId,
-        }, {
-          onConflict: 'employee_id,article_id',
-        });
-
-      if (error) throw error;
+      const { postKnowledgeMarkRead } = await import('@/api/data');
+      const ok = await postKnowledgeMarkRead(articleId);
+      if (!ok) throw new Error('mark read failed');
       // Immediately decrement local count for instant UI feedback
       setUnreadCount(prev => Math.max(0, prev - 1));
       // Also broadcast to other hook instances via custom event
@@ -519,28 +424,8 @@ export function useUnreadCount() {
     if (!employee?.id) return;
 
     try {
-      // 🔧 修复：只标记公开且非自己创建的文章为已读
-      const { data: articles } = await supabase
-        .from('knowledge_articles')
-        .select('id')
-        .eq('is_published', true)
-        .eq('visibility', 'public')
-        .neq('created_by', employee.id);
-
-      if (!articles?.length) return;
-
-      const inserts = articles.map(a => ({
-        employee_id: employee.id,
-        article_id: a.id,
-      }));
-
-      const { error } = await supabase
-        .from('knowledge_read_status')
-        .upsert(inserts, {
-          onConflict: 'employee_id,article_id',
-        });
-
-      if (error) throw error;
+      const { postKnowledgeMarkAllRead } = await import('@/api/data');
+      await postKnowledgeMarkAllRead(effectiveTenantId);
       setUnreadCount(0);
     } catch (error) {
       console.error('Error marking all as read:', error);
@@ -557,11 +442,9 @@ export function useArticleReadStatus() {
 
   const fetchReadStatus = useCallback(async () => {
     if (!employee?.id) return;
-    const { data } = await supabase
-      .from('knowledge_read_status')
-      .select('article_id')
-      .eq('employee_id', employee.id);
-    setReadArticleIds(new Set((data || []).map(r => r.article_id)));
+    const { getKnowledgeReadStatus } = await import('@/api/data');
+    const data = await getKnowledgeReadStatus();
+    setReadArticleIds(new Set(data || []));
   }, [employee?.id]);
 
   useEffect(() => {

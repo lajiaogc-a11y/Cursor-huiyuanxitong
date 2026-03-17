@@ -25,7 +25,22 @@ $migrationScripts = @(
     ".\scripts\run-member-points-mall-redemption-admin-migration.mjs",
     ".\scripts\run-member-tenant-resolution-fix-migration.mjs",
     ".\scripts\run-member-portal-settings-by-account-migration.mjs",
-    ".\scripts\run-phone-pool-extract-guard-and-consume-migration.mjs"
+    ".\scripts\run-phone-pool-extract-guard-and-consume-migration.mjs",
+    ".\scripts\run-employee-login-lockout-migration.mjs",
+    ".\scripts\run-employee-session-control-migration.mjs",
+    ".\scripts\run-employee-login-2fa-migration.mjs",
+    ".\scripts\run-api-rate-limiting-migration.mjs",
+    ".\scripts\run-tenant-quota-migration.mjs",
+    ".\scripts\run-tenant-quota-alert-strategy-migration.mjs",
+    ".\scripts\run-data-migration-tools-migration.mjs",
+    ".\scripts\run-data-migration-execute-rollback-migration.mjs",
+    ".\scripts\run-data-migration-extend-employees-orders-migration.mjs",
+    ".\scripts\run-data-migration-verify-audit-bundle-migration.mjs",
+    ".\scripts\run-data-migration-hardening-paging-migration.mjs",
+    ".\scripts\run-error-reports-tracking-alert-migration.mjs",
+    ".\scripts\run-tenant-feature-flags-migration.mjs",
+    ".\scripts\run-maintenance-mode-migration.mjs",
+    ".\scripts\run-announcements-and-site-messages-migration.mjs"
 )
 foreach ($script in $migrationScripts) {
     if (Test-Path $script) {

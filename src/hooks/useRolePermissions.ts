@@ -3,8 +3,8 @@
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { loadSharedData } from '@/services/sharedDataService';
-import type { SharedDataKey } from '@/services/sharedDataService';
+import { loadSharedData } from '@/services/finance/sharedDataService';
+import type { SharedDataKey } from '@/services/finance/sharedDataService';
 
 export interface RolePermission {
   id: string;

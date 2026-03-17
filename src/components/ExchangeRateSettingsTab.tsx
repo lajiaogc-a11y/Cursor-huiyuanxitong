@@ -30,7 +30,7 @@ import {
   deleteCountryAsync,
 } from "@/stores/systemSettings";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { subscribeToSharedData } from "@/services/sharedDataService";
+import { subscribeToSharedData } from "@/services/finance/sharedDataService";
 export default function ExchangeRateSettingsTab() {
   const { t } = useLanguage();
   const [countries, setCountries] = useState<Country[]>([]);

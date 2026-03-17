@@ -33,7 +33,7 @@ export default function LoginLogs() {
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
   const { employee: currentEmployee } = useAuth();
-  const { logs, isLoading, refetch } = useLoginLogs(language);
+  const { logs, isLoading, isError, refetch } = useLoginLogs(language);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Pagination
@@ -132,7 +132,15 @@ export default function LoginLogs() {
           </div>
         </CardHeader>
         <CardContent className="flex-1 min-h-0 flex flex-col">
-          {isLoading ? (
+          {isError ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-4">
+              <p className="text-muted-foreground text-sm">{t("登录日志加载失败，请确保后端服务已启动", "Login logs failed to load. Please ensure backend is running.")}</p>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                {t("重试", "Retry")}
+              </Button>
+            </div>
+          ) : isLoading ? (
             <TablePageSkeleton columns={5} rows={6} showTitle={false} />
           ) : (
             <>

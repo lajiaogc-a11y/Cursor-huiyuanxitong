@@ -279,7 +279,7 @@ export function PhoneExtractSettingsSection() {
     }
   };
 
-  const isAdmin = employee?.role === "admin" || employee?.role === "manager";
+  const isAdmin = employee?.role === "admin";
 
   if (!effectiveTenantId) return null;
 

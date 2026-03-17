@@ -3,10 +3,13 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { createPointsOnOrderCreate, type CreatePointsParams } from '@/services/pointsService';
+import { listMembersApi } from '@/services/members/membersApiService';
+import { listCardsApi, listVendorsApi, listPaymentProvidersApi } from '@/services/giftcards/giftcardsApiService';
+import { createOrderApi, updateOrderPointsApi } from '@/services/orders/ordersApiService';
+import { createPointsOnOrderCreate, type CreatePointsParams } from '@/services/points/pointsService';
 import { normalizeCurrencyCode } from '@/config/currencies';
 import { calculateNormalOrderDerivedValues, calculateUsdtOrderDerivedValues } from '@/lib/orderCalculations';
-import { logOrderBalanceChange } from '@/services/balanceLogService';
+import { logOrderBalanceChange } from '@/services/finance/balanceLogService';
 import { cleanPhoneNumber } from './utils';
 
 /**
@@ -61,27 +64,27 @@ export async function batchImportOrders(
 
   reportProgress(0, '正在准备数据映射...', 'preparing');
 
-  const [cardsResult, vendorsResult, providersResult, employeesResult, membersResult] = await Promise.all([
-    supabase.from('cards').select('id, name'),
-    supabase.from('vendors').select('id, name'),
-    supabase.from('payment_providers').select('id, name'),
+  const [cardsData, vendorsData, providersData, employeesResult, membersData] = await Promise.all([
+    listCardsApi(),
+    listVendorsApi(),
+    listPaymentProvidersApi(),
     supabase.from('employees').select('id, real_name'),
-    supabase.from('members').select('id, phone_number, member_code'),
+    listMembersApi({ limit: 10000 }),
   ]);
 
   const cardNameToId: Record<string, string> = {};
-  cardsResult.data?.forEach(c => { cardNameToId[c.name.toLowerCase()] = c.id; });
+  (cardsData || []).forEach(c => { cardNameToId[c.name.toLowerCase()] = c.id; });
 
   const vendorNameToId: Record<string, string> = {};
   const vendorIdToName: Record<string, string> = {};
-  vendorsResult.data?.forEach(v => {
+  (vendorsData || []).forEach(v => {
     vendorNameToId[v.name.toLowerCase()] = v.id;
     vendorIdToName[v.id] = v.name;
   });
 
   const providerNameToId: Record<string, string> = {};
   const providerIdToName: Record<string, string> = {};
-  providersResult.data?.forEach(p => {
+  (providersData || []).forEach(p => {
     providerNameToId[p.name.toLowerCase()] = p.id;
     providerIdToName[p.id] = p.name;
   });
@@ -90,7 +93,7 @@ export async function batchImportOrders(
   employeesResult.data?.forEach(e => { employeeNameToId[e.real_name.toLowerCase()] = e.id; });
 
   const phoneToMember: Record<string, { id: string; member_code: string }> = {};
-  membersResult.data?.forEach(m => {
+  (membersData || []).forEach(m => {
     phoneToMember[m.phone_number] = { id: m.id, member_code: m.member_code };
   });
 
@@ -231,14 +234,10 @@ export async function batchImportOrders(
       record.points_status = 'none';
       record.order_points = 0;
 
-      const { data: insertedOrder, error: insertError } = await supabase
-        .from('orders')
-        .insert(record as any)
-        .select('id, phone_number, currency, actual_payment')
-        .single();
+      const insertedOrder = await createOrderApi(record as Record<string, unknown>);
 
-      if (insertError) {
-        result.errors.push(`行 ${i + 2}: ${insertError.message}`);
+      if (!insertedOrder) {
+        result.errors.push(`行 ${i + 2}: 创建订单失败`);
         result.skipped++;
         continue;
       }
@@ -260,13 +259,10 @@ export async function batchImportOrders(
             const pointsResult = await createPointsOnOrderCreate(pointsParams);
 
             if (pointsResult.success) {
-              await supabase
-                .from('orders')
-                .update({
-                  points_status: 'added',
-                  order_points: pointsResult.consumptionPoints
-                })
-                .eq('id', insertedOrder.id);
+              await updateOrderPointsApi(insertedOrder.id, {
+                points_status: 'added',
+                order_points: pointsResult.consumptionPoints
+              });
 
               result.pointsCreated++;
             }

@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Gift, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { getMemberPortalSettingsByInviteCode } from "@/services/memberPortalSettingsService";
+import { getMemberPortalSettingsByInviteCode } from "@/services/members/memberPortalSettingsService";
 
 export default function InviteLanding() {
   const { t } = useLanguage();

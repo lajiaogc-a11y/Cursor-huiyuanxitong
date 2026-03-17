@@ -1,5 +1,14 @@
 import { supabase } from "@/integrations/supabase/client";
 import { fail, getErrorMessage, ok, ServiceResult } from "@/services/serviceResult";
+import { listMembersApi } from "@/services/members/membersApiService";
+import {
+  createTenantApi,
+  deleteTenantApi,
+  listTenantsApi,
+  resetTenantAdminPasswordApi,
+  setTenantSuperAdminApi,
+  updateTenantApi,
+} from "@/services/tenants/tenantsApiService";
 
 export interface TenantItem {
   id: string;
@@ -72,26 +81,8 @@ export async function updateTenantBasicInfo(params: {
   tenantName: string;
   status: string;
 }): Promise<{ success: boolean; errorCode?: string }> {
-  const { data, error } = await (supabase.rpc as any)("update_tenant_basic_info", {
-    p_tenant_id: params.tenantId,
-    p_tenant_code: params.tenantCode.trim(),
-    p_tenant_name: params.tenantName.trim(),
-    p_status: params.status.trim(),
-  });
-
-  if (error) {
-    throw new Error(error.message || "Update tenant failed");
-  }
-
-  const row = Array.isArray(data) ? data[0] : null;
-  if (!row) {
-    return { success: false, errorCode: "EMPTY_RESULT" };
-  }
-
-  return {
-    success: !!row.success,
-    errorCode: row.error_code || undefined,
-  };
+  await updateTenantApi(params.tenantId, params);
+  return { success: true };
 }
 
 export async function resetTenantAdminPassword(params: {
@@ -104,42 +95,27 @@ export async function resetTenantAdminPassword(params: {
   adminEmployeeId?: string;
   adminUsername?: string;
   adminRealName?: string;
+  authSyncSuccess?: boolean;
+  authSyncMessage?: string;
 }> {
-  const { data, error } = await (supabase.rpc as any)("reset_tenant_admin_password", {
-    p_tenant_id: params.tenantId,
-    p_admin_employee_id: params.adminEmployeeId ?? null,
-    p_new_password: params.newPassword,
+  const row = await resetTenantAdminPasswordApi(params.tenantId, {
+    adminEmployeeId: params.adminEmployeeId ?? null,
+    newPassword: params.newPassword,
   });
-
-  if (error) {
-    throw new Error(error.message || "Reset tenant admin password failed");
-  }
-
-  const row = Array.isArray(data) ? data[0] : null;
-  if (!row) {
-    return { success: false, errorCode: "EMPTY_RESULT" };
-  }
-
   return {
-    success: !!row.success,
-    errorCode: row.error_code || undefined,
-    adminEmployeeId: row.admin_employee_id || undefined,
-    adminUsername: row.admin_username || undefined,
-    adminRealName: row.admin_real_name || undefined,
+    success: true,
+    adminEmployeeId: row.adminEmployeeId || undefined,
+    adminUsername: row.adminUsername || undefined,
+    adminRealName: row.adminRealName || undefined,
+    authSyncSuccess: row.authSyncSuccess,
+    authSyncMessage: row.authSyncMessage,
   };
 }
 
+/** 获取租户列表：统一使用 Backend API（JWT 鉴权） */
 export async function listTenants(): Promise<TenantItem[]> {
-  const { data: rpcData, error: rpcError } = await (supabase.rpc as any)("list_tenants_for_platform_admin");
-  if (!rpcError) {
-    return (rpcData || []) as TenantItem[];
-  }
-
-  if (isMultiTenantNotReadyError(rpcError)) {
-    throw new Error("MULTI_TENANT_NOT_READY");
-  }
-
-  throw new Error(rpcError.message || "Failed to load tenants");
+  const data = await listTenantsApi();
+  return (data || []) as TenantItem[];
 }
 
 export async function createTenantWithAdmin(params: CreateTenantWithAdminParams): Promise<{
@@ -147,32 +123,16 @@ export async function createTenantWithAdmin(params: CreateTenantWithAdminParams)
   tenantId?: string;
   adminEmployeeId?: string;
   errorCode?: string;
+  authSyncSuccess?: boolean;
+  authSyncMessage?: string;
 }> {
-  const { data, error } = await (supabase.rpc as any)("create_tenant_with_admin", {
-    p_tenant_code: params.tenantCode.trim(),
-    p_tenant_name: params.tenantName.trim(),
-    p_admin_username: params.adminUsername.trim(),
-    p_admin_real_name: params.adminRealName.trim(),
-    p_admin_password: params.adminPassword,
-  });
-
-  if (error) {
-    if (isMultiTenantNotReadyError(error)) {
-      return { success: false, errorCode: "MULTI_TENANT_NOT_READY" };
-    }
-    throw new Error(error.message || "Create tenant failed");
-  }
-
-  const row = Array.isArray(data) ? data[0] : null;
-  if (!row) {
-    return { success: false, errorCode: "EMPTY_RESULT" };
-  }
-
+  const row = await createTenantApi(params);
   return {
-    success: !!row.success,
-    tenantId: row.tenant_id || undefined,
-    adminEmployeeId: row.admin_employee_id || undefined,
-    errorCode: row.error_code || undefined,
+    success: true,
+    tenantId: row.tenantId || undefined,
+    adminEmployeeId: row.adminEmployeeId || undefined,
+    authSyncSuccess: row.authSyncSuccess,
+    authSyncMessage: row.authSyncMessage,
   };
 }
 
@@ -182,72 +142,44 @@ export async function deleteTenant(params: {
   username?: string;
   password?: string;
 }): Promise<{ success: boolean; errorCode?: string; detail?: string }> {
-  const { data, error } = await (supabase.rpc as any)("delete_tenant", {
-    p_tenant_id: params.tenantId,
-    p_force: params.force ?? false,
-    p_username: params.username ?? null,
-    p_password: params.password ?? null,
+  const row = await deleteTenantApi(params.tenantId, {
+    force: params.force ?? false,
+    password: params.password ?? '',
   });
-
-  if (error) {
-    if (isMultiTenantNotReadyError(error)) {
-      return { success: false, errorCode: "MULTI_TENANT_NOT_READY" };
-    }
-    throw new Error(error.message || "Delete tenant failed");
-  }
-
-  const row = Array.isArray(data) ? data[0] : null;
-  if (!row) {
-    return { success: false, errorCode: "EMPTY_RESULT" };
-  }
-
   return {
-    success: !!row.success,
-    errorCode: row.error_code || undefined,
+    success: true,
     detail: row.detail || undefined,
   };
 }
 
 export async function getTenantOrdersFull(tenantId: string): Promise<any[]> {
-  const { data, error } = await (supabase.rpc as any)("platform_get_tenant_orders_full", {
-    p_tenant_id: tenantId,
-  });
-  if (error) throw new Error(error.message || "Failed to get tenant orders");
+  const data = await import('@/services/orders/ordersApiService').then(m => m.getOrdersFullApi(tenantId));
   return data || [];
 }
 
 export async function getTenantUsdtOrdersFull(tenantId: string): Promise<any[]> {
-  const { data, error } = await (supabase.rpc as any)("platform_get_tenant_usdt_orders_full", {
-    p_tenant_id: tenantId,
-  });
-  if (error) throw new Error(error.message || "Failed to get tenant USDT orders");
+  const data = await import('@/services/orders/ordersApiService').then(m => m.getUsdtOrdersFullApi(tenantId));
   return data || [];
 }
 
 export async function getTenantMembersFull(tenantId: string): Promise<any[]> {
-  const { data, error } = await (supabase.rpc as any)("platform_get_tenant_members_full", {
-    p_tenant_id: tenantId,
-  });
-  if (error) throw new Error(error.message || "Failed to get tenant members");
+  const data = await listMembersApi({ tenant_id: tenantId, limit: 100000 });
   return data || [];
 }
 
 /** 租户员工专用：根据当前用户 employee.tenant_id 获取本租户数据，无需传参，避免 platform RPC 鉴权失败 */
 export async function getMyTenantOrdersFull(): Promise<any[]> {
-  const { data, error } = await (supabase.rpc as any)("get_my_tenant_orders_full", {});
-  if (error) throw new Error(error.message || "Failed to get my tenant orders");
+  const data = await import('@/services/orders/ordersApiService').then(m => m.getOrdersFullApi());
   return data || [];
 }
 
 export async function getMyTenantUsdtOrdersFull(): Promise<any[]> {
-  const { data, error } = await (supabase.rpc as any)("get_my_tenant_usdt_orders_full", {});
-  if (error) throw new Error(error.message || "Failed to get my tenant USDT orders");
+  const data = await import('@/services/orders/ordersApiService').then(m => m.getUsdtOrdersFullApi());
   return data || [];
 }
 
 export async function getMyTenantMembersFull(): Promise<any[]> {
-  const { data, error } = await (supabase.rpc as any)("get_my_tenant_members_full", {});
-  if (error) throw new Error(error.message || "Failed to get my tenant members");
+  const data = await listMembersApi({ limit: 100000 });
   return data || [];
 }
 
@@ -383,11 +315,75 @@ export async function getTenantDashboardTrend(
   return { rows, summary };
 }
 
-export async function getTenantEmployeesFull(tenantId: string): Promise<any[]> {
-  const { data, error } = await (supabase.rpc as any)("platform_get_tenant_employees_full", {
-    p_tenant_id: tenantId,
+/** 平台级仪表盘趋势（无租户时使用 get_dashboard_trend_data） */
+export async function getPlatformDashboardTrendData(
+  startDate: Date,
+  endDate: Date,
+  salesPerson: string | null
+): Promise<{ rows: any[]; summary: any }> {
+  const { data, error } = await (supabase.rpc as any)('get_dashboard_trend_data', {
+    p_start_date: startDate.toISOString(),
+    p_end_date: endDate.toISOString(),
+    p_sales_person: salesPerson || null,
   });
-  if (error) throw new Error(error.message || "Failed to get tenant employees");
+  if (error) throw new Error(error.message || 'Failed to get platform dashboard trend');
+  const raw = (data || []).map((row: any) => {
+    const dayDate = row.day_date;
+    const d = dayDate ? new Date(dayDate) : null;
+    return {
+      date: d ? `${d.getMonth() + 1}/${d.getDate()}` : '',
+      orders: Number(row.order_count) || 0,
+      profit: parseFloat((Number(row.profit) || 0).toFixed(2)),
+      users: Number(row.trading_users) || 0,
+      ngnVolume: Number(row.ngn_volume) || 0,
+      ghsVolume: Number(row.ghs_volume) || 0,
+      usdtVolume: Number(row.usdt_volume) || 0,
+      ngnProfit: Number(row.ngn_profit) || 0,
+      ghsProfit: Number(row.ghs_profit) || 0,
+      usdtProfit: Number(row.usdt_profit) || 0,
+      _isSummary: !dayDate,
+    };
+  });
+  const summaryRow = raw.find((r: any) => r._isSummary);
+  const rows = raw.filter((r: any) => !r._isSummary);
+  const emptySummary = {
+    totalOrders: 0, tradingUsers: 0,
+    ngnVolume: 0, ghsVolume: 0, usdtVolume: 0,
+    ngnProfit: 0, ghsProfit: 0, usdtProfit: 0,
+  };
+  const summary = summaryRow
+    ? {
+        totalOrders: summaryRow.orders,
+        tradingUsers: summaryRow.users,
+        ngnVolume: summaryRow.ngnVolume,
+        ghsVolume: summaryRow.ghsVolume,
+        usdtVolume: summaryRow.usdtVolume,
+        ngnProfit: summaryRow.ngnProfit,
+        ghsProfit: summaryRow.ghsProfit,
+        usdtProfit: summaryRow.usdtProfit,
+      }
+    : (() => {
+        const reduced = rows.reduce(
+          (acc: any, r: any) => ({
+            ...acc,
+            totalOrders: acc.totalOrders + r.orders,
+            ngnVolume: acc.ngnVolume + r.ngnVolume,
+            ghsVolume: acc.ghsVolume + r.ghsVolume,
+            usdtVolume: acc.usdtVolume + r.usdtVolume,
+            ngnProfit: acc.ngnProfit + r.ngnProfit,
+            ghsProfit: acc.ghsProfit + r.ghsProfit,
+            usdtProfit: acc.usdtProfit + r.usdtProfit,
+          }),
+          { ...emptySummary }
+        );
+        return { ...reduced, tradingUsers: 0 };
+      })();
+  return { rows, summary };
+}
+
+export async function getTenantEmployeesFull(tenantId: string): Promise<any[]> {
+  const { listEmployeesApi } = await import('@/api/employees');
+  const data = await listEmployeesApi({ tenant_id: tenantId });
   return data || [];
 }
 
@@ -453,23 +449,8 @@ export async function getTenantMembers(
 }
 
 export async function setTenantSuperAdmin(employeeId: string): Promise<{ success: boolean; errorCode?: string }> {
-  const { data, error } = await (supabase.rpc as any)("set_tenant_super_admin", {
-    p_employee_id: employeeId,
-  });
-
-  if (error) {
-    throw new Error(error.message || "Set super admin failed");
-  }
-
-  const row = Array.isArray(data) ? data[0] : null;
-  if (!row) {
-    return { success: false, errorCode: "EMPTY_RESULT" };
-  }
-
-  return {
-    success: !!row.success,
-    errorCode: row.error_code || undefined,
-  };
+  await setTenantSuperAdminApi(employeeId);
+  return { success: true };
 }
 
 function mapTenantError(error: unknown) {
@@ -536,13 +517,18 @@ export async function getMyTenantUsdtOrdersFullResult(): Promise<ServiceResult<a
 
 export async function createTenantWithAdminResult(
   params: CreateTenantWithAdminParams
-): Promise<ServiceResult<{ tenantId?: string; adminEmployeeId?: string }>> {
+): Promise<ServiceResult<{ tenantId?: string; adminEmployeeId?: string; authSyncSuccess?: boolean; authSyncMessage?: string }>> {
   try {
     const result = await createTenantWithAdmin(params);
     if (!result.success) {
       return fail((result.errorCode as any) || "UNKNOWN", result.errorCode || "Create tenant failed", "TENANT");
     }
-    return ok({ tenantId: result.tenantId, adminEmployeeId: result.adminEmployeeId });
+    return ok({
+      tenantId: result.tenantId,
+      adminEmployeeId: result.adminEmployeeId,
+      authSyncSuccess: result.authSyncSuccess,
+      authSyncMessage: result.authSyncMessage,
+    });
   } catch (error) {
     return mapTenantError(error);
   }
@@ -569,7 +555,7 @@ export async function resetTenantAdminPasswordResult(params: {
   tenantId: string;
   adminEmployeeId?: string | null;
   newPassword: string;
-}): Promise<ServiceResult<{ adminEmployeeId?: string; adminUsername?: string; adminRealName?: string }>> {
+}): Promise<ServiceResult<{ adminEmployeeId?: string; adminUsername?: string; adminRealName?: string; authSyncSuccess?: boolean; authSyncMessage?: string }>> {
   try {
     const result = await resetTenantAdminPassword(params);
     if (!result.success) {
@@ -579,6 +565,8 @@ export async function resetTenantAdminPasswordResult(params: {
       adminEmployeeId: result.adminEmployeeId,
       adminUsername: result.adminUsername,
       adminRealName: result.adminRealName,
+      authSyncSuccess: result.authSyncSuccess,
+      authSyncMessage: result.authSyncMessage,
     });
   } catch (error) {
     return mapTenantError(error);

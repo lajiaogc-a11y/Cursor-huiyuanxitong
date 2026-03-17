@@ -1,0 +1,213 @@
+/**
+ * Members Controller - 接收请求、调用 Service、返回结果
+ */
+import type { Response } from 'express';
+import type { AuthenticatedRequest } from '../../middlewares/auth.js';
+import {
+  listMembersService,
+  getMemberByIdService,
+  createMemberService,
+  updateMemberService,
+  updateMemberByPhoneService,
+  deleteMemberService,
+  listReferralsService,
+  getCustomerDetailByPhoneService,
+  bulkCreateMembersService,
+} from './service.js';
+
+function resolveTenantId(
+  req: AuthenticatedRequest,
+  requestedTenantId?: string | null,
+  options?: { allowPlatformAll?: boolean }
+): string | undefined {
+  const isPlatform = !!req.user?.is_platform_super_admin;
+  if (isPlatform) {
+    if (requestedTenantId) return requestedTenantId;
+    return options?.allowPlatformAll ? undefined : undefined;
+  }
+  return req.user?.tenant_id ?? undefined;
+}
+
+export async function listMembersController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const queryTenantId = req.query.tenant_id as string | undefined;
+  const effectiveTenantId = resolveTenantId(req, queryTenantId, { allowPlatformAll: true });
+  const query = {
+    tenant_id: effectiveTenantId,
+    page: req.query.page ? Number(req.query.page) : undefined,
+    limit: req.query.limit ? Number(req.query.limit) : undefined,
+  };
+  const data = await listMembersService(effectiveTenantId, query);
+  res.json({ success: true, data });
+}
+
+export async function getMemberByIdController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const queryTenantId = req.query.tenant_id as string | undefined;
+  const effectiveTenantId = resolveTenantId(req, queryTenantId, { allowPlatformAll: true });
+  const id = req.params.id;
+  if (!id) {
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'id required' } });
+    return;
+  }
+  try {
+    const data = await getMemberByIdService(id, effectiveTenantId);
+    res.json({ success: true, data });
+  } catch (e: unknown) {
+    const err = e as { code?: string };
+    if (err?.code === 'PGRST116') {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Member not found' } });
+      return;
+    }
+    throw e;
+  }
+}
+
+export async function createMemberController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const tenantId = resolveTenantId(
+    req,
+    ((req.query.tenant_id as string) ?? (req.body?.tenant_id as string | undefined)) ?? undefined
+  );
+  if (!tenantId) {
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '创建会员需指定 tenant_id（query 或 body）' } });
+    return;
+  }
+  const body = req.body;
+  if (!body?.phone_number) {
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'phone_number required' } });
+    return;
+  }
+  try {
+    const data = await createMemberService(tenantId, body);
+    res.status(201).json({ success: true, data });
+  } catch (e: unknown) {
+    const err = e as { code?: string; message?: string };
+    if (err?.code === '23505') {
+      res.status(409).json({ success: false, error: { code: 'CONFLICT', message: 'Phone number already exists' } });
+      return;
+    }
+    throw e;
+  }
+}
+
+export async function updateMemberController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const tenantId = resolveTenantId(
+    req,
+    ((req.query.tenant_id as string) ?? (req.body?.tenant_id as string | undefined)) ?? undefined
+  );
+  if (!tenantId) {
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenant_id required' } });
+    return;
+  }
+  const id = req.params.id;
+  if (!id) {
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'id required' } });
+    return;
+  }
+  try {
+    const data = await updateMemberService(id, tenantId, req.body);
+    res.json({ success: true, data });
+  } catch (e: unknown) {
+    const err = e as { code?: string };
+    if (err?.code === 'PGRST116') {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Member not found' } });
+      return;
+    }
+    throw e;
+  }
+}
+
+export async function updateMemberByPhoneController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const tenantId = resolveTenantId(
+    req,
+    ((req.query.tenant_id as string) ?? (req.body?.tenant_id as string | undefined)) ?? undefined
+  );
+  if (!tenantId) {
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenant_id required' } });
+    return;
+  }
+  const phone = req.params.phone;
+  if (!phone) {
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'phone required' } });
+    return;
+  }
+  try {
+    const data = await updateMemberByPhoneService(decodeURIComponent(phone), tenantId, req.body);
+    res.json({ success: true, data });
+  } catch (e: unknown) {
+    const err = e as { code?: string };
+    if (err?.code === 'PGRST116') {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Member not found' } });
+      return;
+    }
+    throw e;
+  }
+}
+
+export async function deleteMemberController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const tenantId = resolveTenantId(req, (req.query.tenant_id as string | undefined) ?? undefined);
+  if (!tenantId) {
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenant_id required' } });
+    return;
+  }
+  const id = req.params.id;
+  if (!id) {
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'id required' } });
+    return;
+  }
+  try {
+    await deleteMemberService(id, tenantId);
+    res.json({ success: true });
+  } catch (e: unknown) {
+    const err = e as { code?: string };
+    if (err?.code === 'PGRST116') {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Member not found' } });
+      return;
+    }
+    throw e;
+  }
+}
+
+export async function listReferralsController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const queryTenantId = req.query.tenant_id as string | undefined;
+  const effectiveTenantId = resolveTenantId(req, queryTenantId, { allowPlatformAll: true });
+  const data = await listReferralsService(effectiveTenantId);
+  res.json({ success: true, data });
+}
+
+export async function getCustomerDetailByPhoneController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const queryTenantId = req.query.tenant_id as string | undefined;
+  const effectiveTenantId = resolveTenantId(req, queryTenantId, { allowPlatformAll: true });
+  const phone = decodeURIComponent(req.params.phone || '').trim();
+  if (!phone) {
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'phone required' } });
+    return;
+  }
+  const data = await getCustomerDetailByPhoneService(phone, effectiveTenantId);
+  res.json({ success: true, data });
+}
+
+export async function bulkCreateMembersController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const tenantId = resolveTenantId(
+    req,
+    ((req.query.tenant_id as string) ?? (req.body?.tenant_id as string | undefined)) ?? undefined
+  );
+  if (!tenantId) {
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenant_id required' } });
+    return;
+  }
+  const body = req.body as { members?: import('./types.js').BulkCreateMemberItem[] };
+  if (!Array.isArray(body?.members) || body.members.length === 0) {
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'members array required' } });
+    return;
+  }
+  try {
+    const data = await bulkCreateMembersService(tenantId, body.members);
+    res.status(201).json({ success: true, data });
+  } catch (e: unknown) {
+    const err = e as { code?: string };
+    if (err?.code === '23505') {
+      res.status(409).json({ success: false, error: { code: 'CONFLICT', message: 'Duplicate phone number' } });
+      return;
+    }
+    throw e;
+  }
+}

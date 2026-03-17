@@ -29,7 +29,6 @@ import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useLayout } from "@/contexts/LayoutContext";
 import { useIsTablet } from "@/hooks/use-mobile";
-import { supabase } from "@/integrations/supabase/client";
 import { useUnreadCount } from "@/hooks/useKnowledge";
 import { usePendingAuditCount } from "@/hooks/usePendingAuditCount";
 import {
@@ -185,71 +184,46 @@ export function Sidebar() {
     });
   }, [location.pathname]);
 
-  // 加载导航配置和权限 - 实时从数据库读取，禁止缓存
+  // 加载导航配置和权限 - 通过后端 API（JWT 认证，租户员工可正确获取）
   useEffect(() => {
     const fetchData = async () => {
       if (!employee?.role) {
+        setPermissionsLoaded(true);
         return;
       }
-      
+      setPermissionsLoaded(false);
       try {
-        const { data: configData, error: configError } = await supabase
-          .from("navigation_config")
-          .select("*")
-          .order("sort_order");
-        
-        if (configError) {
-          console.error("Error fetching nav config:", configError);
-        }
-        
-        if (configData) {
-          setNavConfigs(configData);
-        }
-
+        const { getNavigationConfig, getRolePermissions } = await import('@/api/data');
+        const [configData, allPerms] = await Promise.all([
+          getNavigationConfig(),
+          getRolePermissions(),
+        ]);
+        setNavConfigs((configData || []).map((c: { nav_key: string }) => ({
+          ...c,
+          id: c.nav_key || '',
+        })));
         if (employee.role === 'admin') {
-          setPermissionsLoaded(true);
-          return;
+          setNavPermissions([]);
+        } else {
+          const rolePerms = (allPerms || []).filter(
+            (p: { role?: string; module_name?: string }) =>
+              p.role === employee.role && p.module_name === 'navigation'
+          ).map((p: { field_name?: string; can_view?: boolean }) => ({
+            field_name: p.field_name,
+            can_view: p.can_view,
+          }));
+          setNavPermissions(rolePerms);
         }
-
-        const { data: permData, error: permError } = await supabase
-          .from("role_permissions")
-          .select("field_name, can_view")
-          .eq("module_name", "navigation")
-          .eq("role", employee.role);
-
-        if (permError) {
-          console.error("Error fetching nav permissions:", permError);
-        }
-
-        setNavPermissions(permData || []);
       } catch (err) {
         console.error("Error fetching nav data:", err);
+        setNavConfigs([]);
+        setNavPermissions([]);
       } finally {
         setPermissionsLoaded(true);
       }
     };
 
-    setPermissionsLoaded(false);
     fetchData();
-    
-    const permChannel = supabase
-      .channel('sidebar-permissions-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'role_permissions' }, () => {
-        fetchData();
-      })
-      .subscribe();
-    
-    const navChannel = supabase
-      .channel('sidebar-nav-config-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'navigation_config' }, () => {
-        fetchData();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(permChannel);
-      supabase.removeChannel(navChannel);
-    };
   }, [employee?.role, employee?.id]);
 
   const getMenuLabel = (item: MenuItem) => {
@@ -280,14 +254,14 @@ export function Sidebar() {
 
   const platformOnlyNavKeys = ["platform_tenant_management", "platform_tenant_view", "platform_settings"];
 
+  const isOnPlatformAdminPage = location.pathname.startsWith('/staff/admin');
   const menuItems = allMenuItems.filter(item => {
-    // 平台总管理员：独立后台导航（租户管理、租户数据查看、平台设置）
-    // 查看租户时显示租户菜单，否则仅显示平台专属三项
+    // 平台总管理员：在 /staff/admin/* 或未查看租户时，仅显示平台专属三项（租户管理、租户数据查看、平台设置）
     if (employee?.is_platform_super_admin) {
-      if (isViewingTenant) {
-        return !platformOnlyNavKeys.includes(item.navKey); // 查看租户时显示租户菜单，隐藏平台专属
+      if (isOnPlatformAdminPage || !isViewingTenant) {
+        return platformOnlyNavKeys.includes(item.navKey);
       }
-      return platformOnlyNavKeys.includes(item.navKey); // 平台后台：仅显示 3 项
+      return !platformOnlyNavKeys.includes(item.navKey); // 查看租户时显示租户菜单
     }
 
     // 租户用户：永不显示平台专属功能
@@ -295,7 +269,8 @@ export function Sidebar() {
       return false;
     }
 
-    const navConfig = navConfigs.find(c => c.nav_key === item.navKey);
+    // nav_key 兼容：navigation_config 可能存 "exchangeRate"，allMenuItems 用 "exchange_rate"
+    const navConfig = navConfigs.find(c => c.nav_key === item.navKey || (item.navKey === 'exchange_rate' && c.nav_key === 'exchangeRate'));
     
     if (navConfig && !navConfig.is_visible) {
       return false;
@@ -309,9 +284,12 @@ export function Sidebar() {
       return false;
     }
 
-    const permission = navPermissions.find(p => p.field_name === item.navKey);
+    const permission = navPermissions.find(p => p.field_name === item.navKey || (item.navKey === 'exchange_rate' && p.field_name === 'exchangeRate'));
     
     if (!permission) {
+      // 无权限记录时：汇率计算、公司文档、操作日志、登录日志等核心功能默认显示
+      const defaultShowKeys = ['exchange_rate', 'knowledge_base', 'operation_logs', 'login_logs', 'dashboard', 'orders', 'members', 'reports', 'merchant_settlement', 'work_tasks'];
+      if (defaultShowKeys.includes(item.navKey)) return navConfig?.is_visible !== false;
       return navConfig?.is_visible === true;
     }
 

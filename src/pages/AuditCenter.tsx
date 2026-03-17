@@ -29,7 +29,7 @@ import { RefreshCw, Check, X, Settings, Search, Loader2, Info } from "lucide-rea
 import { toast } from "sonner";
 import DateRangeFilter from "@/components/DateRangeFilter";
 import { TimeRangeType, DateRange, getTimeRangeDates, filterByDateRange } from "@/lib/dateFilter";
-import { loadSharedData, saveSharedData } from "@/services/sharedDataService";
+import { loadSharedData, saveSharedData } from "@/services/finance/sharedDataService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFieldPermissions } from "@/hooks/useFieldPermissions";
 import { Alert, AlertDescription } from "@/components/ui/alert";

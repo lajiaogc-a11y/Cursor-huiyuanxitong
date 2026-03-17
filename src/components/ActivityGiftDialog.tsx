@@ -28,7 +28,7 @@ import { usePaymentProviders } from "@/hooks/useMerchantConfig";
 import { useActivityGifts } from "@/hooks/useActivityGifts";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getFinalRates } from "@/stores/exchangeRateStore";
-import { supabase } from "@/integrations/supabase/client";
+import { getActivityTypesApi } from "@/api/data";
 
 interface ActivityGiftDialogProps {
   open: boolean;
@@ -75,15 +75,10 @@ export default function ActivityGiftDialog({ open, onOpenChange, onSuccess }: Ac
   useEffect(() => {
     const loadActivityTypes = async () => {
       try {
-        const { data, error } = await supabase
-          .from('activity_types')
-          .select('value, label')
-          .eq('is_active', true)
-          .order('sort_order', { ascending: true });
-        
-        if (error) throw error;
-        
-        const types = (data || []).map(t => ({ value: t.value, label: t.label }));
+        const data = await getActivityTypesApi();
+        const types = (data || [])
+          .filter((item) => item.is_active !== false)
+          .map((t) => ({ value: t.value, label: t.label }));
         setActivityTypes(types);
         
         if (types.length > 0 && !giftType) {
@@ -163,21 +158,10 @@ export default function ActivityGiftDialog({ open, onOpenChange, onSuccess }: Ac
       return;
     }
     try {
-      const { data: dbMember, error } = await supabase
-        .from('members')
-        .select('*')
-        .eq('phone_number', phone)
-        .maybeSingle();
-      
-      if (error) {
-        console.error('查询会员失败:', error);
-        setMemberError(t("查询失败，请重试", "Query failed, please retry"));
-        return;
-      }
-      
+      const dbMember = findMemberByPhone(phone);
       if (dbMember) {
         setMemberError("");
-        toast.success(`${t("已匹配到会员", "Member matched")}: ${dbMember.member_code}`);
+        toast.success(`${t("已匹配到会员", "Member matched")}: ${dbMember.memberCode}`);
       } else {
         setMemberError(t("无此会员，请先在会员管理中录入", "Member not found"));
       }

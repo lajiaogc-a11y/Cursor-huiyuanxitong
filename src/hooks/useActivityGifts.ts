@@ -5,10 +5,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logOperation } from '@/stores/auditLogStore';
-import { getEmployeeNameById, getActivityTypeLabelByValue } from '@/services/nameResolver';
-import { logGiftBalanceChange } from '@/services/balanceLogService';
-import { notifyDataMutation } from '@/services/dataRefreshManager';
+import { getEmployeeNameById, getActivityTypeLabelByValue } from '@/services/members/nameResolver';
+import { logGiftBalanceChange } from '@/services/finance/balanceLogService';
+import { notifyDataMutation } from '@/services/system/dataRefreshManager';
 import { useIsPlatformAdminViewingTenant } from '@/hooks/useIsPlatformAdminViewingTenant';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTenantView } from '@/contexts/TenantViewContext';
 
 function generateGiftNumber(): string {
   const now = new Date();
@@ -88,23 +90,22 @@ function mapDbGiftToGift(dbGift: any): ActivityGift {
 }
 
 // Standalone fetch function
-export async function fetchActivityGiftsFromDb(): Promise<ActivityGift[]> {
-  const { data, error } = await supabase
-    .from('activity_gifts')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  return (data || []).map(mapDbGiftToGift);
+export async function fetchActivityGiftsFromDb(tenantId?: string | null): Promise<ActivityGift[]> {
+  const { getActivityDataApi } = await import('@/api/data');
+  const activityData = await getActivityDataApi(tenantId);
+  return (activityData.gifts || []).map(mapDbGiftToGift);
 }
 
 export function useActivityGifts() {
   const queryClient = useQueryClient();
   const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
+  const { employee } = useAuth();
+  const { viewingTenantId } = useTenantView() || {};
+  const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
 
   const { data: gifts = [], isLoading: loading } = useQuery({
-    queryKey: ['activity-gifts'],
-    queryFn: fetchActivityGiftsFromDb,
+    queryKey: ['activity-gifts', effectiveTenantId ?? ''],
+    queryFn: () => fetchActivityGiftsFromDb(effectiveTenantId),
   });
 
   // Realtime subscriptions -> invalidate cache
@@ -194,7 +195,7 @@ export function useActivityGifts() {
         }).catch(err => console.error('[useActivityGifts] Webhook trigger failed:', err));
       });
 
-      await queryClient.invalidateQueries({ queryKey: ['activity-gifts'] });
+      await queryClient.invalidateQueries({ queryKey: ['activity-gifts', effectiveTenantId ?? ''] });
       
       notifyDataMutation({ table: 'activity_gifts', operation: 'INSERT', source: 'mutation' }).catch(console.error);
       
@@ -215,6 +216,6 @@ export function useActivityGifts() {
     loading,
     addGift,
     getGiftsByPhone,
-    refetch: () => queryClient.invalidateQueries({ queryKey: ['activity-gifts'] }),
+    refetch: () => queryClient.invalidateQueries({ queryKey: ['activity-gifts', effectiveTenantId ?? ''] }),
   };
 }

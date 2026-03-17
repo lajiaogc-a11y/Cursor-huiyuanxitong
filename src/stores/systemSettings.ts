@@ -1,7 +1,7 @@
 // System Settings Store - 系统设置管理
 // 所有数据存储在线上数据库，不使用本地存储
 
-import { loadSharedData, saveSharedData, saveSharedDataSync, getSharedDataSync } from '@/services/sharedDataService';
+import { loadSharedData, saveSharedData, saveSharedDataSync, getSharedDataSync } from '@/services/finance/sharedDataService';
 import { CurrencyCode } from "@/config/currencies";
 
 // ============= Gift Distribution Settings =============

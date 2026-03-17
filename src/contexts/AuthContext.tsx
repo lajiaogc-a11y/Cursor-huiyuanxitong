@@ -1,13 +1,10 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
-import type { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 import type { AppRole } from '@/stores/employeeStore';
-import { preloadSharedData, ensureDefaultSharedData } from '@/services/sharedDataService';
+import { preloadSharedData, ensureDefaultSharedData, setSharedDataTenantId } from '@/services/finance/sharedDataService';
 import { initializeReferralCache } from '@/stores/referralStore';
-import { setOperatorCache, clearOperatorCache } from '@/services/operatorService';
-import { initNameResolver, resetNameResolver } from '@/services/nameResolver';
+import { setOperatorCache, clearOperatorCache } from '@/services/members/operatorService';
+import { initNameResolver, resetNameResolver } from '@/services/members/nameResolver';
 import { initializeUserDataSync } from '@/services/userDataSyncService';
-import { syncAuthPassword, type AuthPasswordSyncResult } from '@/services/authPasswordSyncService';
 import { withTimeout, TIMEOUT } from '@/lib/withTimeout';
 import { toast } from 'sonner';
 import { cleanupCacheManager } from '@/services/cacheManager';
@@ -18,6 +15,10 @@ import { fetchEmployeesFromDb } from '@/hooks/useEmployees';
 import { fetchCardsFromDb, fetchVendorsFromDb, fetchPaymentProvidersFromDb } from '@/hooks/useMerchantConfig';
 import { fetchActivityTypesFromDb } from '@/hooks/useActivityTypes';
 import { fetchMembersFromDb } from '@/hooks/useMembers';
+import { checkApiRateLimitResult } from '@/services/rateLimitService';
+import { loginApi, logoutApi, getCurrentUserApi } from '@/services/auth/authApiService';
+import { hasAuthToken, clearAuthToken } from '@/api/client';
+import { AUTH_UNAUTHORIZED_EVENT } from '@/api/init';
 
 // IP 国家校验间隔时间（毫秒）- 每5分钟检查一次
 const IP_VALIDATION_INTERVAL = 5 * 60 * 1000;
@@ -113,16 +114,11 @@ async function validateIpCountry(): Promise<IpValidationResult> {
   }
 }
 
-// 读取 data_settings 中的 IP 访问控制配置，决定是否执行国家校验
+// 读取 IP 访问控制配置，决定是否执行国家校验
 async function checkIpAccess(): Promise<IpValidationResult> {
   try {
-    const { data: ipSetting } = await supabase
-      .from('data_settings')
-      .select('setting_value')
-      .eq('setting_key', 'ip_access_control')
-      .maybeSingle();
-
-    const config = ipSetting?.setting_value as { enabled?: boolean } | null;
+    const { getIpAccessControlConfig } = await import('@/api/data');
+    const config = await getIpAccessControlConfig();
     if (!config?.enabled) {
       console.log('[AuthContext] IP country validation skipped (not enabled in settings)');
       return { valid: true, skipped: true, reason: 'IP country control not enabled' };
@@ -131,37 +127,16 @@ async function checkIpAccess(): Promise<IpValidationResult> {
     console.warn('[AuthContext] Failed to read IP control settings, skipping validation:', err);
     return { valid: true, skipped: true, reason: 'Could not read IP control settings' };
   }
-
   return validateIpCountry();
 }
 
-// 记录登录日志（支持成功和失败）
-async function logLoginAttempt(
-  employeeId: string, 
-  success: boolean, 
-  failureReason?: string,
-  clientIp?: string | null
-) {
-  try {
-    const userAgent = navigator.userAgent;
-    
-    // 如果没有提供IP，尝试获取
-    const ipAddress = clientIp ?? await getClientIp();
-    
-    await (supabase.rpc as any)('log_employee_login', {
-      p_employee_id: employeeId,
-      p_ip_address: ipAddress,
-      p_user_agent: userAgent,
-      p_success: success,
-      p_failure_reason: failureReason || null,
-    });
-    
-    console.log('[AuthContext] Login logged:', { employeeId, success, ipAddress });
-  } catch (error) {
-    console.error('Failed to log login attempt:', error);
-  }
-}
+// 登录日志由后端 login API 记录，此处不再单独调用
 
+/**
+ * 账号类型严格区分：
+ * - 平台总管理：is_platform_super_admin=true，tenant_id 始终为 null，登录后进入平台后台
+ * - 租户账号：is_platform_super_admin=false，tenant_id 为业务租户 ID，只能看本租户数据
+ */
 interface EmployeeInfo {
   id: string;
   username: string;
@@ -169,9 +144,9 @@ interface EmployeeInfo {
   role: AppRole;
   status: string;
   is_super_admin: boolean;
-  /** 是否为平台总管理员（platform 租户 + is_super_admin），区分于租户总管理员 */
+  /** 平台总管理员（platform 租户 + is_super_admin），tenant_id 强制 null */
   is_platform_super_admin?: boolean;
-  /** 所属租户 ID，用于共享数据隔离 */
+  /** 所属租户 ID。平台总管理为 null；租户员工为业务租户 ID */
   tenant_id?: string | null;
 }
 
@@ -187,17 +162,9 @@ interface RolePermissionRecord {
 
 type UserType = 'member' | 'employee' | null;
 
-function getEmployeeUsernameFromAuthEmail(email?: string | null): string | null {
-  if (!email) return null;
-  const suffix = '@system.local';
-  if (!email.endsWith(suffix)) return null;
-  const username = email.slice(0, -suffix.length).trim();
-  return username || null;
-}
-
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: { id: string; email?: string } | null;
+  session: { access_token?: string } | null;
   employee: EmployeeInfo | null;
   userType: UserType;
   profileMemberId: string | null;
@@ -207,7 +174,7 @@ interface AuthContextType {
   permissionsLoaded: boolean;
   dataSynced: boolean;
   authStep: string | null;
-  signIn: (username: string, password: string) => Promise<{ success: boolean; message: string }>;
+  signIn: (username: string, password: string) => Promise<{ success: boolean; message: string; user?: EmployeeInfo }>;
   signOut: () => Promise<void>;
   updateEmployeeLocal: (patch: Partial<EmployeeInfo>) => void;
   refreshEmployee: () => Promise<void>;
@@ -250,8 +217,8 @@ function writeEmployeeCache(emp: EmployeeInfo | null) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+  const [session, setSession] = useState<{ access_token?: string } | null>(null);
   // 启动时先从 sessionStorage 读取缓存，实现刷新即时恢复
   const [employee, setEmployee] = useState<EmployeeInfo | null>(() => readEmployeeCache());
   const [userType, setUserType] = useState<UserType>(null);
@@ -269,6 +236,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initCompletedRef = useRef(!!readEmployeeCache()); // 有缓存则视为已完成初始化
   const ipValidationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isValidatingIpRef = useRef(false);
+  const skipNextInitAuthCheckRef = useRef(false); // signIn 成功后跳过 init 的 getCurrentUserApi，避免竞态
+
+  // 监听 401：API 客户端已清除 token 并即将跳转，同步清除本地状态避免闪退后状态残留
+  useEffect(() => {
+    const handler = () => {
+      setSharedDataTenantId(null);
+      writeEmployeeCache(null);
+      setEmployee(null);
+      setSession(null);
+      setUser(null);
+      setUserType(null);
+      setProfileEmployeeId(null);
+      setProfileMemberId(null);
+      clearOperatorCache();
+    };
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handler);
+    return () => window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handler);
+  }, []);
 
   // 全局兜底：任何场景 loading 持续过久都强制结束，避免页面长期骨架屏
   useEffect(() => {
@@ -324,7 +309,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
           
           // 强制登出
-          await supabase.auth.signOut();
+          await logoutApi();
           setUser(null);
           setSession(null);
           writeEmployeeCache(null);
@@ -345,7 +330,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 验证出错时，出于安全考虑，也强制登出
       if (forceLogout && session) {
         toast.error('IP验证服务异常，请重新登录');
-        await supabase.auth.signOut();
+        await logoutApi();
         window.location.href = '/staff/login';
       }
       return false;
@@ -455,158 +440,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // 加载权限数据
+  // 加载权限数据 - 通过 API 获取
   const loadPermissions = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('role_permissions')
-        .select('*');
-
-      if (error) throw error;
+      const { getRolePermissions } = await import('@/api/data');
+      const data = await getRolePermissions();
       setPermissions(data || []);
       setPermissionsLoaded(true);
       console.log('[AuthContext] Permissions loaded:', data?.length || 0);
     } catch (error) {
       console.error('[AuthContext] Failed to load permissions:', error);
-      setPermissionsLoaded(true); // 即使失败也标记为已加载，避免无限等待
+      setPermissionsLoaded(true);
     }
   }, []);
-
-  // 识别当前 Supabase 用户绑定类型（member / employee）
-  const resolveEmployeeIdByEmailFallback = useCallback(async (email?: string | null): Promise<string | null> => {
-    const username = getEmployeeUsernameFromAuthEmail(email);
-    if (!username) return null;
-
-    const { data, error } = await supabase
-      .from('employees')
-      .select('id')
-      .eq('username', username)
-      .maybeSingle();
-
-    if (error) {
-      console.warn('[AuthContext] Employee fallback lookup failed:', error);
-      return null;
-    }
-    return data?.id ?? null;
-  }, []);
-
-  const fetchProfileAssociation = useCallback(async (userId: string, email?: string | null) => {
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('member_id, employee_id')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (error) {
-      console.error('[AuthContext] Profile association query error:', error);
-    }
-
-    const memberId = profile?.member_id ?? null;
-    let employeeId = profile?.employee_id ?? null;
-
-    // 兜底：若 profile 未关联 employee_id，则尝试通过 auth email 反查员工
-    if (!employeeId) {
-      const fallbackEmployeeId = await resolveEmployeeIdByEmailFallback(email);
-      if (fallbackEmployeeId) {
-        employeeId = fallbackEmployeeId;
-        // 尝试回写 profiles，后续刷新即可走正常链路（失败不阻塞）
-        supabase
-          .from('profiles')
-          .upsert({ id: userId, employee_id: fallbackEmployeeId, email: email ?? null }, { onConflict: 'id' })
-          .catch((upsertErr) => {
-            console.warn('[AuthContext] Backfill profile employee_id failed:', upsertErr);
-          });
-      }
-    }
-
-    setProfileMemberId(memberId);
-    setProfileEmployeeId(employeeId);
-
-    if (employeeId) setUserType('employee');
-    else if (memberId) setUserType('member');
-    else setUserType(null);
-
-    return { member_id: memberId, employee_id: employeeId };
-  }, [resolveEmployeeIdByEmailFallback]);
-
-  // 获取员工信息 - 返回成功/失败状态
-  const fetchEmployeeInfo = useCallback(async (
-    userId: string,
-    employeeIdFromProfile?: string | null,
-    emailFromAuth?: string | null
-  ): Promise<boolean> => {
-    try {
-      let employeeId = employeeIdFromProfile ?? null;
-      if (!employeeId) {
-        const profile = await fetchProfileAssociation(userId, emailFromAuth);
-        employeeId = profile.employee_id;
-      }
-
-      if (!employeeId) {
-        employeeId = await resolveEmployeeIdByEmailFallback(emailFromAuth);
-      }
-
-      if (!employeeId) {
-        console.warn('[AuthContext] No employee_id in profile, user may need re-login');
-        return false;
-      }
-
-      // Get employee info（优先使用 RPC 获取 is_platform_super_admin，区分平台/租户总管理员）
-      const { data: rpcData, error: rpcError } = await supabase.rpc('get_my_employee_info');
-      let emp: any;
-      if (!rpcError && rpcData && (Array.isArray(rpcData) ? rpcData[0] : rpcData)) {
-        emp = Array.isArray(rpcData) ? rpcData[0] : rpcData;
-      }
-      if (!emp) {
-        const { data: empData, error: empError } = await supabase
-          .from('employees')
-          .select('id, username, real_name, role, status, is_super_admin, tenant_id')
-          .eq('id', employeeId)
-          .single();
-        if (empError || !empData) {
-          console.error('Error fetching employee:', empError);
-          return false;
-        }
-        emp = empData;
-      }
-
-      const empInfo: EmployeeInfo = {
-        id: emp.id,
-        username: emp.username,
-        real_name: emp.real_name,
-        role: emp.role as AppRole,
-        status: emp.status,
-        is_super_admin: emp.is_super_admin ?? false,
-        is_platform_super_admin: emp.is_platform_super_admin ?? false,
-        tenant_id: emp.tenant_id ?? null,
-      };
-      
-      setAndCacheEmployee(empInfo);
-      
-      // Update web vitals employee tracking
-      import('@/services/webVitalsService').then(m => m.setWebVitalsEmployee(emp.id)).catch(() => {});
-      
-      // 更新全局操作员缓存
-      setOperatorCache({
-        id: emp.id,
-        account: emp.username,
-        role: emp.role,
-        realName: emp.real_name,
-      });
-      
-      return true;
-    } catch (error) {
-      console.error('Error in fetchEmployeeInfo:', error);
-      return false;
-    }
-  }, [fetchProfileAssociation, resolveEmployeeIdByEmailFallback]);
 
   // 刷新员工信息（供外部调用）
   const refreshEmployee = useCallback(async () => {
-    if (user?.id) {
-      await fetchEmployeeInfo(user.id, profileEmployeeId, user.email);
+    const authUser = await getCurrentUserApi();
+    if (authUser) {
+      const tenantId = authUser.is_platform_super_admin ? null : (authUser.tenant_id ?? null);
+      setSharedDataTenantId(tenantId);
+      const empInfo: EmployeeInfo = {
+        id: authUser.id,
+        username: authUser.username,
+        real_name: authUser.real_name,
+        role: authUser.role as AppRole,
+        status: authUser.status,
+        is_super_admin: authUser.is_super_admin ?? false,
+        is_platform_super_admin: authUser.is_platform_super_admin ?? false,
+        tenant_id: tenantId,
+      };
+      setAndCacheEmployee(empInfo);
+      setOperatorCache({
+        id: authUser.id,
+        account: authUser.username,
+        role: authUser.role,
+        realName: authUser.real_name,
+      });
     }
-  }, [user?.id, user?.email, profileEmployeeId, fetchEmployeeInfo]);
+  }, [setAndCacheEmployee]);
 
   // 初始化认证状态和订阅
   useEffect(() => {
@@ -622,55 +494,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, AUTH_INIT_TIMEOUT);
 
-    // 设置 auth 状态监听器 - 回调必须是同步的！
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (!isMounted) return;
-        
-        // 同步更新状态
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          // 使用 setTimeout 延迟数据库调用，避免死锁
-          setTimeout(() => {
-            if (isMounted) {
-              fetchProfileAssociation(session.user.id, session.user.email)
-                .then((profile) => {
-                  if (!isMounted) return;
-                  if (profile.employee_id) {
-                    fetchEmployeeInfo(session.user.id, profile.employee_id, session.user.email);
-                    syncUserData(session.user.id);
-                  } else {
-                    setEmployee(null);
-                    setDataSynced(true);
-                  }
-                })
-                .catch((err) => {
-                  console.error('[AuthContext] onAuthStateChange fetchProfileAssociation error:', err);
-                  setEmployee(null);
-                  setDataSynced(true);
-                });
-            }
-          }, 0);
-        } else {
-          // 清空状态（登出或 session 失效，清缓存）
-          writeEmployeeCache(null);
-          setEmployee(null);
-          setUserType(null);
-          setProfileMemberId(null);
-          setProfileEmployeeId(null);
-          setPermissions([]);
-          setPermissionsLoaded(false);
-          setDataSynced(false);
-          lastSyncedUserIdRef.current = null;
-          dataSyncAttemptRef.current = 0;
-          isSyncingRef.current = false;
-        }
-      }
-    );
-
-    // 获取现有会话
     const finishInit = () => {
       if (isMounted && !initCompletedRef.current) {
         setLoading(false);
@@ -679,70 +502,87 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!isMounted) return;
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchProfileAssociation(session.user.id, session.user.email)
-          .then((profile) => {
-            if (!isMounted) return;
-            if (profile.employee_id) {
-              // 异步获取员工信息，但不阻塞 loading 状态
-              fetchEmployeeInfo(session.user.id, profile.employee_id, session.user.email).finally(finishInit);
-              syncUserData(session.user.id);
-            } else {
-              setEmployee(null);
-              setDataSynced(true);
-              finishInit();
-            }
-          })
-          .catch((err) => {
-            console.error('[AuthContext] fetchProfileAssociation error:', err);
-            setEmployee(null);
-            setDataSynced(true);
-            finishInit();
+    if (hasAuthToken()) {
+      if (skipNextInitAuthCheckRef.current) {
+        skipNextInitAuthCheckRef.current = false;
+        finishInit();
+        return;
+      }
+      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('api_access_token') : null;
+      console.log('[Auth] token', token ? `${token.slice(0, 20)}...` : null);
+      getCurrentUserApi().then((authUser) => {
+        if (!isMounted) return;
+        console.log('[Auth] current user from /me', authUser ? authUser.username : null);
+        if (authUser) {
+          // 平台总管理 ≠ 租户账号：tenant_id 强制为 null，严格区分
+          const tenantId = authUser.is_platform_super_admin ? null : (authUser.tenant_id ?? null);
+          setSharedDataTenantId(tenantId);
+          const empInfo: EmployeeInfo = {
+            id: authUser.id,
+            username: authUser.username,
+            real_name: authUser.real_name,
+            role: authUser.role as AppRole,
+            status: authUser.status,
+            is_super_admin: authUser.is_super_admin ?? false,
+            is_platform_super_admin: authUser.is_platform_super_admin ?? false,
+            tenant_id: tenantId,
+          };
+          setSession({ access_token: 'jwt' });
+          setUser({ id: authUser.id, email: `${authUser.username}@system.local` });
+          setAndCacheEmployee(empInfo);
+          setUserType('employee');
+          setProfileEmployeeId(authUser.id);
+          setProfileMemberId(null);
+          setOperatorCache({
+            id: authUser.id,
+            account: authUser.username,
+            role: authUser.role,
+            realName: authUser.real_name,
           });
-      } else {
-        // 无会话时：清除可能残留的缓存，避免下次刷新误用过期缓存
+          syncUserData(authUser.id).finally(finishInit);
+        } else {
+          setSharedDataTenantId(null);
+          clearAuthToken();
+          writeEmployeeCache(null);
+          setEmployee(null);
+          setSession(null);
+          setUser(null);
+          setDataSynced(true);
+          finishInit();
+        }
+      }).catch((err) => {
+        console.error('[AuthContext] getCurrentUserApi error:', err);
+        setSharedDataTenantId(null);
+        clearAuthToken();
         writeEmployeeCache(null);
         setEmployee(null);
+        setSession(null);
+        setUser(null);
         setDataSynced(true);
         finishInit();
-      }
-    }).catch((error) => {
-      console.error('[AuthContext] getSession error:', error);
+      });
+    } else {
+      setSharedDataTenantId(null);
+      writeEmployeeCache(null);
+      setEmployee(null);
+      setSession(null);
+      setUser(null);
+      setDataSynced(true);
       finishInit();
-    });
+    }
 
     return () => {
       isMounted = false;
       clearTimeout(initTimeoutId);
-      subscription.unsubscribe();
     };
-  }, [fetchEmployeeInfo, fetchProfileAssociation, syncUserData]);
+  }, [syncUserData, setAndCacheEmployee]);
 
-  // 订阅权限变更 (Realtime)
+  // 加载权限并轮询更新（替代 Realtime 订阅）
   useEffect(() => {
     if (!employee) return;
-
-    // 初始加载权限
     loadPermissions();
-
-    // 订阅权限表变更
-    const channel = supabase
-      .channel('auth-permissions-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'role_permissions' }, () => {
-        console.log('[AuthContext] Permissions changed, reloading...');
-        loadPermissions();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    const interval = setInterval(loadPermissions, 60 * 1000);
+    return () => clearInterval(interval);
   }, [employee, loadPermissions]);
 
   // IP 国家校验 - 用户登录后和会话恢复时触发
@@ -763,252 +603,96 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       stopIpValidationInterval();
     };
   }, [session, employee, loading, performIpValidation, startIpValidationInterval, stopIpValidationInterval]);
-  const signIn = async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
-    // 预先获取IP地址（不阻塞登录流程）
-    const ipPromise = getClientIp();
-    
+  const signIn = async (username: string, password: string): Promise<{ success: boolean; message: string; user?: EmployeeInfo }> => {
+    const normalizedUsername = username.trim();
     try {
-      // 步骤1：验证员工账号
       setAuthStep('验证账号...');
-      
-      let verifyResult: any[] | null = null;
-      let verifyError: any = null;
-      
-      try {
-        const response = await withTimeout(
-          supabase.rpc('verify_employee_login_detailed', {
-            p_username: username,
-            p_password: password
-          }),
-          TIMEOUT.RPC,
-          '验证账号超时，请检查网络'
-        );
-        verifyResult = response.data;
-        verifyError = response.error;
-      } catch (err: any) {
-        setAuthStep(null);
-        return { success: false, message: err.message || '验证账号超时，请检查网络' };
-      }
 
-      if (verifyError) {
-        console.error('Verify error:', verifyError);
-        setAuthStep(null);
-        return { success: false, message: '系统繁忙，请稍后重试' };
-      }
-
-      if (!verifyResult || verifyResult.length === 0) {
-        setAuthStep(null);
-        return { success: false, message: '验证失败，请稍后重试' };
-      }
-
-      const result = verifyResult[0];
-      const clientIp = await ipPromise;
-      
-      // 根据错误代码返回具体提示，并记录失败日志
-      if (result.error_code) {
-        setAuthStep(null);
-        
-        // 记录失败的登录尝试
-        // 对于 USER_NOT_FOUND，我们没有 employee_id，所以需要特殊处理
-        if (result.error_code === 'WRONG_PASSWORD' && result.employee_id) {
-          // 密码错误时可以记录到对应员工
-          logLoginAttempt(result.employee_id, false, '密码错误', clientIp).catch(console.error);
-        } else if (result.error_code === 'ACCOUNT_DISABLED' && result.employee_id) {
-          logLoginAttempt(result.employee_id, false, '账号已禁用', clientIp).catch(console.error);
-        }
-        // USER_NOT_FOUND 没有 employee_id，无法记录到特定用户
-        
-        switch (result.error_code) {
-          case 'USER_NOT_FOUND':
-            return { success: false, message: '账号不存在，请检查用户名或去注册' };
-          case 'WRONG_PASSWORD':
-            return { success: false, message: '密码错误，请重新输入' };
-          case 'ACCOUNT_DISABLED':
-            return { success: false, message: '账号已被禁用，请联系管理员' };
-          default:
-            return { success: false, message: '登录失败，请稍后重试' };
-        }
-      }
-
-      // 从 RPC 返回结果构建 emp 对象（含 tenant_id，供租户员工登录后立即显示数据）
-      const emp = {
-        employee_id: result.employee_id,
-        username: result.username,
-        real_name: result.real_name,
-        role: result.role,
-        status: result.status,
-        is_super_admin: result.is_super_admin ?? false,
-        tenant_id: result.tenant_id ?? null,
-      };
-      
-      // 检查账号状态
-      if (emp.status === 'pending') {
-        setAuthStep(null);
-        logLoginAttempt(emp.employee_id, false, '账号待审批', clientIp).catch(console.error);
-        return { success: false, message: '账号正在等待管理员审批，请耐心等待' };
-      }
-      
-      if (emp.status !== 'active') {
-        setAuthStep(null);
-        logLoginAttempt(emp.employee_id, false, '账号状态异常: ' + emp.status, clientIp).catch(console.error);
-        return { success: false, message: '账号已被禁用，请联系管理员' };
-      }
-
-      // ========== 步骤2：IP 国家校验 ==========
-      setAuthStep('验证访问区域...');
-      
-      const ipValidation = await checkIpAccess();
-      
-      // 检查是否被后端跳过（开发环境）
-      if (ipValidation.skipped) {
-        console.log('[AuthContext] IP validation skipped by backend:', ipValidation.reason);
-      } else if (!ipValidation.valid) {
-        // 非生产环境：记录日志但允许登录
-        if (!isProductionEnvironment()) {
-          console.warn('[AuthContext] IP validation failed but dev mode, allowing login:', ipValidation);
-        } else {
-          // 生产环境：阻止登录
-          setAuthStep(null);
-          logLoginAttempt(emp.employee_id, false, `IP国家限制: ${ipValidation.country_code || 'unknown'}`, clientIp).catch(console.error);
-          return { 
-            success: false, 
-            message: ipValidation.message || `访问被拒绝：您的IP (${ipValidation.ip}) 不在允许的地区范围内` 
-          };
-        }
-      } else {
-        console.log('[AuthContext] IP validation passed:', ipValidation.country_code, ipValidation.city);
-      }
-
-      // Generate email for Supabase auth (username@system.local)
-      const email = `${username}@system.local`;
-      
-      // 步骤3：尝试登录认证系统
-      setAuthStep('连接认证服务...');
-      
-       let { data: signInData, error: signInError } = await withTimeout(
-         supabase.auth.signInWithPassword({
-           email,
-           password,
-         }),
-         TIMEOUT.AUTH,
-         '登录超时，请检查网络'
-       );
-
-       // 认证系统密码与员工表密码不同步时：自动同步（或创建）后重试登录
-       if (signInError?.message?.includes('Invalid login credentials')) {
-         setAuthStep('同步认证密码...');
-
-         const syncResult = await withTimeout<AuthPasswordSyncResult>(
-           syncAuthPassword(username, password),
-           TIMEOUT.AUTH,
-           '同步认证密码超时'
-         ).catch((err) => ({ success: false, message: err?.message || '同步失败' }));
-
-         if (!syncResult?.success) {
-           setAuthStep(null);
-           return { success: false, message: syncResult?.message || '认证服务同步失败，请联系平台管理员重置密码' };
-         }
-
-         // 同步成功后重试登录（Auth 服务可能需短暂传播时间）
-         setAuthStep('重新登录...');
-         const retry = await withTimeout(
-           supabase.auth.signInWithPassword({
-             email,
-             password,
-           }),
-           TIMEOUT.AUTH,
-           '登录超时，请检查网络'
-         );
-
-         signInData = retry.data;
-         signInError = retry.error;
-
-         // 若首次重试仍失败，等待 2 秒后再次重试（应对 Auth 传播延迟）
-         if (signInError?.message?.includes('Invalid login credentials')) {
-           await new Promise((r) => setTimeout(r, 2000));
-           const retry2 = await withTimeout(
-             supabase.auth.signInWithPassword({ email, password }),
-             TIMEOUT.AUTH,
-             '登录超时，请检查网络'
-           );
-           signInData = retry2.data;
-           signInError = retry2.error;
-         }
-       }
-
-       if (signInError) {
-         setAuthStep(null);
-         return { success: false, message: '登录失败: ' + signInError.message };
-       }
-
-      // 步骤4：确保现有用户也有 profile 关联
-      setAuthStep('同步账号信息...');
-      
-      if (signInData.user) {
+      // 本地开发环境跳过限流和 IP 校验，直接调用登录 API（避免 Supabase check_api_rate_limit 400 等阻塞）
+      if (isProductionEnvironment()) {
+        const clientIp = await getClientIp();
         try {
-          await withTimeout(
-            supabase
-              .from('profiles')
-              .upsert({ 
-                id: signInData.user.id, 
-                employee_id: emp.employee_id,
-                email: email 
-              }, { onConflict: 'id' }),
-            TIMEOUT.PROFILE,
-            '同步账号超时'
-          );
-        } catch (linkError) {
-          console.error('Link profile error:', linkError);
-          // 不阻塞登录流程
-        }
+          const actorKey = `${normalizedUsername}|${clientIp || 'unknown'}`;
+          const rateLimit = await checkApiRateLimitResult({
+            scope: 'staff_login',
+            actorKey,
+            limit: 20,
+            windowSeconds: 300,
+          });
+          if (rateLimit.ok && !rateLimit.data.allowed) {
+            setAuthStep(null);
+            const retryMin = Math.max(1, Math.ceil((rateLimit.data.retryAfterSeconds || 60) / 60));
+            return { success: false, message: `请求过于频繁，请${retryMin}分钟后再试` };
+          }
+        } catch (_) {}
+
+        try {
+          setAuthStep('验证访问区域...');
+          const ipValidation = await checkIpAccess();
+          if (!ipValidation.skipped && !ipValidation.valid) {
+            setAuthStep(null);
+            return {
+              success: false,
+              message: ipValidation.message || `访问被拒绝：您的IP (${ipValidation.ip}) 不在允许的地区范围内`,
+            };
+          }
+        } catch (_) {}
       }
 
-      // Update employee info（含 tenant_id，租户员工登录后立即有 effectiveTenantId）
-      const employeeInfo: EmployeeInfo = {
-        id: emp.employee_id,
-        username: emp.username,
-        real_name: emp.real_name,
-        role: emp.role,
-        status: emp.status,
-        is_super_admin: emp.is_super_admin ?? false,
-        is_platform_super_admin: emp.is_platform_super_admin ?? false,
-        tenant_id: emp.tenant_id ?? null,
+      setAuthStep('连接认证服务...');
+      const result = await withTimeout(
+        loginApi(normalizedUsername, password),
+        TIMEOUT.AUTH,
+        '登录超时，请检查网络'
+      );
+
+      if (!result.success) {
+        setAuthStep(null);
+        return { success: false, message: result.message || '登录失败' };
+      }
+
+      const authUser = result.user!;
+      const tenantId = authUser.is_platform_super_admin ? null : (authUser.tenant_id ?? null);
+      setSharedDataTenantId(tenantId);
+      const empInfo: EmployeeInfo = {
+        id: authUser.id,
+        username: authUser.username,
+        real_name: authUser.real_name,
+        role: authUser.role,
+        status: authUser.status,
+        is_super_admin: authUser.is_super_admin ?? false,
+        is_platform_super_admin: authUser.is_platform_super_admin ?? false,
+        tenant_id: tenantId,
       };
-      setAndCacheEmployee(employeeInfo);
+      setSession({ access_token: 'jwt' });
+      setUser({ id: authUser.id, email: `${authUser.username}@system.local` });
+      setAndCacheEmployee(empInfo);
       setUserType('employee');
-      setProfileEmployeeId(emp.employee_id);
+      setProfileEmployeeId(authUser.id);
       setProfileMemberId(null);
-      
-      // 更新全局操作员缓存
       setOperatorCache({
-        id: emp.employee_id,
-        account: emp.username,
-        role: emp.role,
-        realName: emp.real_name,
+        id: authUser.id,
+        account: authUser.username,
+        role: authUser.role,
+        realName: authUser.real_name,
       });
-      
-      // 初始化共享数据缓存（异步，不阻塞）
       preloadSharedData().catch(console.error);
       initializeReferralCache().catch(console.error);
-      
-      // 记录登录日志（包含IP）
-      logLoginAttempt(emp.employee_id, true, undefined, clientIp).catch(console.error);
+      syncUserData(authUser.id).catch(console.error);
 
-      // 二次拉取员工信息，确保拿到 is_platform_super_admin 等精确字段，避免登录后路由分流错误
-      if (signInData.user?.id) {
-        await fetchEmployeeInfo(signInData.user.id, emp.employee_id, signInData.user.email);
-      }
-
+      skipNextInitAuthCheckRef.current = true; // 避免 init 重跑时再次请求 /me 导致竞态
+      setLoading(false);
+      setDataSynced(true);
+      initCompletedRef.current = true;
       setAuthStep(null);
-      return { success: true, message: `欢迎回来，${emp.real_name}！` };
+      return { success: true, message: `欢迎回来，${authUser.real_name}！`, user: empInfo };
     } catch (error: any) {
       console.error('Sign in error:', error);
       setAuthStep(null);
-      
-      if (error.message?.includes('超时')) {
+      if (error?.message?.includes('超时')) {
         return { success: false, message: error.message };
       }
-      return { success: false, message: '登录失败: ' + error.message };
+      return { success: false, message: error?.message || '登录失败' };
     }
   };
 
@@ -1016,12 +700,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 1. 停止 IP 校验定时器
     stopIpValidationInterval();
     
-    // 2. 退出认证
-    await supabase.auth.signOut();
+    // 2. 退出认证（清除 token）
+    await logoutApi();
     
     // 3. 清空组件状态 + 清除员工缓存
     setUser(null);
     setSession(null);
+    setSharedDataTenantId(null);
     setAndCacheEmployee(null);
     setUserType(null);
     setProfileMemberId(null);

@@ -3,12 +3,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { SharedDataKey } from '@/services/sharedDataService';
+import type { SharedDataKey } from '@/services/finance/sharedDataService';
 import {
   loadSharedData,
   saveSharedData,
   subscribeToSharedData,
-} from '@/services/sharedDataService';
+} from '@/services/finance/sharedDataService';
 
 interface UseSharedConfigOptions<T> {
   dataKey: SharedDataKey;

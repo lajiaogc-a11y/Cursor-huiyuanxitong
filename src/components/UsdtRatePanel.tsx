@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { AlertTriangle, RefreshCw, Check, Wifi, WifiOff, TrendingUp, TrendingDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { loadSharedData, saveSharedData } from '@/services/sharedDataService';
+import { loadSharedData, saveSharedData } from '@/services/finance/sharedDataService';
 
 // Types
 export interface UsdtLiveRates {

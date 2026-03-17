@@ -6,6 +6,7 @@ import { ClipboardCheck, Bell, AlertTriangle, ChevronRight, Loader2 } from "luci
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenantView } from "@/contexts/TenantViewContext";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -21,9 +22,11 @@ interface PendingItem {
 export default function PendingTasksPanel() {
   const { t } = useLanguage();
   const { employee } = useAuth();
+  const { viewingTenantId } = useTenantView() || {};
   const navigate = useNavigate();
   const [items, setItems] = useState<PendingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
 
   const canViewAudit = employee?.role === 'admin' || employee?.role === 'manager';
 
@@ -32,7 +35,7 @@ export default function PendingTasksPanel() {
       try {
         // Pending audit records (admin/manager only)
         const auditPromise = canViewAudit
-          ? supabase.from("audit_records").select("*", { count: "exact", head: true }).eq("status", "pending").then(r => r)
+          ? import('@/services/reports/reportsApiService').then((m) => m.getDashboardStatsApi(effectiveTenantId))
           : Promise.resolve({ count: 0 });
 
         // Unread notifications for current user
@@ -53,10 +56,11 @@ export default function PendingTasksPanel() {
 
         const result: PendingItem[] = [];
 
-        if (canViewAudit && (auditRes.count || 0) > 0) {
+        const pendingAuditCount = 'pendingAudits' in auditRes ? (auditRes.pendingAudits || 0) : (auditRes.count || 0);
+        if (canViewAudit && pendingAuditCount > 0) {
           result.push({
             type: "audit",
-            count: auditRes.count || 0,
+            count: pendingAuditCount,
             label: t("待审核记录", "Pending Audits"),
             icon: ClipboardCheck,
             color: "text-amber-500",
@@ -94,7 +98,7 @@ export default function PendingTasksPanel() {
       }
     };
     load();
-  }, [employee, canViewAudit]);
+  }, [employee, canViewAudit, effectiveTenantId]);
 
   // Don't render if nothing pending
   if (!loading && items.length === 0) return null;

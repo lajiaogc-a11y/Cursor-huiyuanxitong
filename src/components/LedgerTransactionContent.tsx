@@ -41,7 +41,7 @@ import {
   getSourceTypeLabel,
   sourceTypeLabels,
   formatSourceId,
-} from '@/services/ledgerTransactionService';
+} from '@/services/finance/ledgerTransactionService';
 
 interface LedgerTransactionContentProps {
   accountType: AccountType;

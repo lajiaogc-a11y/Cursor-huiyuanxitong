@@ -71,9 +71,9 @@ export default function Dashboard() {
   // Check if only showing own data
   const showOwnDataOnly = useMemo(() => {
     if (!employee) return false;
-    if (employee.role === 'admin') return false;
+    if (employee.is_platform_super_admin || employee.role === 'admin' || employee.role === 'manager') return false;
     const permission = checkPermission('dashboard', 'own_data_only');
-    return permission.canView;
+    return employee.role === 'staff' && permission.canView;
   }, [employee, checkPermission]);
   
   // Use database Hooks

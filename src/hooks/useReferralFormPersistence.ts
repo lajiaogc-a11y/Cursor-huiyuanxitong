@@ -3,7 +3,7 @@
 // 替代原来的 localStorage 实现
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { loadSharedData, saveSharedData, type SharedDataKey } from '@/services/sharedDataService';
+import { loadSharedData, saveSharedData, type SharedDataKey } from '@/services/finance/sharedDataService';
 
 const DATA_KEY: SharedDataKey = 'referralEntryForm';
 

@@ -5,12 +5,13 @@ import { useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTenantView } from '@/contexts/TenantViewContext';
 import { toast } from 'sonner';
 import { logOperation } from '@/stores/auditLogStore';
 import { Json } from '@/integrations/supabase/types';
 import { calculateNormalOrderDerivedValues, calculateUsdtOrderDerivedValues } from '@/lib/orderCalculations';
-import { syncMemberActivityOnOrderEdit } from '@/services/balanceLogService';
-import { notifyDataMutation } from '@/services/dataRefreshManager';
+import { syncMemberActivityOnOrderEdit } from '@/services/finance/balanceLogService';
+import { notifyDataMutation } from '@/services/system/dataRefreshManager';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -192,55 +193,21 @@ export interface AuditRecordsFetchParams {
 }
 
 // Standalone fetch function - 服务端分页，每页 50 条
-async function fetchAuditRecordsFromDb(params?: AuditRecordsFetchParams): Promise<{
+async function fetchAuditRecordsFromDb(params?: AuditRecordsFetchParams, tenantId?: string | null): Promise<{
   records: AuditRecord[];
   legacyItems: LegacyAuditItem[];
   totalCount: number;
 }> {
-  const page = params?.page ?? 1;
-  const pageSize = Math.min(params?.pageSize ?? 50, 100);
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-
-  let query = supabase
-    .from('audit_records')
-    .select('*', { count: 'exact' })
-    .order('created_at', { ascending: false });
-
-  if (params?.status) {
-    query = query.eq('status', params.status);
-  }
-  if (params?.dateFrom) {
-    query = query.gte('created_at', params.dateFrom);
-  }
-  if (params?.dateTo) {
-    query = query.lte('created_at', params.dateTo);
-  }
-
-  const { data, error, count } = await query.range(from, to);
-
-  if (error) throw error;
-
-  const submitterIds = [...new Set((data || []).map(r => r.submitter_id).filter(Boolean))];
-  const reviewerIds = [...new Set((data || []).map(r => r.reviewer_id).filter(Boolean))];
-  const allIds = [...new Set([...submitterIds, ...reviewerIds])];
-
-  let employeeMap: Record<string, string> = {};
-  if (allIds.length > 0) {
-    const { data: employees } = await supabase
-      .from('employees')
-      .select('id, real_name')
-      .in('id', allIds);
-    if (employees) {
-      employeeMap = Object.fromEntries(employees.map(e => [e.id, e.real_name]));
-    }
-  }
-
-  const enrichedRecords: AuditRecord[] = (data || []).map(record => ({
-    ...record,
-    submitter_name: record.submitter_id ? employeeMap[record.submitter_id] : undefined,
-    reviewer_name: record.reviewer_id ? employeeMap[record.reviewer_id] : undefined,
-  }));
+  const { getAuditRecordsApi } = await import('@/api/data');
+  const result = await getAuditRecordsApi({
+    page: params?.page,
+    pageSize: params?.pageSize,
+    status: params?.status,
+    dateFrom: params?.dateFrom,
+    dateTo: params?.dateTo,
+    tenantId,
+  });
+  const enrichedRecords: AuditRecord[] = (result.records || []) as AuditRecord[];
 
   // 收集需要解析的 UUID，批量查询可读名称
   const providerIds = new Set<string>();
@@ -285,43 +252,48 @@ async function fetchAuditRecordsFromDb(params?: AuditRecordsFetchParams): Promis
   let sourceMap: Record<string, string> = {};
   let activityTypeMap: Record<string, string> = {};
 
-  if (providerIds.size > 0) {
-    const { data: providers } = await supabase
-      .from('payment_providers')
-      .select('id, name')
-      .in('id', [...providerIds]);
-    if (providers) providerMap = Object.fromEntries(providers.map(p => [p.id, p.name]));
+  const needProviderMap = providerIds.size > 0;
+  const needVendorMap = vendorIds.size > 0;
+  const needCardMap = cardIds.size > 0;
+  const needSourceMap = sourceIds.size > 0;
+  const needActivityTypeMap = activityTypeIds.size > 0;
+
+  const [
+    providers,
+    vendors,
+    cards,
+    sources,
+    activityTypes,
+  ] = await Promise.all([
+    needProviderMap ? import('@/services/giftcards/giftcardsApiService').then((m) => m.listPaymentProvidersApi()) : Promise.resolve([]),
+    needVendorMap ? import('@/services/giftcards/giftcardsApiService').then((m) => m.listVendorsApi()) : Promise.resolve([]),
+    needCardMap ? import('@/services/giftcards/giftcardsApiService').then((m) => m.listCardsApi()) : Promise.resolve([]),
+    needSourceMap ? import('@/api/data').then((m) => m.getCustomerSourcesApi()) : Promise.resolve([]),
+    needActivityTypeMap ? import('@/api/data').then((m) => m.getActivityTypesApi()) : Promise.resolve([]),
+  ]);
+
+  if (providers.length > 0) {
+    providerMap = Object.fromEntries(providers.map((p) => [p.id, p.name]));
   }
-  if (vendorIds.size > 0) {
-    const { data: vendors } = await supabase
-      .from('card_merchants')
-      .select('id, name')
-      .in('id', [...vendorIds]);
-    if (vendors) vendorMap = Object.fromEntries(vendors.map(v => [v.id, v.name]));
+  if (vendors.length > 0) {
+    vendorMap = Object.fromEntries(vendors.map((v) => [v.id, v.name]));
   }
-  if (cardIds.size > 0) {
-    const { data: cards } = await supabase
-      .from('cards')
-      .select('id, name')
-      .in('id', [...cardIds]);
-    if (cards) cardMap = Object.fromEntries(cards.map(c => [c.id, c.name]));
+  if (cards.length > 0) {
+    cardMap = Object.fromEntries(cards.map((c) => [c.id, c.name]));
   }
-  if (sourceIds.size > 0) {
-    const { data: sources } = await supabase
-      .from('customer_sources')
-      .select('id, name')
-      .in('id', [...sourceIds]);
-    if (sources) sourceMap = Object.fromEntries(sources.map(s => [s.id, s.name]));
+  if (sources.length > 0) {
+    sourceMap = Object.fromEntries(sources.map((s) => [s.id, s.name]));
   }
-  if (activityTypeIds.size > 0) {
-    const { data: types } = await supabase
-      .from('activity_types')
-      .select('id, label')
-      .in('id', [...activityTypeIds]);
-    if (types) activityTypeMap = Object.fromEntries(types.map(t => [t.id, t.label]));
+  if (activityTypes.length > 0) {
+    activityTypeMap = Object.fromEntries(activityTypes.map((t) => [t.id, t.label]));
   }
 
   const resolveMaps: ResolveMaps = { providerMap, vendorMap, cardMap, sourceMap, activityTypeMap };
+  const employeeMap: Record<string, string> = {};
+  enrichedRecords.forEach((record) => {
+    if (record.submitter_id && record.submitter_name) employeeMap[record.submitter_id] = record.submitter_name;
+    if (record.reviewer_id && record.reviewer_name) employeeMap[record.reviewer_id] = record.reviewer_name;
+  });
 
   // 批量获取目标可读标识：订单号、会员手机、赠送编号
   const targetDisplayIdMap: Record<string, string> = {};
@@ -329,59 +301,60 @@ async function fetchAuditRecordsFromDb(params?: AuditRecordsFetchParams): Promis
   const memberIds = enrichedRecords.filter(r => r.target_table === 'members').map(r => r.target_id);
   const giftIds = enrichedRecords.filter(r => r.target_table === 'activity_gifts' || r.target_table === 'activity').map(r => r.target_id);
 
-  if (orderIds.length > 0) {
-    const { data: orders } = await supabase
-      .from('orders')
-      .select('id, order_number')
-      .in('id', [...new Set(orderIds)]);
-    if (orders) orders.forEach(o => { targetDisplayIdMap[o.id] = o.order_number || o.id; });
-  }
-  if (memberIds.length > 0) {
-    const { data: members } = await supabase
-      .from('members')
-      .select('id, phone_number, member_code')
-      .in('id', [...new Set(memberIds)]);
-    if (members) members.forEach(m => { targetDisplayIdMap[m.id] = m.phone_number || m.member_code || m.id; });
-  }
-  if (giftIds.length > 0) {
-    const { data: gifts, error: giftsErr } = await supabase
-      .from('activity_gifts')
-      .select('id, gift_number')
-      .in('id', [...new Set(giftIds)]);
-    if (!giftsErr && gifts && gifts.length > 0) {
-      gifts.forEach(g => {
-        const row = g as { id: string; gift_number?: string | null };
-        targetDisplayIdMap[row.id] = row.gift_number || row.id.substring(0, 8) + '...';
-      });
-    }
-    [...new Set(giftIds)].forEach(id => {
-      if (!targetDisplayIdMap[id]) targetDisplayIdMap[id] = id.substring(0, 8) + '...';
-    });
-  }
+  const needOrders = orderIds.length > 0;
+  const needMembers = memberIds.length > 0;
+  const needGifts = giftIds.length > 0;
+
+  const [orders, usdtOrders, members, activityData] = await Promise.all([
+    needOrders ? import('@/services/orders/ordersApiService').then((m) => m.getOrdersFullApi(tenantId || undefined)) : Promise.resolve([]),
+    needOrders ? import('@/services/orders/ordersApiService').then((m) => m.getUsdtOrdersFullApi(tenantId || undefined)) : Promise.resolve([]),
+    needMembers ? import('@/services/members/membersApiService').then((m) => m.listMembersApi({ tenant_id: tenantId || undefined, page: 1, limit: 10000 })) : Promise.resolve([]),
+    needGifts ? import('@/api/data').then((m) => m.getActivityDataApi(tenantId || undefined)) : Promise.resolve({ gifts: [] as any[] }),
+  ]);
+
+  [...orders, ...usdtOrders].forEach((order) => {
+    const row = order as { id: string; order_number?: string };
+    targetDisplayIdMap[row.id] = row.order_number || row.id;
+  });
+  members.forEach((member) => {
+    const row = member as { id: string; phone_number?: string; member_code?: string };
+    targetDisplayIdMap[row.id] = row.phone_number || row.member_code || row.id;
+  });
+  (activityData.gifts || []).forEach((gift) => {
+    const row = gift as { id: string; gift_number?: string | null };
+    targetDisplayIdMap[row.id] = row.gift_number || `${row.id.substring(0, 8)}...`;
+  });
+  [...new Set(giftIds)].forEach((id) => {
+    if (!targetDisplayIdMap[id]) targetDisplayIdMap[id] = `${id.substring(0, 8)}...`;
+  });
 
   return {
     records: enrichedRecords,
     legacyItems: enrichedRecords.map(r => convertToLegacyItem(r, resolveMaps, employeeMap, targetDisplayIdMap)),
-    totalCount: count ?? 0,
+    totalCount: result.totalCount ?? 0,
   };
 }
 
-async function fetchPendingAuditCount(): Promise<number> {
-  const { count, error } = await supabase
-    .from('audit_records')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'pending');
-  if (error) return 0;
-  return count ?? 0;
+async function fetchPendingAuditCount(tenantId?: string | null): Promise<number> {
+  try {
+    const { getPendingAuditCountApi } = await import('@/api/data');
+    return await getPendingAuditCountApi(tenantId);
+  } catch {
+    return 0;
+  }
 }
 
 export function useAuditRecords(params?: AuditRecordsFetchParams) {
   const { employee } = useAuth();
+  const { viewingTenantId } = useTenantView() || {};
   const queryClient = useQueryClient();
+  const effectiveTenantId = employee?.is_platform_super_admin
+    ? (viewingTenantId || null)
+    : (viewingTenantId || employee?.tenant_id || null);
 
   const { data, isLoading: loading } = useQuery({
-    queryKey: ['audit-records', params?.page, params?.pageSize, params?.status, params?.dateFrom, params?.dateTo],
-    queryFn: () => fetchAuditRecordsFromDb(params),
+    queryKey: ['audit-records', effectiveTenantId ?? '', params?.page, params?.pageSize, params?.status, params?.dateFrom, params?.dateTo],
+    queryFn: () => fetchAuditRecordsFromDb(params, effectiveTenantId),
     enabled: !!employee,
   });
 
@@ -390,8 +363,8 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
   const totalCount = data?.totalCount ?? 0;
 
   const { data: pendingCountData } = useQuery({
-    queryKey: ['audit-pending-count'],
-    queryFn: fetchPendingAuditCount,
+    queryKey: ['audit-pending-count', effectiveTenantId ?? ''],
+    queryFn: () => fetchPendingAuditCount(effectiveTenantId),
     enabled: !!employee,
   });
   const pendingCount = pendingCountData ?? 0;

@@ -87,21 +87,21 @@ import { getActiveCustomerSources } from "@/stores/customerSourceStore";
 import { getPointsLedger, initializePointsLedgerCache } from "@/stores/pointsLedgerStore";
 import { getPointsSettings } from "@/stores/pointsSettingsStore";
 import { getMemberLastResetTime } from "@/stores/pointsAccountStore";
-import { getMemberPointsSummary } from "@/services/pointsCalculationService";
+import { getMemberPointsSummary } from "@/services/points/pointsCalculationService";
 import { getExchangeRateFormData, saveExchangeRateFormData, ExchangeRateFormData } from "@/stores/exchangeRateFormStore";
 import RateCalculator from "@/components/RateCalculator";
 import { getCalculatorFormData, CalculatorId } from "@/hooks/useCalculatorStore";
 import { getCopySettings, generateEnglishCopyText } from "@/components/CopySettingsTab";
 import { getRewardAmountByPointsAndCurrency } from "@/stores/activitySettingsStore";
 import { useAuth } from "@/contexts/AuthContext";
-import { loadSharedData, saveSharedData, saveSharedDataSync, getSharedDataSync, subscribeToSharedData } from "@/services/sharedDataService";
+import { loadSharedData, saveSharedData, saveSharedDataSync, getSharedDataSync, subscribeToSharedData } from "@/services/finance/sharedDataService";
 import { getReferralRelations } from "@/stores/referralStore";
 import { BtcPriceConfig } from "@/components/BtcPriceSettingsCard";
 import BtcPriceSettingsCard from "@/components/BtcPriceSettingsCard";
 import { useIsMobile } from "@/hooks/use-mobile";
 import UsdtRatePanel, { UsdtLiveRates } from "@/components/UsdtRatePanel";
 import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
-import { fetchMerchantCards, fetchMerchantPaymentProviders, fetchMerchantVendors } from "@/services/merchantConfigReadService";
+import { fetchMerchantCards, fetchMerchantPaymentProviders, fetchMerchantVendors } from "@/services/finance/merchantConfigReadService";
 
 
 // 会员等级选项
@@ -1016,7 +1016,7 @@ export default function ExchangeRate() {
     
     if (cleanedValue.length >= 8) {
       try {
-        const { getMemberByPhoneForMyTenant } = await import('@/services/memberLookupService');
+        const { getMemberByPhoneForMyTenant } = await import('@/services/members/memberLookupService');
         const dbMember = await getMemberByPhoneForMyTenant(cleanedValue);
         
         if (dbMember) {
@@ -1379,7 +1379,7 @@ export default function ExchangeRate() {
   };
 
   // 异常检测状态
-  const [anomalyWarnings, setAnomalyWarnings] = useState<import('@/services/orderAnomalyDetection').AnomalyWarning[]>([]);
+  const [anomalyWarnings, setAnomalyWarnings] = useState<import('@/services/orders/orderAnomalyDetection').AnomalyWarning[]>([]);
   const [showAnomalyDialog, setShowAnomalyDialog] = useState(false);
   const pendingSubmitRef = useRef(false);
 
@@ -1432,7 +1432,7 @@ export default function ExchangeRate() {
 
     // 异常检测
     try {
-      const { detectOrderAnomalies } = await import('@/services/orderAnomalyDetection');
+      const { detectOrderAnomalies } = await import('@/services/orders/orderAnomalyDetection');
       const cardWorthVal = parseFloat(cardValue) * parseFloat(cardRate);
       let profitRateVal = 0;
       let foreignRateVal = 0;
@@ -1493,7 +1493,7 @@ export default function ExchangeRate() {
 
     // ===== 第一步：用 phone 再查一次会员（保证是最新）=====
     // 禁止使用缓存，必须从数据库实时查询
-    const { getMemberByPhoneForMyTenant } = await import('@/services/memberLookupService');
+    const { getMemberByPhoneForMyTenant } = await import('@/services/members/memberLookupService');
     const dbMember = await getMemberByPhoneForMyTenant(phoneNumber);
 
     let memberId: string | undefined;

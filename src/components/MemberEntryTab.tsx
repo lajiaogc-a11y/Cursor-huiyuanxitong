@@ -24,8 +24,9 @@ import { useMembers, Member } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
 import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
 import { useMemberEntryFormPersistence, generateMemberCode } from "@/hooks/useMemberEntryFormPersistence";
-import { supabase } from "@/integrations/supabase/client";
 import { logOperation } from "@/stores/auditLogStore";
+import { listCardsApi } from "@/services/giftcards/giftcardsApiService";
+import { getCustomerSourcesApi } from "@/api/data";
 
 // 会员等级选项
 const memberLevels = ["A", "B", "C", "D"];
@@ -75,15 +76,12 @@ export default function MemberEntryTab() {
   // 加载卡片列表
   useEffect(() => {
     const fetchCards = async () => {
-      const { data, error } = await supabase
-        .from('cards')
-        .select('id, name, sort_order')
-        .eq('status', 'active')
-        .order('sort_order', { ascending: true, nullsFirst: false })
-        .order('name', { ascending: true });
-      
-      if (!error && data) {
-        setCardsList(data.map(card => ({ id: card.id, name: card.name })));
+      try {
+        const data = await listCardsApi('active');
+        setCardsList(data.map((card) => ({ id: card.id, name: card.name })));
+      } catch (error) {
+        console.error('Failed to load cards:', error);
+        setCardsList([]);
       }
     };
     fetchCards();
@@ -92,15 +90,16 @@ export default function MemberEntryTab() {
   // 加载客户来源
   useEffect(() => {
     const fetchSources = async () => {
-      const { data, error } = await supabase
-        .from('customer_sources')
-        .select('id, name, sort_order')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true })
-        .order('name', { ascending: true });
-      
-      if (!error && data) {
-        setCustomerSources(data.map(s => ({ id: s.id, name: s.name })));
+      try {
+        const data = await getCustomerSourcesApi();
+        setCustomerSources(
+          data
+            .filter((source) => source.is_active)
+            .map((source) => ({ id: source.id, name: source.name }))
+        );
+      } catch (error) {
+        console.error('Failed to load customer sources:', error);
+        setCustomerSources([]);
       }
     };
     fetchSources();

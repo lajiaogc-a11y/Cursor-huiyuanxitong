@@ -51,16 +51,40 @@ export class ErrorBoundary extends Component<Props, ErrorBoundaryState> {
     this.reportError(error, errorInfo);
   }
 
+  private createErrorId() {
+    const stamp = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
+    const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+    return `ERR-${stamp}-${rand}`;
+  }
+
   private async reportError(error: Error, errorInfo: React.ErrorInfo) {
     try {
       const { supabase } = await import('@/integrations/supabase/client');
+      const errorId = this.createErrorId();
+      let employeeId: string | null = null;
+
+      try {
+        const { getCurrentUserApi } = await import('@/services/auth/authApiService');
+        const authUser = await getCurrentUserApi();
+        employeeId = authUser?.id ?? null;
+      } catch {
+        // ignore fetch failure
+      }
+
       await supabase.from('error_reports' as any).insert({
+        error_id: errorId,
         error_message: error.message?.substring(0, 2000) || 'Unknown error',
         error_stack: error.stack?.substring(0, 5000) || null,
         component_stack: errorInfo.componentStack?.substring(0, 5000) || null,
         url: window.location.href,
         user_agent: navigator.userAgent,
+        employee_id: employeeId,
+        metadata: {
+          source: 'ErrorBoundary',
+          pathname: window.location.pathname,
+        },
       });
+      console.warn('[ErrorBoundary] Reported error id:', errorId);
     } catch (e) {
       // Silently fail - don't cause more errors
       console.warn('Failed to report error:', e);

@@ -2,7 +2,7 @@
 // 使用数据库 operation_logs 表作为唯一数据源
 
 import { supabase } from '@/integrations/supabase/client';
-import { getCurrentOperatorSync, OperatorInfo } from '@/services/operatorService';
+import { getCurrentOperatorSync, OperatorInfo } from '@/services/members/operatorService';
 export type OperationType = 'create' | 'update' | 'cancel' | 'restore' | 'delete' | 'audit' | 'reject' | 'status_change';
 
 export type ModuleType = 
@@ -186,6 +186,7 @@ export interface AuditLogsPageFilters {
   dateRange?: { start: Date | null; end: Date | null };
   restoreStatus?: string;
   searchTerm?: string;
+  tenantId?: string | null;
 }
 
 export async function fetchAuditLogsPage(
@@ -194,27 +195,69 @@ export async function fetchAuditLogsPage(
   filters?: AuditLogsPageFilters
 ): Promise<{ logs: AuditLogEntry[]; totalCount: number }> {
   try {
+    // 优先使用 API（绕过 RLS，Supabase 客户端无 auth.uid() 导致 RLS 返回空）
+    try {
+      const { getOperationLogsApi } = await import('@/services/data/dataApiService');
+      const result = await getOperationLogsApi({
+        page,
+        pageSize,
+        module: filters?.module,
+        operationType: filters?.operationType,
+        operatorAccount: filters?.operatorAccount,
+        restoreStatus: filters?.restoreStatus,
+        searchTerm: filters?.searchTerm,
+        tenantId: filters?.tenantId,
+        dateStart: filters?.dateRange?.start?.toISOString(),
+        dateEnd: filters?.dateRange?.end
+          ? (() => {
+              const end = new Date(filters!.dateRange!.end!);
+              end.setHours(23, 59, 59, 999);
+              return end.toISOString();
+            })()
+          : undefined,
+      });
+      const rawLogs = result.logs || [];
+      const logs: AuditLogEntry[] = rawLogs.map((r: Record<string, unknown>) => {
+        const row = r as Record<string, unknown>;
+        return {
+          id: (row.id as string) || '',
+          timestamp: (row.timestamp as string) || '',
+          operatorId: (row.operatorId ?? row.operator_id) as string | null,
+          operatorAccount: (row.operatorAccount ?? row.operator_account) as string || '',
+          operatorRole: (row.operatorRole ?? row.operator_role) as string || '',
+          module: (row.module as ModuleType) || 'order_management',
+          objectId: (row.objectId ?? row.object_id) as string || '',
+          objectDescription: (row.objectDescription ?? row.object_description) as string | undefined,
+          operationType: (row.operationType ?? row.operation_type) as OperationType || 'update',
+          beforeData: row.beforeData ?? row.before_data,
+          afterData: row.afterData ?? row.after_data,
+          ipAddress: (row.ipAddress ?? row.ip_address) as string || 'local',
+          isRestored: !!(row.isRestored ?? row.is_restored ?? false),
+          restoredBy: (row.restoredBy ?? row.restored_by) as string | undefined,
+          restoredAt: (row.restoredAt ?? row.restored_at) as string | undefined,
+        };
+      });
+      return { logs, totalCount: result.totalCount ?? 0 };
+    } catch (apiErr) {
+      console.warn('[AuditLog] API fetch failed:', apiErr);
+      if (typeof window !== 'undefined') {
+        try {
+          const { toast } = await import('sonner');
+          toast.error('操作日志加载失败，请确保后端服务已启动（cd server && npm run dev）');
+        } catch (_) {}
+      }
+      throw apiErr;
+    }
     let query = supabase
       .from('operation_logs')
       .select('*', { count: 'exact' })
       .order('timestamp', { ascending: false });
-
     if (filters) {
-      if (filters.module && filters.module !== 'all') {
-        query = query.eq('module', filters.module);
-      }
-      if (filters.operationType && filters.operationType !== 'all') {
-        query = query.eq('operation_type', filters.operationType);
-      }
-      if (filters.operatorAccount && filters.operatorAccount !== 'all') {
-        query = query.eq('operator_account', filters.operatorAccount);
-      }
-      if (filters.restoreStatus && filters.restoreStatus !== 'all') {
-        query = query.eq('is_restored', filters.restoreStatus === 'restored');
-      }
-      if (filters.dateRange?.start) {
-        query = query.gte('timestamp', filters.dateRange.start.toISOString());
-      }
+      if (filters.module && filters.module !== 'all') query = query.eq('module', filters.module);
+      if (filters.operationType && filters.operationType !== 'all') query = query.eq('operation_type', filters.operationType);
+      if (filters.operatorAccount && filters.operatorAccount !== 'all') query = query.eq('operator_account', filters.operatorAccount);
+      if (filters.restoreStatus && filters.restoreStatus !== 'all') query = query.eq('is_restored', filters.restoreStatus === 'restored');
+      if (filters.dateRange?.start) query = query.gte('timestamp', filters.dateRange.start.toISOString());
       if (filters.dateRange?.end) {
         const end = new Date(filters.dateRange.end);
         end.setHours(23, 59, 59, 999);
@@ -222,19 +265,14 @@ export async function fetchAuditLogsPage(
       }
       if (filters.searchTerm?.trim()) {
         const term = `%${filters.searchTerm.trim()}%`;
-        query = query.or(
-          `operator_account.ilike.${term},object_id.ilike.${term},object_description.ilike.${term}`
-        );
+        query = query.or(`operator_account.ilike.${term},object_id.ilike.${term},object_description.ilike.${term}`);
       }
     }
-
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
     const { data, error, count } = await query.range(from, to);
-
     if (error) throw error;
-
-    const logs: AuditLogEntry[] = (data || []).map(r => ({
+    const logs: AuditLogEntry[] = (data || []).map((r) => ({
       id: r.id,
       timestamp: r.timestamp || '',
       operatorId: r.operator_id,
@@ -251,11 +289,10 @@ export async function fetchAuditLogsPage(
       restoredBy: r.restored_by || undefined,
       restoredAt: r.restored_at || undefined,
     }));
-
     return { logs, totalCount: count ?? 0 };
   } catch (error) {
     console.error('[AuditLog] Failed to fetch page:', error);
-    return { logs: [], totalCount: 0 };
+    throw error;
   }
 }
 
@@ -295,37 +332,32 @@ export async function appendAuditLog(
   const operator = getCurrentOperator();
   
   try {
-    const { data, error } = await supabase
-      .from('operation_logs')
-      .insert({
-        operator_id: entry.operatorId || null,
-        operator_account: entry.operatorAccount || operator.account,
-        operator_role: entry.operatorRole || operator.role,
-        module: entry.module,
-        operation_type: entry.operationType,
-        object_id: entry.objectId,
-        object_description: entry.objectDescription || null,
-        before_data: entry.beforeData,
-        after_data: entry.afterData,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
+    const { postOperationLog } = await import('@/api/data');
+    await postOperationLog({
+      operatorId: entry.operatorId || null,
+      operatorAccount: entry.operatorAccount || operator.account,
+      operatorRole: entry.operatorRole || operator.role,
+      module: entry.module,
+      operationType: entry.operationType,
+      objectId: entry.objectId,
+      objectDescription: entry.objectDescription || null,
+      beforeData: entry.beforeData,
+      afterData: entry.afterData,
+    });
 
     const newEntry: AuditLogEntry = {
-      id: data.id,
-      timestamp: data.timestamp || new Date().toISOString(),
-      operatorId: data.operator_id,
-      operatorAccount: data.operator_account,
-      operatorRole: data.operator_role,
-      module: data.module as ModuleType,
-      objectId: data.object_id || entry.objectId,
-      objectDescription: data.object_description || entry.objectDescription,
-      operationType: data.operation_type as OperationType,
-      beforeData: data.before_data,
-      afterData: data.after_data,
-      ipAddress: data.ip_address || 'local',
+      id: `LOG_${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      operatorId: entry.operatorId || null,
+      operatorAccount: entry.operatorAccount || operator.account,
+      operatorRole: entry.operatorRole || operator.role,
+      module: entry.module,
+      objectId: entry.objectId,
+      objectDescription: entry.objectDescription,
+      operationType: entry.operationType,
+      beforeData: entry.beforeData,
+      afterData: entry.afterData,
+      ipAddress: 'local',
     };
 
     // 更新缓存
@@ -379,25 +411,20 @@ export function appendAuditLogSync(
   // 添加到缓存
   logsCache.unshift(newEntry);
 
-  // 异步写入数据库
-  supabase
-    .from('operation_logs')
-    .insert({
-      operator_id: entry.operatorId || null,
-      operator_account: newEntry.operatorAccount,
-      operator_role: newEntry.operatorRole,
+  // 异步写入数据库（通过后端 API 绕过 RLS）
+  import('@/api/data').then(({ postOperationLog }) => {
+    postOperationLog({
+      operatorId: entry.operatorId || null,
+      operatorAccount: newEntry.operatorAccount,
+      operatorRole: newEntry.operatorRole,
       module: entry.module,
-      operation_type: entry.operationType,
-      object_id: entry.objectId,
-      object_description: entry.objectDescription || null,
-      before_data: entry.beforeData,
-      after_data: entry.afterData,
-    })
-    .then(({ error }) => {
-      if (error) {
-        console.error('[AuditLog] Failed to save log to database:', error);
-      }
-    });
+      operationType: entry.operationType,
+      objectId: entry.objectId,
+      objectDescription: entry.objectDescription || null,
+      beforeData: entry.beforeData,
+      afterData: entry.afterData,
+    }).catch((err) => console.error('[AuditLog] Failed to save log:', err));
+  });
 
   return newEntry;
 }

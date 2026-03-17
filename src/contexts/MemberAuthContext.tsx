@@ -1,9 +1,11 @@
 /**
  * 会员端认证上下文
  * 与员工 AuthContext 隔离，会员通过手机号+密码登录
+ * 数据通过 @/api/memberAuth 获取，禁止直接访问 Supabase
  */
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { memberSignIn, memberSetPassword, memberGetInfo } from '@/api/memberAuth';
+import { getMaintenanceModeStatusResult } from '@/services/maintenanceModeService';
 
 export interface MemberInfo {
   id: string;
@@ -12,6 +14,7 @@ export interface MemberInfo {
   nickname: string | null;
   member_level: string | null;
   wallet_balance: number;
+  tenant_id?: string | null;
 }
 
 const STORAGE_KEY = 'member_session';
@@ -54,37 +57,25 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (phone: string, password: string) => {
     try {
-      const { data, error } = await supabase.rpc('verify_member_password', {
-        p_phone: phone.trim(),
-        p_password: password,
-      });
-      if (error) {
-        return { success: false, message: error.message };
-      }
-      const result = data as { success: boolean; error?: string; member?: MemberInfo };
-      if (!result.success) {
-        const msg = result.error === 'MEMBER_NOT_FOUND' ? 'Member not found'
-          : result.error === 'NO_PASSWORD_SET' ? 'Please contact admin to set your password'
-          : result.error === 'WRONG_PASSWORD' ? 'Wrong password'
-          : result.error || 'Login failed';
-        return { success: false, message: msg };
-      }
+      const result = await memberSignIn(phone, password);
+      if (!result.success) return { success: false, message: result.message };
       if (result.member) {
-        const m: MemberInfo = {
-          id: result.member.id,
-          member_code: result.member.member_code,
-          phone_number: result.member.phone_number,
-          nickname: result.member.nickname ?? null,
-          member_level: result.member.member_level ?? null,
-          wallet_balance: Number(result.member.wallet_balance) || 0,
-        };
-        setMember(m);
-        saveSession(m);
+        const tenantId = result.member.tenant_id ?? null;
+        const maintenanceStatus = await getMaintenanceModeStatusResult(tenantId);
+        if (maintenanceStatus.ok && maintenanceStatus.data.effectiveEnabled) {
+          const message =
+            maintenanceStatus.data.scope === 'global'
+              ? (maintenanceStatus.data.globalMessage || 'System is under maintenance, please try later')
+              : (maintenanceStatus.data.tenantMessage || 'Tenant is under maintenance, please try later');
+          return { success: false, message };
+        }
+        setMember(result.member);
+        saveSession(result.member);
         return { success: true, message: 'Welcome back!' };
       }
       return { success: false, message: 'Invalid response' };
-    } catch (e: any) {
-      return { success: false, message: e?.message || 'Network error' };
+    } catch (e: unknown) {
+      return { success: false, message: (e as Error)?.message || 'Network error' };
     }
   }, []);
 
@@ -95,41 +86,14 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
 
   const setPassword = useCallback(async (oldPassword: string, newPassword: string) => {
     if (!member) return { success: false, message: 'Not logged in' };
-    try {
-      const { data, error } = await supabase.rpc('set_member_password', {
-        p_member_id: member.id,
-        p_old_password: oldPassword || null,
-        p_new_password: newPassword,
-      });
-      if (error) return { success: false, message: error.message };
-      const result = data as { success: boolean; error?: string };
-      if (!result.success) {
-        const msg = result.error === 'WRONG_PASSWORD' ? 'Wrong password'
-          : result.error === 'PASSWORD_TOO_SHORT' ? 'Password must be at least 6 characters'
-          : result.error || 'Failed';
-        return { success: false, message: msg };
-      }
-      return { success: true, message: 'Password updated' };
-    } catch (e: any) {
-      return { success: false, message: e?.message || 'Network error' };
-    }
+    return memberSetPassword(member.id, oldPassword, newPassword);
   }, [member]);
 
   const refreshMember = useCallback(async () => {
     if (!member) return;
     try {
-      const { data, error } = await supabase.rpc('member_get_info', { p_member_id: member.id });
-      if (error) return;
-      const r = data as { success?: boolean; member?: MemberInfo };
-      if (r?.success && r?.member) {
-        const m: MemberInfo = {
-          id: r.member.id,
-          member_code: r.member.member_code,
-          phone_number: r.member.phone_number,
-          nickname: r.member.nickname ?? null,
-          member_level: r.member.member_level ?? null,
-          wallet_balance: Number(r.member.wallet_balance) || 0,
-        };
+      const m = await memberGetInfo(member.id);
+      if (m) {
         setMember(m);
         saveSession(m);
       }

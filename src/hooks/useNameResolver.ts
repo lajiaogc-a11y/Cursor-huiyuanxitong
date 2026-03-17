@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getActivityTypesApi } from '@/api/data';
 import {
   initNameResolver,
   isReady,
@@ -25,7 +26,7 @@ import {
   EmployeeInfo,
   ActivityTypeInfo,
   MerchantInfo,
-} from '@/services/nameResolver';
+} from '@/services/members/nameResolver';
 
 // 导出类型
 export type { EmployeeInfo, ActivityTypeInfo, MerchantInfo };
@@ -115,12 +116,8 @@ export function useNameResolvers() {
   
   useEffect(() => {
     const loadActivityTypes = async () => {
-      const { data, error } = await supabase
-        .from('activity_types')
-        .select('id, value, label, is_active')
-        .order('sort_order', { ascending: true });
-      
-      if (!error && data) {
+      try {
+        const data = await getActivityTypesApi();
         const map = new Map<string, { value: string; label: string; isActive: boolean }>();
         data.forEach(type => {
           map.set(type.value, {
@@ -130,6 +127,8 @@ export function useNameResolvers() {
           });
         });
         setActivityTypeMap(map);
+      } catch (error) {
+        console.error('Failed to load activity types:', error);
       }
     };
     
@@ -179,11 +178,11 @@ export {
   getVendorId,
   getProviderId,
   refreshAll as refreshNameResolvers,
-} from '@/services/nameResolver';
+} from '@/services/members/nameResolver';
 
 // 兼容性别名
 export { 
   initNameResolver as initMerchantNameResolver,
   initNameResolver as initializeAllNameResolvers,
   resolveProviderName as getPaymentProviderNameById,
-} from '@/services/nameResolver';
+} from '@/services/members/nameResolver';

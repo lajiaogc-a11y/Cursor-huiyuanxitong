@@ -11,7 +11,7 @@ import {
   restorePointsOnOrderRestore,
   getPointsTypeLabel,
   type CreatePointsParams,
-} from '@/services/pointsService';
+} from '@/services/points/pointsService';
 
 export type PointsStatus = 'issued' | 'reversed';
 

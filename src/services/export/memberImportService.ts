@@ -2,8 +2,12 @@
  * 会员导入服务
  */
 
-import { supabase } from '@/integrations/supabase/client';
 import { cleanPhoneNumber } from './utils';
+import {
+  listMembersApi,
+  bulkCreateMembersApi,
+  updateMemberByPhoneApi,
+} from '@/services/members/membersApiService';
 
 function generateMemberCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -60,18 +64,11 @@ export async function prepareMemberRecordsForBatch(
 
   const existingMap = new Map<string, { id: string; member_code: string }>();
   if (phoneNumbers.length > 0) {
-    const BATCH_SIZE = 100;
-    for (let i = 0; i < phoneNumbers.length; i += BATCH_SIZE) {
-      const batch = phoneNumbers.slice(i, i + BATCH_SIZE);
-      const { data } = await supabase
-        .from('members')
-        .select('id, member_code, phone_number')
-        .in('phone_number', batch);
-
-      if (data) {
-        data.forEach(m => existingMap.set(m.phone_number, { id: m.id, member_code: m.member_code }));
-      }
-    }
+    const phoneSet = new Set(phoneNumbers);
+    const allMembers = await listMembersApi({ limit: 10000 });
+    allMembers
+      .filter(m => phoneSet.has(m.phone_number))
+      .forEach(m => existingMap.set(m.phone_number, { id: m.id, member_code: m.member_code }));
   }
 
   for (const { index, record, phone } of cleanedRecords) {
@@ -128,23 +125,47 @@ export async function batchImportMembers(
   const INSERT_BATCH_SIZE = 50;
   for (let i = 0; i < toInsert.length; i += INSERT_BATCH_SIZE) {
     const batch = toInsert.slice(i, i + INSERT_BATCH_SIZE);
-    const { error } = await supabase
-      .from('members')
-      .insert(batch as any)
-      .select('id');
-
-    if (error) {
+    const items = batch.map((r: Record<string, any>) => ({
+      phone_number: r.phone_number,
+      member_code: r.member_code,
+      member_level: r.member_level,
+      currency_preferences: r.currency_preferences,
+      bank_card: r.bank_card,
+      common_cards: r.common_cards,
+      customer_feature: r.customer_feature,
+      remark: r.remark,
+      source_id: r.source_id ?? null,
+      creator_id: r.creator_id ?? null,
+    }));
+    let created: { id: string }[] | null = null;
+    try {
+      created = await bulkCreateMembersApi(items);
+    } catch {
+      created = null;
+    }
+    if (created && created.length > 0) {
+      result.imported += created.length;
+    } else {
       for (const record of batch) {
-        const { error: singleError } = await supabase.from('members').insert(record as any);
-        if (singleError) {
-          result.errors.push(`电话 ${record.phone_number}: ${singleError.message}`);
-          result.skipped++;
-        } else {
+        const single = await bulkCreateMembersApi([{
+          phone_number: record.phone_number,
+          member_code: record.member_code,
+          member_level: record.member_level,
+          currency_preferences: record.currency_preferences,
+          bank_card: record.bank_card,
+          common_cards: record.common_cards,
+          customer_feature: record.customer_feature,
+          remark: record.remark,
+          source_id: record.source_id ?? null,
+          creator_id: record.creator_id ?? null,
+        }]);
+        if (single && single.length > 0) {
           result.imported++;
+        } else {
+          result.errors.push(`电话 ${record.phone_number}: 创建失败`);
+          result.skipped++;
         }
       }
-    } else {
-      result.imported += batch.length;
     }
   }
 
@@ -152,10 +173,22 @@ export async function batchImportMembers(
   for (let i = 0; i < toUpdate.length; i += UPDATE_PARALLEL_SIZE) {
     const batch = toUpdate.slice(i, i + UPDATE_PARALLEL_SIZE);
     const updateResults = await Promise.all(
-      batch.map(({ phone, data }) =>
-        supabase.from('members').update(data as any).eq('phone_number', phone)
-          .then(({ error }) => ({ phone, error }))
-      )
+      batch.map(async ({ phone, data }) => {
+        try {
+          const body: Record<string, unknown> = {};
+          if (data.member_level !== undefined) body.member_level = data.member_level;
+          if (data.currency_preferences !== undefined) body.currency_preferences = data.currency_preferences;
+          if (data.bank_card !== undefined) body.bank_card = data.bank_card;
+          if (data.common_cards !== undefined) body.common_cards = data.common_cards;
+          if (data.customer_feature !== undefined) body.customer_feature = data.customer_feature;
+          if (data.remark !== undefined) body.remark = data.remark;
+          if (data.source_id !== undefined) body.source_id = data.source_id;
+          const updated = await updateMemberByPhoneApi(phone, body);
+          return { phone, error: updated ? null : new Error('更新失败') };
+        } catch (e) {
+          return { phone, error: e as Error };
+        }
+      })
     );
 
     for (const { phone, error } of updateResults) {

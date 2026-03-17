@@ -50,6 +50,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import PointsTransactionsTab from "@/components/PointsTransactionsTab";
 import MemberManagementContent from "@/components/member/MemberManagementContent";
 import MemberActivityDataContent from "@/components/member/MemberActivityDataContent";
+import { useTenantView } from "@/contexts/TenantViewContext";
 
 import { getFeeSettings, getUsdtFee } from "@/stores/systemSettings";
 import { useAuth } from "@/contexts/AuthContext";
@@ -60,7 +61,8 @@ import { useCurrencies } from "@/components/CurrencySelect";
 import { usePaymentProviders } from "@/hooks/useMerchantConfig";
 import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
 import { useAuditWorkflow } from "@/hooks/useAuditWorkflow";
-import { notifyDataMutation } from "@/services/dataRefreshManager";
+import { notifyDataMutation } from "@/services/system/dataRefreshManager";
+import { safeNumber } from "@/lib/safeCalc";
 
 interface ActivityRecord {
   id: string;
@@ -116,21 +118,19 @@ const calculateGiftValue = (currency: string, amount: string, rate: number, fee:
 };
 
 // 从 Supabase 数据库加载活动赠送记录
-const loadActivityRecordsFromDB = async (): Promise<ActivityRecord[]> => {
+const loadActivityRecordsFromDB = async (tenantId?: string | null): Promise<ActivityRecord[]> => {
   try {
     // 导入名称解析器
-    const { getEmployeeNameById } = await import('@/services/nameResolver');
-    
-    const { data, error } = await supabase
-      .from('activity_gifts')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    
-    return (data || []).map((gift: any, index: number) => {
-      const fee = gift.fee !== undefined ? gift.fee : calculateFee(gift.currency, gift.amount);
-      const giftValue = gift.gift_value !== undefined ? gift.gift_value : calculateGiftValue(gift.currency, String(gift.amount), gift.rate, fee);
+    const { getEmployeeNameById } = await import('@/services/members/nameResolver');
+    const { getActivityDataApi } = await import('@/api/data');
+    const activityData = await getActivityDataApi(tenantId);
+
+    return (activityData.gifts || []).map((gift: any, index: number) => {
+      const rate = safeNumber(gift.rate);
+      const fee = gift.fee !== undefined ? safeNumber(gift.fee) : calculateFee(gift.currency, String(gift.amount ?? '0'));
+      const giftValue = gift.gift_value !== undefined
+        ? safeNumber(gift.gift_value)
+        : calculateGiftValue(gift.currency, String(gift.amount ?? '0'), rate, fee);
       
       // 录入人姓名：只通过 creator_id 从员工表实时获取，不使用 name 快照
       const recorder = gift.creator_id 
@@ -144,12 +144,12 @@ const loadActivityRecordsFromDB = async (): Promise<ActivityRecord[]> => {
         time: new Date(gift.created_at).toLocaleString("zh-CN"),
         currency: gift.currency,
         amount: String(gift.amount),
-        rate: gift.rate,
+        rate,
         phone: gift.phone_number,
         paymentAgent: gift.payment_agent || "",
         giftType: gift.gift_type || "",
-        fee,
-        giftValue,
+        fee: safeNumber(fee),
+        giftValue: safeNumber(giftValue),
         remark: gift.remark || "",
         recorder,
         creatorId: gift.creator_id || "",
@@ -162,10 +162,10 @@ const loadActivityRecordsFromDB = async (): Promise<ActivityRecord[]> => {
   }
 };
 
-// 更新活动赠送记录（支持更新录入人）
 const updateActivityRecordInDB = async (id: string, record: Partial<ActivityRecord>, creatorId?: string): Promise<boolean> => {
   try {
-    const updateData: any = {
+    const { patchActivityGiftApi } = await import('@/api/data');
+    const updateData: Record<string, unknown> = {
       currency: record.currency,
       amount: parseFloat(record.amount || '0'),
       rate: record.rate,
@@ -176,18 +176,11 @@ const updateActivityRecordInDB = async (id: string, record: Partial<ActivityReco
       gift_value: record.giftValue,
       remark: record.remark,
     };
-    
-    // 只有传入了 creatorId 时才更新（总管理员修改录入人）
     if (creatorId !== undefined) {
       updateData.creator_id = creatorId || null;
     }
-    
-    const { error } = await supabase
-      .from('activity_gifts')
-      .update(updateData)
-      .eq('id', id);
-
-    if (error) throw error;
+    const updated = await patchActivityGiftApi(id, updateData);
+    if (!updated) throw new Error('update failed');
     return true;
   } catch (error) {
     console.error('Failed to update activity gift:', error);
@@ -210,6 +203,8 @@ export default function ActivityReports() {
   const tabFromUrl = TAB_MAP[searchParams.get("tab") || ""] || "members";
   const { t } = useLanguage();
   const { isAdmin, employee } = useAuth();
+  const { viewingTenantId } = useTenantView() || {};
+  const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
@@ -233,36 +228,34 @@ export default function ActivityReports() {
   const [recordToDelete, setRecordToDelete] = useState<ActivityRecord | null>(null);
   // react-query cached data
   const { data: records = [] } = useQuery({
-    queryKey: ['activity-records'],
-    queryFn: loadActivityRecordsFromDB,
+    queryKey: ['activity-records', effectiveTenantId ?? ''],
+    queryFn: () => loadActivityRecordsFromDB(effectiveTenantId),
     staleTime: 5 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
 
   const { data: employeeList = [] } = useQuery({
-    queryKey: ['activity-report-employees'],
+    queryKey: ['activity-report-employees', effectiveTenantId ?? ''],
     staleTime: 5 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('employees')
-        .select('id, real_name')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []).map(e => ({ id: e.id, realName: e.real_name }));
+      const { listEmployeesApi } = await import('@/api/employees');
+      const data = await listEmployeesApi(effectiveTenantId ? { tenant_id: effectiveTenantId } : undefined);
+      return data
+        .filter((e) => e.status === 'active')
+        .map((e) => ({ id: e.id, realName: e.real_name }));
     },
   });
 
   const { data: membersMap = new Map<string, string>() } = useQuery({
-    queryKey: ['activity-report-members-map'],
+    queryKey: ['activity-report-members-map', effectiveTenantId ?? ''],
     staleTime: 5 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      const { data } = await supabase.from('members').select('phone_number, member_code');
+      const data = await import('@/services/members/membersApiService').then(m => m.listMembersApi({ tenant_id: effectiveTenantId || undefined, limit: 10000 }));
       const map = new Map<string, string>();
       (data || []).forEach(m => map.set(m.phone_number, m.member_code));
       return map;
@@ -402,62 +395,44 @@ const [editFormData, setEditFormData] = useState({
   const handleConfirmDelete = async () => {
     if (recordToDelete) {
       try {
-        // 先获取完整记录用于操作日志和余额变动
-        const { data: giftData } = await supabase
-          .from('activity_gifts')
-          .select('*')
-          .eq('id', recordToDelete.id)
-          .single();
-        
-        // 调用事务性 RPC 删除活动赠送并退回积分
-        const { data: result, error } = await supabase.rpc('delete_activity_gift_and_restore', {
-          p_gift_id: recordToDelete.id
-        });
-        
-        if (error) {
-          console.error('Delete RPC error:', error);
-          toast.error(t(`删除失败: ${error.message}`, `Delete failed: ${error.message}`));
+        const { deleteActivityGiftApi } = await import('@/api/data');
+        const result = await deleteActivityGiftApi(recordToDelete.id, effectiveTenantId);
+        const giftData = result.gift as Record<string, any> | null;
+
+        if (!giftData) {
+          toast.error(t("删除失败", "Delete failed"));
         } else {
-          // 类型断言处理 RPC 返回值
-          const rpcResult = result as { success: boolean; error?: string; restored_points?: number } | null;
-          
-          if (rpcResult && !rpcResult.success) {
-            toast.error(t(`删除失败: ${rpcResult.error}`, `Delete failed: ${rpcResult.error}`));
+          // 记录余额变动日志（撤回赠送支出）
+          if (giftData.payment_agent && Number(giftData.gift_value) > 0) {
+            const { logGiftDeleteBalanceChange } = await import('@/services/finance/balanceLogService');
+            logGiftDeleteBalanceChange({
+              providerName: giftData.payment_agent,
+              giftValue: Number(giftData.gift_value),
+              giftId: recordToDelete.id,
+              giftCreatedAt: giftData.created_at,
+              operatorId: employee?.id,
+              operatorName: employee?.real_name,
+            }).catch(err => console.error('[handleConfirmDelete] Balance log failed:', err));
+          }
+
+          const { logOperation } = await import('@/stores/auditLogStore');
+          logOperation(
+            'activity_gift',
+            'delete',
+            recordToDelete.id,
+            giftData,
+            null,
+            `删除活动赠送: ${recordToDelete.phone} - ${recordToDelete.currency} ${recordToDelete.amount}`
+          );
+
+          await queryClient.invalidateQueries({ queryKey: ['activity-records'] });
+          notifyDataMutation({ table: 'activity_gifts', operation: 'DELETE', source: 'manual' }).catch(console.error);
+          notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+          const restoredPoints = result.restored_points || 0;
+          if (restoredPoints > 0) {
+            toast.success(t(`已删除并退回 ${restoredPoints} 积分`, `Deleted and restored ${restoredPoints} points`));
           } else {
-            // 记录余额变动日志（撤回赠送支出）
-            if (giftData && giftData.payment_agent && giftData.gift_value > 0) {
-              const { logGiftDeleteBalanceChange } = await import('@/services/balanceLogService');
-              logGiftDeleteBalanceChange({
-                providerName: giftData.payment_agent,
-                giftValue: giftData.gift_value,
-                giftId: recordToDelete.id,
-                giftCreatedAt: giftData.created_at,
-                operatorId: employee?.id,
-                operatorName: employee?.real_name,
-              }).catch(err => console.error('[handleConfirmDelete] Balance log failed:', err));
-            }
-            
-            // 记录操作日志 - 使用完整的原始数据以支持恢复
-            const { logOperation } = await import('@/stores/auditLogStore');
-            logOperation(
-              'activity_gift',
-              'delete',
-              recordToDelete.id,
-              giftData, // 保存完整的原始数据用于恢复
-              null,
-              `删除活动赠送: ${recordToDelete.phone} - ${recordToDelete.currency} ${recordToDelete.amount}`
-            );
-            
-            await queryClient.invalidateQueries({ queryKey: ['activity-records'] });
-            notifyDataMutation({ table: 'activity_gifts', operation: 'DELETE', source: 'manual' }).catch(console.error);
-            notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
-            // 显示退回积分信息
-            const restoredPoints = rpcResult?.restored_points || 0;
-            if (restoredPoints > 0) {
-              toast.success(t(`已删除并退回 ${restoredPoints} 积分`, `Deleted and restored ${restoredPoints} points`));
-            } else {
-              toast.success(t("已删除", "Deleted"));
-            }
+            toast.success(t("已删除", "Deleted"));
           }
         }
       } catch (err) {
@@ -521,7 +496,7 @@ const [editFormData, setEditFormData] = useState({
         const oldGiftValue = editingRecord.giftValue || 0;
         if (editFormData.paymentAgent && (Math.abs(giftValue - oldGiftValue) > 0.01 || editFormData.paymentAgent !== editingRecord.paymentAgent)) {
           try {
-            const { logGiftUpdateBalanceChange, logGiftDeleteBalanceChange, logGiftBalanceChange } = await import('@/services/balanceLogService');
+            const { logGiftUpdateBalanceChange, logGiftDeleteBalanceChange, logGiftBalanceChange } = await import('@/services/finance/balanceLogService');
             
             if (editFormData.paymentAgent !== editingRecord.paymentAgent) {
               // 代付商家变更：旧商家回收 + 新商家支出
@@ -546,7 +521,7 @@ const [editFormData, setEditFormData] = useState({
                 });
                 // 新商家也需要检查 postResetAdjustment（赠送 created_at 在重置前）
                 if (editingRecord.createdAt) {
-                  const { applyPostResetAdjustmentIfNeeded } = await import('@/services/balanceLogService');
+                  const { applyPostResetAdjustmentIfNeeded } = await import('@/services/finance/balanceLogService');
                   await applyPostResetAdjustmentIfNeeded('payment_provider', editFormData.paymentAgent, editingRecord.createdAt, -giftValue);
                 }
               }

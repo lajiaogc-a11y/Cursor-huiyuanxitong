@@ -31,6 +31,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
 import {
   getCustomerSources,
+  initializeCustomerSourceCache,
   saveCustomerSources,
   addCustomerSource,
   updateCustomerSource,
@@ -49,10 +50,11 @@ export default function CustomerSourceSettingsTab() {
   const [editingName, setEditingName] = useState("");
 
   useEffect(() => {
-    loadSources();
+    void loadSources();
   }, []);
 
-  const loadSources = () => {
+  const loadSources = async () => {
+    await initializeCustomerSourceCache();
     const loaded = getCustomerSources();
     setSources(loaded.sort((a, b) => a.sortOrder - b.sortOrder));
   };
@@ -71,6 +73,7 @@ export default function CustomerSourceSettingsTab() {
     setIsAdding(true);
 
     try {
+      await initializeCustomerSourceCache();
       const latestSources = getCustomerSources();
       
       if (latestSources.some(s => s.name.toLowerCase() === trimmedName.toLowerCase())) {
@@ -84,7 +87,7 @@ export default function CustomerSourceSettingsTab() {
         logOperation('customer_source', 'create', result.id || null, null, { name: trimmedName }, `新增客户来源: ${trimmedName}`);
         
         setNewSourceName("");
-        loadSources();
+        await loadSources();
         toast.success(t("来源已添加", "Source added"));
       } else {
         toast.error(t("添加失败，该名称可能已存在", "Failed to add, name may already exist"));
@@ -117,14 +120,14 @@ export default function CustomerSourceSettingsTab() {
       return;
     }
 
-    updateCustomerSource(editingId!, { name: editingName.trim() });
+    await updateCustomerSource(editingId!, { name: editingName.trim() });
     
     const { logOperation } = await import('@/stores/auditLogStore');
     logOperation('customer_source', 'update', editingId!, { name: oldSource?.name }, { name: editingName.trim() }, `更新客户来源: ${editingName.trim()}`);
     
     setEditingId(null);
     setEditingName("");
-    loadSources();
+    await loadSources();
     toast.success(t("来源已更新", "Source updated"));
   };
 
@@ -134,8 +137,7 @@ export default function CustomerSourceSettingsTab() {
   };
 
   const handleToggleActive = (id: string, isActive: boolean) => {
-    updateCustomerSource(id, { isActive });
-    loadSources();
+    void updateCustomerSource(id, { isActive }).then(() => loadSources());
     toast.success(isActive ? t("来源已启用", "Source enabled") : t("来源已禁用", "Source disabled"));
   };
 
@@ -151,7 +153,7 @@ export default function CustomerSourceSettingsTab() {
     const { logOperation } = await import('@/stores/auditLogStore');
     logOperation('customer_source', 'delete', id, source, null, `删除客户来源: ${source?.name || id}`);
     
-    loadSources();
+    await loadSources();
     toast.success(t("来源已删除", "Source deleted"));
   };
 

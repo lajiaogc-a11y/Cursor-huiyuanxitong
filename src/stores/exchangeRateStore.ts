@@ -3,7 +3,7 @@
 // 迁移到数据库 - 使用 shared_data_store 表存储
 
 import { CurrencyCode } from "@/config/currencies";
-import { loadSharedData, saveSharedData, saveSharedDataSync, getSharedDataSync } from "@/services/sharedDataService";
+import { loadSharedData, saveSharedData, saveSharedDataSync, getSharedDataSync } from "@/services/finance/sharedDataService";
 
 // 汇率折扣系数
 const RATE_DISCOUNT_FACTOR = 0.98;
@@ -51,6 +51,11 @@ const DEFAULT_EXCHANGE_RATE_SETTINGS: ExchangeRateSettings = {
 
 // 内存缓存
 let settingsCache: ExchangeRateSettings | null = null;
+
+/** 数据变更时重置缓存（由 dataRefreshManager 在 shared_data_store 变更时调用） */
+export function resetExchangeRateCache(): void {
+  settingsCache = null;
+}
 
 // 获取汇率设置
 export function getExchangeRateSettings(): ExchangeRateSettings {

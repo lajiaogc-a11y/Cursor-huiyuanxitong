@@ -13,6 +13,7 @@ import { SubmissionErrorDialog } from "@/components/ui/submission-error-dialog";
 import { KeyboardShortcutsHelp } from "@/components/KeyboardShortcutsHelp";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSessionExpiration } from "@/hooks/useSessionExpiration";
+import { useGlobalErrorReporter } from "@/hooks/useGlobalErrorReporter";
 import { PageTransition } from "@/components/PageTransition";
 import { RouteProgressBar } from "@/components/RouteProgressBar";
 import { BackgroundUpdateIndicator } from "@/components/BackgroundUpdateIndicator";
@@ -30,16 +31,18 @@ export function MainLayout({ children }: MainLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 平台总管理员：任何非 /staff/admin/* 路径都强制回平台后台（硬锁定）
+  // 平台总管理员：任何非 /staff/admin/* 路径都强制回平台后台（已进入租户查看时允许访问 /staff/*）
+  const { isViewingTenant } = useTenantView() || {};
   const adminPaths = ["/staff/admin", "/staff/admin/tenants", "/staff/admin/tenant-view", "/staff/admin/settings"];
   useEffect(() => {
     if (
       employee?.is_platform_super_admin &&
-      !adminPaths.some((p) => location.pathname.startsWith(p))
+      !adminPaths.some((p) => location.pathname.startsWith(p)) &&
+      !isViewingTenant
     ) {
       navigate("/staff/admin/tenants", { replace: true });
     }
-  }, [employee?.is_platform_super_admin, location.pathname, navigate]);
+  }, [employee?.is_platform_super_admin, location.pathname, navigate, isViewingTenant]);
   const { layoutMode, forceDesktopLayout } = useLayout();
   const { t } = useLanguage();
   const isMobile = useIsMobile();
@@ -48,6 +51,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   // 全局快捷键和会话过期监听
   useKeyboardShortcuts();
   useSessionExpiration();
+  useGlobalErrorReporter(employee?.id ?? null);
   
   // Use mobile layout for mobile devices（除非强制电脑端）
   if (isMobile && !forceDesktopLayout) {

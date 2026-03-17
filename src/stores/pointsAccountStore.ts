@@ -2,7 +2,7 @@
 
 import { logOperation } from './auditLogStore';
 import { supabase } from '@/integrations/supabase/client';
-import { notifyDataMutation } from '@/services/dataRefreshManager';
+import { notifyDataMutation } from '@/services/system/dataRefreshManager';
 
 export interface PointsAccount {
   member_code: string;

@@ -1,8 +1,9 @@
 /**
  * 会员积分 Hook - 通过 RPC 获取，绕过 RLS
+ * 统一调用 points/memberPointsRpcService
  */
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getMemberPointsRpc } from "@/services/points/memberPointsRpcService";
 
 export function useMemberPoints(memberId: string | undefined) {
   const [points, setPoints] = useState(0);
@@ -16,15 +17,8 @@ export function useMemberPoints(memberId: string | undefined) {
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc("member_get_points", {
-        p_member_id: memberId,
-      });
-      if (error) {
-        setPoints(0);
-        return;
-      }
-      const r = data as { success?: boolean; points?: number };
-      setPoints(r?.success ? Number(r.points ?? 0) : 0);
+      const result = await getMemberPointsRpc(memberId);
+      setPoints(result.points);
     } catch {
       setPoints(0);
     } finally {
