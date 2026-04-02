@@ -139,8 +139,8 @@ function BannerContent({
             "line-clamp-2 max-w-full text-balance font-bold leading-[1.2] tracking-tight",
             "text-[clamp(1.05rem,3.8vw,1.5rem)]",
             isLight
-              ? "text-[hsl(var(--pu-m-text))] drop-shadow-[0_2px_14px_rgba(0,0,0,0.55)]"
-              : "text-[hsl(var(--pu-m-text))] drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)]",
+              ? "text-[hsl(var(--pu-m-text))] drop-shadow-[0_1px_2px_hsl(var(--pu-m-surface)/0.4)]"
+              : "text-[hsl(210_40%_98%)] drop-shadow-[0_2px_14px_rgba(0,0,0,0.45)]",
           )}
         >
           {title}
@@ -152,8 +152,8 @@ function BannerContent({
             "line-clamp-2 max-w-full text-pretty leading-snug",
             "text-[clamp(0.72rem,2.4vw,0.875rem)]",
             isLight
-              ? "text-[hsl(var(--pu-m-text)/0.92)] drop-shadow-[0_1px_10px_rgba(0,0,0,0.45)]"
-              : "text-[hsl(var(--pu-m-text)/0.88)] drop-shadow-[0_1px_8px_rgba(0,0,0,0.35)]",
+              ? "text-[hsl(var(--pu-m-text)/0.9)]"
+              : "text-[hsl(210_40%_98%/0.92)] drop-shadow-[0_1px_10px_rgba(0,0,0,0.35)]",
           )}
         >
           {subtitle}

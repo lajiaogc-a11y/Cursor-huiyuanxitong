@@ -1061,7 +1061,7 @@ export default function MemberSettings() {
               type="button"
               variant="outline"
               size="lg"
-              className="h-[50px] w-full rounded-xl border-destructive/25 bg-destructive/[0.06] text-[15px] font-bold text-destructive/85 hover:bg-destructive/[0.1] hover:text-destructive"
+              className="h-[50px] w-full rounded-xl border-[hsl(var(--pu-rose)/0.22)] bg-[hsl(var(--pu-m-surface))] text-[15px] font-semibold text-[hsl(var(--pu-rose))] shadow-none hover:border-[hsl(var(--pu-rose)/0.38)] hover:bg-[hsl(var(--pu-rose)/0.07)] hover:text-[hsl(var(--pu-rose-soft))] dark:border-[hsl(var(--pu-rose-soft)/0.35)] dark:bg-[hsl(var(--pu-m-surface)/0.45)] dark:text-[hsl(var(--pu-rose-soft))] dark:hover:bg-[hsl(var(--pu-rose)/0.14)]"
               onClick={() => setSignOutOpen(true)}
             >
               <LogOut className="h-4 w-4" aria-hidden />

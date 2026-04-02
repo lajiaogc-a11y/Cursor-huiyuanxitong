@@ -813,7 +813,7 @@ export default function MemberDashboard() {
           )}
 
           {announcementItems.length > 0 ? (
-            <div className="m-glass mb-4 flex items-center gap-2.5 overflow-hidden p-3">
+            <div className="member-home-ann-scroller m-glass mb-4 flex items-center gap-2.5 overflow-hidden p-3">
               <Megaphone className="h-4 w-4 shrink-0 text-pu-rose-soft" aria-hidden />
               <div className="member-home-ann-viewport relative min-w-0 flex-1 overflow-hidden">
                 <div
@@ -836,9 +836,9 @@ export default function MemberDashboard() {
                       <button
                         type="button"
                         onClick={() => setSelectedAnn(ann)}
-                        className="inline-flex max-w-[min(260px,72vw)] items-center rounded-lg border border-transparent px-2 py-1 text-left text-sm font-medium text-[hsl(var(--pu-m-text)/0.82)] transition-colors hover:border-[hsl(var(--pu-m-surface-border)/0.35)] hover:bg-[hsl(var(--pu-m-surface)/0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pu-gold)/0.35)]"
+                        className="inline-flex max-w-none items-center rounded-lg border border-transparent px-2 py-1 text-left text-sm font-medium text-[hsl(var(--pu-m-text)/0.82)] transition-colors hover:border-[hsl(var(--pu-m-surface-border)/0.35)] hover:bg-[hsl(var(--pu-m-surface)/0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pu-gold)/0.35)]"
                       >
-                        <span className="truncate">
+                        <span className="whitespace-nowrap">
                           {(ann.title && ann.title.trim()) || (ann.content && ann.content.trim()) || t("通知", "Notice")}
                         </span>
                       </button>

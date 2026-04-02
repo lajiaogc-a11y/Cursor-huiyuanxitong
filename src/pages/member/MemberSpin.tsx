@@ -58,30 +58,21 @@ const GRID_ORDER = [
 /** Member spin history: show at most this many latest rows (no extra pagination on page). */
 const SPIN_LOG_LIMIT = 100;
 
-/** Probability help: 4 decimal places so tiny odds (e.g. 0.0001%) do not show as 0%. */
-/** 会员端公示用：有 display_probability 则用其，否则用真实 probability */
-function prizePublishedPercentSource(p: LotteryPrize): unknown {
-  const d = p.display_probability;
-  if (d != null && Number.isFinite(Number(d))) return Number(d);
-  return p.probability;
+/** 积分类：后台配置的数值；非有限数字时返回 null */
+function spinPrizePointsValue(p: LotteryPrize): number | null {
+  if (p.type !== "points") return null;
+  const v = Number(p.value);
+  return Number.isFinite(v) ? v : null;
 }
 
-function formatPublishedProbabilityPercent(probability: unknown): string {
-  const raw =
-    typeof probability === "number"
-      ? probability
-      : Number(String(probability ?? "").replace(/%/g, "").trim());
-  if (!Number.isFinite(raw)) return "—";
-  return raw.toFixed(4);
-}
-
-const SPIN_TIER_ZH = ["一", "二", "三", "四", "五", "六", "七", "八"] as const;
-const SPIN_TIER_EN = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"] as const;
-
-/** 九宫格槽位 0～7 对应一等奖～八等奖（与后台奖品顺序一致） */
-function spinPrizeTierLabel(t: (z: string, e: string) => string, prizeIdx: number): string {
-  const i = Math.min(7, Math.max(0, prizeIdx));
-  return t(`第${SPIN_TIER_ZH[i]}等奖`, `${SPIN_TIER_EN[i]} prize`);
+/**
+ * 转盘格子 / 奖品列表主文案：不展示几等奖与概率；积分类只强调后台 value（如 积分 10 / Points 10）
+ */
+function spinWheelPrizeMainText(t: (z: string, e: string) => string, prize: LotteryPrize): string {
+  const pts = spinPrizePointsValue(prize);
+  if (pts != null) return t(`积分 ${pts}`, `Points ${pts}`);
+  if (prize.type === "custom") return prize.name?.trim() || t("实物奖品", "Prize");
+  return prize.name?.trim() || t("谢谢参与", "Thanks for playing");
 }
 
 /** 九宫格奖品格描边档位（对齐设计稿 premium-ui-boost MemberSpin） */
@@ -641,8 +632,7 @@ export default function MemberSpin() {
               const isActive = activeIndex === prizeIdx;
               const isWinner = showResult && result?.id === prize.id && !spinning;
               const cellTier = prizeDisplayTier(prize);
-              const pubPct = formatPublishedProbabilityPercent(prizePublishedPercentSource(prize));
-              const pctLabel = pubPct === "—" ? "—" : `${pubPct}%`;
+              const wheelMain = spinWheelPrizeMainText(t, prize);
 
               const winnerRing =
                 prize.type === "custom"
@@ -684,19 +674,14 @@ export default function MemberSpin() {
                   >
                     <Gift className="h-4 w-4 text-[hsl(var(--pu-m-text-dim)/0.45)]" strokeWidth={1.75} aria-hidden />
                   </div>
-                  <span className="relative z-10 text-[9px] font-extrabold leading-none text-pu-gold-soft/95">
-                    {spinPrizeTierLabel(t, prizeIdx)}
-                  </span>
                   <span
                     className={cn(
-                      "relative z-10 line-clamp-2 w-full max-w-full break-words px-0.5 text-center text-[11px] font-bold leading-tight",
+                      "relative z-10 line-clamp-3 w-full max-w-full break-words px-0.5 text-center font-bold leading-tight tabular-nums",
+                      prize.type === "points" ? "text-[12px]" : "text-[11px]",
                       isActive ? "text-pu-gold-soft" : "text-[hsl(var(--pu-m-text)/0.92)]",
                     )}
                   >
-                    {prize.name}
-                  </span>
-                  <span className="relative z-10 font-mono text-[9px] font-bold text-[hsl(var(--pu-m-text-dim)/0.45)]">
-                    {pctLabel}
+                    {wheelMain}
                   </span>
                 </div>
               );
@@ -721,7 +706,7 @@ export default function MemberSpin() {
             <div className="flex w-full items-center justify-between py-2 text-xs font-bold text-[hsl(var(--pu-m-text-dim))]">
               <span className="flex items-center gap-1.5">
                 <Info className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-                {t("奖品概率公示", "Prize probability disclosure")}
+                {t("活动奖品", "Prizes")}
               </span>
               <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
             </div>
@@ -737,21 +722,16 @@ export default function MemberSpin() {
                     {t("未配置转盘奖品", "No wheel prizes configured")}
                   </p>
                 ) : (
-                  prizes.map((p, pi) => {
-                    const pub = prizePublishedPercentSource(p);
-                    const pl = formatPublishedProbabilityPercent(pub);
-                    return (
-                      <div key={p.id ?? `${p.name}-${p.sort_order}`} className="flex items-center justify-between text-xs">
-                        <span className="min-w-0 flex-1 truncate font-medium text-[hsl(var(--pu-m-text-dim))]">
-                          <span className="mr-1.5 font-bold text-pu-gold-soft/90">{spinPrizeTierLabel(t, pi)}</span>
-                          {p.name}
-                        </span>
-                        <span className="shrink-0 pl-2 font-mono font-bold text-[hsl(var(--pu-m-text-dim)/0.45)]">
-                          {pl === "—" ? pl : `${pl}%`}
-                        </span>
-                      </div>
-                    );
-                  })
+                  prizes.map((p) => (
+                    <div
+                      key={p.id ?? `${p.name}-${p.sort_order}`}
+                      className="flex items-center gap-2 text-xs font-medium text-[hsl(var(--pu-m-text)/0.9)]"
+                    >
+                      <span className="min-w-0 flex-1 break-words leading-snug">
+                        {spinWheelPrizeMainText(t, p)}
+                      </span>
+                    </div>
+                  ))
                 )}
               </div>
             </div>

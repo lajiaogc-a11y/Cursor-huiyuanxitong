@@ -118,7 +118,7 @@ export function DrawerDetail({
             <SheetTitle
               className={cn(
                 variant === "member"
-                  ? "text-[hsl(var(--pu-m-text))]"
+                  ? "!text-[hsl(var(--pu-m-text))]"
                   : "text-[var(--elite-staff-text,#0f172a)]",
                 headerAlign === "center" && "mx-auto max-w-full",
               )}
@@ -128,7 +128,7 @@ export function DrawerDetail({
             {description ? (
               <SheetDescription
                 className={cn(
-                  variant === "member" ? "text-[hsl(var(--pu-m-text-dim))]" : undefined,
+                  variant === "member" ? "!text-[hsl(var(--pu-m-text-dim))]" : undefined,
                   headerAlign === "center" && "mx-auto max-w-full",
                 )}
               >

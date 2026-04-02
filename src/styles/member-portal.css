@@ -3663,12 +3663,26 @@ html.member-html .member-points-account-settings--inline .member-points-account-
   color: var(--m-text-3);
   font-weight: 500;
 }
+/* 退出登录区：浅色为白卡片感，深色保留暗红氛围 */
 .member-danger-zone {
-  margin-top: 28px;
-  padding: 16px 14px;
+  margin-top: 24px;
+  padding: 14px 12px;
   border-radius: var(--m-radius-lg);
+}
+
+html.member-html.dark .member-portal-wrap .member-danger-zone {
+  padding: 16px 14px;
+  margin-top: 28px;
   background: rgba(40, 15, 15, 0.35);
   border: 1px solid rgba(248, 113, 113, 0.14);
+}
+
+html.member-html:not(.dark) .member-portal-wrap .member-danger-zone {
+  background: hsl(var(--pu-m-surface) / 0.95);
+  border: 1px solid hsl(var(--pu-m-surface-border) / 0.65);
+  box-shadow:
+    0 1px 0 hsl(var(--pu-m-text) / 0.04),
+    0 8px 24px -12px hsl(var(--pu-m-text) / 0.08);
 }
 
 /* GPU 加速仅限动画元素（禁止 * 通配，避免合成层爆炸） */
@@ -4977,9 +4991,7 @@ html.member-html .member-redeem-drawer .member-redeem-product-desc::-webkit-scro
 .member-home-ann-scroller {
   border-radius: 8px !important;
 }
-.member-home-ann-track {
-  animation: marquee-scroll linear infinite;
-}
+/* 跑马灯动画勿在此写 animation shorthand，避免覆盖 Tailwind / index.css 且误用 -100% 关键帧 */
 /* 跑马灯单段公告文案；flex-shrink:0 避免横向滚动时段落被 flex 挤扁 */
 .member-home-ann-segment {
   flex-shrink: 0;
@@ -5080,6 +5092,7 @@ html.member-html .m-glass,
   -webkit-backdrop-filter: blur(24px) saturate(1.2);
   border: 1px solid hsl(var(--pu-m-surface-border) / 0.22);
   border-radius: 1.25rem;
+  color: hsl(var(--pu-m-text));
 }
 
 html.member-html .m-glass-strong,
@@ -5093,6 +5106,7 @@ html.member-html .m-glass-strong,
   backdrop-filter: blur(32px) saturate(1.6);
   -webkit-backdrop-filter: blur(32px) saturate(1.6);
   border: 1px solid hsl(var(--pu-m-surface-border) / 0.28);
+  color: hsl(var(--pu-m-text));
 }
 
 html.member-html .m-glass-nav,
@@ -5188,25 +5202,6 @@ html.member-html:not(.dark) .member-login-premium-root .btn-mint:hover {
 html.member-html:not(.dark) .m-shimmer {
   animation: none;
   background-position: center;
-}
-
-/* 浅色：公告不跑跑马灯，横向滑动查看（viewport 见 MemberDashboard .member-home-ann-viewport） */
-html.member-html:not(.dark) .member-home-ann-viewport {
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--pu-gold) / 0.28) hsl(var(--pu-m-text) / 0.06);
-}
-html.member-html:not(.dark) .member-home-ann-viewport::-webkit-scrollbar {
-  height: 4px;
-}
-html.member-html:not(.dark) .member-home-ann-viewport::-webkit-scrollbar-thumb {
-  background: hsl(var(--pu-gold) / 0.35);
-  border-radius: 4px;
-}
-html.member-html:not(.dark) .member-home-ann-track {
-  animation: none !important;
 }
 
 html.member-html:not(.dark) .btn-spin,
@@ -5892,8 +5887,11 @@ html.member-html:not(.dark) .member-spin-sim-feed {
   /* 半幅循环 translateX(-50%)；时长由 MemberSpin 内联覆盖，公式与首页公告相同 */
   animation: member-spin-sim-feed-marquee 18s linear infinite;
 }
-.member-spin-sim-feed:hover .member-spin-sim-feed__track {
-  animation-play-state: paused;
+/* 仅鼠标悬停暂停：触摸设备首点后 :hover 会「粘住」，导致跑马灯永久暂停 */
+@media (hover: hover) and (pointer: fine) {
+  .member-spin-sim-feed:hover .member-spin-sim-feed__track {
+    animation-play-state: paused;
+  }
 }
 /* 点击后暂停 3 秒（由 MemberSpin 切换类名） */
 .member-spin-sim-feed--click-paused .member-spin-sim-feed__track {
