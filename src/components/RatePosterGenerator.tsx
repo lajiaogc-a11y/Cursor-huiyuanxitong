@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Download, Image as ImageIcon, Loader2, Save } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { getRateSettingEntries, getPosterTableColumns, type RateSettingEntry, type PosterColumnKey } from "@/stores/systemSettings";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -123,7 +123,7 @@ export default function RatePosterGenerator({
         : getRateSettingEntries();
       
       if (rateEntries.length === 0) {
-        toast.error(t("没有汇率数据可生成海报", "No rate data to generate poster"));
+        notify.error(t("没有汇率数据可生成海报", "No rate data to generate poster"));
         setIsGenerating(false);
         return;
       }
@@ -137,7 +137,7 @@ export default function RatePosterGenerator({
       const ctx = canvas.getContext("2d");
       
       if (!ctx) {
-        toast.error(t("无法创建画布", "Cannot create canvas"));
+        notify.error(t("无法创建画布", "Cannot create canvas"));
         setIsGenerating(false);
         return;
       }
@@ -179,7 +179,7 @@ export default function RatePosterGenerator({
       // Table configuration - 按海报设置页的列配置动态生成
       const visibleColumns = getPosterTableColumns();
       if (visibleColumns.length === 0) {
-        toast.error(t("请至少勾选一列用于海报表格", "Please select at least one column for the poster table"));
+        notify.error(t("请至少勾选一列用于海报表格", "Please select at least one column for the poster table"));
         setIsGenerating(false);
         return;
       }
@@ -322,10 +322,10 @@ export default function RatePosterGenerator({
       setPosterDataUrl(dataUrl);
       
       onGenerate?.();
-      toast.success(t("海报生成成功", "Poster generated successfully"));
+      notify.success(t("海报生成成功", "Poster generated successfully"));
     } catch (error) {
       console.error("Error generating poster:", error);
-      toast.error(t("海报生成失败", "Failed to generate poster"));
+      notify.error(t("海报生成失败", "Failed to generate poster"));
     } finally {
       setIsGenerating(false);
     }
@@ -367,13 +367,13 @@ export default function RatePosterGenerator({
     link.href = posterDataUrl;
     link.click();
     
-    toast.success(t("海报下载成功", "Poster downloaded successfully"));
+    notify.success(t("海报下载成功", "Poster downloaded successfully"));
   };
 
   const saveToLibrary = async () => {
     const tenantId = viewingTenantId || employee?.tenant_id;
     if (!posterDataUrl || !employee?.id || !tenantId) {
-      toast.error(t("请先登录", "Please login"));
+      notify.error(t("请先登录", "Please login"));
       return;
     }
     setSaving(true);
@@ -389,17 +389,17 @@ export default function RatePosterGenerator({
         setTimeout(() => reject(new Error("TIMEOUT")), timeoutMs),
       );
       await Promise.race([savePromise, timeoutPromise]);
-      toast.success(t("已保存到海报库", "Saved to poster library"));
+      notify.success(t("已保存到海报库", "Saved to poster library"));
       onSavedToLibrary?.();
     } catch (e: any) {
       console.error("Save poster to library failed:", e);
       if (e?.message === "TIMEOUT") {
-        toast.error(t("保存超时，请检查网络后重试", "Save timed out, please check network and retry"));
+        notify.error(t("保存超时，请检查网络后重试", "Save timed out, please check network and retry"));
       } else if (e?.statusCode === 413 || e?.message?.includes("too large")) {
-        toast.error(t("海报文件过大，请减少表格行数后重试", "Poster too large, reduce rows and retry"));
+        notify.error(t("海报文件过大，请减少表格行数后重试", "Poster too large, reduce rows and retry"));
       } else {
         const msg = e?.message || t("保存失败，请重试", "Save failed, please retry");
-        toast.error(msg);
+        notify.error(msg);
       }
     } finally {
       setSaving(false);

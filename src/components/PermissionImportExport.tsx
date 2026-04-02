@@ -12,7 +12,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { listRolePermissions, upsertRolePermissions } from '@/services/staff/rolePermissionsTableService';
 import { usePermissionChangeLogs } from '@/hooks/usePermissionChangeLogs';
@@ -82,10 +82,10 @@ export function PermissionImportExport({ onImportComplete }: PermissionImportExp
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast.success(t('权限配置已导出', 'Permission configuration exported'));
+      notify.success(t('权限配置已导出', 'Permission configuration exported'));
     } catch (error) {
       console.error('Export failed:', error);
-      toast.error(t('导出失败', 'Export failed'));
+      notify.error(t('导出失败', 'Export failed'));
     }
   }, [employee, t]);
 
@@ -194,7 +194,7 @@ export function PermissionImportExport({ onImportComplete }: PermissionImportExp
         }
       }
 
-      toast.success(t(
+      notify.success(t(
         `成功导入 ${config.permissions.length} 条权限配置`,
         `Successfully imported ${config.permissions.length} permission configurations`
       ));

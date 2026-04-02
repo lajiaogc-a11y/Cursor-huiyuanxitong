@@ -28,7 +28,7 @@ export function formatSimulationPrizeNameForMemberFeed(prizeName: string): strin
 export function formatSpinSimulationCongratsLine(maskedDisplayName: string, prizeName: string): string {
   const n = String(maskedDisplayName || "").trim() || "User";
   const p = formatSimulationPrizeNameForMemberFeed(prizeName);
-  return `Congratulations! ${n} won (${p}) 🎆🎆🎆!`;
+  return `Congratulations! ${n} won (${p}) 🎁🎁🎁!`;
 }
 
 /** 默认名次区间（实际以 lottery_simulation_settings.sim_feed_rank_* 为准） */

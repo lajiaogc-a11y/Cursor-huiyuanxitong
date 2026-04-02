@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/table";
 import { DangerConfirmDialog } from "@/components/ui/danger-confirm-dialog";
 import { Database, Download, Loader2, Trash2, RefreshCw, CheckCircle, XCircle, Eye, RotateCcw, FileDown, ShieldAlert, Clock, HardDrive, FlaskConical, Users } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchTableCountExact } from "@/lib/tableProxyCount";
@@ -121,14 +121,14 @@ export default function DataBackupTab() {
       const result = await executeBackup('manual', employee?.id, employee?.real_name);
       if (result.status === 'success') {
         const total = Object.values(result.record_counts).reduce((a, b) => a + b, 0);
-        toast.success(t(`备份成功，共 ${total} 条记录`, `Backup successful, ${total} records total`));
+        notify.success(t(`备份成功，共 ${total} 条记录`, `Backup successful, ${total} records total`));
       } else {
         const err = formatBackupDisplayText(result.error_message);
-        toast.error(t(`备份失败: ${err}`, `Backup failed: ${err}`));
+        notify.error(t(`备份失败: ${err}`, `Backup failed: ${err}`));
       }
       await loadHistory();
     } catch (e: any) {
-      toast.error(e.message);
+      notify.error(e.message);
     } finally {
       setBacking(false);
     }
@@ -137,10 +137,10 @@ export default function DataBackupTab() {
   const handleDelete = async (id: string) => {
     try {
       await deleteBackup(id);
-      toast.success(t("备份已删除", "Backup deleted"));
+      notify.success(t("备份已删除", "Backup deleted"));
       await loadHistory();
     } catch (e: any) {
-      toast.error(e.message);
+      notify.error(e.message);
     }
     setDeleteTarget(null);
   };
@@ -152,13 +152,13 @@ export default function DataBackupTab() {
       const result = await restoreBackup(restoreTarget);
       if (result.success) {
         const total = Object.values(result.restored).reduce((a, b) => a + b, 0);
-        toast.success(t(`恢复成功，共 ${total} 条记录`, `Restore successful, ${total} records total`));
+        notify.success(t(`恢复成功，共 ${total} 条记录`, `Restore successful, ${total} records total`));
       } else {
         const errs = result.errors.slice(0, 2).map((x) => formatBackupDisplayText(x)).join('; ');
-        toast.error(t(`部分恢复失败: ${errs}`, `Some restores failed: ${errs}`));
+        notify.error(t(`部分恢复失败: ${errs}`, `Some restores failed: ${errs}`));
       }
     } catch (e: any) {
-      toast.error(e.message);
+      notify.error(e.message);
     } finally {
       setRestoring(false);
       setRestoreTarget(null);
@@ -174,13 +174,13 @@ export default function DataBackupTab() {
       if (result.success) {
         const empCount = result.restored.employees || 0;
         const permCount = result.restored.employee_permissions || 0;
-        toast.success(t(`员工恢复成功：${empCount} 名员工，${permCount} 条权限`, `Employees restored: ${empCount} employees, ${permCount} permissions`));
+        notify.success(t(`员工恢复成功：${empCount} 名员工，${permCount} 条权限`, `Employees restored: ${empCount} employees, ${permCount} permissions`));
       } else {
         const errs = result.errors.slice(0, 2).map((x) => formatBackupDisplayText(x)).join('; ');
-        toast.error(t(`恢复失败: ${errs}`, `Restore failed: ${errs}`));
+        notify.error(t(`恢复失败: ${errs}`, `Restore failed: ${errs}`));
       }
     } catch (e: any) {
-      toast.error(e.message);
+      notify.error(e.message);
     } finally {
       setRestoringEmployees(false);
       setRestoreEmployeesTarget(null);
@@ -206,9 +206,9 @@ export default function DataBackupTab() {
       a.download = `backup_${format(new Date(record.created_at), 'yyyyMMdd_HHmmss')}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success(t("下载完成", "Download complete"));
+      notify.success(t("下载完成", "Download complete"));
     } catch (e: any) {
-      toast.error(e.message);
+      notify.error(e.message);
     } finally {
       setDownloading(null);
     }
@@ -224,7 +224,7 @@ export default function DataBackupTab() {
       const rows = await getBackupSnapshot(backupId, targetTable);
       setViewData(rows.slice(0, 50));
     } catch (e: any) {
-      toast.error(e.message);
+      notify.error(e.message);
       setViewData([]);
     } finally {
       setViewLoading(false);
@@ -235,9 +235,9 @@ export default function DataBackupTab() {
     setCleaning(true);
     try {
       const count = await cleanupWebhookEventQueue();
-      toast.success(t(`已清理 ${count} 条过期Webhook记录`, `Cleaned ${count} expired webhook records`));
+      notify.success(t(`已清理 ${count} 条过期Webhook记录`, `Cleaned ${count} expired webhook records`));
     } catch (e: any) {
-      toast.error(e.message);
+      notify.error(e.message);
     } finally {
       setCleaning(false);
     }
@@ -280,9 +280,9 @@ export default function DataBackupTab() {
         details,
         overall_pass: details.every(d => d.match),
       });
-      toast.success(t(`演练完成，耗时 ${(duration / 1000).toFixed(1)}s`, `Drill complete in ${(duration / 1000).toFixed(1)}s`));
+      notify.success(t(`演练完成，耗时 ${(duration / 1000).toFixed(1)}s`, `Drill complete in ${(duration / 1000).toFixed(1)}s`));
     } catch (e: any) {
-      toast.error(e.message);
+      notify.error(e.message);
     } finally {
       setDrillRunning(false);
       setDrillTarget(null);

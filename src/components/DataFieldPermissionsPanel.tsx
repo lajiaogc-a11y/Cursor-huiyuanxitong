@@ -5,7 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronDown, ChevronRight, Loader2, Save, Database } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { apiGet } from '@/api/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -80,7 +80,7 @@ export default function DataFieldPermissionsPanel() {
       setPermissions(typedData);
     } catch (error) {
       console.error('Failed to fetch permissions:', error);
-      toast.error(t('加载数据权限失败', 'Failed to load data permissions'));
+      notify.error(t('加载数据权限失败', 'Failed to load data permissions'));
     } finally {
       setLoading(false);
     }
@@ -161,7 +161,7 @@ export default function DataFieldPermissionsPanel() {
       }
 
       await saveRolePermissions(selectedRole, allItems);
-      toast.success(t('数据权限已保存', 'Data permissions saved'));
+      notify.success(t('数据权限已保存', 'Data permissions saved'));
       setHasChanges(false);
       await fetchPermissions();
       await refreshPermissions();
@@ -169,7 +169,7 @@ export default function DataFieldPermissionsPanel() {
     } catch (error: unknown) {
       console.error('Failed to save data permissions:', error);
       const msg = error instanceof Error ? error.message : '';
-      toast.error(t(`保存失败：${msg || '请重试'}`, `Save failed: ${msg || 'retry'}`));
+      notify.error(t(`保存失败：${msg || '请重试'}`, `Save failed: ${msg || 'retry'}`));
     } finally {
       setSaving(false);
     }

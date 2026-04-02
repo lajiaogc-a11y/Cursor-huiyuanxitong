@@ -11,7 +11,7 @@ import {
   generateApiKey,
   hashApiKey,
 } from '@/services/apiKeys/apiKeyService';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ApiError } from '@/api/client';
 
@@ -42,7 +42,7 @@ export function useApiKeys() {
       setLogs(rows);
     } catch (error) {
       console.error('Failed to fetch API logs:', error);
-      toast.error(t('获取请求日志失败', 'Failed to fetch request logs'));
+      notify.error(t('获取请求日志失败', 'Failed to fetch request logs'));
     } finally {
       setLogsLoading(false);
     }
@@ -76,7 +76,7 @@ export function useApiKeys() {
       });
 
       invalidateKeys();
-      toast.success(t('API Key 创建成功', 'API Key created successfully'));
+      notify.success(t('API Key 创建成功', 'API Key created successfully'));
 
       return { success: true, key: plainKey };
     } catch (error) {
@@ -87,7 +87,7 @@ export function useApiKeys() {
           : error instanceof Error
             ? error.message
             : String(error);
-      toast.error(
+      notify.error(
         detail
           ? `${t('创建 API Key 失败', 'Failed to create API Key')}: ${detail}`
           : t('创建 API Key 失败', 'Failed to create API Key')
@@ -102,11 +102,11 @@ export function useApiKeys() {
       await patchApiKeyRecord(keyId, { status });
 
       invalidateKeys();
-      toast.success(status === 'active' ? t('API Key 已启用', 'API Key enabled') : t('API Key 已禁用', 'API Key disabled'));
+      notify.success(status === 'active' ? t('API Key 已启用', 'API Key enabled') : t('API Key 已禁用', 'API Key disabled'));
       return true;
     } catch (error) {
       console.error('Failed to update API key status:', error);
-      toast.error(t('更新状态失败', 'Failed to update status'));
+      notify.error(t('更新状态失败', 'Failed to update status'));
       return false;
     }
   };
@@ -134,11 +134,11 @@ export function useApiKeys() {
       });
 
       invalidateKeys();
-      toast.success(t('API Key 更新成功', 'API Key updated successfully'));
+      notify.success(t('API Key 更新成功', 'API Key updated successfully'));
       return true;
     } catch (error) {
       console.error('Failed to update API key:', error);
-      toast.error(t('更新 API Key 失败', 'Failed to update API Key'));
+      notify.error(t('更新 API Key 失败', 'Failed to update API Key'));
       return false;
     }
   };
@@ -149,11 +149,11 @@ export function useApiKeys() {
       await deleteApiKeyRecord(keyId);
 
       invalidateKeys();
-      toast.success(t('API Key 已删除', 'API Key deleted'));
+      notify.success(t('API Key 已删除', 'API Key deleted'));
       return true;
     } catch (error) {
       console.error('Failed to delete API key:', error);
-      toast.error(t('删除 API Key 失败', 'Failed to delete API Key'));
+      notify.error(t('删除 API Key 失败', 'Failed to delete API Key'));
       return false;
     }
   };
@@ -171,11 +171,11 @@ export function useApiKeys() {
       });
 
       invalidateKeys();
-      toast.success(t('API Key 已重新生成', 'API Key regenerated'));
+      notify.success(t('API Key 已重新生成', 'API Key regenerated'));
       return { success: true, key: plainKey };
     } catch (error) {
       console.error('Failed to regenerate API key:', error);
-      toast.error(t('重新生成失败', 'Failed to regenerate'));
+      notify.error(t('重新生成失败', 'Failed to regenerate'));
       return { success: false };
     }
   };

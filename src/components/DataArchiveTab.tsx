@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,12 +41,12 @@ export function DataArchiveTab() {
     const result = await runArchive(retentionDays);
     setRunning(false);
     if (result.success) {
-      toast.success(t('归档完成', 'Archive completed'), {
+      notify.success(t('归档完成', 'Archive completed'), {
         description: JSON.stringify(result.result),
       });
       loadData();
     } else {
-      toast.error(t('归档失败', 'Archive failed'), { description: result.error });
+      notify.error(t('归档失败', 'Archive failed'), { description: result.error });
     }
   };
 

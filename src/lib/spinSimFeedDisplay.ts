@@ -26,18 +26,21 @@ function formatSimulationPrizeNameForMemberFeed(prizeName: string): string {
 function formatEnglishLine(maskedDisplayName: string, prizeName: string): string {
   const n = String(maskedDisplayName || "").trim() || "User";
   const p = formatSimulationPrizeNameForMemberFeed(prizeName);
-  return `Congratulations! ${n} won (${p}) 🎆🎆🎆!`;
+  return `Congratulations! ${n} won (${p}) 🎁🎁🎁!`;
 }
 
 /** 将模拟滚动行规范为会员端展示的英文（兼容历史中文模板）。 */
 export function normalizeSpinSimFeedLineForMember(text: string): string {
   const s = String(text || "").trim();
   if (!s) return s;
-  if (/^Congratulations!\s/i.test(s)) return s;
-  const legacy = /^恭喜用户(.+?)抽奖获得[（(](.+?)[）)]/;
-  const m = s.match(legacy);
-  if (m) {
-    return formatEnglishLine(m[1]!.trim(), m[2]!.trim());
+  let out: string;
+  if (/^Congratulations!\s/i.test(s)) {
+    out = s;
+  } else {
+    const legacy = /^恭喜用户(.+?)抽奖获得[（(](.+?)[）)]/;
+    const m = s.match(legacy);
+    out = m ? formatEnglishLine(m[1]!.trim(), m[2]!.trim()) : s;
   }
-  return s;
+  /** 历史接口/缓存里仍为烟花三连，展示时统一为礼盒 */
+  return out.replace(/🎆🎆🎆/g, "🎁🎁🎁");
 }

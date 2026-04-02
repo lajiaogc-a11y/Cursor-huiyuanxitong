@@ -28,7 +28,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, CartesianGrid, BarChart, Bar, Area, AreaChart } from "recharts";
 import { DashboardSummary } from "@/components/DashboardSummary";
 import { DashboardQuickStartCard } from "@/components/DashboardQuickStartCard";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ElitePageHeader } from "@/design-system/elite";
 
@@ -106,7 +106,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (trendError && trendErrorDetail) {
-      toast.error(t('仪表盘数据加载失败', 'Dashboard data load failed') + ': ' + (trendErrorDetail as Error)?.message);
+      notify.error(t('仪表盘数据加载失败', 'Dashboard data load failed') + ': ' + (trendErrorDetail as Error)?.message);
     }
   }, [trendError, trendErrorDetail]);
 

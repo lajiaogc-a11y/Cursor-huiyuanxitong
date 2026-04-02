@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { showServiceErrorToast } from "@/services/serviceErrorToast";
@@ -87,7 +87,7 @@ export default function AdminDeviceWhitelistTab() {
       });
       setEnabled(cfg.enabled);
       setMaxDevices(cfg.max_devices_per_employee);
-      toast.success(t("已保存", "Saved"));
+      notify.success(t("已保存", "Saved"));
     } catch (e) {
       showServiceErrorToast(e, t, "保存失败", "Save failed");
     } finally {
@@ -97,12 +97,12 @@ export default function AdminDeviceWhitelistTab() {
 
   const handleAdd = async () => {
     if (!addUser.trim() || !addDeviceId.trim()) {
-      toast.error(t("请填写员工用户名与 device_id", "Enter staff username and device_id"));
+      notify.error(t("请填写员工用户名与 device_id", "Enter staff username and device_id"));
       return;
     }
     const did = normalizeStaffDeviceId(addDeviceId);
     if (!did) {
-      toast.error(
+      notify.error(
         t(
           "device_id 不符合后端规则：8–128 个字符，仅 ASCII 字母、数字及 _ - : + . / = @",
           "device_id does not match server rules: 8–128 chars, ASCII letters/digits and _ - : + . / = @ only",
@@ -117,7 +117,7 @@ export default function AdminDeviceWhitelistTab() {
         device_id: did,
         device_name: addName.trim() || undefined,
       });
-      toast.success(t("已新增设备", "Device added"));
+      notify.success(t("已新增设备", "Device added"));
       setAddUser("");
       setAddDeviceId("");
       setAddName("");
@@ -132,7 +132,7 @@ export default function AdminDeviceWhitelistTab() {
   const executeDelete = async (id: string) => {
     try {
       await adminDeleteEmployeeDevice(id);
-      toast.success(t("已删除", "Deleted"));
+      notify.success(t("已删除", "Deleted"));
       await load();
     } catch (e) {
       showServiceErrorToast(e, t, "删除失败", "Delete failed");

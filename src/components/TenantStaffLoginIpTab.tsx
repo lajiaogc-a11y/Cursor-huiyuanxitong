@@ -19,7 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSharedDataApi, postSharedDataApi } from "@/services/staff/dataApi/sharedDataApi";
 
@@ -76,21 +76,21 @@ export default function TenantStaffLoginIpTab() {
 
   const handleSave = async () => {
     if (!effectiveTenantId) {
-      toast.error(t("请先选择租户", "Select a tenant first"));
+      notify.error(t("请先选择租户", "Select a tenant first"));
       return;
     }
     if (config.enabled && config.rules.length === 0) {
-      toast.error(t("开启白名单时请至少添加一个 IP 或网段", "Add at least one IP/CIDR when allowlist is enabled"));
+      notify.error(t("开启白名单时请至少添加一个 IP 或网段", "Add at least one IP/CIDR when allowlist is enabled"));
       return;
     }
     setSaving(true);
     try {
       const ok = await postSharedDataApi(STORE_KEY, config, effectiveTenantId);
       if (ok) {
-        toast.success(t("员工登录 IP 设置已保存", "Staff login IP settings saved"));
+        notify.success(t("员工登录 IP 设置已保存", "Staff login IP settings saved"));
         void load();
       } else {
-        toast.error(t("保存失败", "Save failed"));
+        notify.error(t("保存失败", "Save failed"));
       }
     } finally {
       setSaving(false);
@@ -102,11 +102,11 @@ export default function TenantStaffLoginIpTab() {
     if (!ip) return;
     const ipRegex = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/;
     if (!ipRegex.test(ip)) {
-      toast.error(t("请输入有效的 IPv4 或 CIDR", "Enter a valid IPv4 or CIDR"));
+      notify.error(t("请输入有效的 IPv4 或 CIDR", "Enter a valid IPv4 or CIDR"));
       return;
     }
     if (config.rules.some((r) => r.ip === ip)) {
-      toast.error(t("该 IP 已存在", "IP already exists"));
+      notify.error(t("该 IP 已存在", "IP already exists"));
       return;
     }
     setConfig((prev) => ({

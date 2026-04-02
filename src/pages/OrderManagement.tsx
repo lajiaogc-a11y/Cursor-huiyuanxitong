@@ -13,6 +13,22 @@ import { logOperation } from '@/stores/auditLogStore';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useSortableData } from "@/components/ui/sortable-table-head";
 import {
   Select,
@@ -23,12 +39,12 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { Search, RefreshCw, Filter, Upload, Download } from "lucide-react";
+import { Search, RefreshCw, Filter, Upload, Download, X } from "lucide-react";
 import TableImportButton from "@/components/TableImportButton";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
 import { useExportConfirm } from "@/hooks/useExportConfirm";
 import { exportTableToXLSX } from "@/services/dataExportImportService";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { showServiceErrorToast } from "@/services/serviceErrorToast";
 import { TimeRangeType, DateRange, getTimeRangeDates, ALL_TIME_DATE_RANGE } from "@/lib/dateFilter";
 import { useOrders, useUsdtOrders, useOrderStats, Order, UsdtOrder } from "@/hooks/useOrders";
@@ -61,6 +77,7 @@ import {
   fetchMerchantVendors,
 } from "@/services/finance/merchantConfigReadService";
 import { PageHeader, PageActions, FilterBar, KPIGrid, SectionCard, ErrorState } from "@/components/common";
+import { useDebouncedValue } from "@/hooks/useDebounce";
 
 // UUID 校验函数 - 防止把姓名字符串写入 uuid 字段
 const isUuid = (str: string): boolean => {
@@ -281,7 +298,12 @@ export default function OrderManagement() {
   const normalColumnVisibility = useColumnVisibility('order-normal', normalOrderColumns);
   const usdtColumnVisibility = useColumnVisibility('order-usdt', usdtOrderColumns);
 
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchDraft, setSearchDraft] = useState("");
+  const debouncedSearchDraft = useDebouncedValue(searchDraft, 300);
+  const [searchQuery, setSearchQuery] = useState("");
+  useEffect(() => {
+    setSearchQuery(debouncedSearchDraft.trim());
+  }, [debouncedSearchDraft]);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [originalOrder, setOriginalOrder] = useState<Order | null>(null); // 保存原始订单用于对比
   const [editingUsdtOrder, setEditingUsdtOrder] = useState<UsdtOrder | null>(null);
@@ -316,6 +338,11 @@ export default function OrderManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [currentUsdtPage, setCurrentUsdtPage] = useState(1);
   const [jumpToPage, setJumpToPage] = useState("");
+  const [selectedNormalDbIds, setSelectedNormalDbIds] = useState<Set<string>>(() => new Set());
+  const [selectedUsdtDbIds, setSelectedUsdtDbIds] = useState<Set<string>>(() => new Set());
+  const [orderBatchDialog, setOrderBatchDialog] = useState<
+    null | { mode: "delete" | "cancel"; tab: "normal" | "usdt" }
+  >(null);
 
   // 构建筛选参数（用于服务端分页）
   const orderFilters = useMemo(() => {
@@ -335,9 +362,9 @@ export default function OrderManagement() {
       dateRange: selectedRange === '全部'
         ? ALL_TIME_DATE_RANGE
         : (dateRange.start && dateRange.end ? { start: dateRange.start, end: dateRange.end } : undefined),
-      searchTerm: searchTerm.trim() || undefined,
+      searchTerm: searchQuery || undefined,
     };
-  }, [statusFilter, currencyFilter, vendorFilter, paymentProviderFilter, cardTypeFilter, salesPersonFilter, minProfit, maxProfit, selectedRange, dateRange, searchTerm, allEmployees]);
+  }, [statusFilter, currencyFilter, vendorFilter, paymentProviderFilter, cardTypeFilter, salesPersonFilter, minProfit, maxProfit, selectedRange, dateRange, searchQuery, allEmployees]);
 
   // 使用数据库 hooks - 服务端分页
   const { orders, totalCount, isError: isOrdersError, updateOrder, cancelOrder, restoreOrder, deleteOrder, refetch: refetchOrders } = useOrders({
@@ -358,6 +385,15 @@ export default function OrderManagement() {
   const refetchUsdtOrdersRef = useRef(refetchUsdtOrders);
   refetchOrdersRef.current = refetchOrders;
   refetchUsdtOrdersRef.current = refetchUsdtOrders;
+
+  const cancelOrderRef = useRef(cancelOrder);
+  const deleteOrderRef = useRef(deleteOrder);
+  const cancelUsdtOrderRef = useRef(cancelUsdtOrder);
+  const deleteUsdtOrderRef = useRef(deleteUsdtOrder);
+  cancelOrderRef.current = cancelOrder;
+  deleteOrderRef.current = deleteOrder;
+  cancelUsdtOrderRef.current = cancelUsdtOrder;
+  deleteUsdtOrderRef.current = deleteUsdtOrder;
 
   // 右下角商城兑换通知「前往订单」：?tab=mall&highlightMall=<redemptionId>
   useEffect(() => {
@@ -497,7 +533,8 @@ export default function OrderManagement() {
 
   // 重置筛选
   const resetFilters = () => {
-    setSearchTerm("");
+    setSearchDraft("");
+    setSearchQuery("");
     setStatusFilter("all");
     setCurrencyFilter("all");
     setVendorFilter("");
@@ -561,6 +598,31 @@ export default function OrderManagement() {
   const paginatedOrders = sortedOrders;
   const paginatedUsdtOrders = sortedUsdtOrders;
 
+  useEffect(() => {
+    setSelectedNormalDbIds(new Set());
+  }, [currentPage]);
+
+  useEffect(() => {
+    setSelectedUsdtDbIds(new Set());
+  }, [currentUsdtPage]);
+
+  useEffect(() => {
+    setSelectedNormalDbIds(new Set());
+    setSelectedUsdtDbIds(new Set());
+  }, [activeTab]);
+
+  const normalBatchCancelCount = useMemo(
+    () =>
+      paginatedOrders.filter((o) => selectedNormalDbIds.has(o.dbId) && o.status === "completed").length,
+    [paginatedOrders, selectedNormalDbIds],
+  );
+
+  const usdtBatchCancelCount = useMemo(
+    () =>
+      paginatedUsdtOrders.filter((o) => selectedUsdtDbIds.has(o.dbId) && o.status === "completed").length,
+    [paginatedUsdtOrders, selectedUsdtDbIds],
+  );
+
   // 重置页码当筛选变化时
   useEffect(() => {
     setCurrentPage(1);
@@ -584,7 +646,7 @@ export default function OrderManagement() {
   const handleRefresh = async () => {
     await Promise.all([refetchOrders(), refetchUsdtOrders()]);
     setMallOrdersRefreshNonce((n) => n + 1);
-    toast.success(t("订单已刷新", "Orders refreshed"));
+    notify.success(t("订单已刷新", "Orders refreshed"));
   };
 
   // Normal order handlers
@@ -656,7 +718,7 @@ export default function OrderManagement() {
     const changes = computeNormalOrderFieldChanges(editingOrder, originalOrder, isSuperAdmin);
     
     if (changes.length === 0) {
-      toast.info(t("没有检测到修改", "No changes detected"));
+      notify.info(t("没有检测到修改", "No changes detected"));
       setIsEditDialogOpen(false);
       setEditingOrder(null);
       setOriginalOrder(null);
@@ -820,7 +882,7 @@ export default function OrderManagement() {
       notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
       notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
       notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
-      toast.success(t("订单已更新", "Order updated"));
+      notify.success(t("订单已更新", "Order updated"));
     } else {
       // 非管理员：按字段判断，需审核的只提交审核不直接更新，可直接编辑的才更新
       const result = await submitBatchForApproval({
@@ -838,7 +900,7 @@ export default function OrderManagement() {
       
       // 有需审核的字段时，不直接更新订单（避免未审批的修改生效），仅提交审核
       if (result.pendingFields.length > 0) {
-        toast.success(result.message);
+        notify.success(result.message);
         setIsEditDialogOpen(false);
         setEditingOrder(null);
         setOriginalOrder(null);
@@ -947,7 +1009,7 @@ export default function OrderManagement() {
       notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
       notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
       notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
-      toast.success(t("订单已更新", "Order updated"));
+      notify.success(t("订单已更新", "Order updated"));
     }
     
     setIsEditDialogOpen(false);
@@ -960,7 +1022,7 @@ export default function OrderManagement() {
 
   const handleCancel = async (dbId: string): Promise<boolean> => {
     await cancelOrder(dbId);
-    toast.success(t("订单已取消", "Order cancelled"));
+    notify.success(t("订单已取消", "Order cancelled"));
     return true;
   };
 
@@ -975,7 +1037,7 @@ export default function OrderManagement() {
   const confirmRestore = async () => {
     if (restoreOrderId) {
       await restoreOrder(restoreOrderId);
-      toast.success(t("订单已恢复为已完成", "Order restored to completed"));
+      notify.success(t("订单已恢复为已完成", "Order restored to completed"));
       setRestoreOrderId(null);
     }
   };
@@ -983,7 +1045,7 @@ export default function OrderManagement() {
   const handleDelete = async (dbId: string): Promise<boolean> => {
     const success = await deleteOrder(dbId);
     if (success) {
-      toast.success(t("订单已删除", "Order deleted"));
+      notify.success(t("订单已删除", "Order deleted"));
     }
     return !!success;
   };
@@ -1004,7 +1066,7 @@ export default function OrderManagement() {
     const changes = computeUsdtOrderFieldChanges(editingUsdtOrder, originalUsdtOrder, isSuperAdmin);
     
     if (changes.length === 0) {
-      toast.info(t("没有检测到修改", "No changes detected"));
+      notify.info(t("没有检测到修改", "No changes detected"));
       setIsUsdtEditDialogOpen(false);
       setEditingUsdtOrder(null);
       setOriginalUsdtOrder(null);
@@ -1151,7 +1213,7 @@ export default function OrderManagement() {
       notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
       notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
       notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
-      toast.success(t("USDT订单已更新", "USDT order updated"));
+      notify.success(t("USDT订单已更新", "USDT order updated"));
     } else {
       // 非管理员：按字段判断，需审核的只提交审核不直接更新
       const result = await submitBatchForApproval({
@@ -1169,7 +1231,7 @@ export default function OrderManagement() {
       
       // 有需审核的字段时，不直接更新订单
       if (result.pendingFields.length > 0) {
-        toast.success(result.message);
+        notify.success(result.message);
         setIsUsdtEditDialogOpen(false);
         setEditingUsdtOrder(null);
         setOriginalUsdtOrder(null);
@@ -1261,7 +1323,7 @@ export default function OrderManagement() {
       notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
       notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
       notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
-      toast.success(t("USDT订单已更新", "USDT order updated"));
+      notify.success(t("USDT订单已更新", "USDT order updated"));
     }
     
     setIsUsdtEditDialogOpen(false);
@@ -1274,7 +1336,7 @@ export default function OrderManagement() {
 
   const handleCancelUsdt = async (dbId: string): Promise<boolean> => {
     await cancelUsdtOrder(dbId);
-    toast.success(t("USDT订单已取消", "USDT order cancelled"));
+    notify.success(t("USDT订单已取消", "USDT order cancelled"));
     return true;
   };
 
@@ -1285,7 +1347,7 @@ export default function OrderManagement() {
   const confirmRestoreUsdt = async () => {
     if (restoreUsdtOrderId) {
       await restoreUsdtOrder(restoreUsdtOrderId);
-      toast.success(t("USDT订单已恢复为已完成", "USDT order restored to completed"));
+      notify.success(t("USDT订单已恢复为已完成", "USDT order restored to completed"));
       setRestoreUsdtOrderId(null);
     }
   };
@@ -1293,9 +1355,139 @@ export default function OrderManagement() {
   const handleDeleteUsdt = async (dbId: string): Promise<boolean> => {
     const success = await deleteUsdtOrder(dbId);
     if (success) {
-      toast.success(t("USDT订单已删除", "USDT order deleted"));
+      notify.success(t("USDT订单已删除", "USDT order deleted"));
     }
     return !!success;
+  };
+
+  const toggleNormalDbId = (dbId: string) => {
+    setSelectedNormalDbIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(dbId)) next.delete(dbId);
+      else next.add(dbId);
+      return next;
+    });
+  };
+
+  const toggleNormalPage = () => {
+    const pageIds = paginatedOrders.map((o) => o.dbId);
+    setSelectedNormalDbIds((prev) => {
+      const allOn = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allOn) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  const toggleUsdtDbId = (dbId: string) => {
+    setSelectedUsdtDbIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(dbId)) next.delete(dbId);
+      else next.add(dbId);
+      return next;
+    });
+  };
+
+  const toggleUsdtPage = () => {
+    const pageIds = paginatedUsdtOrders.map((o) => o.dbId);
+    setSelectedUsdtDbIds((prev) => {
+      const allOn = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allOn) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  const runBatchNormalDelete = async () => {
+    const ids = [...selectedNormalDbIds];
+    setOrderBatchDialog(null);
+    if (ids.length === 0) return;
+    let ok = 0;
+    for (const id of ids) {
+      if (await deleteOrderRef.current(id)) ok++;
+    }
+    setSelectedNormalDbIds(new Set());
+    await refetchOrders();
+    queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
+    queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
+    queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
+    notifyDataMutation({ table: "orders", operation: "DELETE", source: "manual" }).catch(console.error);
+    notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
+    notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(console.error);
+    notify.success(t(`已删除 ${ok} 条订单`, `Deleted ${ok} order(s)`));
+  };
+
+  const runBatchNormalCancel = async () => {
+    const ids = paginatedOrders
+      .filter((o) => selectedNormalDbIds.has(o.dbId) && o.status === "completed")
+      .map((o) => o.dbId);
+    setOrderBatchDialog(null);
+    if (ids.length === 0) return;
+    let ok = 0;
+    for (const id of ids) {
+      if (await cancelOrderRef.current(id)) ok++;
+    }
+    setSelectedNormalDbIds(new Set());
+    await refetchOrders();
+    queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
+    queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
+    queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
+    notifyDataMutation({ table: "orders", operation: "UPDATE", source: "manual" }).catch(console.error);
+    notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
+    notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(console.error);
+    notify.success(t(`已取消 ${ok} 条订单`, `Cancelled ${ok} order(s)`));
+  };
+
+  const runBatchUsdtDelete = async () => {
+    const ids = [...selectedUsdtDbIds];
+    setOrderBatchDialog(null);
+    if (ids.length === 0) return;
+    let ok = 0;
+    for (const id of ids) {
+      if (await deleteUsdtOrderRef.current(id)) ok++;
+    }
+    setSelectedUsdtDbIds(new Set());
+    await refetchUsdtOrders();
+    queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
+    queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
+    queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
+    notifyDataMutation({ table: "orders", operation: "DELETE", source: "manual" }).catch(console.error);
+    notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
+    notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(console.error);
+    notify.success(t(`已删除 ${ok} 条 USDT 订单`, `Deleted ${ok} USDT order(s)`));
+  };
+
+  const runBatchUsdtCancel = async () => {
+    const ids = paginatedUsdtOrders
+      .filter((o) => selectedUsdtDbIds.has(o.dbId) && o.status === "completed")
+      .map((o) => o.dbId);
+    setOrderBatchDialog(null);
+    if (ids.length === 0) return;
+    let ok = 0;
+    for (const id of ids) {
+      if (await cancelUsdtOrderRef.current(id)) ok++;
+    }
+    setSelectedUsdtDbIds(new Set());
+    await refetchUsdtOrders();
+    queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
+    queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
+    queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
+    notifyDataMutation({ table: "orders", operation: "UPDATE", source: "manual" }).catch(console.error);
+    notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
+    notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(console.error);
+    notify.success(t(`已取消 ${ok} 条 USDT 订单`, `Cancelled ${ok} USDT order(s)`));
+  };
+
+  const confirmOrderBatchAction = () => {
+    if (!orderBatchDialog) return;
+    const { mode, tab } = orderBatchDialog;
+    if (tab === "normal") {
+      void (mode === "delete" ? runBatchNormalDelete() : runBatchNormalCancel());
+    } else {
+      void (mode === "delete" ? runBatchUsdtDelete() : runBatchUsdtCancel());
+    }
   };
 
   return (
@@ -1345,9 +1537,9 @@ export default function OrderManagement() {
                           ),
                         });
                         if (r.success) {
-                          toast.success(t("已导出 Excel（.xlsx）", "Exported as Excel (.xlsx)"));
+                          notify.success(t("已导出 Excel（.xlsx）", "Exported as Excel (.xlsx)"));
                         } else if (r.error) {
-                          toast.error(r.error);
+                          notify.error(r.error);
                         }
                       })
                     }
@@ -1381,17 +1573,37 @@ export default function OrderManagement() {
           </Tabs>
           <div className={isMobile ? "flex flex-wrap items-center gap-2" : "flex flex-wrap items-center gap-3"}>
             <div className={isMobile ? "relative min-w-0 flex-1" : "relative"}>
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
               <Input
                 placeholder={
                   activeTab === "mall"
                     ? t("商品、手机、会员编号…", "Item, phone, member code…")
                     : t("搜索订单...", "Search orders...")
                 }
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={isMobile ? "w-full pl-9" : "w-64 pl-9"}
+                value={searchDraft}
+                data-staff-page-search
+                onChange={(e) => setSearchDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    setSearchQuery(searchDraft.trim());
+                  }
+                }}
+                className={isMobile ? "w-full pl-9 pr-9" : "w-64 min-w-[12rem] pl-9 pr-9"}
               />
+              {searchDraft ? (
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 z-[1] -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  onClick={() => {
+                    setSearchDraft("");
+                    setSearchQuery("");
+                  }}
+                  aria-label={t("清空搜索", "Clear search")}
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              ) : null}
             </div>
             {activeTab === "mall" ? (
               <Select value={mallStatusFilter} onValueChange={(v) => setMallStatusFilter(v as typeof mallStatusFilter)}>
@@ -1517,6 +1729,64 @@ export default function OrderManagement() {
                 onJumpToPageChange={setJumpToPage}
                 onJumpToPage={() => handleJumpToPage(false)}
                 t={t}
+                {...(!useCompactLayout
+                  ? {
+                      selectedDbIds: selectedNormalDbIds,
+                      onToggleSelectDbId: toggleNormalDbId,
+                      onToggleSelectAllPage: toggleNormalPage,
+                      batchActionBar:
+                        selectedNormalDbIds.size > 0 ? (
+                          <TooltipProvider delayDuration={300}>
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <span className="text-sm text-muted-foreground">
+                                {t(`已选 ${selectedNormalDbIds.size} 条`, `${selectedNormalDbIds.size} selected`)}
+                              </span>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="outline" size="sm" onClick={() => setSelectedNormalDbIds(new Set())}>
+                                    {t("清空选择", "Clear selection")}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{t("取消全部勾选", "Clear all checkboxes")}</TooltipContent>
+                              </Tooltip>
+                              {canDeleteField("delete_button") ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setOrderBatchDialog({ mode: "delete", tab: "normal" })}
+                                    >
+                                      {t("批量删除", "Batch delete")}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{t("删除所选订单", "Delete selected orders")}</TooltipContent>
+                                </Tooltip>
+                              ) : null}
+                              {canEditField("cancel_button") ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={normalBatchCancelCount === 0}
+                                      onClick={() => setOrderBatchDialog({ mode: "cancel", tab: "normal" })}
+                                    >
+                                      {t("批量处理", "Batch process")}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {normalBatchCancelCount === 0
+                                      ? t("所选行中没有「已完成」订单", "No completed orders in selection")
+                                      : t("将所选「已完成」订单批量取消", "Cancel selected completed orders")}
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : null}
+                            </div>
+                          </TooltipProvider>
+                        ) : null,
+                    }
+                  : {})}
               />
             </TabsContent>
 
@@ -1555,13 +1825,71 @@ export default function OrderManagement() {
                 onJumpToPageChange={setJumpToPage}
                 onJumpToPage={() => handleJumpToPage(true)}
                 t={t}
+                {...(!useCompactLayout
+                  ? {
+                      selectedDbIds: selectedUsdtDbIds,
+                      onToggleSelectDbId: toggleUsdtDbId,
+                      onToggleSelectAllPage: toggleUsdtPage,
+                      batchActionBar:
+                        selectedUsdtDbIds.size > 0 ? (
+                          <TooltipProvider delayDuration={300}>
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <span className="text-sm text-muted-foreground">
+                                {t(`已选 ${selectedUsdtDbIds.size} 条`, `${selectedUsdtDbIds.size} selected`)}
+                              </span>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="outline" size="sm" onClick={() => setSelectedUsdtDbIds(new Set())}>
+                                    {t("清空选择", "Clear selection")}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{t("取消全部勾选", "Clear all checkboxes")}</TooltipContent>
+                              </Tooltip>
+                              {canDeleteField("delete_button") ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setOrderBatchDialog({ mode: "delete", tab: "usdt" })}
+                                    >
+                                      {t("批量删除", "Batch delete")}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{t("删除所选订单", "Delete selected orders")}</TooltipContent>
+                                </Tooltip>
+                              ) : null}
+                              {canEditField("cancel_button") ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={usdtBatchCancelCount === 0}
+                                      onClick={() => setOrderBatchDialog({ mode: "cancel", tab: "usdt" })}
+                                    >
+                                      {t("批量处理", "Batch process")}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {usdtBatchCancelCount === 0
+                                      ? t("所选行中没有「已完成」订单", "No completed orders in selection")
+                                      : t("将所选「已完成」订单批量取消", "Cancel selected completed orders")}
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : null}
+                            </div>
+                          </TooltipProvider>
+                        ) : null,
+                    }
+                  : {})}
               />
             </TabsContent>
 
             <TabsContent value="mall">
               <OrderMallRedemptionsSection
                 tenantId={effectiveTenantId}
-                searchTerm={searchTerm}
+                searchTerm={searchQuery}
                 statusFilter={mallStatusFilter}
                 isActive={activeTab === "mall"}
                 isMobile={isMobile}
@@ -1620,6 +1948,63 @@ export default function OrderManagement() {
         onOpenChange={exportConfirm.handleOpenChange}
         onConfirm={exportConfirm.handleConfirm}
       />
+
+      <AlertDialog open={orderBatchDialog !== null} onOpenChange={(open) => !open && setOrderBatchDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {orderBatchDialog?.mode === "delete"
+                ? t("确认批量删除", "Confirm batch delete")
+                : t("确认批量处理", "Confirm batch process")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {orderBatchDialog?.mode === "delete" ? (
+                orderBatchDialog.tab === "normal" ? (
+                  <>
+                    {t(
+                      `将删除所选的 ${selectedNormalDbIds.size} 条订单，确定继续？`,
+                      `Delete ${selectedNormalDbIds.size} selected order(s)?`,
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {t(
+                      `将删除所选的 ${selectedUsdtDbIds.size} 条 USDT 订单，确定继续？`,
+                      `Delete ${selectedUsdtDbIds.size} selected USDT order(s)?`,
+                    )}
+                  </>
+                )
+              ) : orderBatchDialog?.tab === "normal" ? (
+                <>
+                  {t(
+                    `将把 ${normalBatchCancelCount} 条「已完成」订单取消，确定继续？`,
+                    `Cancel ${normalBatchCancelCount} completed order(s)?`,
+                  )}
+                </>
+              ) : (
+                <>
+                  {t(
+                    `将把 ${usdtBatchCancelCount} 条「已完成」USDT 订单取消，确定继续？`,
+                    `Cancel ${usdtBatchCancelCount} completed USDT order(s)?`,
+                  )}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className={orderBatchDialog?.mode === "delete" ? "bg-destructive hover:bg-destructive/90" : undefined}
+              onClick={(e) => {
+                e.preventDefault();
+                confirmOrderBatchAction();
+              }}
+            >
+              {orderBatchDialog?.mode === "delete" ? t("删除", "Delete") : t("确认", "Confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

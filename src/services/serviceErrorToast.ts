@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { ApiError } from "@/lib/apiClient";
 import { readEffectiveAppLocale } from "@/lib/appLocale";
 
@@ -197,7 +197,7 @@ export function showServiceErrorToast(
       msg.includes("Load failed") ||
       msg.includes("ERR_BLOCKED");
     if (isNetworkError) {
-      toast.error(t(
+      notify.error(t(
         `${fallbackZh}（网络异常，请检查网络或关闭广告拦截插件后重试）`,
         `${fallbackEn} (network error — check connection or disable ad blocker)`,
       ));
@@ -208,7 +208,7 @@ export function showServiceErrorToast(
   const code = resolveErrorCode(error);
   const preset = ERROR_MESSAGES[code];
   if (preset) {
-    toast.error(t(preset.zh, preset.en));
+    notify.error(t(preset.zh, preset.en));
     return;
   }
 
@@ -222,7 +222,7 @@ export function showServiceErrorToast(
     /[\u4e00-\u9fff]/.test(raw) &&
     !/^请求失败 \(HTTP/.test(raw)
   ) {
-    toast.error(raw);
+    notify.error(raw);
     return;
   }
   const useDetail =
@@ -231,6 +231,6 @@ export function showServiceErrorToast(
     !/^请求失败 \(HTTP/.test(raw) &&
     readEffectiveAppLocale() === "en";
   const detail = useDetail ? ` (${raw})` : "";
-  toast.error(t(`${fallbackZh}${detail}`, `${fallbackEn}${detail}`));
+  notify.error(t(`${fallbackZh}${detail}`, `${fallbackEn}${detail}`));
 }
 

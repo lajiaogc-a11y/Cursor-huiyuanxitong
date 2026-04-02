@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { AlertTriangle, RefreshCw, Check, Wifi, WifiOff, TrendingUp, TrendingDown } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { loadSharedData, saveSharedData } from '@/services/finance/sharedDataService';
 import { fetchUsdtRatesViaApi } from '@/services/finance/marketRatesService';
@@ -80,7 +80,7 @@ let _initPromise: Promise<void> | null = null;
 const _listeners = new Set<() => void>();
 let _snapshotVersion = 0;
 
-function notify() {
+function bumpUsdtRatesSnapshot() {
   _snapshotVersion++;
   _listeners.forEach(fn => fn());
 }
@@ -103,7 +103,7 @@ async function _doFetch(force: boolean, opts?: { silent?: boolean }) {
   }
 
   _fetching = true;
-  notify();
+  bumpUsdtRatesSnapshot();
 
   try {
     const data = (await fetchUsdtRatesViaApi({
@@ -128,7 +128,7 @@ async function _doFetch(force: boolean, opts?: { silent?: boolean }) {
       if (d.anomaly) {
         _config = { ..._config, paused: true, pauseReason: d.anomalyMessage || _tGlobal('价格变动超过阈值', 'Price change exceeds threshold') };
         saveSharedData('usdtLiveRateConfig' as any, _config);
-        toast.warning(_tGlobal('USDT汇率异常波动，已暂停自动更新', 'USDT rate fluctuation detected, auto-update paused'));
+        notify.warning(_tGlobal('USDT汇率异常波动，已暂停自动更新', 'USDT rate fluctuation detected, auto-update paused'));
         _stopTimer();
       }
 
@@ -143,17 +143,17 @@ async function _doFetch(force: boolean, opts?: { silent?: boolean }) {
 
       // 定时自动采集不弹成功 Toast，避免「一直在弹」的干扰；手动刷新仍提示
       if (!opts?.silent) {
-        toast.success(_tGlobal(`汇率已更新: ¥${d.mid.toFixed(4)} (来源: ${newRates.source})`, `Rate updated: ¥${d.mid.toFixed(4)} (source: ${newRates.source})`));
+        notify.success(_tGlobal(`汇率已更新: ¥${d.mid.toFixed(4)} (来源: ${newRates.source})`, `Rate updated: ¥${d.mid.toFixed(4)} (source: ${newRates.source})`));
       }
     } else {
-      toast.error(_tGlobal('未获取到有效汇率数据', 'No valid rate data retrieved'));
+      notify.error(_tGlobal('未获取到有效汇率数据', 'No valid rate data retrieved'));
     }
   } catch (err) {
     console.error('Failed to fetch USDT rates:', err);
-    toast.error(_tGlobal('USDT汇率获取失败，使用缓存数据', 'USDT rate fetch failed, using cached data'));
+    notify.error(_tGlobal('USDT汇率获取失败，使用缓存数据', 'USDT rate fetch failed, using cached data'));
   } finally {
     _fetching = false;
-    notify();
+    bumpUsdtRatesSnapshot();
   }
 }
 
@@ -214,7 +214,7 @@ async function _ensureInit() {
     }
     _initDone = true;
     _startTimer();
-    notify();
+    bumpUsdtRatesSnapshot();
   })();
 
   await _initPromise;
@@ -230,7 +230,7 @@ export async function globalUpdateConfig(partial: Partial<UsdtLiveRateConfig>) {
   if (partial.intervalSeconds != null) {
     _config.intervalSeconds = clampIntervalSec(partial.intervalSeconds);
   }
-  notify();
+  bumpUsdtRatesSnapshot();
   const ok = await saveSharedData('usdtLiveRateConfig' as any, _config);
   if (!ok) {
     await new Promise(r => setTimeout(r, 600));
@@ -294,7 +294,7 @@ export default function UsdtRatePanel({ onRateUpdate, compact = false }: Props) 
 
   const handleConfirmRate = () => {
     globalUpdateConfig({ paused: false, pauseReason: null, lastConfirmedMid: rates.mid });
-    toast.success(t('已确认新汇率', 'New rate confirmed'));
+    notify.success(t('已确认新汇率', 'New rate confirmed'));
   };
 
   const formatTime = (iso: string) => {
@@ -331,7 +331,7 @@ export default function UsdtRatePanel({ onRateUpdate, compact = false }: Props) 
           value={String(clampIntervalSec(config.intervalSeconds))}
           onValueChange={(v) => {
             globalUpdateConfig({ intervalSeconds: Number(v) });
-            toast.success(t('已保存采集间隔', 'Refresh interval saved'));
+            notify.success(t('已保存采集间隔', 'Refresh interval saved'));
           }}
         >
           <SelectTrigger
@@ -387,7 +387,7 @@ export default function UsdtRatePanel({ onRateUpdate, compact = false }: Props) 
                 value={String(clampIntervalSec(config.intervalSeconds))}
                 onValueChange={(v) => {
                   globalUpdateConfig({ intervalSeconds: Number(v) });
-                  toast.success(t('已保存采集间隔', 'Refresh interval saved'));
+                  notify.success(t('已保存采集间隔', 'Refresh interval saved'));
                 }}
               >
                 <SelectTrigger className="h-8 w-[120px] text-xs">

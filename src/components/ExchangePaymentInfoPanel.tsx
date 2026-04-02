@@ -15,7 +15,7 @@ import { CreditCard, Copy, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import {
   readRows,
   subscribeExchangePaymentInfoLedger,
@@ -69,7 +69,7 @@ export function ExchangePaymentInfoPanel() {
 
   const openCopyConfirm = useCallback((row: ExchangePaymentInfoEntry) => {
     if (row.hasBankCard === false) {
-      toast.error(t("用户没有银行卡信息", "User has no bank card on file"));
+      notify.error(t("用户没有银行卡信息", "User has no bank card on file"));
       return;
     }
     setPendingCopy({ id: row.id, text: normalizePaymentCopyPayload(row.copyPayload) });
@@ -84,15 +84,15 @@ export function ExchangePaymentInfoPanel() {
     setPendingCopy(null);
     const normalized = normalizePaymentCopyPayload(text);
     if (!normalized) {
-      toast.error(t("无可复制内容", "Nothing to copy"));
+      notify.error(t("无可复制内容", "Nothing to copy"));
       return;
     }
     const ok = await copyToClipboard(normalized);
     if (ok) {
       markExchangePaymentInfoCopied(effectiveTenantId, id);
-      toast.success(t("已复制到剪贴板", "Copied to clipboard"));
+      notify.success(t("已复制到剪贴板", "Copied to clipboard"));
     } else {
-      toast.error(t("复制失败", "Copy failed"));
+      notify.error(t("复制失败", "Copy failed"));
     }
   }, [pendingCopy, effectiveTenantId, t]);
 
@@ -103,7 +103,7 @@ export function ExchangePaymentInfoPanel() {
     }
     removeExchangePaymentInfoEntry(effectiveTenantId, pendingDeleteId);
     setPendingDeleteId(null);
-    toast.success(t("已删除该条付款信息", "Payment info row removed"));
+    notify.success(t("已删除该条付款信息", "Payment info row removed"));
   }, [pendingDeleteId, effectiveTenantId, t]);
 
   if (!effectiveTenantId) return null;

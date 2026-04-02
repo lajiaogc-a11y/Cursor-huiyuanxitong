@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
 import { apiPost } from "@/api/client";
 import {
@@ -136,11 +136,11 @@ export function PhoneExtractPanel() {
 
   const verifyPassword = async () => {
     if (!employee?.username) {
-      toast.error(t("未识别到当前账号，请重新登录", "Current user not found, please sign in again"));
+      notify.error(t("未识别到当前账号，请重新登录", "Current user not found, please sign in again"));
       return false;
     }
     if (!confirmPassword.trim()) {
-      toast.error(t("请输入密码确认", "Please enter password"));
+      notify.error(t("请输入密码确认", "Please enter password"));
       return false;
     }
     setVerifyingPassword(true);
@@ -165,19 +165,19 @@ export function PhoneExtractPanel() {
   const executeExtract = async () => {
     if (!effectiveTenantId) return;
     if (!phoneExtractEnabled) {
-      toast.error(t("该租户已关闭号码提取功能", "Phone extract is disabled for this tenant"));
+      notify.error(t("该租户已关闭号码提取功能", "Phone extract is disabled for this tenant"));
       return;
     }
     if (isPlatformAdminReadonlyView) {
-      toast.error(t("平台总管理查看租户时为只读，无法提取号码", "Read-only in platform admin tenant view"));
+      notify.error(t("平台总管理查看租户时为只读，无法提取号码", "Read-only in platform admin tenant view"));
       return;
     }
     if (stats && stats.total_available === 0) {
-      toast.error(t("号码池已耗尽", "Phone pool exhausted"));
+      notify.error(t("号码池已耗尽", "Phone pool exhausted"));
       return;
     }
     if (extractedList.length > 0) {
-      toast.error(t("请先归还或删除当前已提取号码后再提取", "Please return or delete current extracted numbers first"));
+      notify.error(t("请先归还或删除当前已提取号码后再提取", "Please return or delete current extracted numbers first"));
       return;
     }
     setExtracting(true);
@@ -208,11 +208,11 @@ export function PhoneExtractPanel() {
         return next;
       });
       if (result.length < n) {
-        toast.success(
+        notify.success(
           t(`已提取 ${result.length} 个（请求 ${n}，池已不足）`, `Extracted ${result.length} (requested ${n}, pool exhausted)`)
         );
       } else {
-        toast.success(t(`已提取 ${result.length} 个号码`, `Extracted ${result.length} numbers`));
+        notify.success(t(`已提取 ${result.length} 个号码`, `Extracted ${result.length} numbers`));
       }
       await loadStats();
     } catch (e: any) {
@@ -225,15 +225,15 @@ export function PhoneExtractPanel() {
 
   const executeReturn = async () => {
     if (!phoneExtractEnabled) {
-      toast.error(t("该租户已关闭号码提取功能", "Phone extract is disabled for this tenant"));
+      notify.error(t("该租户已关闭号码提取功能", "Phone extract is disabled for this tenant"));
       return;
     }
     if (isPlatformAdminReadonlyView) {
-      toast.error(t("平台总管理查看租户时为只读，无法归还号码", "Read-only in platform admin tenant view"));
+      notify.error(t("平台总管理查看租户时为只读，无法归还号码", "Read-only in platform admin tenant view"));
       return;
     }
     if (extractedList.length === 0) {
-      toast.error(t("暂无可归还号码", "No numbers to return"));
+      notify.error(t("暂无可归还号码", "No numbers to return"));
       return;
     }
     if (!effectiveTenantId) return;
@@ -255,21 +255,21 @@ export function PhoneExtractPanel() {
       });
 
       if (returnedIds.length === 0) {
-        toast.error(
+        notify.error(
           t(
             "未归还成功：号码可能已被归还或无权限",
             "No numbers returned: already returned or no permission"
           )
         );
       } else if (returnedIds.length < targetIds.length) {
-        toast.warning(
+        notify.warning(
           t(
             `部分归还成功：${returnedIds.length}/${targetIds.length}`,
             `Partially returned: ${returnedIds.length}/${targetIds.length}`
           )
         );
       } else {
-        toast.success(
+        notify.success(
           selectedIds.size > 0
             ? t(`已归还选中号码（${returnedIds.length}）`, `Returned selected numbers (${returnedIds.length})`)
             : t(`已归还全部号码（${returnedIds.length}）`, `Returned all numbers (${returnedIds.length})`)
@@ -287,15 +287,15 @@ export function PhoneExtractPanel() {
   const executeConsume = async () => {
     if (!effectiveTenantId) return;
     if (!phoneExtractEnabled) {
-      toast.error(t("该租户已关闭号码提取功能", "Phone extract is disabled for this tenant"));
+      notify.error(t("该租户已关闭号码提取功能", "Phone extract is disabled for this tenant"));
       return;
     }
     if (isPlatformAdminReadonlyView) {
-      toast.error(t("平台总管理查看租户时为只读，无法删除号码", "Read-only in platform admin tenant view"));
+      notify.error(t("平台总管理查看租户时为只读，无法删除号码", "Read-only in platform admin tenant view"));
       return;
     }
     if (extractedList.length === 0) {
-      toast.error(t("暂无可删除号码", "No numbers to delete"));
+      notify.error(t("暂无可删除号码", "No numbers to delete"));
       return;
     }
     const targetIds = selectedIds.size > 0 ? [...selectedIds] : extractedList.map((p) => p.id);
@@ -312,9 +312,9 @@ export function PhoneExtractPanel() {
         return next;
       });
       if (consumedIds.length === 0) {
-        toast.error(t("未删除成功：号码可能已被处理或无权限", "No numbers deleted: already handled or no permission"));
+        notify.error(t("未删除成功：号码可能已被处理或无权限", "No numbers deleted: already handled or no permission"));
       } else {
-        toast.success(
+        notify.success(
           selectedIds.size > 0
             ? t(`已删除选中号码（${consumedIds.length}）`, `Deleted selected numbers (${consumedIds.length})`)
             : t(`已删除全部号码（${consumedIds.length}）`, `Deleted all numbers (${consumedIds.length})`)
@@ -331,7 +331,7 @@ export function PhoneExtractPanel() {
 
   const openPasswordDialog = (action: "extract" | "return" | "consume") => {
     if (!phoneExtractEnabled) {
-      toast.error(t("该租户已关闭号码提取功能", "Phone extract is disabled for this tenant"));
+      notify.error(t("该租户已关闭号码提取功能", "Phone extract is disabled for this tenant"));
       return;
     }
     setConfirmPassword("");
@@ -341,7 +341,7 @@ export function PhoneExtractPanel() {
   const handlePasswordConfirmedAction = async () => {
     const ok = await verifyPassword();
     if (!ok) {
-      toast.error(t("密码错误，操作已取消", "Invalid password, action cancelled"));
+      notify.error(t("密码错误，操作已取消", "Invalid password, action cancelled"));
       return;
     }
     const action = passwordDialogAction;
@@ -357,13 +357,13 @@ export function PhoneExtractPanel() {
         ? extractedList.filter((p) => selectedIds.has(p.id)).map((p) => p.normalized)
         : extractedList.map((p) => p.normalized);
     if (list.length === 0) {
-      toast.error(t("无号码可复制", "No numbers to copy"));
+      notify.error(t("无号码可复制", "No numbers to copy"));
       return;
     }
     const text = copyFormat === "comma" ? list.join(",") : list.join("\n");
     navigator.clipboard.writeText(text).then(
-      () => toast.success(t("已复制到剪贴板", "Copied to clipboard")),
-      () => toast.error(t("复制失败", "Copy failed"))
+      () => notify.success(t("已复制到剪贴板", "Copied to clipboard")),
+      () => notify.error(t("复制失败", "Copy failed"))
     );
   };
 

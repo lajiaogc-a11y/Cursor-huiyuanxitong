@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Trophy, UserRound } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
@@ -123,7 +123,7 @@ export function InviteSimulationSettingsTab({ tenantId, canManage }: InviteSimul
       setFeedRows(rows);
       setHourRunRows(hourRuns);
     } catch {
-      toast.error(t("加载模拟策略失败", "Failed to load simulation policy"));
+      notify.error(t("加载模拟策略失败", "Failed to load simulation policy"));
     } finally {
       setSimPolicyLoading(false);
       setFeedLoading(false);
@@ -146,7 +146,7 @@ export function InviteSimulationSettingsTab({ tenantId, canManage }: InviteSimul
         });
       })
       .catch(() => {
-        if (!cancelled) toast.error(t("加载模拟设置失败", "Failed to load simulation settings"));
+        if (!cancelled) notify.error(t("加载模拟设置失败", "Failed to load simulation settings"));
       })
       .finally(() => {
         if (!cancelled) setSimFakeLoading(false);
@@ -170,9 +170,9 @@ export function InviteSimulationSettingsTab({ tenantId, canManage }: InviteSimul
         source: fresh.source,
         updated_at: fresh.updated_at,
       });
-      toast.success(t("已保存", "Saved"));
+      notify.success(t("已保存", "Saved"));
     } catch {
-      toast.error(t("保存失败", "Save failed"));
+      notify.error(t("保存失败", "Save failed"));
     } finally {
       setSimFakeSaving(false);
     }
@@ -184,9 +184,9 @@ export function InviteSimulationSettingsTab({ tenantId, canManage }: InviteSimul
     try {
       const saved = await adminSaveSimulationSettings(tenantId, simPolicy);
       setSimPolicy(saved);
-      toast.success(t("模拟策略已保存", "Simulation policy saved"));
+      notify.success(t("模拟策略已保存", "Simulation policy saved"));
     } catch {
-      toast.error(t("保存失败", "Save failed"));
+      notify.error(t("保存失败", "Save failed"));
     } finally {
       setSimPolicySaving(false);
     }
@@ -198,13 +198,13 @@ export function InviteSimulationSettingsTab({ tenantId, canManage }: InviteSimul
     try {
       const r = await adminStartSimulationCron(tenantId);
       setSimPolicy((p) => ({ ...p, cron_fake_anchor_at: r.cron_fake_anchor_at }));
-      toast.success(
+      notify.success(
         t("已启动首轮模拟，并已记录时间锚点；之后按该时刻起每小时一轮。", "First simulation batch started; hourly runs align from this anchor time."),
       );
       await loadSimPolicyAndFeed();
     } catch (e: unknown) {
       const msg = e instanceof ApiError ? e.message : t("启动失败", "Start failed");
-      toast.error(msg);
+      notify.error(msg);
     } finally {
       setCronStarting(false);
     }

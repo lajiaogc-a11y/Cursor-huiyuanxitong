@@ -18,7 +18,7 @@ import { Loader2, Users, Info, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
 import {
   generateCustomerList,
@@ -69,7 +69,7 @@ export default function TasksSettings() {
 
   const handleCloseTask = async (taskId: string) => {
     if (isPlatformAdminReadonlyView) {
-      toast.error(t("平台总管理查看租户时为只读，无法取消任务", "Read-only in platform admin tenant view: cannot cancel task"));
+      notify.error(t("平台总管理查看租户时为只读，无法取消任务", "Read-only in platform admin tenant view: cannot cancel task"));
       return;
     }
     if (!tenantId) return;
@@ -80,7 +80,7 @@ export default function TasksSettings() {
         showServiceErrorToast(result.error, t, "取消失败", "Cancel failed");
         return;
       }
-      toast.success(t("已取消任务", "Task cancelled"));
+      notify.success(t("已取消任务", "Task cancelled"));
       setConfirmCloseId(null);
       refetchOpenTasks();
     } catch (e) {
@@ -93,11 +93,11 @@ export default function TasksSettings() {
 
   const handleGenerate = async () => {
     if (isPlatformAdminReadonlyView) {
-      toast.error(t("平台总管理查看租户时为只读，无法生成名单", "Read-only in platform admin tenant view: cannot generate list"));
+      notify.error(t("平台总管理查看租户时为只读，无法生成名单", "Read-only in platform admin tenant view: cannot generate list"));
       return;
     }
     if (!tenantId) {
-      toast.error(t("请先选择租户", "Please select tenant first"));
+      notify.error(t("请先选择租户", "Please select tenant first"));
       return;
     }
     setGenerating(true);
@@ -113,7 +113,7 @@ export default function TasksSettings() {
       setPreviewOpen(true);
     } catch (e) {
       console.error(e);
-      toast.error(t("生成失败", "Generate failed"));
+      notify.error(t("生成失败", "Generate failed"));
     } finally {
       setGenerating(false);
     }
@@ -121,15 +121,15 @@ export default function TasksSettings() {
 
   const handleCreateTask = async () => {
     if (isPlatformAdminReadonlyView) {
-      toast.error(t("平台总管理查看租户时为只读，无法创建任务", "Read-only in platform admin tenant view: cannot create task"));
+      notify.error(t("平台总管理查看租户时为只读，无法创建任务", "Read-only in platform admin tenant view: cannot create task"));
       return;
     }
     if (selectedIds.length === 0 || phones.length === 0) {
-      toast.error(t("请选择员工并确保有名单", "Select employees and ensure list exists"));
+      notify.error(t("请选择员工并确保有名单", "Select employees and ensure list exists"));
       return;
     }
     if (!employee?.id || !tenantId) {
-      toast.error(t("请先登录", "Please login"));
+      notify.error(t("请先登录", "Please login"));
       return;
     }
     setLoading(true);
@@ -146,14 +146,14 @@ export default function TasksSettings() {
         showServiceErrorToast(created.error, t, "创建失败", "Create failed");
         return;
       }
-      toast.success(t("创建成功", "Created"));
+      notify.success(t("创建成功", "Created"));
       setDialogOpen(false);
       setPhones([]);
       setSample([]);
       refetchOpenTasks();
     } catch (e) {
       console.error(e);
-      toast.error(t("创建失败", "Create failed"));
+      notify.error(t("创建失败", "Create failed"));
     } finally {
       setLoading(false);
     }

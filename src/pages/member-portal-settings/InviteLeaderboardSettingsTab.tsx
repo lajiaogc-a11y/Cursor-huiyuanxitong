@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, RefreshCw, Trophy, RotateCcw } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -112,7 +112,7 @@ export function InviteLeaderboardSettingsTab({
       if (growth) setGrowthDraft(normalizeInviteGrowth(growth));
       else setGrowthDraft(null);
     } catch (e) {
-      toast.error(t("加载失败", "Load failed"));
+      notify.error(t("加载失败", "Load failed"));
       setRows([]);
       setGrowthDraft(null);
     } finally {
@@ -143,14 +143,14 @@ export function InviteLeaderboardSettingsTab({
             }),
       });
       if (next) setGrowthDraft(normalizeInviteGrowth(next));
-      toast.success(
+      notify.success(
         t(
           "增长策略已保存，已按当前 UTC 段重置 tick 与下次执行时间",
           "Saved; current UTC segment ticks and next run time were reset",
         ),
       );
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : t("保存失败", "Save failed"));
+      notify.error(e instanceof ApiError ? e.message : t("保存失败", "Save failed"));
     } finally {
       setGrowthSaving(false);
     }
@@ -168,10 +168,10 @@ export function InviteLeaderboardSettingsTab({
         name: name.trim(),
         base_invite_count: Math.max(0, Math.floor(base)),
       });
-      toast.success(t("已保存", "Saved"));
+      notify.success(t("已保存", "Saved"));
       await load();
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : t("保存失败", "Save failed"));
+      notify.error(e instanceof ApiError ? e.message : t("保存失败", "Save failed"));
     } finally {
       setSavingId(null);
     }
@@ -181,10 +181,10 @@ export function InviteLeaderboardSettingsTab({
     if (!tenantId || !canMutate) return;
     try {
       await staffToggleInviteLeaderboardFake(tenantId, id, is_active);
-      toast.success(t("已更新", "Updated"));
+      notify.success(t("已更新", "Updated"));
       await load();
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : t("操作失败", "Failed"));
+      notify.error(e instanceof ApiError ? e.message : t("操作失败", "Failed"));
     }
   };
 
@@ -192,34 +192,34 @@ export function InviteLeaderboardSettingsTab({
     if (!tenantId || !canMutate) return;
     try {
       await staffResetInviteLeaderboardFakeGrowth(tenantId, id);
-      toast.success(t("已重置增长", "Growth reset"));
+      notify.success(t("已重置增长", "Growth reset"));
       await load();
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : t("操作失败", "Failed"));
+      notify.error(e instanceof ApiError ? e.message : t("操作失败", "Failed"));
     }
   };
 
   const handleSeed = async (replace: boolean) => {
     if (!tenantId || !canMutate) return;
     if (replace && !canReplaceSeed) {
-      toast.error(t("仅管理员可替换初始化", "Admin only for replace"));
+      notify.error(t("仅管理员可替换初始化", "Admin only for replace"));
       return;
     }
     setSeedBusy(true);
     try {
       const { inserted } = await staffSeedInviteLeaderboardFakes(tenantId, replace);
-      toast.success(t(`已写入 ${inserted} 条`, `Inserted ${inserted} rows`));
+      notify.success(t(`已写入 ${inserted} 条`, `Inserted ${inserted} rows`));
       await load();
     } catch (e) {
       if (e instanceof ApiError && e.statusCode === 409) {
-        toast.message(t("已有假用户数据", "Already seeded"), {
+        notify.message(t("已有假用户数据", "Already seeded"), {
           description: t("如需覆盖请使用「替换初始化」（仅管理员）", "Use replace (admin) to overwrite"),
         });
         await load();
         return;
       }
       const msg = e instanceof ApiError ? e.message : t("初始化失败", "Seed failed");
-      toast.error(msg);
+      notify.error(msg);
     } finally {
       setSeedBusy(false);
     }
@@ -231,17 +231,17 @@ export function InviteLeaderboardSettingsTab({
     try {
       const r = await staffRunInviteLeaderboardGrowthNow();
       if (r.success) {
-        toast.success(
+        notify.success(
           r.message
             ? t(`增长任务已完成：${r.message}`, `Growth job done: ${r.message}`)
             : t("已触发增长任务", "Growth job triggered"),
         );
       } else {
-        toast.error(r.message || t("增长任务失败", "Growth job failed"));
+        notify.error(r.message || t("增长任务失败", "Growth job failed"));
       }
       await load();
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : t("触发失败", "Failed"));
+      notify.error(e instanceof ApiError ? e.message : t("触发失败", "Failed"));
     } finally {
       setGrowthBusy(false);
     }
@@ -252,10 +252,10 @@ export function InviteLeaderboardSettingsTab({
     setDeleteAllBusy(true);
     try {
       const { deleted } = await staffDeleteAllInviteLeaderboardFakes(tenantId);
-      toast.success(t(`已删除 ${deleted} 条假用户`, `Deleted ${deleted} synthetic rows`));
+      notify.success(t(`已删除 ${deleted} 条假用户`, `Deleted ${deleted} synthetic rows`));
       await load();
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : t("删除失败", "Delete failed"));
+      notify.error(e instanceof ApiError ? e.message : t("删除失败", "Delete failed"));
     } finally {
       setDeleteAllBusy(false);
     }
@@ -266,7 +266,7 @@ export function InviteLeaderboardSettingsTab({
     setRandomizeBusy(true);
     try {
       const { updated, min, max } = await staffRandomizeInviteLeaderboardFakeBase(tenantId, 1, 3);
-      toast.success(
+      notify.success(
         t(
           `已为 ${updated} 条随机设定基础人数（${min}–${max}），自动增长部分未改动`,
           `Updated ${updated} rows with random base (${min}–${max}); auto increment unchanged`,
@@ -274,7 +274,7 @@ export function InviteLeaderboardSettingsTab({
       );
       await load();
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : t("随机分配失败", "Randomize failed"));
+      notify.error(e instanceof ApiError ? e.message : t("随机分配失败", "Randomize failed"));
     } finally {
       setRandomizeBusy(false);
     }

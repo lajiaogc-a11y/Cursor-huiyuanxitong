@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobilePagination, MobileEmptyState } from "@/components/ui/mobile-data-card";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMerchantNameResolver } from "@/hooks/useNameResolver";
 import { useActivityTypes } from "@/hooks/useActivityTypes";
@@ -848,7 +848,7 @@ export default function ReportManagement() {
       queryClient.refetchQueries({ queryKey: ['report-base'] }),
       queryClient.refetchQueries({ queryKey: ['report-filtered'] }),
     ]);
-    toast.success("数据已刷新");
+    notify.success("数据已刷新");
   };
 
   // 汇总统计数据（使用空值安全过滤）
@@ -880,7 +880,7 @@ export default function ReportManagement() {
       await updateEmployeeManualGiftRatio(employeeId, ratio);
     } catch (error) {
       console.error('Failed to update manual ratio:', error);
-      toast.error(t('保存失败', 'Save failed'));
+      notify.error(t('保存失败', 'Save failed'));
     }
   };
 
@@ -982,7 +982,7 @@ export default function ReportManagement() {
           { key: 'manualGiftRatio', label: '手动设置占比', labelEn: 'Manual Ratio', formatter: (v) => `${v.toFixed(2)}%` },
           { key: 'manualGiftAmount', label: '承担活动金额', labelEn: 'Manual Amount', formatter: (v) => formatNumberForExport(v) },
         ], '员工利润报表', isEn);
-        toast.success(t('导出成功', 'Export successful'));
+        notify.success(t('导出成功', 'Export successful'));
         break;
       }
       case 'card': {
@@ -996,7 +996,7 @@ export default function ReportManagement() {
           { key: 'profitNgn', label: '利润(NGN/GHS)', labelEn: 'Profit NGN/GHS', formatter: (v) => formatNumberForExport(v) },
           { key: 'profitUsdt', label: '利润(USDT)', labelEn: 'Profit USDT', formatter: (v) => formatNumberForExport(v) },
         ], '卡片报表', isEn);
-        toast.success(t('导出成功', 'Export successful'));
+        notify.success(t('导出成功', 'Export successful'));
         break;
       }
       case 'vendor': {
@@ -1010,7 +1010,7 @@ export default function ReportManagement() {
           { key: 'profitNgn', label: '利润(NGN/GHS)', labelEn: 'Profit NGN/GHS', formatter: (v) => formatNumberForExport(v) },
           { key: 'profitUsdt', label: '利润(USDT)', labelEn: 'Profit USDT', formatter: (v) => formatNumberForExport(v) },
         ], '卡商报表', isEn);
-        toast.success(t('导出成功', 'Export successful'));
+        notify.success(t('导出成功', 'Export successful'));
         break;
       }
       case 'provider': {
@@ -1025,7 +1025,7 @@ export default function ReportManagement() {
           { key: 'paymentValueNgnGhs', label: '代付总额(人)', labelEn: 'Payment NGN/GHS', formatter: (v) => formatNumberForExport(v) },
           { key: 'paymentValueUsdt', label: '代付总额(USDT)', labelEn: 'Payment USDT', formatter: (v) => formatNumberForExport(v) },
         ], '代付报表', isEn);
-        toast.success(t('导出成功', 'Export successful'));
+        notify.success(t('导出成功', 'Export successful'));
         break;
       }
       case 'daily': {
@@ -1041,7 +1041,7 @@ export default function ReportManagement() {
           { key: 'profitUsdt', label: '利润(USDT)', labelEn: 'Profit USDT', formatter: (v) => formatNumberForExport(v) },
           { key: 'totalProfit', label: '总利润(人)', labelEn: 'Total Profit', formatter: (v) => formatNumberForExport(v) },
         ], '每日报表', isEn);
-        toast.success(t('导出成功', 'Export successful'));
+        notify.success(t('导出成功', 'Export successful'));
         break;
       }
       case 'monthly': {
@@ -1057,7 +1057,7 @@ export default function ReportManagement() {
           { key: 'profitUsdt', label: '利润(USDT)', labelEn: 'Profit USDT', formatter: (v) => formatNumberForExport(v) },
           { key: 'totalProfit', label: '总利润(人)', labelEn: 'Total Profit', formatter: (v) => formatNumberForExport(v) },
         ], '每月报表', isEn);
-        toast.success(t('导出成功', 'Export successful'));
+        notify.success(t('导出成功', 'Export successful'));
         break;
       }
       case 'activity': {
@@ -1073,7 +1073,7 @@ export default function ReportManagement() {
           { key: 'giftValueTotal', label: '赠送价值(人)', labelEn: 'Gift Value', formatter: (v) => formatNumberForExport(v) },
           { key: 'effectCount', label: '赠送效果', labelEn: 'Effect Count' },
         ], '活动报表', isEn);
-        toast.success(t('导出成功', 'Export successful'));
+        notify.success(t('导出成功', 'Export successful'));
         break;
       }
     }

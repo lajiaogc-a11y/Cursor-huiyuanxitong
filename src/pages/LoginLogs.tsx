@@ -14,7 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Search, RefreshCw, CheckCircle, XCircle, MapPin, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackRender } from "@/lib/performanceUtils";
@@ -92,7 +92,7 @@ export default function LoginLogs() {
 
   const handleRefresh = async () => {
     await refetch();
-    toast.success(t("已刷新", "Refreshed"));
+    notify.success(t("已刷新", "Refreshed"));
   };
 
   const formatDateTime = (dateStr: string) => {

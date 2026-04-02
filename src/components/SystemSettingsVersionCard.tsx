@@ -3,7 +3,7 @@ import { RefreshCw, Loader2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { cn } from "@/lib/utils";
 import {
   DEV_BUILD_PLACEHOLDER,
@@ -24,21 +24,21 @@ export function SystemSettingsVersionCard() {
     try {
       const remoteBuild = await fetchRemoteFrontendBuildTime();
       if (remoteBuild === undefined) {
-        toast.error(t("检查更新失败，请稍后重试。", "Update check failed. Try again later."));
+        notify.error(t("检查更新失败，请稍后重试。", "Update check failed. Try again later."));
         return;
       }
       if (!remoteBuild) {
-        toast.error(t("无法读取线上版本信息。", "Could not read the online version."));
+        notify.error(t("无法读取线上版本信息。", "Could not read the online version."));
         return;
       }
       if (remoteBuild === DEV_BUILD_PLACEHOLDER) {
-        toast.message(
+        notify.message(
           t("当前为开发环境，线上未发布正式构建时间。", "Dev placeholder: no published build time to compare."),
         );
         return;
       }
       if (remoteBuild !== __BUILD_TIME__) {
-        toast(t("发现新版本", "New version available"), {
+        notify.banner(t("发现新版本", "New version available"), {
           description: t(
             "线上构建时间与当前页面不一致，建议刷新以加载最新前端。",
             "The published build differs from this page. Refresh to load the latest app.",
@@ -52,7 +52,7 @@ export function SystemSettingsVersionCard() {
         });
         return;
       }
-      toast.success(t("当前已是最新版本。", "You're already on the latest version."));
+      notify.success(t("当前已是最新版本。", "You're already on the latest version."));
     } finally {
       setChecking(false);
     }

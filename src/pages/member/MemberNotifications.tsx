@@ -22,7 +22,7 @@ import {
   Trash2,
   Check,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import BackHeader from "@/components/member/BackHeader";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
 import { MemberPageLoadingShell } from "@/components/member/MemberPageLoadingShell";
@@ -139,7 +139,7 @@ export default function MemberNotifications() {
         setNotifications(items.map((it) => mapApiToNotif(it, language)));
       } catch {
         if (!cancelled) {
-          toast.error(t("加载失败", "Failed to load"));
+          notify.error(t("加载失败", "Failed to load"));
           setNotifications([]);
         }
       } finally {
@@ -174,16 +174,16 @@ export default function MemberNotifications() {
       await postMemberInboxMarkAllRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setMemberInboxUnreadCount(0);
-      toast.success(t("已全部标为已读", "Marked all as read"));
+      notify.success(t("已全部标为已读", "Marked all as read"));
     } catch {
-      toast.error(t("操作失败", "Could not update"));
+      notify.error(t("操作失败", "Could not update"));
     }
   };
 
   const markRead = (id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     void postMemberInboxMarkRead(id).catch(() => {
-      toast.error(t("同步失败", "Sync failed"));
+      notify.error(t("同步失败", "Sync failed"));
     });
   };
 
@@ -191,9 +191,9 @@ export default function MemberNotifications() {
     try {
       await deleteMemberInboxNotification(id);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
-      toast.success(t("通知已删除", "Notification removed"));
+      notify.success(t("通知已删除", "Notification removed"));
     } catch {
-      toast.error(t("删除失败", "Delete failed"));
+      notify.error(t("删除失败", "Delete failed"));
     }
   };
 

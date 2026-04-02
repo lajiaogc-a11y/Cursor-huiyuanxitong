@@ -22,7 +22,7 @@ import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
 import { useMemberPoints } from "@/hooks/useMemberPoints";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { MemberInviteHero } from "@/components/member/MemberInviteHero";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { fetchMemberInviteToken } from "@/services/memberPortal/memberInvitePortalService";
 import { ROUTES } from "@/routes/constants";
 import { memberPortalCopyFailedToast, memberPortalLinkCopiedToast } from "@/lib/memberPortalUx";
@@ -106,11 +106,11 @@ export default function MemberInvite() {
       .then(() => {
         setCopied(true);
         fireMemberInviteCopyConfetti();
-        toast.success(memberPortalLinkCopiedToast(t));
+        notify.success(memberPortalLinkCopiedToast(t));
         setTimeout(() => setCopied(false), 2000);
       })
       .catch(() => {
-        toast.error(memberPortalCopyFailedToast(t));
+        notify.error(memberPortalCopyFailedToast(t));
       });
   };
 
@@ -130,7 +130,7 @@ export default function MemberInvite() {
     if (!inviteLink) return;
     const svgEl = document.getElementById("member-invite-qr-svg");
     if (!svgEl) {
-      toast.error(t("请稍后再试", "Please try again"));
+      notify.error(t("请稍后再试", "Please try again"));
       return;
     }
     const company = portalSettings.company_name || "FastGC";
@@ -142,7 +142,7 @@ export default function MemberInvite() {
     canvas.height = H;
     const ctx = canvas.getContext("2d");
     if (!ctx) {
-      toast.error(t("无法生成图片", "Could not create image"));
+      notify.error(t("无法生成图片", "Could not create image"));
       return;
     }
 
@@ -199,7 +199,7 @@ export default function MemberInvite() {
       canvas.toBlob(
         (blob) => {
           if (!blob) {
-            toast.error(t("无法生成图片", "Could not create image"));
+            notify.error(t("无法生成图片", "Could not create image"));
             return;
           }
           void saveInvitePosterPngBlob(blob, "invite-poster.png", t);
@@ -208,7 +208,7 @@ export default function MemberInvite() {
         0.95,
       );
     };
-    img.onerror = () => toast.error(t("无法生成图片", "Could not create image"));
+    img.onerror = () => notify.error(t("无法生成图片", "Could not create image"));
     img.src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgData)))}`;
   }, [inviteLink, portalSettings.company_name, portalSettings.invite_reward_spins, t]);
 

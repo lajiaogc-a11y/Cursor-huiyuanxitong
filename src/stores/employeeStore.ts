@@ -13,7 +13,7 @@ import {
   updateEmployeeApi,
   type ApiEmployee,
 } from '@/api/employees';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 
 export type AppRole = 'admin' | 'manager' | 'staff';
 
@@ -326,7 +326,7 @@ export async function toggleEmployeeStatus(id: string, lang: 'zh' | 'en' = 'zh')
     const result = await toggleEmployeeStatusApi(id);
     return !!result;
   } catch (error) {
-    toast.error(getEmployeeErrorMessage('UPDATE_STATUS_FAILED', lang));
+    notify.error(getEmployeeErrorMessage('UPDATE_STATUS_FAILED', lang));
     return false;
   }
 }

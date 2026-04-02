@@ -1,6 +1,6 @@
 // 普通订单 Mutations - 从 useOrders 提取，不修改业务逻辑
 import { useCallback } from 'react';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { normalizeCurrencyCode } from '@/config/currencies';
 import {
   reversePointsOnOrderCancel,
@@ -58,19 +58,19 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
       memberCode?: string
     ): Promise<OrderResult> => {
       if (isPlatformAdminReadonlyView) {
-        toast.error(t('平台总管理查看租户时为只读，无法新增订单', 'Read-only in admin view, cannot create order'));
+        notify.error(t('平台总管理查看租户时为只读，无法新增订单', 'Read-only in admin view, cannot create order'));
         return { order: null, earnedPoints: 0 };
       }
       try {
         const quotaResult = await checkMyTenantQuotaResult("daily_orders");
         if (!quotaResult.ok) {
           const quotaText = getQuotaExceededText(quotaResult.error.message);
-          toast.error(quotaText?.zh || t('今日订单数量已达到租户配额上限', 'Daily order quota exceeded'));
+          notify.error(quotaText?.zh || t('今日订单数量已达到租户配额上限', 'Daily order quota exceeded'));
           return { order: null, earnedPoints: 0 };
         }
         const softQuotaText = getQuotaSoftExceededText(quotaResult.data?.message);
         if (softQuotaText) {
-          toast.warning(softQuotaText.zh);
+          notify.warning(softQuotaText.zh);
         }
         const currency = normalizeCurrencyCode(orderData.demandCurrency);
         const orderPoints = currency ? await calculateOrderPointsAsync(orderData.actualPaid, currency) : 0;
@@ -116,7 +116,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         return { order: newOrder, earnedPoints };
       } catch (error) {
         console.error('Failed to add order:', error);
-        toast.error(t('创建订单失败', 'Failed to create order'));
+        notify.error(t('创建订单失败', 'Failed to create order'));
         return { order: null, earnedPoints: 0 };
       }
     },
@@ -126,7 +126,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
   const updateOrder = useCallback(
     async (dbId: string, updates: Partial<Order>): Promise<Order | null> => {
       if (isPlatformAdminReadonlyView) {
-        toast.error(t('平台总管理查看租户时为只读，无法修改订单', 'Read-only in admin view, cannot modify order'));
+        notify.error(t('平台总管理查看租户时为只读，无法修改订单', 'Read-only in admin view, cannot modify order'));
         return null;
       }
       try {
@@ -137,7 +137,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         return mapDbOrderToOrder(data);
       } catch (error) {
         console.error('Failed to update order:', error);
-        toast.error(t('更新订单失败', 'Failed to update order'));
+        notify.error(t('更新订单失败', 'Failed to update order'));
         return null;
       }
     },
@@ -147,7 +147,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
   const cancelOrder = useCallback(
     async (dbId: string): Promise<boolean> => {
       if (isPlatformAdminReadonlyView) {
-        toast.error(t('平台总管理查看租户时为只读，无法取消订单', 'Read-only in admin view, cannot cancel order'));
+        notify.error(t('平台总管理查看租户时为只读，无法取消订单', 'Read-only in admin view, cannot cancel order'));
         return false;
       }
       try {
@@ -202,7 +202,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         return true;
       } catch (error) {
         console.error('Failed to cancel order:', error);
-        toast.error(t('取消订单失败', 'Failed to cancel order'));
+        notify.error(t('取消订单失败', 'Failed to cancel order'));
         return false;
       }
     },
@@ -212,7 +212,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
   const restoreOrder = useCallback(
     async (dbId: string): Promise<boolean> => {
       if (isPlatformAdminReadonlyView) {
-        toast.error(t('平台总管理查看租户时为只读，无法恢复订单', 'Read-only in admin view, cannot restore order'));
+        notify.error(t('平台总管理查看租户时为只读，无法恢复订单', 'Read-only in admin view, cannot restore order'));
         return false;
       }
       try {
@@ -272,7 +272,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         return true;
       } catch (error) {
         console.error('Failed to restore order:', error);
-        toast.error(t('恢复订单失败', 'Failed to restore order'));
+        notify.error(t('恢复订单失败', 'Failed to restore order'));
         return false;
       }
     },
@@ -282,7 +282,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
   const deleteOrder = useCallback(
     async (dbId: string): Promise<boolean> => {
       if (isPlatformAdminReadonlyView) {
-        toast.error(t('平台总管理查看租户时为只读，无法删除订单', 'Read-only in admin view, cannot delete order'));
+        notify.error(t('平台总管理查看租户时为只读，无法删除订单', 'Read-only in admin view, cannot delete order'));
         return false;
       }
       const order = orders.find(o => o.dbId === dbId);
@@ -313,7 +313,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         setOrders(prev => prev.filter(o => o.dbId !== dbId));
       } catch (error) {
         console.error('Failed to delete order:', error);
-        toast.error(t('删除订单失败', 'Failed to delete order'));
+        notify.error(t('删除订单失败', 'Failed to delete order'));
         return false;
       }
 

@@ -39,7 +39,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Pencil, Trash2, KeyRound, Copy } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useMembers, Member } from "@/hooks/useMembers";
 import { logOperation } from "@/stores/auditLogStore";
 import { getCurrencyBadgeColor, normalizeCurrencyCode } from "@/config/currencies";
@@ -277,7 +277,7 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
       const changes = getMemberFieldChanges(originalMember, editingMember);
 
       if (changes.length === 0) {
-        toast.info(t("没有修改任何内容", "No changes made"));
+        notify.info(t("没有修改任何内容", "No changes made"));
         setIsEditDialogOpen(false);
         return;
       }
@@ -305,7 +305,7 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
             `修改会员: ${editingMember.phoneNumber}`
           );
           
-          toast.success(t("会员信息已更新", "Member info updated"));
+          notify.success(t("会员信息已更新", "Member info updated"));
           setIsEditDialogOpen(false);
           setEditingMember(null);
         }
@@ -323,13 +323,13 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
 
       // 如果有字段被拒绝（不可编辑且未开放审核）
       if (auditResult.hasRejected) {
-        toast.error(auditResult.message);
+        notify.error(auditResult.message);
         return;
       }
 
       // 如果有字段需要审核
       if (auditResult.pendingFields.length > 0) {
-        toast.info(auditResult.message);
+        notify.info(auditResult.message);
         
         // 只更新不需要审核的字段
         if (auditResult.directFields.length > 0) {
@@ -392,7 +392,7 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
           `修改会员: ${editingMember.phoneNumber}`
         );
         
-        toast.success(t("会员信息已更新", "Member updated"));
+        notify.success(t("会员信息已更新", "Member updated"));
         setIsEditDialogOpen(false);
         setEditingMember(null);
       }
@@ -405,7 +405,7 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
     const success = await deleteMember(memberId);
     
     if (success) {
-      toast.success(t("会员已删除", "Member deleted"));
+      notify.success(t("会员已删除", "Member deleted"));
     }
   };
 
@@ -422,14 +422,14 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
   const handleCopyPassword = async (member: Member) => {
     const pwd = member.initialPassword;
     if (!pwd) {
-      toast.error(t("该会员暂无初始密码", "No initial password set for this member"));
+      notify.error(t("该会员暂无初始密码", "No initial password set for this member"));
       return;
     }
     try {
       await navigator.clipboard.writeText(pwd);
-      toast.success(`Your password is: ${pwd}`);
+      notify.success(`Your password is: ${pwd}`);
     } catch {
-      toast.info(`Your password is: ${pwd}`);
+      notify.info(`Your password is: ${pwd}`);
     }
   };
 
@@ -437,7 +437,7 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
     if (!setPasswordMember) return;
     const pwd = setPasswordValue.trim();
     if (pwd.length < 6) {
-      toast.error(t("密码至少6位", "Password must be at least 6 characters"));
+      notify.error(t("密码至少6位", "Password must be at least 6 characters"));
       return;
     }
     setSetPasswordLoading(true);
@@ -446,11 +446,11 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
       try {
         result = await adminSetMemberInitialPassword(setPasswordMember.id, pwd);
       } catch (err: unknown) {
-        toast.error(t("设置失败", "Set failed") + ": " + (err instanceof Error ? err.message : String(err)));
+        notify.error(t("设置失败", "Set failed") + ": " + (err instanceof Error ? err.message : String(err)));
         return;
       }
       if (result?.success) {
-        toast.success(t("密码已设置", "Password set successfully"));
+        notify.success(t("密码已设置", "Password set successfully"));
         setSetPasswordMember(null);
         refetch();
       } else {
@@ -460,10 +460,10 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
             : result?.error === "MEMBER_NOT_FOUND"
               ? t("会员不存在", "Member not found")
               : result?.error || t("设置失败", "Set failed");
-        toast.error(msg);
+        notify.error(msg);
       }
     } catch (e: unknown) {
-      toast.error(t("设置失败", "Set failed") + ": " + (e instanceof Error ? e.message : String(e)));
+      notify.error(t("设置失败", "Set failed") + ": " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setSetPasswordLoading(false);
     }

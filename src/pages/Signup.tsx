@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Lock, User, UserPlus, Loader2, Wifi, WifiOff, RefreshCw, Eye, EyeOff, ShieldCheck, Ticket, Info } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { validatePassword, getPasswordStrength } from "@/lib/passwordValidation";
 import { GCLogo } from "@/components/GCLogo";
 import { apiPost, apiGet } from "@/api/client";
@@ -63,34 +63,34 @@ export default function Signup() {
     e.preventDefault();
     
     if (!username.trim()) {
-      toast.error(t('signup.fillUsername'));
+      notify.error(t('signup.fillUsername'));
       return;
     }
 
     if (!realName.trim()) {
-      toast.error(t('signup.fillRealName'));
+      notify.error(t('signup.fillRealName'));
       return;
     }
 
     if (!password.trim()) {
-      toast.error(t('signup.fillPassword'));
+      notify.error(t('signup.fillPassword'));
       return;
     }
 
     const passwordCheck = validatePassword(password);
     if (!passwordCheck.valid) {
-      toast.error(passwordCheck.errors[0]);
+      notify.error(passwordCheck.errors[0]);
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error(t('signup.passwordMismatch'));
+      notify.error(t('signup.passwordMismatch'));
       return;
     }
 
     // Non-first user must provide invitation code
     if (!isFirstUser && !invitationCode.trim()) {
-      toast.error(t('请输入邀请码', 'Please enter invitation code'));
+      notify.error(t('请输入邀请码', 'Please enter invitation code'));
       return;
     }
 
@@ -110,35 +110,35 @@ export default function Signup() {
       if (!res.success) {
         switch (res.error_code) {
           case 'USERNAME_EXISTS':
-            toast.error(t('signup.usernameExists'));
+            notify.error(t('signup.usernameExists'));
             break;
           case 'INVITATION_CODE_REQUIRED':
-            toast.error(t('请输入邀请码', 'Invitation code is required'));
+            notify.error(t('请输入邀请码', 'Invitation code is required'));
             break;
           case 'INVALID_INVITATION_CODE':
-            toast.error(t('邀请码无效', 'Invalid invitation code'));
+            notify.error(t('邀请码无效', 'Invalid invitation code'));
             break;
           case 'INVITATION_CODE_EXPIRED':
-            toast.error(t('邀请码已过期', 'Invitation code has expired'));
+            notify.error(t('邀请码已过期', 'Invitation code has expired'));
             break;
           case 'INVITATION_CODE_USED':
-            toast.error(t('邀请码已被使用完', 'Invitation code usage limit reached'));
+            notify.error(t('邀请码已被使用完', 'Invitation code usage limit reached'));
             break;
           default:
-            toast.error(res.message || t('signup.signupFailed'));
+            notify.error(res.message || t('signup.signupFailed'));
         }
         return;
       }
 
       if (res.assigned_status === 'active') {
-        toast.success(t('signup.signupSuccessAdmin'));
+        notify.success(t('signup.signupSuccessAdmin'));
       } else {
-        toast.success(t('signup.signupSuccessPending'));
+        notify.success(t('signup.signupSuccessPending'));
       }
       navigate('/staff/login');
     } catch (error: any) {
       console.error('Signup error:', error);
-      toast.error(error.message || t('signup.signupFailed'));
+      notify.error(error.message || t('signup.signupFailed'));
     } finally {
       setLoading(false);
     }

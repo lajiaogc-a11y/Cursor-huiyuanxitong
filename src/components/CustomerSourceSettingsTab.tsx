@@ -26,7 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { UserPlus, Plus, Trash2, Pencil, Check, X } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
 import {
@@ -66,7 +66,7 @@ export default function CustomerSourceSettingsTab() {
     const trimmedName = newSourceName.trim();
     
     if (!trimmedName) {
-      toast.error(t("请输入来源名称", "Please enter source name"));
+      notify.error(t("请输入来源名称", "Please enter source name"));
       return;
     }
 
@@ -78,7 +78,7 @@ export default function CustomerSourceSettingsTab() {
       const latestSources = getCustomerSources();
       
       if (latestSources.some(s => String(s.name ?? '').toLowerCase() === trimmedName.toLowerCase())) {
-        toast.error(t("该来源名称已存在", "This source name already exists"));
+        notify.error(t("该来源名称已存在", "This source name already exists"));
         return;
       }
 
@@ -88,15 +88,15 @@ export default function CustomerSourceSettingsTab() {
         
         setNewSourceName("");
         await loadSources();
-        toast.success(t("来源已添加", "Source added"));
+        notify.success(t("来源已添加", "Source added"));
       } else {
-        toast.error(t("添加失败，该名称可能已存在", "Failed to add, name may already exist"));
+        notify.error(t("添加失败，该名称可能已存在", "Failed to add, name may already exist"));
       }
     } catch (error: any) {
       if (error?.code === '23505' || error?.message?.includes('duplicate')) {
-        toast.error(t("该来源名称已存在", "This source name already exists"));
+        notify.error(t("该来源名称已存在", "This source name already exists"));
       } else {
-        toast.error(t("添加失败，请重试", "Failed to add, please try again"));
+        notify.error(t("添加失败，请重试", "Failed to add, please try again"));
       }
     } finally {
       setIsAdding(false);
@@ -110,13 +110,13 @@ export default function CustomerSourceSettingsTab() {
 
   const handleSaveEdit = async () => {
     if (!editingName.trim()) {
-      toast.error(t("名称不能为空", "Name cannot be empty"));
+      notify.error(t("名称不能为空", "Name cannot be empty"));
       return;
     }
 
     const oldSource = sources.find(s => s.id === editingId);
     if (sources.some(s => s.id !== editingId && s.name === editingName.trim())) {
-      toast.error(t("该来源名称已存在", "This source name already exists"));
+      notify.error(t("该来源名称已存在", "This source name already exists"));
       return;
     }
 
@@ -128,7 +128,7 @@ export default function CustomerSourceSettingsTab() {
     setEditingId(null);
     setEditingName("");
     await loadSources();
-    toast.success(t("来源已更新", "Source updated"));
+    notify.success(t("来源已更新", "Source updated"));
   };
 
   const handleCancelEdit = () => {
@@ -138,7 +138,7 @@ export default function CustomerSourceSettingsTab() {
 
   const handleToggleActive = (id: string, isActive: boolean) => {
     void updateCustomerSource(id, { isActive }).then(() => loadSources());
-    toast.success(isActive ? t("来源已启用", "Source enabled") : t("来源已禁用", "Source disabled"));
+    notify.success(isActive ? t("来源已启用", "Source enabled") : t("来源已禁用", "Source disabled"));
   };
 
   const handleDelete = async (id: string) => {
@@ -146,14 +146,14 @@ export default function CustomerSourceSettingsTab() {
     const success = await deleteCustomerSource(id);
     
     if (!success) {
-      toast.error(t("删除失败，可能有会员正在使用该来源", "Delete failed, members may be using this source"));
+      notify.error(t("删除失败，可能有会员正在使用该来源", "Delete failed, members may be using this source"));
       return;
     }
     
     logOperation('customer_source', 'delete', id, source, null, `删除客户来源: ${source?.name || id}`);
     
     await loadSources();
-    toast.success(t("来源已删除", "Source deleted"));
+    notify.success(t("来源已删除", "Source deleted"));
   };
 
   const handleMoveUp = (index: number) => {

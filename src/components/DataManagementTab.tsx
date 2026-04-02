@@ -14,7 +14,7 @@ import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
 import { bulkDeleteApi, verifyAdminPasswordApi } from '@/services/admin/adminApiService';
 import DataExportImportTab from "./DataExportImportTab";
 import MemoSettingsTab from "./MemoSettingsTab";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { isProductionLocked } from "@/stores/productionLockStore";
 import { useAuth } from "@/contexts/AuthContext";
@@ -83,20 +83,20 @@ export default function DataManagementTab() {
   // 删除数据函数 - 通过 Backend API 执行（adminApiService.bulkDeleteApi）
   const handleDeleteData = async () => {
     if (!deletePassword) {
-      toast.error(t("请输入管理员密码", "Please enter admin password"));
+      notify.error(t("请输入管理员密码", "Please enter admin password"));
       return;
     }
     
     // 验证管理员密码 - 通过数据库验证
     const isAdmin = employee?.role === 'admin' || !!employee?.is_super_admin || !!employee?.is_platform_super_admin;
     if (!isAdmin) {
-      toast.error(t("需要管理员权限", "Admin permission required"));
+      notify.error(t("需要管理员权限", "Admin permission required"));
       return;
     }
     
     const passwordValid = await verifyAdminPasswordApi(deletePassword);
     if (!passwordValid) {
-      toast.error(t("管理员密码错误", "Invalid admin password"));
+      notify.error(t("管理员密码错误", "Invalid admin password"));
       return;
     }
     
@@ -188,7 +188,7 @@ export default function DataManagementTab() {
       if (errors.length > 0) {
         console.error('Delete data errors:', errors);
         if (totalCount > 0 || deletedSummary.length > 0) {
-          toast.warning(
+          notify.warning(
             t(
               `已删除 ${totalCount} 条记录，但部分步骤失败：${errMsg}`,
               `Deleted ${totalCount} records; some steps failed: ${errMsg}`
@@ -197,16 +197,16 @@ export default function DataManagementTab() {
           setIsDeleteDialogOpen(false);
           setDeletePassword("");
         } else {
-          toast.error(t(`删除失败: ${errMsg}`, `Deletion failed: ${errMsg}`));
+          notify.error(t(`删除失败: ${errMsg}`, `Deletion failed: ${errMsg}`));
         }
       } else {
-        toast.success(t(
+        notify.success(t(
           `数据删除成功，共删除 ${totalCount} 条记录`,
           `Data deleted successfully, ${totalCount} records removed`
         ));
         if (warnings.length > 0) {
           console.warn('Delete data warnings:', warnings);
-          toast.warning(
+          notify.warning(
             t(`注意：${warnMsg}`, `Note: ${warnMsg}`)
           );
         }
@@ -216,7 +216,7 @@ export default function DataManagementTab() {
     } catch (error: unknown) {
       console.error('Delete data error:', error);
       const errDetail = error instanceof Error ? error.message : String(error);
-      toast.error(t(`删除数据失败: ${errDetail}`, `Failed to delete data: ${errDetail}`));
+      notify.error(t(`删除数据失败: ${errDetail}`, `Failed to delete data: ${errDetail}`));
     } finally {
       setIsDeleting(false);
       setDeleteProgress({ current: 0, total: 0, currentStep: '' });

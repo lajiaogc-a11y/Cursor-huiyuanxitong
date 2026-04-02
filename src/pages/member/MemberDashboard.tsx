@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   Megaphone,
   Sparkles,
-  Loader2,
   Wallet,
   ChevronRight,
   Settings,
@@ -19,6 +18,7 @@ import {
   Moon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -147,6 +147,7 @@ export default function MemberDashboard() {
   const { settings: ps } = useMemberPortalSettings(member?.id);
   const showMemberInbox = !!ps.enable_member_inbox;
   const [popupOpen, setPopupOpen] = useState(false);
+  const [signOutLoading, setSignOutLoading] = useState(false);
   const fallbackBannerSlides = useFallbackHomeBannerSlides(t, theme);
   const [fallbackBannerIdx, setFallbackBannerIdx] = useState(0);
   const [fallbackBannerSliding, setFallbackBannerSliding] = useState(false);
@@ -542,15 +543,14 @@ export default function MemberDashboard() {
             {checkedInToday ? (
               <CheckCircle className="h-5 w-5 shrink-0 text-pu-emerald" aria-hidden />
             ) : (
-              <Button
+              <LoadingButton
                 type="button"
-                disabled={checkingIn}
+                loading={checkingIn}
                 className="btn-mint shrink-0 rounded-xl border-0 px-4 py-1.5 text-xs active:scale-95"
-                onClick={handleCheckIn}
+                onClick={() => void handleCheckIn()}
               >
-                {checkingIn ? <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden /> : null}
                 {t("去完成", "Go")}
-              </Button>
+              </LoadingButton>
             )}
           </div>
         ) : null}
@@ -574,15 +574,14 @@ export default function MemberDashboard() {
             {shareClaimedToday ? (
               <CheckCircle className="h-5 w-5 shrink-0 text-pu-emerald" aria-hidden />
             ) : (
-              <Button
+              <LoadingButton
                 type="button"
-                disabled={claimingShare}
+                loading={claimingShare}
                 className="shrink-0 rounded-xl border-0 bg-[hsl(var(--pu-emerald))] px-4 py-1.5 text-xs font-bold text-[hsl(var(--pu-m-bg-1))] shadow-[0_4px_14px_-4px_hsl(var(--pu-emerald)/0.45)] transition hover:bg-[hsl(var(--pu-emerald-soft))] hover:shadow-[0_6px_18px_-4px_hsl(var(--pu-emerald)/0.4)] active:scale-95 disabled:opacity-60"
-                onClick={handleShareAndClaim}
+                onClick={() => void handleShareAndClaim()}
               >
-                {claimingShare ? <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden /> : null}
                 {t("去完成", "Go")}
-              </Button>
+              </LoadingButton>
             )}
           </div>
         ) : null}
@@ -1241,16 +1240,22 @@ export default function MemberDashboard() {
             >
               {t("取消", "Cancel")}
             </Button>
-            <Button
+            <LoadingButton
               type="button"
+              loading={signOutLoading}
               className="h-11 rounded-xl border-0 bg-red-600 px-6 font-semibold text-white hover:bg-red-700"
               onClick={() => {
-                setSignOutOpen(false);
-                void signOut();
+                if (signOutLoading) return;
+                setSignOutLoading(true);
+                window.setTimeout(() => {
+                  signOut();
+                  setSignOutOpen(false);
+                  setSignOutLoading(false);
+                }, 180);
               }}
             >
               {t("退出登录", "Sign out")}
-            </Button>
+            </LoadingButton>
           </div>
         </DrawerDetail>
     </div>

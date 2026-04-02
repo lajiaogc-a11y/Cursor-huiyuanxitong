@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, RotateCcw, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useCurrencies } from "@/components/CurrencySelect";
 import { CurrencyCode } from "@/config/currencies";
 import { calculateTransactionFee } from "@/lib/feeCalculation";
@@ -152,7 +152,7 @@ export default function ActivityGiftDialog({ open, onOpenChange, onSuccess }: Ac
       const dbMember = findMemberByPhone(phone);
       if (dbMember) {
         setMemberError("");
-        toast.success(`${t("已匹配到会员", "Member matched")}: ${dbMember.memberCode}`);
+        notify.success(`${t("已匹配到会员", "Member matched")}: ${dbMember.memberCode}`);
       } else {
         setMemberError(t("无此会员，请先在会员管理中录入", "Member not found"));
       }
@@ -191,20 +191,20 @@ export default function ActivityGiftDialog({ open, onOpenChange, onSuccess }: Ac
 
   const handleSubmit = async () => {
     if (!amount) {
-      toast.error(t("请填写赠送金额", "Please enter gift amount"));
+      notify.error(t("请填写赠送金额", "Please enter gift amount"));
       return;
     }
     if (!phoneNumber) {
-      toast.error(t("请填写电话号码", "Please enter phone number"));
+      notify.error(t("请填写电话号码", "Please enter phone number"));
       return;
     }
     const member = findMemberByPhone(phoneNumber);
     if (!member) {
-      toast.error(t("无此会员，请先在会员管理中录入该会员", "Member not found"));
+      notify.error(t("无此会员，请先在会员管理中录入该会员", "Member not found"));
       return;
     }
     if (!paymentAgent) {
-      toast.error(t("请选择代付商家", "Please select payment agent"));
+      notify.error(t("请选择代付商家", "Please select payment agent"));
       return;
     }
 
@@ -222,7 +222,7 @@ export default function ActivityGiftDialog({ open, onOpenChange, onSuccess }: Ac
     }, member.id, employee?.id);
 
     if (result) {
-      toast.success(t("活动赠送已提交", "Activity gift submitted"));
+      notify.success(t("活动赠送已提交", "Activity gift submitted"));
       performReset();
       onOpenChange(false);
       onSuccess?.();

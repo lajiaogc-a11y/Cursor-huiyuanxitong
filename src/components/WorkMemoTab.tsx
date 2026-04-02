@@ -27,7 +27,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Bell, Plus, Trash2, Check, Pencil } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import {
   getWorkMemos,
   addWorkMemo,
@@ -88,7 +88,7 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
 
   const handleAddMemo = () => {
     if (!phoneNumber) {
-      toast.error(t('workMemo.pleaseEnterPhone'));
+      notify.error(t('workMemo.pleaseEnterPhone'));
       return;
     }
 
@@ -103,7 +103,7 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
       reminderOffset,
     });
 
-    toast.success(t('workMemo.memoAdded'));
+    notify.success(t('workMemo.memoAdded'));
     setPhoneNumber("");
     setRemark1("");
     setRemark2("");
@@ -113,13 +113,13 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
   const handleMarkAsRead = (memoId: string) => {
     markMemoAsRead(memoId);
     loadMemos();
-    toast.success(t('workMemo.markedAsRead'));
+    notify.success(t('workMemo.markedAsRead'));
   };
 
   const handleDelete = (memoId: string) => {
     deleteMemo(memoId);
     loadMemos();
-    toast.success(t('workMemo.memoDeleted'));
+    notify.success(t('workMemo.memoDeleted'));
   };
 
   const handleOpenEdit = (memo: WorkMemo) => {
@@ -146,7 +146,7 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
       isRead: false,
     });
     
-    toast.success(t('workMemo.memoUpdated'));
+    notify.success(t('workMemo.memoUpdated'));
     setIsEditDialogOpen(false);
     setEditingMemo(null);
     loadMemos();

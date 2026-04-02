@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, LogOut, RefreshCw, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { GCLogo } from "@/components/GCLogo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -22,7 +22,7 @@ export default function PendingAuthorization() {
 
   const handleRefresh = async () => {
     if (!employee?.id) {
-      toast.error(t('pending.cannotGetUser'));
+      notify.error(t('pending.cannotGetUser'));
       return;
     }
     
@@ -33,14 +33,14 @@ export default function PendingAuthorization() {
       );
 
       if (emp?.status === 'active') {
-        toast.success(t('pending.approved'));
+        notify.success(t('pending.approved'));
         navigate('/staff', { replace: true });
       } else {
-        toast.info(t('pending.stillPending'));
+        notify.info(t('pending.stillPending'));
       }
     } catch (error) {
       console.error('Failed to check status:', error);
-      toast.error(t('pending.checkFailed'));
+      notify.error(t('pending.checkFailed'));
     } finally {
       setIsRefreshing(false);
     }

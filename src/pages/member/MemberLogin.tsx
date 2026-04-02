@@ -32,7 +32,7 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -548,11 +548,11 @@ export default function MemberLogin() {
   const handleSubmit = useCallback(
     async (values: { phone: string; password: string }) => {
       if (!values.phone?.trim()) {
-        toast.error(t("请输入手机号或会员编号", "Please enter your phone or member code"));
+        notify.error(t("请输入手机号或会员编号", "Please enter your phone or member code"));
         return;
       }
       if (!values.password) {
-        toast.error(t("请输入密码", "Please enter your password"));
+        notify.error(t("请输入密码", "Please enter your password"));
         return;
       }
       setLoading(true);
@@ -561,7 +561,7 @@ export default function MemberLogin() {
         if (result.success) {
           if (rememberMe) saveAccount(values.phone.trim());
           else clearSavedAccount();
-          toast.success(result.message || t("登录成功", "Signed in successfully"));
+          notify.success(result.message || t("登录成功", "Signed in successfully"));
           setPanel(null);
           navigate(
             result.mustChangePassword ? ROUTES.MEMBER.FIRST_PASSWORD : ROUTES.MEMBER.DASHBOARD,
@@ -586,9 +586,9 @@ export default function MemberLogin() {
               );
           }
         })();
-        toast.error(errText);
+        notify.error(errText);
       } catch {
-        toast.error(memberPortalNetworkToastMessage(t));
+        notify.error(memberPortalNetworkToastMessage(t));
       } finally {
         setLoading(false);
       }
@@ -1056,7 +1056,7 @@ export default function MemberLogin() {
                   className="text-[11px] font-bold transition motion-reduce:transition-none"
                   style={{ color: "hsl(var(--pu-gold-soft))" }}
                   onClick={() =>
-                    toast.info(t("忘记密码请联系客服或邀请人。", "Forgot? Contact support or your inviter."))
+                    notify.info(t("忘记密码请联系客服或邀请人。", "Forgot? Contact support or your inviter."))
                   }
                 >
                   {t("忘记密码？", "Forgot password?")}

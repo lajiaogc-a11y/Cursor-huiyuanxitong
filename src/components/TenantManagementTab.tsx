@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { Building2, ChevronDown, KeyRound, MoreVertical, Pencil, Plus, RefreshCw, Trash2, UserCog } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -157,7 +157,7 @@ export default function TenantManagementTab() {
 
   const handleCreateTenant = async () => {
     if (!tenantCode.trim() || !tenantName.trim() || !adminUsername.trim() || !adminRealName.trim() || !adminPassword.trim()) {
-      toast.error(t("请完整填写租户和管理员信息", "Please complete tenant and admin fields"));
+      notify.error(t("请完整填写租户和管理员信息", "Please complete tenant and admin fields"));
       return;
     }
     setCreating(true);
@@ -168,13 +168,13 @@ export default function TenantManagementTab() {
         return;
       }
       if (result.data?.authSyncSuccess === false) {
-        toast.warning(
+        notify.warning(
           result.data.authSyncMessage
             ? t(`租户已创建，但认证同步失败：${result.data.authSyncMessage}`, `Tenant created, but auth sync failed: ${result.data.authSyncMessage}`)
             : t("租户已创建，但认证同步失败，管理员可能无法登录，请通过平台重置密码", "Tenant created but auth sync failed. Admin may not be able to login. Please reset password via platform.")
         );
       }
-      toast.success(t("租户创建成功", "Tenant created successfully"));
+      notify.success(t("租户创建成功", "Tenant created successfully"));
       resetForm();
       await loadTenants();
     } catch (error) {
@@ -196,7 +196,7 @@ export default function TenantManagementTab() {
   const handleUpdateTenant = async () => {
     if (!editingTenant) return;
     if (!editTenantCode.trim() || !editTenantName.trim()) {
-      toast.error(t("公司编码和名称不能为空", "Tenant code and name are required"));
+      notify.error(t("公司编码和名称不能为空", "Tenant code and name are required"));
       return;
     }
     setUpdating(true);
@@ -208,7 +208,7 @@ export default function TenantManagementTab() {
         showServiceErrorToast(result.error, t, "修改租户失败", "Update tenant failed");
         return;
       }
-      toast.success(t("租户信息已更新", "Tenant updated"));
+      notify.success(t("租户信息已更新", "Tenant updated"));
       closeEditDialog();
       await loadTenants();
     } catch (error) {
@@ -224,7 +224,7 @@ export default function TenantManagementTab() {
   const closeResetPwdDialog = () => { setResetPwdTenant(null); setNewAdminPassword(""); };
   const handleResetAdminPassword = async () => {
     if (!resetPwdTenant) return;
-    if (!newAdminPassword.trim()) { toast.error(t("请输入新密码", "Please enter new password")); return; }
+    if (!newAdminPassword.trim()) { notify.error(t("请输入新密码", "Please enter new password")); return; }
     setResettingPwd(true);
     try {
       const result = await resetTenantAdminPasswordResult({
@@ -235,13 +235,13 @@ export default function TenantManagementTab() {
         return;
       }
       if (result.data?.authSyncSuccess === false) {
-        toast.warning(
+        notify.warning(
           result.data.authSyncMessage
             ? t(`密码已重置，但认证同步失败：${result.data.authSyncMessage}`, `Password reset, but auth sync failed: ${result.data.authSyncMessage}`)
             : t("密码已重置，但认证同步失败，请重试登录", "Password reset but auth sync failed, please try login again")
         );
       }
-      toast.success(t(`已重置管理员密码：${result.data?.adminRealName || ""}(${result.data?.adminUsername || ""})`, `Admin password reset: ${result.data?.adminRealName || ""} (${result.data?.adminUsername || ""})`));
+      notify.success(t(`已重置管理员密码：${result.data?.adminRealName || ""}(${result.data?.adminUsername || ""})`, `Admin password reset: ${result.data?.adminRealName || ""} (${result.data?.adminUsername || ""})`));
       closeResetPwdDialog();
       await loadTenants();
     } catch (error: unknown) {
@@ -291,11 +291,11 @@ export default function TenantManagementTab() {
   const handleDeleteTenant = async (force: boolean) => {
     if (!deletingTenant) return;
     if (!deleteConfirmMatches) {
-      toast.error(t("请正确输入租户编码后再删除", "Please enter the exact tenant code before deleting"));
+      notify.error(t("请正确输入租户编码后再删除", "Please enter the exact tenant code before deleting"));
       return;
     }
     if (!employee?.username || !deletePassword.trim()) {
-      toast.error(t("请输入当前账号密码以确认删除", "Please enter your password to confirm deletion"));
+      notify.error(t("请输入当前账号密码以确认删除", "Please enter your password to confirm deletion"));
       return;
     }
     setDeleting(true);
@@ -315,7 +315,7 @@ export default function TenantManagementTab() {
         showServiceErrorToast(result.error, t, "删除租户失败", "Delete tenant failed");
         return;
       }
-      toast.success(t("租户已删除", "Tenant deleted"));
+      notify.success(t("租户已删除", "Tenant deleted"));
       closeDeleteDialog();
       await loadTenants();
     } catch (error) {
@@ -343,7 +343,7 @@ export default function TenantManagementTab() {
       if (tenant.admin_employee_id) setSelectedEmployeeId(tenant.admin_employee_id);
       else if (emps?.length) setSelectedEmployeeId(emps[0].id);
     } catch (e) {
-      toast.error(t("加载员工列表失败", "Failed to load employees"));
+      notify.error(t("加载员工列表失败", "Failed to load employees"));
       setSuperAdminTenant(null);
     } finally {
       setLoadingEmployees(false);
@@ -353,18 +353,18 @@ export default function TenantManagementTab() {
   const handleSetSuperAdmin = async () => {
     if (!superAdminTenant || !selectedEmployeeId) return;
     if (!selectedEmployee) {
-      toast.error(t("请选择员工", "Please select an employee"));
+      notify.error(t("请选择员工", "Please select an employee"));
       return;
     }
     if (superAdminConfirmName.trim() !== selectedEmployee.username) {
-      toast.error(t("确认输入不一致，请输入目标员工账号", "Confirmation mismatch, please input target employee username"));
+      notify.error(t("确认输入不一致，请输入目标员工账号", "Confirmation mismatch, please input target employee username"));
       return;
     }
     setSettingSuperAdmin(superAdminTenant.id);
     try {
       const result = await setTenantSuperAdminResult(selectedEmployeeId);
       if (result.ok) {
-        toast.success(t("已设为总管理员", "Set as super admin"));
+        notify.success(t("已设为总管理员", "Set as super admin"));
         setSuperAdminTenant(null);
         setSuperAdminConfirmName("");
         await loadTenants();

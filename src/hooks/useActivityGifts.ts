@@ -2,7 +2,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
 import { apiGet, apiPost } from '@/api/client';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { logOperation } from '@/stores/auditLogStore';
 import { getEmployeeNameById, getActivityTypeLabelByValue } from '@/services/members/nameResolver';
 import { logGiftBalanceChange } from '@/services/finance/balanceLogService';
@@ -106,7 +106,7 @@ export function useActivityGifts() {
   const addGift = async (giftData: Omit<ActivityGift, 'id' | 'createdAt'>, memberId?: string, employeeId?: string): Promise<ActivityGift | null> => {
     try {
       if (isPlatformAdminReadonlyView) {
-        toast.error(t('平台总管理查看租户时为只读，无法新增活动赠送', 'Read-only in admin view, cannot add activity gift'));
+        notify.error(t('平台总管理查看租户时为只读，无法新增活动赠送', 'Read-only in admin view, cannot add activity gift'));
         return null;
       }
       const giftNumber = await generateUniqueGiftNumber();
@@ -170,7 +170,7 @@ export function useActivityGifts() {
       return newGift;
     } catch (error) {
       console.error('Failed to add activity gift:', error);
-      toast.error(t('创建活动赠送失败', 'Failed to create activity gift'));
+      notify.error(t('创建活动赠送失败', 'Failed to create activity gift'));
       return null;
     }
   };

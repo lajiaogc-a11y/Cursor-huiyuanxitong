@@ -46,7 +46,7 @@ import {
   getPaymentProviderSettlements,
   forceRefreshSettlementCache,
 } from '@/stores/merchantSettlementStore';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import {
   getShiftReceivers,
   addShiftReceiver,
@@ -301,7 +301,7 @@ export default function ShiftHandoverTab() {
       };
     } catch (error) {
       console.error('Failed to load shift handover data:', error);
-      toast.error(t('加载数据失败', 'Failed to load data'));
+      notify.error(t('加载数据失败', 'Failed to load data'));
     } finally {
       setLoading(false);
     }
@@ -373,7 +373,7 @@ export default function ShiftHandoverTab() {
   // 🔧 手动刷新按钮 - 强制刷新余额但保留输入
   const handleRefresh = async () => {
     await refreshBalancesOnly();
-    toast.success(t('数据已刷新', 'Data refreshed'));
+    notify.success(t('数据已刷新', 'Data refreshed'));
   };
 
   /** 将「系统余额为 0」且手填仍为空的卡商/代付行一键写入 0，便于通过交班校验 */
@@ -411,11 +411,11 @@ export default function ShiftHandoverTab() {
         providerNames.forEach((name) => nextP.delete(name));
         return { ...prev, vendors: nextV, providers: nextP };
       });
-      toast.success(
+      notify.success(
         t(`已一键填入 ${n} 处余额为 0 的商家`, `Filled ${n} zero-balance merchant row(s)`),
       );
     } else {
-      toast.message(
+      notify.message(
         t(
           '没有可填入项：仅处理「系统显示余额为 0」且手填仍为空的卡商/代付商家。',
           'Nothing to fill: only rows with system balance 0 and an empty handover input.',
@@ -476,7 +476,7 @@ export default function ShiftHandoverTab() {
   // 添加新接班人（使用当前员工ID）
   const handleAddReceiver = async () => {
     if (!newReceiverName.trim()) {
-      toast.error(t('请输入接班人姓名', 'Please enter receiver name'));
+      notify.error(t('请输入接班人姓名', 'Please enter receiver name'));
       return;
     }
     
@@ -486,9 +486,9 @@ export default function ShiftHandoverTab() {
       setSelectedReceiver(receiver.name);
       setNewReceiverName('');
       setIsAddReceiverDialogOpen(false);
-      toast.success(t('添加成功', 'Added successfully'));
+      notify.success(t('添加成功', 'Added successfully'));
     } else {
-      toast.error(t('添加失败，可能已存在同名接班人', 'Failed to add, receiver may already exist'));
+      notify.error(t('添加失败，可能已存在同名接班人', 'Failed to add, receiver may already exist'));
     }
   };
   
@@ -502,7 +502,7 @@ export default function ShiftHandoverTab() {
   // 保存编辑接班人
   const handleSaveEditReceiver = async () => {
     if (!editingReceiver || !editReceiverName.trim()) {
-      toast.error(t('请输入接班人姓名', 'Please enter receiver name'));
+      notify.error(t('请输入接班人姓名', 'Please enter receiver name'));
       return;
     }
     
@@ -514,9 +514,9 @@ export default function ShiftHandoverTab() {
       }
       setIsEditReceiverDialogOpen(false);
       setEditingReceiver(null);
-      toast.success(t('修改成功', 'Updated successfully'));
+      notify.success(t('修改成功', 'Updated successfully'));
     } else {
-      toast.error(t('修改失败', 'Failed to update'));
+      notify.error(t('修改失败', 'Failed to update'));
     }
   };
   
@@ -538,9 +538,9 @@ export default function ShiftHandoverTab() {
       }
       setIsDeleteReceiverDialogOpen(false);
       setDeletingReceiver(null);
-      toast.success(t('删除成功', 'Deleted successfully'));
+      notify.success(t('删除成功', 'Deleted successfully'));
     } else {
-      toast.error(t('删除失败', 'Failed to delete'));
+      notify.error(t('删除失败', 'Failed to delete'));
     }
   };
   
@@ -583,7 +583,7 @@ export default function ShiftHandoverTab() {
     setValidationErrors({ receiver: errReceiver, vendors: errVendors, providers: errProviders });
 
     if (missingLines.length > 0) {
-      toast.error(
+      notify.error(
         t("以下内容未填写，请完善后再提交", "Please fill in the following before submitting"),
         {
           description: missingLines.map((l) => `• ${l}`).join("\n"),
@@ -618,18 +618,18 @@ export default function ShiftHandoverTab() {
       );
       
       if (result) {
-        toast.success(t('交班记录已提交', 'Shift handover submitted'));
+        notify.success(t('交班记录已提交', 'Shift handover submitted'));
         clearPersistedForm();
         setVendorBalances(prev => prev.map(v => ({ ...v, inputValue: '' })));
         setProviderBalances(prev => prev.map(p => ({ ...p, inputValue: '' })));
         setValidationErrors({ receiver: false, vendors: new Set(), providers: new Set() });
         invalidateShiftHandoverCache();
       } else {
-        toast.error(t('提交失败', 'Failed to submit'));
+        notify.error(t('提交失败', 'Failed to submit'));
       }
     } catch (error) {
       console.error('Failed to submit shift handover:', error);
-      toast.error(t('提交失败', 'Failed to submit'));
+      notify.error(t('提交失败', 'Failed to submit'));
     } finally {
       setSubmitting(false);
     }

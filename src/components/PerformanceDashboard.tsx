@@ -25,7 +25,7 @@ import {
 import { Activity, RefreshCw, Trash2, TrendingUp, AlertTriangle, Pause } from "lucide-react";
 import { getPerformanceReport, clearPerformanceMetrics, getRemainingPauseTime } from "@/lib/performanceUtils";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 
 interface RenderMetrics {
   componentName: string;
@@ -60,7 +60,7 @@ export default function PerformanceDashboard() {
     clearPerformanceMetrics();
     setMetrics([]);
     setIsPaused(true);
-    toast.success(t("数据已清除，监控暂停5秒", "Data cleared, monitoring paused for 5s"));
+    notify.success(t("数据已清除，监控暂停5秒", "Data cleared, monitoring paused for 5s"));
     
     clearTimeout(resumeTimerRef.current);
     resumeTimerRef.current = setTimeout(() => {

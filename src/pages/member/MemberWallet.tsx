@@ -15,7 +15,8 @@ import {
   DollarSign,
   Sparkles,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notifyInfo } from "@/utils/notify";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 import BackHeader from "@/components/member/BackHeader";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
 import { MemberPageLoadingShell } from "@/components/member/MemberPageLoadingShell";
@@ -99,6 +100,8 @@ export default function MemberWallet() {
   const { t } = useLanguage();
   const [activeFilter, setActiveFilter] = useState<(typeof FILTER_KEYS)[number]>("all");
   const [loading, setLoading] = useState(true);
+  const [depositBusy, setDepositBusy] = useState(false);
+  const [withdrawBusy, setWithdrawBusy] = useState(false);
 
   useEffect(() => {
     const id = window.setTimeout(() => setLoading(false), MEMBER_SKELETON_MIN_MS);
@@ -200,27 +203,40 @@ export default function MemberWallet() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <button
+                <LoadingButton
                   type="button"
-                  onClick={() => toast.info(t("充值功能即将上线", "Deposit — coming soon"))}
-                  className="flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold transition-all motion-reduce:transition-none motion-reduce:active:scale-100 active:scale-95"
+                  loading={depositBusy}
+                  className="flex items-center justify-center gap-2 rounded-xl border-0 py-3.5 text-sm font-bold transition-all motion-reduce:transition-none motion-reduce:active:scale-100 active:scale-95 [&_svg]:text-[hsl(var(--pu-m-bg-1))]"
                   style={{
                     background: "linear-gradient(135deg, hsl(var(--pu-emerald)), hsl(var(--pu-emerald-soft)))",
                     color: "hsl(var(--pu-m-bg-1))",
                     boxShadow: "0 4px 16px -4px hsl(var(--pu-emerald) / 0.4)",
                   }}
+                  onClick={() => {
+                    if (depositBusy) return;
+                    setDepositBusy(true);
+                    notifyInfo(t("充值功能即将上线", "Deposit — coming soon"));
+                    window.setTimeout(() => setDepositBusy(false), 450);
+                  }}
                 >
                   <ArrowDownLeft className="h-4 w-4" aria-hidden />
                   {t("充值", "Deposit")}
-                </button>
-                <button
+                </LoadingButton>
+                <LoadingButton
                   type="button"
-                  onClick={() => toast.info(t("提现功能即将上线", "Withdraw — coming soon"))}
-                  className="flex items-center justify-center gap-2 rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.4)] bg-[hsl(var(--pu-m-surface)/0.7)] py-3.5 text-sm font-bold transition-all motion-reduce:transition-none motion-reduce:active:scale-100 hover:border-pu-gold/30 active:scale-95"
+                  loading={withdrawBusy}
+                  variant="outline"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.4)] bg-[hsl(var(--pu-m-surface)/0.7)] py-3.5 text-sm font-bold text-[hsl(var(--pu-m-text))] transition-all motion-reduce:transition-none motion-reduce:active:scale-100 hover:border-pu-gold/30 hover:bg-[hsl(var(--pu-m-surface)/0.7)] active:scale-95"
+                  onClick={() => {
+                    if (withdrawBusy) return;
+                    setWithdrawBusy(true);
+                    notifyInfo(t("提现功能即将上线", "Withdraw — coming soon"));
+                    window.setTimeout(() => setWithdrawBusy(false), 450);
+                  }}
                 >
                   <ArrowUpRight className="h-4 w-4 text-pu-gold-soft" aria-hidden />
                   {t("提现", "Withdraw")}
-                </button>
+                </LoadingButton>
               </div>
             </div>
           </div>

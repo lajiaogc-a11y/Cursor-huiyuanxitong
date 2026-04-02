@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 
 export type BilingualT = (zh: string, en: string) => string;
 
@@ -70,7 +70,7 @@ export async function saveInvitePosterPngBlob(blob: Blob, filename: string, t: B
   if (isWeChat) {
     const url = URL.createObjectURL(blob);
     openLongPressSaveOverlay(url, t);
-    toast.success(
+    notify.success(
       t("已打开预览，请长按图片保存到相册", "Preview opened — long-press the image to save to your gallery."),
     );
     return;
@@ -85,7 +85,7 @@ export async function saveInvitePosterPngBlob(blob: Blob, filename: string, t: B
           title: filename,
           text: t("邀请注册海报", "Invite registration poster"),
         });
-        toast.success(
+        notify.success(
           t(
             "如未直接存入相册，请在分享面板中选择「存储图像」或相册类应用。",
             "If it didn't save to Photos, choose \"Save Image\" or a gallery app in the share sheet.",
@@ -103,7 +103,7 @@ export async function saveInvitePosterPngBlob(blob: Blob, filename: string, t: B
   // iOS Safari 常忽略 download 属性：用长按预览更可靠
   if (isIOS) {
     openLongPressSaveOverlay(url, t);
-    toast.success(
+    notify.success(
       t("请长按图片保存到相册。", "Long-press the image to save to Photos."),
     );
     return;
@@ -117,5 +117,5 @@ export async function saveInvitePosterPngBlob(blob: Blob, filename: string, t: B
   a.click();
   document.body.removeChild(a);
   window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
-  toast.success(t("邀请海报已下载", "Poster downloaded"));
+  notify.success(t("邀请海报已下载", "Poster downloaded"));
 }

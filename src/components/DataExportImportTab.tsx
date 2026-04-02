@@ -59,7 +59,7 @@ import {
   FileJson,
   Server,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
@@ -206,9 +206,9 @@ export default function DataExportImportTab() {
     setExportingTable(null);
     
     if (result.success) {
-      toast.success(t(`导出成功: ${result.filename}`, `Exported: ${result.filename}`));
+      notify.success(t(`导出成功: ${result.filename}`, `Exported: ${result.filename}`));
     } else {
-      toast.error(t(`导出失败: ${result.error}`, `Export failed: ${result.error}`));
+      notify.error(t(`导出失败: ${result.error}`, `Export failed: ${result.error}`));
     }
   };
 
@@ -251,7 +251,7 @@ export default function DataExportImportTab() {
     setIsExportingAll(false);
     setExportAllProgress({ current: 0, total: 0, tableName: '' });
     
-    toast.success(
+    notify.success(
       t(
         `全平台导出完成（Excel）: 成功 ${successCount} 个表，失败 ${errorCount} 个`,
         `Excel export finished: ${successCount} succeeded, ${errorCount} failed`,
@@ -265,7 +265,7 @@ export default function DataExportImportTab() {
     if (!file) return;
     
     if (!file.name.endsWith('.csv')) {
-      toast.error(t('请选择 CSV 文件', 'Please select a CSV file'));
+      notify.error(t('请选择 CSV 文件', 'Please select a CSV file'));
       return;
     }
     
@@ -275,7 +275,7 @@ export default function DataExportImportTab() {
     const { headers, rows } = parseCSV(content);
 
     if (headers.length === 0) {
-      toast.error(t('文件为空', 'File is empty'));
+      notify.error(t('文件为空', 'File is empty'));
       return;
     }
 
@@ -302,7 +302,7 @@ export default function DataExportImportTab() {
   // 执行导入
   const handleImport = async () => {
     if (!importFile || !importTable) {
-      toast.error(t('请选择文件和目标表', 'Please select file and target table'));
+      notify.error(t('请选择文件和目标表', 'Please select file and target table'));
       return;
     }
     
@@ -316,7 +316,7 @@ export default function DataExportImportTab() {
     
     try {
       if (importTable === 'members' && !memberImportTenantId) {
-        toast.error(
+        notify.error(
           t(
             '请先进入目标租户（租户管理 → 进入租户）再导入会员',
             'Enter a tenant from Tenant Management before importing members',
@@ -347,19 +347,19 @@ export default function DataExportImportTab() {
       
       if (result.success) {
         const pointsInfo = result.pointsCreated ? ` (积分: ${result.pointsCreated})` : '';
-        toast.success(t(
+        notify.success(t(
           `导入成功: ${result.imported} 条记录${pointsInfo}`,
           `Import successful: ${result.imported} records${pointsInfo}`
         ));
         loadTableStats(); // 刷新统计
       } else {
-        toast.error(t(
+        notify.error(t(
           `导入失败: ${result.errors[0] || '未知错误'}`,
           `Import failed: ${result.errors[0] || 'Unknown error'}`
         ));
       }
     } catch (error) {
-      toast.error(t(`导入错误: ${error}`, `Import error: ${error}`));
+      notify.error(t(`导入错误: ${error}`, `Import error: ${error}`));
     } finally {
       setIsImporting(false);
     }
@@ -419,15 +419,15 @@ export default function DataExportImportTab() {
         if (result.verificationReport) {
           setVerificationReport(result.verificationReport);
         }
-        toast.success(t(
+        notify.success(t(
           `数据库迁移导出成功: ${result.filename}`,
           `Database migration exported: ${result.filename}`
         ));
       } else {
-        toast.error(t(`导出失败: ${result.error}`, `Export failed: ${result.error}`));
+        notify.error(t(`导出失败: ${result.error}`, `Export failed: ${result.error}`));
       }
     } catch (error) {
-      toast.error(t('导出失败', 'Export failed'));
+      notify.error(t('导出失败', 'Export failed'));
     } finally {
       setIsMigrating(false);
       setMigrationProgress(null);
@@ -439,9 +439,9 @@ export default function DataExportImportTab() {
     try {
       const r = await downloadMysqlDump(mysqlDumpMode);
       if (r.ok) {
-        toast.success(t(`已下载 ${r.filename}`, `Downloaded ${r.filename}`));
+        notify.success(t(`已下载 ${r.filename}`, `Downloaded ${r.filename}`));
       } else {
-        toast.error(r.error || t('导出失败', 'Export failed'));
+        notify.error(r.error || t('导出失败', 'Export failed'));
       }
     } finally {
       setMysqlDumpBusy(false);
@@ -714,7 +714,7 @@ export default function DataExportImportTab() {
                 variant="outline"
                 onClick={() => {
                   void navigator.clipboard.writeText(getMysqlDumpCurlExample(mysqlDumpMode));
-                  toast.success(t('已复制 curl 命令', 'curl command copied'));
+                  notify.success(t('已复制 curl 命令', 'curl command copied'));
                 }}
               >
                 {t('复制 curl 命令（推荐大库）', 'Copy curl (large DBs)')}

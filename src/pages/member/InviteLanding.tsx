@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { memberRegisterInit, validateInviteAndSubmit } from "@/services/memberPortal/memberActivityService";
 import { ApiError } from "@/lib/apiClient";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import {
   getDefaultMemberPortalSettings,
   getMemberPortalSettingsByInviteCode,
@@ -188,31 +188,31 @@ export default function InviteLanding() {
 
   const handleSubmit = async () => {
     if (!code?.trim()) {
-      toast.error(t("邀请码无效", "Invalid invite code"));
+      notify.error(t("邀请码无效", "Invalid invite code"));
       return;
     }
     if (!phone.trim()) {
-      toast.error(t("请填写手机号", "Phone is required"));
+      notify.error(t("请填写手机号", "Phone is required"));
       return;
     }
     if (!password.trim()) {
-      toast.error(t("请填写密码", "Password is required"));
+      notify.error(t("请填写密码", "Password is required"));
       return;
     }
     if (password.length < 6) {
-      toast.error(t("密码至少 6 位", "Min 6 characters"));
+      notify.error(t("密码至少 6 位", "Min 6 characters"));
       return;
     }
     if (password !== confirmPassword) {
-      toast.error(t("两次密码不一致", "Passwords do not match"));
+      notify.error(t("两次密码不一致", "Passwords do not match"));
       return;
     }
     if (inviteLegalRequired && !agreeLegal) {
-      toast.error(t("请阅读并同意条款", "Please agree to the terms to continue"));
+      notify.error(t("请阅读并同意条款", "Please agree to the terms to continue"));
       return;
     }
     if (!registerToken?.trim()) {
-      toast.error(t("正在校验邀请链接，请稍候或刷新页面", "Verifying invite link — wait a moment or refresh"));
+      notify.error(t("正在校验邀请链接，请稍候或刷新页面", "Verifying invite link — wait a moment or refresh"));
       return;
     }
     setLoading(true);
@@ -223,38 +223,38 @@ export default function InviteLanding() {
         password,
       });
       if (!r.success) {
-        if (r.error === "INVALID_CODE") toast.error(t("邀请码无效", "Invalid invite code"));
+        if (r.error === "INVALID_CODE") notify.error(t("邀请码无效", "Invalid invite code"));
         else if (r.error === "TOKEN_EXPIRED" || r.error === "INVALID_TOKEN") {
-          toast.error(t("验证已过期，请重试", "Session expired — try again"));
+          notify.error(t("验证已过期，请重试", "Session expired — try again"));
           const again = code?.trim() ? await memberRegisterInit(code.trim()) : null;
           if (again && "success" in again && again.success) {
             setRegisterToken(again.registerToken);
             setRegisterExpiresIn(again.expiresIn);
           }
         } else if (r.error === "TOKEN_USED")
-          toast.error(t("该验证已使用，请重新打开邀请链接", "This link was already used — open the invite again"));
+          notify.error(t("该验证已使用，请重新打开邀请链接", "This link was already used — open the invite again"));
         else if (r.error === "RATE_LIMIT")
-          toast.error(t("请求过于频繁，请稍后再试", "Too many attempts, please try again later"));
+          notify.error(t("请求过于频繁，请稍后再试", "Too many attempts, please try again later"));
         else if (r.error === "SELF_REFERRAL")
-          toast.error(t("不能使用推荐人本人的手机号注册", "You cannot register with the referrer's own phone"));
-        else if (r.error === "ALREADY_INVITED") toast.error(t("已被邀请过", "Already invited"));
+          notify.error(t("不能使用推荐人本人的手机号注册", "You cannot register with the referrer's own phone"));
+        else if (r.error === "ALREADY_INVITED") notify.error(t("已被邀请过", "Already invited"));
         else if (r.error === "REGISTER_FAILED")
-          toast.error(t("注册失败，请重试", "Registration failed, please try again"));
+          notify.error(t("注册失败，请重试", "Registration failed, please try again"));
         else if (r.error?.includes("invitee") || r.error?.includes("unique"))
-          toast.error(t("该手机号已注册", "Phone already registered"));
-        else toast.error(r.error || t("注册失败", "Registration failed"));
+          notify.error(t("该手机号已注册", "Phone already registered"));
+        else notify.error(r.error || t("注册失败", "Registration failed"));
         setLoading(false);
         return;
       }
       setSubmitted(true);
-      toast.success(t("注册成功", "Registration successful!"));
+      notify.success(t("注册成功", "Registration successful!"));
     } catch (e: unknown) {
       if (e instanceof ApiError && e.statusCode === 429) {
-        toast.error(
+        notify.error(
           e.message || t("请求过于频繁，请稍后再试", "Too many attempts, please try again later"),
         );
       } else {
-        toast.error(
+        notify.error(
           e instanceof Error ? e.message : t("发生错误，请重试", "Something went wrong"),
         );
       }

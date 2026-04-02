@@ -24,7 +24,7 @@ import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -151,7 +151,7 @@ export function Header() {
   const handleLogout = async () => {
     await signOut();
     setShowLogoutDialog(false);
-    toast.success(t("已退出登录", "Logged out successfully"));
+    notify.success(t("已退出登录", "Logged out successfully"));
     navigate('/staff/login');
   };
 
@@ -166,12 +166,12 @@ export function Header() {
 
   const handleSaveSettings = async () => {
     if (!newName.trim()) {
-      toast.error(t("姓名不能为空", "Name cannot be empty"));
+      notify.error(t("姓名不能为空", "Name cannot be empty"));
       return;
     }
 
     if (newPassword && newPassword !== confirmPassword) {
-      toast.error(t("两次输入的密码不一致", "Passwords do not match"));
+      notify.error(t("两次输入的密码不一致", "Passwords do not match"));
       return;
     }
 
@@ -192,7 +192,7 @@ export function Header() {
     if (Object.keys(updates).length > 0) {
       const result = await updateEmployee(employee.id, updates);
       if (!result.success) {
-        toast.error(result.message || t("保存失败", "Save failed"));
+        notify.error(result.message || t("保存失败", "Save failed"));
         setSaving(false);
         return;
       }
@@ -210,7 +210,7 @@ export function Header() {
 
     setSaving(false);
     setShowSettingsDialog(false);
-    toast.success(t("设置已保存", "Settings saved"));
+    notify.success(t("设置已保存", "Settings saved"));
   };
 
   const getRoleBadge = () => {

@@ -10,6 +10,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SubmissionErrorDialog } from "@/components/ui/submission-error-dialog";
 import { KeyboardShortcutsHelp } from "@/components/KeyboardShortcutsHelp";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useGlobalHotkeys } from "@/hooks/useGlobalHotkeys";
 import { useSessionExpiration } from "@/hooks/useSessionExpiration";
 import { useGlobalErrorReporter } from "@/hooks/useGlobalErrorReporter";
 import { PageTransition } from "@/components/PageTransition";
@@ -74,6 +75,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   
   // 全局快捷键、会话过期监听（不在此做全路由 invalidate，避免侧栏切页时整站 Query 重拉）
   useKeyboardShortcuts();
+  useGlobalHotkeys();
   useSessionExpiration();
   useGlobalErrorReporter(employee?.id ?? null);
   
@@ -104,7 +106,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           <div
             className={cn(
               "flex-1 min-h-0 w-full min-w-0 relative",
-              layoutMode === "centered" && "max-w-[1400px] mx-auto",
+              layoutMode === "centered" && "max-w-screen-xl mx-auto px-4",
             )}
           >
             <ErrorBoundary>
@@ -141,8 +143,8 @@ export function MainLayout({ children }: MainLayoutProps) {
           layoutMode === 'centered' && "bg-muted/20 dark:bg-muted/40 transition-colors duration-200"
         )}>
           <div className={cn(
-            "flex-1 min-h-0 relative",
-            layoutMode === 'centered' && "max-w-[1400px] w-full mx-auto"
+            "flex-1 min-h-0 w-full min-w-0 relative",
+            layoutMode === 'centered' && "max-w-screen-xl mx-auto px-4"
           )}>
             <ErrorBoundary>
               <Suspense fallback={<ContentSkeleton />}>

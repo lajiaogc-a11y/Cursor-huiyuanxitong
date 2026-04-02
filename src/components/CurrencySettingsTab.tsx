@@ -27,7 +27,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, DollarSign } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
   insertCurrency,
@@ -76,7 +76,7 @@ export default function CurrencySettingsTab() {
 
   const handleSave = async () => {
     if (!formData.code || !formData.name_zh) {
-      toast.error(t("请填写所有必填字段", "Please fill in all required fields"));
+      notify.error(t("请填写所有必填字段", "Please fill in all required fields"));
       return;
     }
 
@@ -85,7 +85,7 @@ export default function CurrencySettingsTab() {
       (c) => c.code.toUpperCase() === codeUpper && c.id !== editingCurrency?.id
     );
     if (existing) {
-      toast.error(t("该币种代码已存在", "This currency code already exists"));
+      notify.error(t("该币种代码已存在", "This currency code already exists"));
       return;
     }
 
@@ -102,7 +102,7 @@ export default function CurrencySettingsTab() {
         // 记录操作日志
         logOperation('currency_settings', 'update', editingCurrency.id, editingCurrency, formData, `更新币种: ${codeUpper}`);
         
-        toast.success(t("币种已更新", "Currency updated"));
+        notify.success(t("币种已更新", "Currency updated"));
       } else {
         const insertedRow = await insertCurrency({
           code: codeUpper,
@@ -116,7 +116,7 @@ export default function CurrencySettingsTab() {
         // 记录操作日志
         logOperation('currency_settings', 'create', insertedRow?.id || null, null, formData, `新增币种: ${codeUpper}`);
         
-        toast.success(t("币种已添加", "Currency added"));
+        notify.success(t("币种已添加", "Currency added"));
       }
 
       setIsDialogOpen(false);
@@ -126,7 +126,7 @@ export default function CurrencySettingsTab() {
       const msg = error?.code === "23505" || error?.message?.includes("duplicate")
         ? t("该币种代码已存在", "This currency code already exists")
         : (error.message || t("保存失败", "Failed to save"));
-      toast.error(msg);
+      notify.error(msg);
     }
   };
 
@@ -137,11 +137,11 @@ export default function CurrencySettingsTab() {
       // 记录操作日志
       logOperation('currency_settings', 'delete', currency.id, currency, null, `删除币种: ${currency.code}`);
       
-      toast.success(t("币种已删除", "Currency deleted"));
+      notify.success(t("币种已删除", "Currency deleted"));
       refetch();
     } catch (error: any) {
       console.error("Failed to delete currency:", error);
-      toast.error(error.message || t("删除失败", "Failed to delete"));
+      notify.error(error.message || t("删除失败", "Failed to delete"));
     }
   };
 
@@ -160,18 +160,18 @@ export default function CurrencySettingsTab() {
       }
     }
     if (toDelete.length === 0) {
-      toast.info(t("没有重复的币种", "No duplicate currencies"));
+      notify.info(t("没有重复的币种", "No duplicate currencies"));
       return;
     }
     try {
       for (const c of toDelete) {
         await deleteCurrencyById(c.id);
       }
-      toast.success(t("已清理 {n} 个重复项", "Cleaned {n} duplicates").replace("{n}", String(toDelete.length)));
+      notify.success(t("已清理 {n} 个重复项", "Cleaned {n} duplicates").replace("{n}", String(toDelete.length)));
       refetch();
     } catch (error: any) {
       console.error("Failed to clean duplicates:", error);
-      toast.error(error.message || t("清理失败", "Failed to clean"));
+      notify.error(error.message || t("清理失败", "Failed to clean"));
     }
   };
 
@@ -181,7 +181,7 @@ export default function CurrencySettingsTab() {
       refetch();
     } catch (error) {
       console.error("Failed to toggle currency status:", error);
-      toast.error(t("更新失败", "Failed to update"));
+      notify.error(t("更新失败", "Failed to update"));
     }
   };
 

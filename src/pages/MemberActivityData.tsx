@@ -52,7 +52,7 @@ import {
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobileCardActions, MobilePagination, MobileEmptyState } from "@/components/ui/mobile-data-card";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { calculateTransactionFee } from "@/lib/feeCalculation";
 import { useMembers, type Member } from "@/hooks/useMembers";
 import { getOrders, getUsdtOrders, Order, UsdtOrder } from "@/stores/orderStore";
@@ -308,7 +308,7 @@ export default function MemberActivityData() {
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
     refetchMembers();
-    toast.success(t("数据已刷新", "Data refreshed"));
+    notify.success(t("数据已刷新", "Data refreshed"));
   };
 
   // 根据时间范围过滤数据（使用统一的系统级日期筛选规则）
@@ -510,7 +510,7 @@ export default function MemberActivityData() {
     if (!redeemingRow) return;
     
     if (!selectedPaymentProvider) {
-      toast.error(t("请选择代付商家", "Please select a payment provider"));
+      notify.error(t("请选择代付商家", "Please select a payment provider"));
       return;
     }
 
@@ -518,7 +518,7 @@ export default function MemberActivityData() {
     const remainingPoints = redeemingRow.remainingPoints;
     
     if (remainingPoints <= 0) {
-      toast.error(t("剩余积分不足", "Insufficient points"));
+      notify.error(t("剩余积分不足", "Insufficient points"));
       return;
     }
 
@@ -529,7 +529,7 @@ export default function MemberActivityData() {
     const rewardAmount = getRewardAmountByPointsAndCurrency(remainingPoints, preferredCurrency);
     
     if (rewardAmount <= 0) {
-      toast.error(t("当前积分不在任何兑换区间内", "Points not in any redemption range"));
+      notify.error(t("当前积分不在任何兑换区间内", "Points not in any redemption range"));
       return;
     }
 
@@ -560,7 +560,7 @@ export default function MemberActivityData() {
     // 保存活动赠送记录到数据库
     const saveSuccess = await saveActivityGiftToDB(giftData);
     if (!saveSuccess) {
-      toast.error(t("保存活动赠送记录失败", "Failed to save gift record"));
+      notify.error(t("保存活动赠送记录失败", "Failed to save gift record"));
       return;
     }
 
@@ -570,11 +570,11 @@ export default function MemberActivityData() {
     const result = await redeemPoints(member.memberCode, member.phoneNumber, remainingPoints);
     
     if (result.success) {
-      toast.success(t(`兑换成功！已兑换 ${result.redeemedPoints} 积分，获得 ${rewardAmount} ${preferredCurrency}`, `Redemption successful! Redeemed ${result.redeemedPoints} points, received ${rewardAmount} ${preferredCurrency}`));
+      notify.success(t(`兑换成功！已兑换 ${result.redeemedPoints} 积分，获得 ${rewardAmount} ${preferredCurrency}`, `Redemption successful! Redeemed ${result.redeemedPoints} points, received ${rewardAmount} ${preferredCurrency}`));
       setIsRedeemDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
     } else {
-      toast.error(result.message || t("兑换失败", "Redemption failed"));
+      notify.error(result.message || t("兑换失败", "Redemption failed"));
     }
   };
 
@@ -603,22 +603,22 @@ export default function MemberActivityData() {
   const handleAdjustPoints = () => {
     const adjustment = parseInt(pointsAdjustment);
     if (isNaN(adjustment) || adjustment === 0) {
-      toast.error(t("请输入有效的积分数值", "Please enter a valid points value"));
+      notify.error(t("请输入有效的积分数值", "Please enter a valid points value"));
       return;
     }
     
     const member = members.find(m => m.memberCode === editingMemberCode);
     if (!member) {
-      toast.error(t("会员不存在", "Member not found"));
+      notify.error(t("会员不存在", "Member not found"));
       return;
     }
     
     if (adjustment > 0) {
       addPoints(editingMemberCode, member.phoneNumber, adjustment);
-      toast.success(t(`已添加 ${adjustment} 积分`, `Added ${adjustment} points`));
+      notify.success(t(`已添加 ${adjustment} 积分`, `Added ${adjustment} points`));
     } else {
       deductPoints(editingMemberCode, Math.abs(adjustment));
-      toast.success(t(`已扣减 ${Math.abs(adjustment)} 积分`, `Deducted ${Math.abs(adjustment)} points`));
+      notify.success(t(`已扣减 ${Math.abs(adjustment)} 积分`, `Deducted ${Math.abs(adjustment)} points`));
     }
     
     setIsPointsDialogOpen(false);
@@ -655,7 +655,7 @@ export default function MemberActivityData() {
     a.download = `活动数据_${getNowBeijingISO().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success(t("数据已导出", "Data exported"));
+    notify.success(t("数据已导出", "Data exported"));
   };
 
   // 显示推荐人详情对话框

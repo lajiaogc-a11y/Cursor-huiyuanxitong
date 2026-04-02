@@ -5,7 +5,7 @@ import { LogIn, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { listTenants, type TenantItem } from "@/services/tenantService";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 
 const SYSTEM_TENANT_CODE = "platform";
 
@@ -23,7 +23,7 @@ export default function TenantDataViewTab() {
       setTenants(data);
     } catch (error) {
       console.error(error);
-      toast.error(t("加载租户列表失败", "Failed to load tenants"));
+      notify.error(t("加载租户列表失败", "Failed to load tenants"));
     } finally {
       setLoading(false);
     }
@@ -40,7 +40,7 @@ export default function TenantDataViewTab() {
       await enterTenant(tenant.id, tenant.tenant_name || tenant.tenant_code || "", tenant.tenant_code || "");
     } catch (error) {
       console.error(error);
-      toast.error(t("进入租户失败", "Failed to enter tenant"));
+      notify.error(t("进入租户失败", "Failed to enter tenant"));
     } finally {
       setEntering(null);
     }

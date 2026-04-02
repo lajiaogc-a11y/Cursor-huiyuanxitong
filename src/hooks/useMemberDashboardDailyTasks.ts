@@ -2,7 +2,7 @@
  * 会员首页：每日签到、分享领奖状态与操作（业务规则与 RPC 调用集中于此，页面只做展示）。
  */
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifyError, notifyInfo, notifySuccess } from "@/utils/notify";
 import { ApiError } from "@/lib/apiClient";
 import { useActionGuard } from "@/lib/actionGuard";
 import {
@@ -121,29 +121,41 @@ export function useMemberDashboardDailyTasks({
           const rv = Number(r.reward_value ?? 0);
           const fractional = Number.isFinite(rv) && rv % 1 !== 0;
           if (fractional) {
-            toast.success(`签到成功！连续 ${r.consecutive_days} 天，约 ${rv} 次（已计入 ${granted} 次抽奖）`);
+            notifySuccess([
+              `签到成功！连续 ${r.consecutive_days} 天，约 ${rv} 次（已计入 ${granted} 次抽奖）`,
+              `Check-in OK! ${r.consecutive_days}-day streak — about ${rv} spin(s) (${granted} counted).`,
+            ]);
           } else {
-            toast.success(`签到成功！连续 ${r.consecutive_days} 天，+${granted} 次抽奖`);
+            notifySuccess([
+              `签到成功！连续 ${r.consecutive_days} 天，+${granted} 次抽奖`,
+              `Check-in OK! ${r.consecutive_days}-day streak, +${granted} spin(s).`,
+            ]);
           }
         } else if (r.error === "ALREADY_CHECKED_IN") {
           setCheckedInToday(true);
-          toast.info("今日已签到");
+          notifyInfo(["今日已签到", "Already checked in today"]);
         } else if (r.error === "CHECK_IN_DISABLED") {
-          toast.info("签到功能暂未开启");
+          notifyInfo(["签到功能暂未开启", "Check-in is not available"]);
         } else if (r.error === "MEMBER_NOT_FOUND") {
-          toast.error("会员信息异常，请重新登录");
+          notifyError(["会员信息异常，请重新登录", "Account error, please sign in again"]);
         } else if (r.error === "RATE_LIMIT") {
-          toast.error("操作过于频繁，请稍后再试");
+          notifyError(["操作过于频繁，请稍后再试", "Too many attempts, try again later"]);
         } else {
-          toast.error(r.error || "签到失败，请稍后重试");
+          notifyError([
+            r.error || "签到失败，请稍后重试",
+            r.error || "Check-in failed, please try again later",
+          ]);
         }
       } catch (e: unknown) {
         if (e instanceof ApiError && e.statusCode === 401) {
-          toast.error("登录已过期，请重新登录");
+          notifyError(["登录已过期，请重新登录", "Session expired, please sign in again"]);
         } else if (e instanceof ApiError && e.statusCode === 429) {
-          toast.error("操作过于频繁，请稍后再试");
+          notifyError(["操作过于频繁，请稍后再试", "Too many attempts, try again later"]);
         } else {
-          toast.error(e instanceof Error ? e.message : "网络错误，请检查网络后重试");
+          notifyError([
+            e instanceof Error ? e.message : "网络错误，请检查网络后重试",
+            e instanceof Error ? e.message : "Network error. Check your connection and try again.",
+          ]);
         }
       } finally {
         setCheckingIn(false);
@@ -177,26 +189,32 @@ export function useMemberDashboardDailyTasks({
           }
           try { await Promise.resolve(refreshSpinQuota()); } catch { /* non-critical */ }
           try { if (navigator.vibrate) navigator.vibrate(12); } catch { /* ignore */ }
-          toast.success(`分享成功！已获得 ${n} 次抽奖`);
+          notifySuccess([`分享成功！已获得 ${n} 次抽奖`, `Shared! You earned ${n} spin(s).`]);
         } else if (r?.error === "ALREADY_CLAIMED_TODAY") {
           setShareClaimedToday(true);
-          toast.info("今日已领取过分享奖励");
+          notifyInfo(["今日已领取过分享奖励", "Share reward already claimed today"]);
         } else if (r?.error === "SHARE_REWARD_DISABLED") {
-          toast.info("未开启分享奖励");
+          notifyInfo(["未开启分享奖励", "Share reward is not enabled"]);
         } else if (r?.error === "SHARE_DAILY_CAP_REACHED") {
-          toast.info("今日分享奖励已达上限");
+          notifyInfo(["今日分享奖励已达上限", "Daily share reward limit reached"]);
         } else if (r?.error === "DUPLICATE_REQUEST") {
-          toast.info("请勿重复领取，请稍候再试");
+          notifyInfo(["请勿重复领取，请稍候再试", "Please wait before claiming again"]);
         } else if (r?.error === "MEMBER_NOT_FOUND") {
-          toast.error("会员信息异常，请重新登录");
+          notifyError(["会员信息异常，请重新登录", "Account error, please sign in again"]);
         } else {
-          toast.error(typeof r?.error === "string" ? r.error : "领取失败");
+          notifyError([
+            typeof r?.error === "string" ? r.error : "领取失败",
+            typeof r?.error === "string" ? r.error : "Claim failed",
+          ]);
         }
       } catch (e: unknown) {
         if (e instanceof ApiError && e.statusCode === 429) {
-          toast.error(e.message || "操作过于频繁，请稍后再试");
+          notifyError([
+            e.message || "操作过于频繁，请稍后再试",
+            e.message || "Too many attempts, try again later",
+          ]);
         } else {
-          toast.error(e instanceof Error ? e.message : "网络错误");
+          notifyError([e instanceof Error ? e.message : "网络错误", e instanceof Error ? e.message : "Network error"]);
         }
       } finally {
         setClaimingShare(false);

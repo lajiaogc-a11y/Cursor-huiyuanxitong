@@ -20,7 +20,7 @@ import {
   Globe2, Database, LogIn, Scale,
   ClipboardList, Users, Bell,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { showServiceErrorToast } from "@/services/serviceErrorToast";
@@ -683,7 +683,7 @@ export default function MemberPortalSettingsPage() {
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const blockReadonly = useCallback((actionZh: string, actionEn?: string) => {
     if (!isPlatformAdminReadonlyView) return false;
-    toast.error(t(`平台总管理查看租户时为只读，无法${actionZh}`, `Read-only in platform admin tenant view: cannot ${actionEn || actionZh}`));
+    notify.error(t(`平台总管理查看租户时为只读，无法${actionZh}`, `Read-only in platform admin tenant view: cannot ${actionEn || actionZh}`));
     return true;
   }, [isPlatformAdminReadonlyView, t]);
 
@@ -802,7 +802,7 @@ export default function MemberPortalSettingsPage() {
   const executeNotifyForceRefresh = async () => {
     try {
       await emitForceRefreshPrompt(onlineBuildTime || localBuildTime);
-      toast.success(t("已发送全员刷新提示", "Refresh prompt sent to all users"));
+      notify.success(t("已发送全员刷新提示", "Refresh prompt sent to all users"));
     } catch (e: any) {
       showServiceErrorToast(e, t, "发送失败，请稍后重试", "Send failed, please retry later");
     }
@@ -810,7 +810,7 @@ export default function MemberPortalSettingsPage() {
   const onNotifyForceRefreshClick = () => {
     if (blockReadonly("发送刷新通知", "send refresh notification")) return;
     if (!canPublish) {
-      toast.error(t("仅管理员可操作", "Admin only"));
+      notify.error(t("仅管理员可操作", "Admin only"));
       return;
     }
     setConfirmForceRefreshOpen(true);
@@ -954,8 +954,8 @@ export default function MemberPortalSettingsPage() {
   const onUploadLogo = async (file?: File | null) => {
     if (blockReadonly("上传Logo", "upload logo")) return;
     if (!file || !tenantId) return;
-    if (!file.type.startsWith("image/")) { toast.error(t("请上传图片文件", "Please upload image file")); return; }
-    if (file.size > 2 * 1024 * 1024) { toast.error(t("Logo 大小不能超过 2MB", "Logo size must not exceed 2MB")); return; }
+    if (!file.type.startsWith("image/")) { notify.error(t("请上传图片文件", "Please upload image file")); return; }
+    if (file.size > 2 * 1024 * 1024) { notify.error(t("Logo 大小不能超过 2MB", "Logo size must not exceed 2MB")); return; }
     setUploading(true);
     try {
       const toSend = await compressImageToUploadableFile(file, {
@@ -973,7 +973,7 @@ export default function MemberPortalSettingsPage() {
         }).catch((err) => { console.warn('[MemberPortalSettings] saveDraftToServer failed:', err); });
         return next;
       });
-      toast.success(t("Logo 上传成功", "Logo uploaded successfully"));
+      notify.success(t("Logo 上传成功", "Logo uploaded successfully"));
     } catch (e: any) {
       showServiceErrorToast(e, t, "Logo 上传失败", "Logo upload failed");
     } finally {
@@ -1002,8 +1002,8 @@ export default function MemberPortalSettingsPage() {
   const uploadBannerImage = async (idx: number, file?: File | null) => {
     if (blockReadonly("上传轮播图", "upload banner")) return;
     if (!tenantId || !file) return;
-    if (!file.type.startsWith("image/")) { toast.error(t("请上传图片文件", "Please upload image file")); return; }
-    if (file.size > 3 * 1024 * 1024) { toast.error(t("轮播图大小不能超过 3MB", "Banner size must not exceed 3MB")); return; }
+    if (!file.type.startsWith("image/")) { notify.error(t("请上传图片文件", "Please upload image file")); return; }
+    if (file.size > 3 * 1024 * 1024) { notify.error(t("轮播图大小不能超过 3MB", "Banner size must not exceed 3MB")); return; }
     setUploadingBannerIndex(idx);
     try {
       const toSend = await compressImageToUploadableFile(file, {
@@ -1017,7 +1017,7 @@ export default function MemberPortalSettingsPage() {
       const updatedBanners = banners.map((b, i) => (i === idx ? { ...b, image_url: bannerUrl, image_preset_id: "" } : b));
       const p = buildPortalPayloadSnapshot(settings, badgesText, updatedBanners, moduleOrder, loginCarouselSlides);
       saveDraftToServer(p as MemberPortalSettings, undefined, tenantId).catch((err) => { console.warn('[MemberPortalSettings] saveDraftToServer (banner upload) failed:', err); });
-      toast.success(t("轮播图上传成功", "Banner image uploaded successfully"));
+      notify.success(t("轮播图上传成功", "Banner image uploaded successfully"));
     } catch (e: any) {
       showServiceErrorToast(e, t, "轮播图上传失败", "Banner upload failed");
     } finally {
@@ -1033,14 +1033,14 @@ export default function MemberPortalSettingsPage() {
     );
     const p = buildPortalPayloadSnapshot(settings, badgesText, updatedBanners, moduleOrder, loginCarouselSlides);
     saveDraftToServer(p as MemberPortalSettings, undefined, tenantId).catch((err) => { console.warn('[MemberPortalSettings] saveDraftToServer (template apply) failed:', err); });
-    toast.success(t("已套用模板", "Template applied"));
+    notify.success(t("已套用模板", "Template applied"));
   };
 
   const uploadAnnouncementImage = async (idx: number, file?: File | null) => {
     if (blockReadonly("上传公告图", "upload announcement image")) return;
     if (!tenantId || !file) return;
-    if (!file.type.startsWith("image/")) { toast.error(t("请上传图片文件", "Please upload image file")); return; }
-    if (file.size > 3 * 1024 * 1024) { toast.error(t("图片大小不能超过 3MB", "Image size must not exceed 3MB")); return; }
+    if (!file.type.startsWith("image/")) { notify.error(t("请上传图片文件", "Please upload image file")); return; }
+    if (file.size > 3 * 1024 * 1024) { notify.error(t("图片大小不能超过 3MB", "Image size must not exceed 3MB")); return; }
     setUploadingAnnouncementIndex(idx);
     try {
       const toSend = await compressImageToUploadableFile(file, {
@@ -1054,7 +1054,7 @@ export default function MemberPortalSettingsPage() {
         arr[idx] = { ...arr[idx], image_url: url };
         return { ...s, announcements: arr };
       });
-      toast.success(t("公告图片上传成功", "Announcement image uploaded"));
+      notify.success(t("公告图片上传成功", "Announcement image uploaded"));
     } catch (e: any) {
       showServiceErrorToast(e, t, "公告图片上传失败", "Announcement image upload failed");
     } finally {
@@ -1065,8 +1065,8 @@ export default function MemberPortalSettingsPage() {
   const uploadLoginCarouselImage = async (idx: number, file?: File | null) => {
     if (blockReadonly("上传登录轮播图", "upload login carousel image")) return;
     if (!tenantId || !file) return;
-    if (!file.type.startsWith("image/")) { toast.error(t("请上传图片文件", "Please upload image file")); return; }
-    if (file.size > 3 * 1024 * 1024) { toast.error(t("图片大小不能超过 3MB", "Image size must not exceed 3MB")); return; }
+    if (!file.type.startsWith("image/")) { notify.error(t("请上传图片文件", "Please upload image file")); return; }
+    if (file.size > 3 * 1024 * 1024) { notify.error(t("图片大小不能超过 3MB", "Image size must not exceed 3MB")); return; }
     setUploadingLoginCarouselIndex(idx);
     try {
       const toSend = await compressImageToUploadableFile(file, {
@@ -1079,7 +1079,7 @@ export default function MemberPortalSettingsPage() {
       setLoginCarouselSlides(updated);
       const p = buildPortalPayloadSnapshot(settings, badgesText, banners, moduleOrder, updated);
       saveDraftToServer(p as MemberPortalSettings, undefined, tenantId).catch((err) => { console.warn('[MemberPortalSettings] saveDraftToServer (carousel upload) failed:', err); });
-      toast.success(t("图片上传成功", "Image uploaded"));
+      notify.success(t("图片上传成功", "Image uploaded"));
     } catch (e: any) {
       showServiceErrorToast(e, t, "图片上传失败", "Image upload failed");
     } finally {
@@ -1098,20 +1098,20 @@ export default function MemberPortalSettingsPage() {
   };
   const saveLotteryPrizes = async () => {
     if (!isLotteryRateValid) {
-      toast.error(t('所有奖品概率总和必须等于 100%', 'Prize probabilities must total 100%'));
+      notify.error(t('所有奖品概率总和必须等于 100%', 'Prize probabilities must total 100%'));
       return;
     }
     if (!hasThanksPrize) {
-      toast.error(t('必须包含一个"感谢参与"类型奖品', 'Must include a "Thanks for participating" prize'));
+      notify.error(t('必须包含一个"感谢参与"类型奖品', 'Must include a "Thanks for participating" prize'));
       return;
     }
     setSavingSpinPrizes(true);
     try {
       await adminSaveLotteryPrizes(lotteryPrizes);
       setLotteryPrizes(await adminGetLotteryPrizes());
-      toast.success(t('奖品配置已保存', 'Prize config saved'));
+      notify.success(t('奖品配置已保存', 'Prize config saved'));
     } catch (e: any) {
-      toast.error(e?.message || t('保存失败', 'Save failed'));
+      notify.error(e?.message || t('保存失败', 'Save failed'));
     } finally {
       setSavingSpinPrizes(false);
     }
@@ -1119,9 +1119,9 @@ export default function MemberPortalSettingsPage() {
   const saveLotterySettingsHandler = async () => {
     try {
       await adminSaveLotterySettings(lotterySettings);
-      toast.success(t('抽奖设置已保存', 'Lottery settings saved'));
+      notify.success(t('抽奖设置已保存', 'Lottery settings saved'));
     } catch (e: any) {
-      toast.error(e?.message || t('保存失败', 'Save failed'));
+      notify.error(e?.message || t('保存失败', 'Save failed'));
     }
   };
   const addMallItem = () => {
@@ -1213,7 +1213,7 @@ export default function MemberPortalSettingsPage() {
       }
     });
     if (errors.length > 0) {
-      toast.error(errors.join("\n"), { style: { whiteSpace: "pre-line" } });
+      notify.error(errors.join("\n"), { style: { whiteSpace: "pre-line" } });
       return;
     }
     if (!tenantId) return;
@@ -1229,7 +1229,7 @@ export default function MemberPortalSettingsPage() {
       );
       const next = await listMyPointsMallCategories(tenantId);
       setMallCategories(next);
-      toast.success(t("商城分类已保存", "Mall categories saved"));
+      notify.success(t("商城分类已保存", "Mall categories saved"));
     } catch (e: unknown) {
       showServiceErrorToast(e, t, "保存分类失败", "Failed to save categories");
     } finally {
@@ -1242,8 +1242,8 @@ export default function MemberPortalSettingsPage() {
   const uploadMallItemImage = async (idx: number, file?: File | null) => {
     if (blockReadonly("上传商品图", "upload product image")) return;
     if (!tenantId || !file) return;
-    if (!file.type.startsWith("image/")) { toast.error(t("请上传图片文件", "Please upload image file")); return; }
-    if (file.size > 3 * 1024 * 1024) { toast.error(t("商品图大小不能超过 3MB", "Product image size must not exceed 3MB")); return; }
+    if (!file.type.startsWith("image/")) { notify.error(t("请上传图片文件", "Please upload image file")); return; }
+    if (file.size > 3 * 1024 * 1024) { notify.error(t("商品图大小不能超过 3MB", "Product image size must not exceed 3MB")); return; }
     setUploadingMallImageIndex(idx);
     try {
       const toSend = await compressImageToUploadableFile(file, {
@@ -1275,7 +1275,7 @@ export default function MemberPortalSettingsPage() {
       });
       await upsertMyPointsMallItems(updatedItems, tenantId);
       setMallItems(await listMyPointsMallItems(tenantId));
-      toast.success(t("商品图已上传并保存", "Product image uploaded and saved"));
+      notify.success(t("商品图已上传并保存", "Product image uploaded and saved"));
     } catch (e: any) {
       showServiceErrorToast(e, t, "商品图上传失败", "Product image upload failed");
     } finally {
@@ -1293,7 +1293,7 @@ export default function MemberPortalSettingsPage() {
         if (Number(x.points_cost || 0) <= 0) errors.push(t(`第 ${idx + 1} 行「${title || '?'}」：积分必须大于 0`, `Row ${idx + 1} "${title || '?'}": Points must be > 0`));
       });
       if (errors.length > 0) {
-        toast.error(errors.join("\n"), { style: { whiteSpace: "pre-line" } });
+        notify.error(errors.join("\n"), { style: { whiteSpace: "pre-line" } });
         setSavingMallItems(false);
         return;
       }
@@ -1318,7 +1318,7 @@ export default function MemberPortalSettingsPage() {
       });
       await upsertMyPointsMallItems(payload, tenantId);
       setMallItems(await listMyPointsMallItems(tenantId));
-      toast.success(
+      notify.success(
         t("积分商城已保存：当前表格即为线上商品全集", "Mall saved: the table is now the full catalog online"),
       );
     } catch (e: any) {
@@ -1341,7 +1341,7 @@ export default function MemberPortalSettingsPage() {
   // ── 草稿（保存到服务器） ────────────────────────────────────────────────
   const saveDraft = async () => {
     if (blockReadonly("保存草稿", "save draft")) return;
-    if (!canSubmitApproval) { toast.error(t("无权限保存", "No permission to save")); return; }
+    if (!canSubmitApproval) { notify.error(t("无权限保存", "No permission to save")); return; }
     const payload = buildPayload();
     const snapshot = JSON.stringify(payload);
     const noteTrim = publishNote.trim();
@@ -1355,11 +1355,11 @@ export default function MemberPortalSettingsPage() {
       try {
         const d = await getServerDraft(tenantId);
         if (!d.success || !d.draft) {
-          toast.info(t("无变更内容，无需保存", "No changes to save"));
+          notify.info(t("无变更内容，无需保存", "No changes to save"));
           return;
         }
       } catch {
-        toast.info(t("无变更内容，无需保存", "No changes to save"));
+        notify.info(t("无变更内容，无需保存", "No changes to save"));
         return;
       }
     }
@@ -1368,7 +1368,7 @@ export default function MemberPortalSettingsPage() {
       const result = await saveDraftToServer(payload, publishNote.trim() || undefined, tenantId);
       if (!result.success) { showServiceErrorToast({ message: result.error }, t, "草稿保存失败", "Draft save failed"); return; }
       setHasDraft(true);
-      toast.success(t("草稿已保存（尚未发布，会员端不会看到变更）", "Draft saved (not published yet, members won't see changes)"));
+      notify.success(t("草稿已保存（尚未发布，会员端不会看到变更）", "Draft saved (not published yet, members won't see changes)"));
     } catch (e: any) {
       showServiceErrorToast(e, t, "草稿保存失败", "Draft save failed");
     } finally {
@@ -1390,7 +1390,7 @@ export default function MemberPortalSettingsPage() {
       persistPublishedBaselineMarker(tenantId, parsePublishedBaselineMarkerFromPayload(data));
       setHasDraft(false);
       invalidateMemberPortalStaffSessionSnapshot(workingDraftKey);
-      toast.success(t("草稿已丢弃，已恢复为线上版本", "Draft discarded, restored to published version"));
+      notify.success(t("草稿已丢弃，已恢复为线上版本", "Draft discarded, restored to published version"));
     } catch (e: any) {
       showServiceErrorToast(e, t, "丢弃草稿失败", "Discard draft failed");
     } finally {
@@ -1401,9 +1401,9 @@ export default function MemberPortalSettingsPage() {
   const loadDraftFromServer = async () => {
     try {
       const res = await getServerDraft(tenantId);
-      if (!res.success || !res.draft?.payload) { toast.info(t("没有可用的服务器草稿", "No server draft available")); return; }
+      if (!res.success || !res.draft?.payload) { notify.info(t("没有可用的服务器草稿", "No server draft available")); return; }
       applySettingsSnapshot(res.draft.payload as unknown as MemberPortalSettings);
-      toast.success(t("服务器草稿已载入", "Server draft loaded"));
+      notify.success(t("服务器草稿已载入", "Server draft loaded"));
     } catch (e) { showServiceErrorToast(e, t, "草稿载入失败", "Draft load failed"); }
   };
   const onResetToDefaultClick = () => {
@@ -1416,13 +1416,13 @@ export default function MemberPortalSettingsPage() {
     setBanners([]);
     setLoginCarouselSlides([]);
     setModuleOrder(["shortcuts", "tasks", "security"]);
-    toast.success(t("已恢复默认模板（未保存）", "Restored to default template (not saved)"));
+    notify.success(t("已恢复默认模板（未保存）", "Restored to default template (not saved)"));
   };
 
   // ── 回滚 & 审核 ───────────────────────────────────────────────────────────
   const requestRollback = (versionId: string) => {
     if (blockReadonly("回滚版本", "rollback version")) return;
-    if (!canPublish) { toast.error(t("仅管理员可回滚", "Admin only to rollback")); return; }
+    if (!canPublish) { notify.error(t("仅管理员可回滚", "Admin only to rollback")); return; }
     setConfirmRollbackVersionId(versionId);
   };
   const executeRollback = async () => {
@@ -1439,7 +1439,7 @@ export default function MemberPortalSettingsPage() {
       await refreshVersions();
       void emitPortalSettingsUpdated(tenantId);
       invalidateMemberPortalStaffSessionSnapshot(workingDraftKey);
-      toast.success(t("回滚成功并已发布", "Rollback successful and published"));
+      notify.success(t("回滚成功并已发布", "Rollback successful and published"));
     } catch (e: any) {
       showServiceErrorToast(e, t, "回滚失败", "Rollback failed");
     } finally {
@@ -1449,7 +1449,7 @@ export default function MemberPortalSettingsPage() {
 
   const onApprove = async (versionId: string, approve: boolean) => {
     if (blockReadonly(approve ? "审核通过版本" : "驳回版本", approve ? "approve version" : "reject version")) return;
-    if (!canPublish) { toast.error(t("仅管理员可审核", "Admin only to review")); return; }
+    if (!canPublish) { notify.error(t("仅管理员可审核", "Admin only to review")); return; }
     setSaving(true);
     try {
       const result = await approveMyMemberPortalSettingsVersion(versionId, reviewNote.trim() || undefined, approve, tenantId);
@@ -1466,7 +1466,7 @@ export default function MemberPortalSettingsPage() {
           /* ignore */
         }
       }
-      toast.success(approve ? t("审核通过并已处理发布", "Approved and published") : t("已驳回", "Rejected"));
+      notify.success(approve ? t("审核通过并已处理发布", "Approved and published") : t("已驳回", "Rejected"));
       setReviewNote("");
       await refreshVersions();
     } catch (e: any) {
@@ -1479,7 +1479,7 @@ export default function MemberPortalSettingsPage() {
   // ── 发布上线（先保存草稿，再发布） ───────────────────────────────────────
   const onPublishClick = async () => {
     if (blockReadonly("发布上线", "publish")) return;
-    if (!canPublish) { toast.error(t("仅管理员可发布", "Admin only to publish")); return; }
+    if (!canPublish) { notify.error(t("仅管理员可发布", "Admin only to publish")); return; }
     const payload = buildPayload();
     const snapshot = JSON.stringify(payload);
     const noteTrim = publishNote.trim();
@@ -1493,11 +1493,11 @@ export default function MemberPortalSettingsPage() {
       try {
         const d = await getServerDraft(tenantId);
         if (!d.success || !d.draft) {
-          toast.info(t("无最新内容，无需重复发布", "No new changes, no need to republish"));
+          notify.info(t("无最新内容，无需重复发布", "No new changes, no need to republish"));
           return;
         }
       } catch {
-        toast.info(t("无最新内容，无需重复发布", "No new changes, no need to republish"));
+        notify.info(t("无最新内容，无需重复发布", "No new changes, no need to republish"));
         return;
       }
     }
@@ -1510,7 +1510,7 @@ export default function MemberPortalSettingsPage() {
       fingerprintLotteryStaffState(lotterySettings, lotteryPrizes) !== lastPublishedLotteryFingerprint;
     if (lotteryDirtyForPublish) {
       if (!isLotteryRateValid || !hasThanksPrize) {
-        toast.error(
+        notify.error(
           t(
             "抽奖有未保存变更，但奖品概率须合计 100% 且须含「感谢参与」才能写入。请先在「幸运抽奖」页保存后再发布。",
             "Lottery has unsaved changes but prizes must total 100% with a Thanks prize. Save on the Lucky Spin tab first, then publish.",
@@ -1562,7 +1562,7 @@ export default function MemberPortalSettingsPage() {
       try { localStorage.removeItem(workingDraftKey); } catch { /* ignore */ }
       await refreshVersions();
       invalidateMemberPortalStaffSessionSnapshot(workingDraftKey);
-      toast.success(t(`已发布版本 V${result.version_no}，会员端已生效`, `Published version V${result.version_no}, now live for members`));
+      notify.success(t(`已发布版本 V${result.version_no}，会员端已生效`, `Published version V${result.version_no}, now live for members`));
     } catch (e: any) {
       showServiceErrorToast(e, t, "发布失败", "Publish failed");
     } finally {
@@ -1573,7 +1573,7 @@ export default function MemberPortalSettingsPage() {
   // ── 提审（旧流程保留兼容） ─────────────────────────────────────────────
   const onSubmitForReviewClick = () => {
     if (blockReadonly("提交审核", "submit for review")) return;
-    if (!canSubmitApproval) { toast.error(t("无权限提交", "No permission to submit")); return; }
+    if (!canSubmitApproval) { notify.error(t("无权限提交", "No permission to submit")); return; }
     setConfirmSubmitReviewOpen(true);
   };
   const executeSubmitForReview = async () => {
@@ -1583,7 +1583,7 @@ export default function MemberPortalSettingsPage() {
     try {
       const submitResult = await submitMyMemberPortalSettingsForApproval(payload, publishNote.trim() || undefined, scheduleAt || null, tenantId);
       if (!submitResult.success) { showServiceErrorToast({ message: submitResult.error }, t, "提交审批失败", "Submit for approval failed"); return; }
-      toast.success(t(`已提交审核 V${submitResult.version_no}`, `Submitted for review V${submitResult.version_no}`));
+      notify.success(t(`已提交审核 V${submitResult.version_no}`, `Submitted for review V${submitResult.version_no}`));
       setPublishNote(""); setScheduleAt("");
       await refreshVersions();
     } catch (e: any) {

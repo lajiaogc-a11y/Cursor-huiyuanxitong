@@ -44,7 +44,7 @@ import {
   ImageOff,
   Loader2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Download } from "lucide-react";
@@ -255,7 +255,7 @@ export default function KnowledgeBase() {
   const handleCopyContent = (content: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     navigator.clipboard.writeText(String(content ?? ""));
-    toast.success(t('已复制到剪贴板', 'Copied to clipboard'));
+    notify.success(t('已复制到剪贴板', 'Copied to clipboard'));
   };
 
   // ---- Category management ----
@@ -273,7 +273,7 @@ export default function KnowledgeBase() {
 
   const handleSaveCategory = async () => {
     if (!categoryForm.name.trim()) {
-      toast.error(t("请输入分类名称", "Please enter category name"));
+      notify.error(t("请输入分类名称", "Please enter category name"));
       return;
     }
     if (savingCategory) return;
@@ -296,7 +296,7 @@ export default function KnowledgeBase() {
       }
     } catch (err) {
       console.error("handleSaveCategory error:", err);
-      toast.error(t("保存失败，请重试", "Save failed. Please try again."));
+      notify.error(t("保存失败，请重试", "Save failed. Please try again."));
     } finally {
       setSavingCategory(false);
     }
@@ -334,7 +334,7 @@ export default function KnowledgeBase() {
 
   const handleSaveArticle = async () => {
     if (!articleForm.title_zh.trim()) {
-      toast.error(t("请输入标题", "Please enter title"));
+      notify.error(t("请输入标题", "Please enter title"));
       return;
     }
     if (editingArticle) {
@@ -567,14 +567,14 @@ export default function KnowledgeBase() {
           try {
             const result = await seedKnowledgeCategories();
             if (result.seeded) {
-              toast.success(t('已初始化默认分类', 'Default categories initialized'));
+              notify.success(t('已初始化默认分类', 'Default categories initialized'));
               fetchCategories();
             } else {
-              toast.info(result.message || t('已有分类或需管理员权限', 'Categories exist or admin required'));
+              notify.info(result.message || t('已有分类或需管理员权限', 'Categories exist or admin required'));
               fetchCategories();
             }
           } catch (e) {
-            toast.error(t('初始化失败，请确保以管理员身份登录', 'Init failed. Please login as admin'));
+            notify.error(t('初始化失败，请确保以管理员身份登录', 'Init failed. Please login as admin'));
             fetchCategories();
           }
         }}
@@ -1222,10 +1222,10 @@ export default function KnowledgeBase() {
                   try {
                     const ok = await markAllAsRead();
                     if (ok) {
-                      toast.success(t("knowledge.markAllReadDone"));
+                      notify.success(t("knowledge.markAllReadDone"));
                       setMarkAllReadOpen(false);
                     } else {
-                      toast.error(t("knowledge.markAllReadFailed"));
+                      notify.error(t("knowledge.markAllReadFailed"));
                     }
                   } finally {
                     setMarkAllReadSubmitting(false);

@@ -1,6 +1,6 @@
 // USDT 订单 Mutations - 从 useUsdtOrders 提取，不修改业务逻辑
 import { useCallback } from 'react';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import {
   reversePointsOnOrderCancel,
   restorePointsOnOrderRestore,
@@ -55,19 +55,19 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
       employeeId?: string
     ): Promise<OrderResult> => {
       if (isPlatformAdminReadonlyView) {
-        toast.error(t('平台总管理查看租户时为只读，无法新增订单', 'Read-only in admin view, cannot create order'));
+        notify.error(t('平台总管理查看租户时为只读，无法新增订单', 'Read-only in admin view, cannot create order'));
         return { order: null, earnedPoints: 0 };
       }
       try {
         const quotaResult = await checkMyTenantQuotaResult("daily_orders");
         if (!quotaResult.ok) {
           const quotaText = getQuotaExceededText(quotaResult.error.message);
-          toast.error(quotaText?.zh || t('今日订单数量已达到租户配额上限', 'Daily order quota exceeded'));
+          notify.error(quotaText?.zh || t('今日订单数量已达到租户配额上限', 'Daily order quota exceeded'));
           return { order: null, earnedPoints: 0 };
         }
         const softQuotaText = getQuotaSoftExceededText(quotaResult.data?.message);
         if (softQuotaText) {
-          toast.warning(softQuotaText.zh);
+          notify.warning(softQuotaText.zh);
         }
         const orderPoints = await calculateOrderPointsAsync(orderData.actualPaidUsdt, 'USDT');
         const dbOrder = await mapUsdtOrderToDbAsync(
@@ -141,7 +141,7 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         return { order: newOrder as any, earnedPoints };
       } catch (error) {
         console.error('Failed to add USDT order:', error);
-        toast.error(t('创建USDT订单失败', 'Failed to create USDT order'));
+        notify.error(t('创建USDT订单失败', 'Failed to create USDT order'));
         return { order: null, earnedPoints: 0 };
       }
     },
@@ -151,7 +151,7 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
   const cancelOrder = useCallback(
     async (dbId: string): Promise<boolean> => {
       if (isPlatformAdminReadonlyView) {
-        toast.error(t('平台总管理查看租户时为只读，无法取消订单', 'Read-only in admin view, cannot cancel order'));
+        notify.error(t('平台总管理查看租户时为只读，无法取消订单', 'Read-only in admin view, cannot cancel order'));
         return false;
       }
       try {
@@ -216,7 +216,7 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
   const restoreOrder = useCallback(
     async (dbId: string): Promise<boolean> => {
       if (isPlatformAdminReadonlyView) {
-        toast.error(t('平台总管理查看租户时为只读，无法恢复订单', 'Read-only in admin view, cannot restore order'));
+        notify.error(t('平台总管理查看租户时为只读，无法恢复订单', 'Read-only in admin view, cannot restore order'));
         return false;
       }
       try {
@@ -283,7 +283,7 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
   const deleteOrder = useCallback(
     async (dbId: string): Promise<boolean> => {
       if (isPlatformAdminReadonlyView) {
-        toast.error(t('平台总管理查看租户时为只读，无法删除订单', 'Read-only in admin view, cannot delete order'));
+        notify.error(t('平台总管理查看租户时为只读，无法删除订单', 'Read-only in admin view, cannot delete order'));
         return false;
       }
       const order = orders.find(o => o.dbId === dbId);
@@ -314,7 +314,7 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         setOrders(prev => prev.filter(o => o.dbId !== dbId));
       } catch (error) {
         console.error('Failed to delete USDT order:', error);
-        toast.error(t('删除USDT订单失败', 'Failed to delete USDT order'));
+        notify.error(t('删除USDT订单失败', 'Failed to delete USDT order'));
         return false;
       }
 

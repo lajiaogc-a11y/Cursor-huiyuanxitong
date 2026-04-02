@@ -1,5 +1,13 @@
 // USDT 订单表格 - 从 OrderManagement 提取，不修改业务逻辑
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Table,
   TableBody,
@@ -13,7 +21,7 @@ import { StickyScrollTableContainer } from "@/components/ui/sticky-scroll-table"
 import { SortableTableHead, type SortConfig } from "@/components/ui/sortable-table-head";
 import { MobileCardList, MobileCard, MobileCardGrid, MobileCardGridItem, MobileCardRow, MobileCardCollapsible, MobilePagination, MobileEmptyState } from "@/components/ui/mobile-data-card";
 import { Pencil } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { UsdtOrderRowActions } from "./UsdtOrderRowActions";
 import { OrderPagination } from "./OrderPagination";
 import type { UsdtOrder } from "@/hooks/useOrders";
@@ -72,6 +80,10 @@ export function OrderUsdtTable(props: OrderUsdtTableProps) {
     onJumpToPageChange,
     onJumpToPage,
     t,
+    selectedDbIds,
+    onToggleSelectDbId,
+    onToggleSelectAllPage,
+    batchActionBar,
   } = props;
 
   if (useCompactLayout) {
@@ -97,9 +109,16 @@ export function OrderUsdtTable(props: OrderUsdtTableProps) {
                 ) : (
                   <Badge variant="success" className="text-[10px] px-1.5 py-0">{t("完成", "Completed")}</Badge>
                 )}
-                <Button size="icon" variant="ghost" className="h-8 w-8 touch-manipulation" onClick={() => onEdit(order)}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 touch-manipulation" onClick={() => onEdit(order)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">{t("编辑", "Edit")}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
             <MobileCardGrid>
@@ -128,12 +147,31 @@ export function OrderUsdtTable(props: OrderUsdtTableProps) {
     );
   }
 
+  const batchEnabled = !!(selectedDbIds && onToggleSelectDbId && onToggleSelectAllPage);
+  const pageDbIds = orders.map((o) => o.dbId);
+  const selectedOnPageCount = batchEnabled ? pageDbIds.filter((id) => selectedDbIds!.has(id)).length : 0;
+  const allPageSelected = batchEnabled && pageDbIds.length > 0 && selectedOnPageCount === pageDbIds.length;
+  const somePageSelected = batchEnabled && selectedOnPageCount > 0 && !allPageSelected;
+  const emptyColSpan = columnVisibility.visibleColumns.size + (batchEnabled ? 1 : 0);
+
   return (
     <>
-      <StickyScrollTableContainer minWidth="1800px">
+      {batchActionBar}
+      <StickyScrollTableContainer minWidth="max-content">
         <Table className="text-xs">
           <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
             <TableRow className="bg-muted/50">
+              {batchEnabled && (
+                <TableHead className="w-10 px-1 text-center sticky left-0 z-20 bg-muted shadow-[4px_0_8px_-4px_rgba(0,0,0,0.15)]">
+                  <div className="flex justify-center">
+                    <Checkbox
+                      checked={allPageSelected ? true : somePageSelected ? "indeterminate" : false}
+                      onCheckedChange={() => onToggleSelectAllPage!()}
+                      aria-label={t("全选本页", "Select page")}
+                    />
+                  </div>
+                </TableHead>
+              )}
               {columnVisibility.isVisible('createdAt') && <SortableTableHead sortKey="createdAt" currentSort={sortConfig} onSort={onSort} className="px-2 whitespace-nowrap text-center">{t("创建时间", "Created At")}</SortableTableHead>}
               {columnVisibility.isVisible('id') && <TableHead className="px-2 whitespace-nowrap text-center">{t("订单ID", "Order ID")}</TableHead>}
               {columnVisibility.isVisible('cardType') && <TableHead className="px-2 whitespace-nowrap text-center">{t("卡片类型", "Card Type")}</TableHead>}
@@ -165,13 +203,24 @@ export function OrderUsdtTable(props: OrderUsdtTableProps) {
           <TableBody>
             {orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columnVisibility.visibleColumns.size} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={emptyColSpan} className="text-center py-12 text-muted-foreground">
                   {t("暂无USDT订单数据", "No USDT orders")}
                 </TableCell>
               </TableRow>
             ) : (
               orders.map((order) => (
                 <TableRow key={order.id} className={order.status === "cancelled" ? "bg-muted/30" : ""}>
+                  {batchEnabled && (
+                    <TableCell className="w-10 px-1 text-center sticky left-0 z-10 bg-background shadow-[4px_0_8px_-4px_rgba(0,0,0,0.15)]">
+                      <div className="flex justify-center">
+                        <Checkbox
+                          checked={selectedDbIds!.has(order.dbId)}
+                          onCheckedChange={() => onToggleSelectDbId!(order.dbId)}
+                          aria-label={t("选择该行", "Select row")}
+                        />
+                      </div>
+                    </TableCell>
+                  )}
                   {columnVisibility.isVisible('createdAt') && <TableCell className="px-2 whitespace-nowrap text-center">{order.createdAt}</TableCell>}
                   {columnVisibility.isVisible('id') && <TableCell className="px-2 font-mono whitespace-nowrap text-center">{order.id}</TableCell>}
                   {columnVisibility.isVisible('cardType') && <TableCell className="px-2 whitespace-nowrap text-center">{resolveCardName(order.cardType)}</TableCell>}
@@ -214,7 +263,7 @@ export function OrderUsdtTable(props: OrderUsdtTableProps) {
                         order={order}
                         onEdit={onEdit}
                         onCancel={onCancel}
-                        onRestore={async (dbId) => { await onRestore(dbId); toast.success(t("USDT订单已恢复", "USDT order restored")); return true; }}
+                        onRestore={async (dbId) => { await onRestore(dbId); notify.success(t("USDT订单已恢复", "USDT order restored")); return true; }}
                         onDelete={onDelete}
                         canEditCancelButton={canEditCancelButton}
                         canDelete={canDelete}

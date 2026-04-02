@@ -20,7 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import type { LucideIcon } from "lucide-react";
 import { RefreshCw, CalendarClock, Dices, Star } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
@@ -227,7 +227,7 @@ export function ActivityDataTab({ tenantId, canManage }: ActivityDataTabProps) {
         setRetentionMeta({ lastRunAt: s.lastRunAt ?? null, lastSummary: s.lastSummary ?? null });
       })
       .catch(() => {
-        if (!cancelled) toast.error(t("加载保留策略失败", "Failed to load retention settings"));
+        if (!cancelled) notify.error(t("加载保留策略失败", "Failed to load retention settings"));
       })
       .finally(() => {
         if (!cancelled) setRetentionLoading(false);
@@ -241,7 +241,7 @@ export function ActivityDataTab({ tenantId, canManage }: ActivityDataTabProps) {
     if (!tenantId || !canConfigureActivityRetention) return;
     const days = Math.min(3650, Math.max(1, Math.floor(Number(retentionDaysInput) || 0)));
     if (!Number.isFinite(days) || days < 1) {
-      toast.error(t("保留天数须为 1～3650", "Retention days must be 1–3650"));
+      notify.error(t("保留天数须为 1～3650", "Retention days must be 1–3650"));
       return;
     }
     setRetentionSaving(true);
@@ -253,9 +253,9 @@ export function ActivityDataTab({ tenantId, canManage }: ActivityDataTabProps) {
       setRetentionEnabled(!!s.enabled);
       setRetentionDaysInput(String(s.retentionDays));
       setRetentionMeta({ lastRunAt: s.lastRunAt ?? null, lastSummary: s.lastSummary ?? null });
-      toast.success(t("已保存", "Saved"));
+      notify.success(t("已保存", "Saved"));
     } catch {
-      toast.error(t("保存失败", "Save failed"));
+      notify.error(t("保存失败", "Save failed"));
     } finally {
       setRetentionSaving(false);
     }
@@ -270,7 +270,7 @@ export function ActivityDataTab({ tenantId, canManage }: ActivityDataTabProps) {
         lastRunAt: r.settings.lastRunAt ?? null,
         lastSummary: r.settings.lastSummary ?? null,
       });
-      toast.success(
+      notify.success(
         t(
           `已清理：抽奖 ${r.summary.lotteryLogs} 条，签到 ${r.summary.checkIns} 条，抽奖积分流水 ${r.summary.lotteryPointsLedger} 条`,
           `Cleaned: ${r.summary.lotteryLogs} lottery rows, ${r.summary.checkIns} check-ins, ${r.summary.lotteryPointsLedger} lottery ledger rows`,
@@ -278,7 +278,7 @@ export function ActivityDataTab({ tenantId, canManage }: ActivityDataTabProps) {
       );
       await Promise.all([loadLotteryLogsPage(lotteryLogsPage), loadCheckInsPage(checkInPage)]);
     } catch {
-      toast.error(t("清理失败", "Cleanup failed"));
+      notify.error(t("清理失败", "Cleanup failed"));
     } finally {
       setRetentionRunning(false);
     }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { listTenantsResult, type TenantItem } from "@/services/tenantService";
@@ -102,7 +102,7 @@ export default function MaintenanceModeTab() {
         showServiceErrorToast(result.error, t, "保存全站维护模式失败", "Failed to save global maintenance mode");
         return;
       }
-      toast.success(
+      notify.success(
         globalEnabled
           ? t("已开启全站维护模式", "Global maintenance enabled")
           : t("已关闭全站维护模式", "Global maintenance disabled")
@@ -135,7 +135,7 @@ export default function MaintenanceModeTab() {
           showServiceErrorToast(result.error, t, "保存租户维护模式失败", "Failed to save tenant maintenance mode");
           return;
         }
-        toast.success(
+        notify.success(
           draft.enabled
             ? t("已开启租户维护模式", "Tenant maintenance enabled")
             : t("已关闭租户维护模式", "Tenant maintenance disabled")

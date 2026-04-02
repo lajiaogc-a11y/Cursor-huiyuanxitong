@@ -24,7 +24,7 @@ import {
   type MemberPortalRedemptionRpcRow,
   type RedeemPointsMallItemResult,
 } from "@/services/members/memberPointsMallRpcService";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
 import { ROUTES } from "@/routes/constants";
@@ -606,7 +606,7 @@ export default function MemberPoints() {
       const cap = redeemableMaxQty(redeemTarget);
       const qty = cap < 1 ? 0 : Math.max(1, Math.min(Number(redeemQty || 1), cap));
       if (qty < 1) {
-        toast.error(
+        notify.error(
           t(
             "当前无法兑换（额度或库存不足）。",
             "You cannot redeem this item right now (quota or stock exhausted).",
@@ -625,13 +625,13 @@ export default function MemberPoints() {
         if (!r.success) {
           const detail = redeemFailureDetail(r, t);
           setRedeemError(detail);
-          toast.error(detail);
+          notify.error(detail);
           return;
         }
         if (r.idempotent_replay) {
-          toast.info(t("该兑换请求已处理过", "This redeem request was already processed"));
+          notify.info(t("该兑换请求已处理过", "This redeem request was already processed"));
         } else {
-          toast.success(
+          notify.success(
             t(`已兑换：${r.item?.title || redeemTarget.title}`, `Redeemed: ${r.item?.title || redeemTarget.title}`),
           );
         }
@@ -650,7 +650,7 @@ export default function MemberPoints() {
           setItems(raw.map(normalizeMallItem));
           setMallCategories(Array.isArray(cats) ? cats : []);
         } catch {
-          toast.warning(
+          notify.warning(
             t("商城列表同步失败，请下拉刷新或稍后重试。", "Catalog sync failed. Pull to refresh or try again later."),
           );
         }
@@ -661,7 +661,7 @@ export default function MemberPoints() {
             ? e.message
             : memberPortalNetworkToastMessage(t);
         setRedeemError(msg);
-        toast.error(msg);
+        notify.error(msg);
       }
       finally { setRedeeming(false); }
     });

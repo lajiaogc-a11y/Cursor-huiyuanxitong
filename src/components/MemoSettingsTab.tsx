@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Bell, Clock, Save, Trash2, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import {
   getMemoSettingsAsync,
   saveMemoSettingsAsync,
@@ -145,11 +145,11 @@ export default function MemoSettingsTab() {
     try {
       await saveMemoSettingsAsync(settings);
       setHasChanges(false);
-      toast.success(t("备忘录设置已保存", "Memo settings saved"));
+      notify.success(t("备忘录设置已保存", "Memo settings saved"));
       loadStats(settings);
     } catch (error) {
       console.error('Failed to save memo settings:', error);
-      toast.error(t("保存失败", "Failed to save"));
+      notify.error(t("保存失败", "Failed to save"));
     } finally {
       setIsSaving(false);
     }
@@ -158,10 +158,10 @@ export default function MemoSettingsTab() {
   const handleCleanupNow = () => {
     const deletedCount = cleanupExpiredMemos();
     if (deletedCount > 0) {
-      toast.success(t(`已清理 ${deletedCount} 条过期备忘`, `Cleaned up ${deletedCount} expired memos`));
+      notify.success(t(`已清理 ${deletedCount} 条过期备忘`, `Cleaned up ${deletedCount} expired memos`));
       loadStats(settings);
     } else {
-      toast.info(t("没有需要清理的备忘", "No memos to clean up"));
+      notify.info(t("没有需要清理的备忘", "No memos to clean up"));
     }
   };
 

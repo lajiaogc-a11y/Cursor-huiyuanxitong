@@ -20,7 +20,7 @@ import {
   shouldHardRedirectToMemberPortal,
   shouldHardRedirectToStaffPortal,
 } from '@/lib/crossPortalNavigation';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 
 /** 401 时派发事件，供 AuthContext 同步清除状态 */
 export const AUTH_UNAUTHORIZED_EVENT = 'auth:unauthorized';
@@ -64,7 +64,7 @@ export function initApiClient(): void {
       /* ignore */
     }
 
-    toast.error('Your account signed in on another device', {
+    notify.error('Your account signed in on another device', {
       description: 'If this was not you, change your password as soon as possible.',
       duration: 6500,
     });
@@ -105,7 +105,7 @@ export function initApiClient(): void {
       } catch {
         /* ignore */
       }
-      toast.error('登录已过期，请重新登录', { duration: 3000 });
+      notify.error('登录已过期，请重新登录', { duration: 3000 });
       setTimeout(() => {
         if (shouldHardRedirectToMemberPortal()) {
           hardRedirectToMember('/');
@@ -126,11 +126,11 @@ export function initApiClient(): void {
   });
 
   setOnForbidden(() => {
-    toast.error('权限不足');
+    notify.error('权限不足');
   });
 
   setOnServerError((message) => {
     // 500 错误不跳转，只提示
-    toast.error(message || '服务器错误，请稍后重试');
+    notify.error(message || '服务器错误，请稍后重试');
   });
 }

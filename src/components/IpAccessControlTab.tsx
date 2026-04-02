@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { upsertDataSetting, type IpAccessControlNormalized } from "@/services/staff/dataApi/permissionsAndSettings";
 import { apiClient } from "@/lib/apiClient";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -89,7 +89,7 @@ export default function IpAccessControlTab() {
 
   const handleSave = async () => {
     if (config.enabled && config.mode === "whitelist" && config.rules.length === 0) {
-      toast.error(
+      notify.error(
         t(
           "白名单模式下请至少添加一条 IP/CIDR，否则规则不生效（等同于未启用）。",
           "Whitelist mode needs at least one IP/CIDR or rules have no effect.",
@@ -98,7 +98,7 @@ export default function IpAccessControlTab() {
       return;
     }
     if (config.country_restrict_login && config.country_codes.length === 0) {
-      toast.error(
+      notify.error(
         t(
           "已开启「限制员工端登录地区」时，请至少添加一个国家/地区两位码，否则不会按地区拦截。",
           "When staff region restriction is on, add at least one 2-letter country code.",
@@ -109,9 +109,9 @@ export default function IpAccessControlTab() {
     setSaving(true);
     try {
       await upsertDataSetting(SETTING_KEY, config);
-      toast.success(t("IP访问控制设置已保存", "IP access control saved"));
+      notify.success(t("IP访问控制设置已保存", "IP access control saved"));
     } catch (err) {
-      toast.error(t("保存失败", "Save failed"));
+      notify.error(t("保存失败", "Save failed"));
     } finally {
       setSaving(false);
     }
@@ -123,12 +123,12 @@ export default function IpAccessControlTab() {
 
     const ipRegex = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/;
     if (!ipRegex.test(ip)) {
-      toast.error(t("请输入有效的IP地址或CIDR", "Please enter a valid IP or CIDR"));
+      notify.error(t("请输入有效的IP地址或CIDR", "Please enter a valid IP or CIDR"));
       return;
     }
 
     if (config.rules.some((r) => r.ip === ip)) {
-      toast.error(t("该IP已存在", "IP already exists"));
+      notify.error(t("该IP已存在", "IP already exists"));
       return;
     }
 
@@ -150,11 +150,11 @@ export default function IpAccessControlTab() {
   const addCountryCode = (raw: string) => {
     const code = raw.trim().toUpperCase();
     if (!/^[A-Z]{2}$/.test(code)) {
-      toast.error(t("请输入两位国家/地区代码（如 CN、US）", "Enter a 2-letter country code (e.g. CN, US)"));
+      notify.error(t("请输入两位国家/地区代码（如 CN、US）", "Enter a 2-letter country code (e.g. CN, US)"));
       return;
     }
     if (config.country_codes.includes(code)) {
-      toast.error(t("该国家/地区已在列表中", "Already in list"));
+      notify.error(t("该国家/地区已在列表中", "Already in list"));
       return;
     }
     setConfig((prev) => ({

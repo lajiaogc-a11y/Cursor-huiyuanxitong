@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Eye, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardActions, MobilePagination, MobileEmptyState } from '@/components/ui/mobile-data-card';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { safeToFixed } from '@/lib/safeCalc';
@@ -58,7 +58,7 @@ export default function ShiftHandoverHistoryTab({
       setHandovers(data);
     } catch (error) {
       console.error('Failed to load shift handovers:', error);
-      toast.error(t('shiftHandover.loadFailed'));
+      notify.error(t('shiftHandover.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -67,7 +67,7 @@ export default function ShiftHandoverHistoryTab({
   // 导出函数
   const handleExport = () => {
     if (filteredHandovers.length === 0) {
-      toast.error(t('shiftHandover.noDataToExport'));
+      notify.error(t('shiftHandover.noDataToExport'));
       return;
     }
     
@@ -90,7 +90,7 @@ export default function ShiftHandoverHistoryTab({
     }));
     
     exportToCSV(exportData, columns, `shift-handovers`);
-    toast.success(t('shiftHandover.exportSuccess'));
+    notify.success(t('shiftHandover.exportSuccess'));
   };
   
   // 注册导出和刷新函数到父组件

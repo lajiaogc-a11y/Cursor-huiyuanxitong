@@ -29,7 +29,7 @@ import { Loader2, Image as ImageIcon, Users, ExternalLink, Trash2, Pencil } from
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import {
   createPosterTaskResult,
   deleteTaskPosterResult,
@@ -83,7 +83,7 @@ export default function TasksPosters() {
 
   const handleOpenAssign = () => {
     if (selectedIds.size === 0) {
-      toast.error(t("请选择至少一张海报", "Select at least one poster"));
+      notify.error(t("请选择至少一张海报", "Select at least one poster"));
       return;
     }
     setAssignSelected([]);
@@ -92,11 +92,11 @@ export default function TasksPosters() {
 
   const handleCreateTask = async () => {
     if (assignSelected.length === 0 || selectedIds.size === 0) {
-      toast.error(t("请选择员工并确保已选海报", "Select employees and posters"));
+      notify.error(t("请选择员工并确保已选海报", "Select employees and posters"));
       return;
     }
     if (!employee?.id || !tenantId) {
-      toast.error(t("请先登录", "Please login"));
+      notify.error(t("请先登录", "Please login"));
       return;
     }
     setCreating(true);
@@ -113,7 +113,7 @@ export default function TasksPosters() {
         showServiceErrorToast(created.error, t, "创建失败", "Create failed");
         return;
       }
-      toast.success(t("创建成功", "Created"));
+      notify.success(t("创建成功", "Created"));
       setDialogOpen(false);
       setSelectedIds(new Set());
       refetch();
@@ -139,7 +139,7 @@ export default function TasksPosters() {
         showServiceErrorToast(updated.error, t, "保存失败", "Save failed");
         return;
       }
-      toast.success(t("已保存", "Saved"));
+      notify.success(t("已保存", "Saved"));
       setEditPoster(null);
       refetch();
     } catch (e: any) {
@@ -158,7 +158,7 @@ export default function TasksPosters() {
         showServiceErrorToast(deleted.error, t, "删除失败", "Delete failed");
         return;
       }
-      toast.success(t("已删除", "Deleted"));
+      notify.success(t("已删除", "Deleted"));
       setConfirmDeleteId(null);
       refetch();
     } catch (e: any) {

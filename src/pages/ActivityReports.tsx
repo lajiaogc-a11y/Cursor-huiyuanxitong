@@ -41,7 +41,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import PointsTransactionsTab from "@/components/PointsTransactionsTab";
 import MemberManagementContent from "@/components/member/MemberManagementContent";
@@ -383,7 +383,7 @@ const [editFormData, setEditFormData] = useState({
 
   const handleRefresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ['activity-records'] });
-    toast.success(t("已刷新", "Refreshed"));
+    notify.success(t("已刷新", "Refreshed"));
   };
 
   const handleMemberRefresh = () => {
@@ -413,7 +413,7 @@ const [editFormData, setEditFormData] = useState({
     
     // 如果商家不在当前活跃列表中，显示警告
     if (!agentExists && record.paymentAgent) {
-      toast.warning(t(
+      notify.warning(t(
         `代付商家 "${record.paymentAgent}" 已不在活跃商家列表中，请重新选择`,
         `Payment agent "${record.paymentAgent}" is no longer active, please select another`
       ));
@@ -435,7 +435,7 @@ const [editFormData, setEditFormData] = useState({
         const giftData = result.gift as Record<string, any> | null;
 
         if (!giftData) {
-          toast.error(t("删除失败", "Delete failed"));
+          notify.error(t("删除失败", "Delete failed"));
         } else {
           // 记录余额变动日志（撤回赠送支出）
           if (giftData.payment_agent && Number(giftData.gift_value) > 0) {
@@ -464,14 +464,14 @@ const [editFormData, setEditFormData] = useState({
           notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           const restoredPoints = result.restored_points || 0;
           if (restoredPoints > 0) {
-            toast.success(t(`已删除并退回 ${restoredPoints} 积分`, `Deleted and restored ${restoredPoints} points`));
+            notify.success(t(`已删除并退回 ${restoredPoints} 积分`, `Deleted and restored ${restoredPoints} points`));
           } else {
-            toast.success(t("已删除", "Deleted"));
+            notify.success(t("已删除", "Deleted"));
           }
         }
       } catch (err) {
         console.error('Delete error:', err);
-        toast.error(t("删除失败", "Delete failed"));
+        notify.error(t("删除失败", "Delete failed"));
       }
     }
     setDeleteDialogOpen(false);
@@ -485,7 +485,7 @@ const [editFormData, setEditFormData] = useState({
     const activeAgents = activeProviders.filter(p => p.status === "active");
     const agentValid = activeAgents.some(p => p.name === editFormData.paymentAgent);
     if (!agentValid && editFormData.paymentAgent) {
-      toast.error(t(
+      notify.error(t(
         "请选择有效的代付商家",
         "Please select a valid payment agent"
       ));
@@ -496,7 +496,7 @@ const [editFormData, setEditFormData] = useState({
     const activeTypes = Array.from(activityTypeMap.values()).filter((entry) => entry.isActive);
     const typeValid = activeTypes.some(t => t.value === editFormData.giftType);
     if (!typeValid && editFormData.giftType) {
-      toast.error(t(
+      notify.error(t(
         "请选择有效的活动类型",
         "Please select a valid activity type"
       ));
@@ -578,16 +578,16 @@ const [editFormData, setEditFormData] = useState({
         
         await queryClient.invalidateQueries({ queryKey: ['activity-records'] });
         notifyDataMutation({ table: 'activity_gifts', operation: 'UPDATE', source: 'manual' }).catch(console.error);
-        toast.success(t("已更新", "Updated"));
+        notify.success(t("已更新", "Updated"));
       } else {
-        toast.error(t("更新失败", "Update failed"));
+        notify.error(t("更新失败", "Update failed"));
       }
     } else {
       // 非管理员提交审核
       const changes = computeActivityGiftFieldChanges(editFormData, editingRecord);
       
       if (changes.length === 0) {
-        toast.info(t("没有检测到修改", "No changes detected"));
+        notify.info(t("没有检测到修改", "No changes detected"));
       } else {
         const result = await submitBatchForApproval({
           module: 'activity',
@@ -598,11 +598,11 @@ const [editFormData, setEditFormData] = useState({
         });
         
         if (result.submitted) {
-          toast.success(t("已提交审核，等待管理员审批", "Submitted for review"));
+          notify.success(t("已提交审核，等待管理员审批", "Submitted for review"));
         } else if (result.hasRejected) {
-          toast.error(result.message);
+          notify.error(result.message);
         } else {
-          toast.info(result.message);
+          notify.info(result.message);
         }
       }
     }
@@ -756,8 +756,8 @@ const [editFormData, setEditFormData] = useState({
                       onClick={() =>
                         exportConfirm.requestExport(async () => {
                           const r = await exportTableToXLSX("members", false);
-                          if (r.success) toast.success(t("已导出 Excel（.xlsx）", "Exported as Excel (.xlsx)"));
-                          else if (r.error) toast.error(r.error);
+                          if (r.success) notify.success(t("已导出 Excel（.xlsx）", "Exported as Excel (.xlsx)"));
+                          else if (r.error) notify.error(r.error);
                         })
                       }
                     >

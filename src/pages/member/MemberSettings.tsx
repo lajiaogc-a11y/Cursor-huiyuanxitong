@@ -24,7 +24,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { displayMemberLevelLabel } from "@/lib/memberLevelDisplay";
 import { mapDbRowToMemberPortalOrderView, type MemberPortalOrderView } from "@/hooks/orders/utils";
 import { resolveCardName, tryRecoverMisdecodedUtf8 } from "@/services/members/nameResolver";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { memberQueryKeys } from "@/lib/memberQueryKeys";
 import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
@@ -299,28 +299,28 @@ export default function MemberSettings() {
       await refreshMember();
       broadcastMembersListStale();
       void notifyDataMutation({ table: "members", operation: "UPDATE", source: "mutation" });
-      toast.success(t("昵称已更新", "Nickname updated"));
+      notify.success(t("昵称已更新", "Nickname updated"));
       setExpandedSection(null);
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : t("操作失败", "Failed"));
+      notify.error(e instanceof Error ? e.message : t("操作失败", "Failed"));
     }
     finally { setSavingNickname(false); }
   };
 
   const handleChangePassword = async (values: { oldPwd: string; newPwd: string; confirmPwd: string }) => {
-    if (values.newPwd.length < 6) { toast.error(t("新密码至少 6 位", "Min 6 characters")); return; }
-    if (values.newPwd !== values.confirmPwd) { toast.error(t("两次新密码不一致", "Passwords don't match")); return; }
+    if (values.newPwd.length < 6) { notify.error(t("新密码至少 6 位", "Min 6 characters")); return; }
+    if (values.newPwd !== values.confirmPwd) { notify.error(t("两次新密码不一致", "Passwords don't match")); return; }
     setSavingPwd(true);
     try {
       const result = await setPassword(values.oldPwd, values.newPwd);
       if (result.success) {
-        toast.success(result.message);
+        notify.success(result.message);
         setPwdOld("");
         setPwdNew("");
         setPwdConfirm("");
         setExpandedSection(null);
       }
-      else toast.error(result.message);
+      else notify.error(result.message);
     } finally { setSavingPwd(false); }
   };
 
@@ -609,7 +609,7 @@ export default function MemberSettings() {
               <button
                 type="button"
                 className="member-settings-trigger"
-                onClick={() => toast.info(t("维护中", "Under maintenance"))}
+                onClick={() => notify.info(t("维护中", "Under maintenance"))}
               >
                 <div className="flex items-center gap-3">
                   <div
@@ -664,19 +664,19 @@ export default function MemberSettings() {
                     onSubmit={(e) => {
                       e.preventDefault();
                       if (!pwdOld.trim()) {
-                        toast.error(t("请填写当前密码", "Current password is required"));
+                        notify.error(t("请填写当前密码", "Current password is required"));
                         return;
                       }
                       if (!pwdNew.trim()) {
-                        toast.error(t("请填写新密码", "New password is required"));
+                        notify.error(t("请填写新密码", "New password is required"));
                         return;
                       }
                       if (pwdNew.length < 6) {
-                        toast.error(t("新密码至少 6 位", "Min 6 characters"));
+                        notify.error(t("新密码至少 6 位", "Min 6 characters"));
                         return;
                       }
                       if (pwdNew !== pwdConfirm) {
-                        toast.error(t("两次新密码不一致", "Passwords don't match"));
+                        notify.error(t("两次新密码不一致", "Passwords don't match"));
                         return;
                       }
                       void handleChangePassword({ oldPwd: pwdOld, newPwd: pwdNew, confirmPwd: pwdConfirm });

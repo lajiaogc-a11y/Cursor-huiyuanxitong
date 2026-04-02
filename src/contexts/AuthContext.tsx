@@ -7,7 +7,7 @@ import { setOperatorCache, clearOperatorCache } from '@/services/members/operato
 import { initNameResolver, resetNameResolver } from '@/services/members/nameResolver';
 import { initializeUserDataSync } from '@/services/userDataSyncService';
 import { withTimeout, TIMEOUT } from '@/lib/withTimeout';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { cleanupCacheManager } from '@/services/cacheManager';
 import { resetReferralCache } from '@/stores/referralStore';
 import { resetPointsSettingsCache } from '@/stores/pointsSettingsStore';
@@ -307,7 +307,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (forceLogout && session) {
           // 显示错误提示
-          toast.error(result.message || _t('您的IP地址不在允许的地区范围内', 'Your IP address is not in the allowed region'), {
+          notify.error(result.message || _t('您的IP地址不在允许的地区范围内', 'Your IP address is not in the allowed region'), {
             duration: 10000,
             description: `IP: ${result.ip || 'unknown'}, ${_t('国家', 'Country')}: ${result.country_name || result.country_code || 'unknown'}`,
           });
@@ -336,7 +336,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('[AuthContext] IP validation error:', error);
       // 验证出错时，出于安全考虑，也强制登出
       if (forceLogout && session) {
-        toast.error(_t('IP验证服务异常，请重新登录', 'IP verification error, please login again'));
+        notify.error(_t('IP验证服务异常，请重新登录', 'IP verification error, please login again'));
         await logoutApi();
         setUser(null);
         setSession(null);

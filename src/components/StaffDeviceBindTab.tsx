@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getStaffDeviceVisitorId } from "@/lib/staffDeviceFingerprint";
 import {
@@ -50,14 +50,14 @@ export default function StaffDeviceBindTab() {
   const bind = async () => {
     const id = visitorId || (await getStaffDeviceVisitorId());
     if (!id) {
-      toast.error(t("无法获取设备标识，请更换浏览器或关闭拦截后重试", "Could not read device id"));
+      notify.error(t("无法获取设备标识，请更换浏览器或关闭拦截后重试", "Could not read device id"));
       return;
     }
     setBinding(true);
     try {
       const res = await bindCurrentStaffDevice({ device_id: id, device_name: label.trim() || undefined });
       if (res.token) setAuthToken(res.token);
-      toast.success(t("已绑定本设备", "This device is now bound"));
+      notify.success(t("已绑定本设备", "This device is now bound"));
       setLabel("");
       await load();
     } catch (e) {

@@ -43,7 +43,7 @@ import {
   Copy,
 } from "lucide-react";
 import { MemberActivityFilters, type TimeRange } from "./MemberActivityFilters";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useColumnVisibility, ColumnConfig } from "@/hooks/useColumnVisibility";
 import ColumnVisibilityDropdown from "@/components/ColumnVisibilityDropdown";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -346,7 +346,7 @@ export default function MemberActivityDataContent() {
 
   const handleRefresh = () => {
     refetchActivityData();
-    toast.success(t("数据已刷新", "Data refreshed"));
+    notify.success(t("数据已刷新", "Data refreshed"));
   };
 
   // 根据时间范围过滤数据（使用统一的系统级日期筛选规则）
@@ -747,7 +747,7 @@ export default function MemberActivityDataContent() {
     if (!redeemingRow) return;
     
     if (!selectedPaymentProvider) {
-      toast.error(t("请选择代付商家", "Please select a payment provider"));
+      notify.error(t("请选择代付商家", "Please select a payment provider"));
       return;
     }
 
@@ -766,7 +766,7 @@ export default function MemberActivityDataContent() {
     
     // 校验失败立即返回，不执行后续写库逻辑
     if (remainingPoints <= 0) {
-      toast.error(t("剩余积分不足，兑换失败", "Insufficient points, redemption failed"));
+      notify.error(t("剩余积分不足，兑换失败", "Insufficient points, redemption failed"));
       setIsRedeemConfirmOpen(false);
       return;
     }
@@ -889,7 +889,7 @@ export default function MemberActivityDataContent() {
       });
       
       const activityLabel = activityType === 'activity_1' ? t('活动1（阶梯制）', 'Activity 1 (Tiered)') : t('活动2（固定比例）', 'Activity 2 (Fixed Rate)');
-      toast.success(t(`兑换成功！[${activityLabel}] 已兑换 ${remainingPoints} 积分，获得 ${rewardAmount} ${preferredCurrency}，积分已清零`, `Redemption successful! [${activityLabel}] Redeemed ${remainingPoints} points, received ${rewardAmount} ${preferredCurrency}, points reset to zero`));
+      notify.success(t(`兑换成功！[${activityLabel}] 已兑换 ${remainingPoints} 积分，获得 ${rewardAmount} ${preferredCurrency}，积分已清零`, `Redemption successful! [${activityLabel}] Redeemed ${remainingPoints} points, received ${rewardAmount} ${preferredCurrency}, points reset to zero`));
       setIsRedeemConfirmOpen(false);
       setIsRedeemDialogOpen(false);
       refetchActivityData();
@@ -974,22 +974,22 @@ export default function MemberActivityDataContent() {
   const handleAdjustPoints = async () => {
     const adjustment = parseInt(pointsAdjustment);
     if (isNaN(adjustment) || adjustment === 0) {
-      toast.error(t("请输入有效的积分数值", "Please enter a valid points value"));
+      notify.error(t("请输入有效的积分数值", "Please enter a valid points value"));
       return;
     }
     
     const member = members.find(m => m.member_code === editingMemberCode);
     if (!member) {
-      toast.error(t("会员不存在", "Member not found"));
+      notify.error(t("会员不存在", "Member not found"));
       return;
     }
     
     if (adjustment > 0) {
       addPoints(editingMemberCode, member.phone_number, adjustment);
-      toast.success(t(`已添加 ${adjustment} 积分`, `Added ${adjustment} points`));
+      notify.success(t(`已添加 ${adjustment} 积分`, `Added ${adjustment} points`));
     } else {
       deductPoints(editingMemberCode, Math.abs(adjustment));
-      toast.success(t(`已扣减 ${Math.abs(adjustment)} 积分`, `Deducted ${Math.abs(adjustment)} points`));
+      notify.success(t(`已扣减 ${Math.abs(adjustment)} 积分`, `Deducted ${Math.abs(adjustment)} points`));
     }
 
     // 🔧 记录操作日志（积分手动调整）
@@ -1072,7 +1072,7 @@ export default function MemberActivityDataContent() {
     a.download = `活动数据_${getNowBeijingISO().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success(t("数据已导出", "Data exported"));
+    notify.success(t("数据已导出", "Data exported"));
   };
 
   // 监听导出事件
@@ -1102,7 +1102,7 @@ export default function MemberActivityDataContent() {
     try {
       const settings = await refreshCopySettings();
       if (!settings.enabled) {
-        toast.info(t("自动复制功能已关闭", "Auto copy is disabled"));
+        notify.info(t("自动复制功能已关闭", "Auto copy is disabled"));
         return;
       }
 
@@ -1116,7 +1116,7 @@ export default function MemberActivityDataContent() {
 
       // 活动数据页复制与活动营销开关一致；无活动时请用订单提交页自动复制或先开启活动
       if (activityType === 'none') {
-        toast.info(t("当前没有活动开启", "No activity is currently enabled"));
+        notify.info(t("当前没有活动开启", "No activity is currently enabled"));
         return;
       }
 
@@ -1185,11 +1185,11 @@ export default function MemberActivityDataContent() {
           document.execCommand('copy');
           document.body.removeChild(ta);
         }
-        toast.success(t("已复制会员积分信息到剪贴板", "Member points info copied to clipboard"));
+        notify.success(t("已复制会员积分信息到剪贴板", "Member points info copied to clipboard"));
       }
     } catch (error) {
       console.error('Copy member info failed:', error);
-      toast.error(t("复制失败，请重试", "Copy failed, please retry"));
+      notify.error(t("复制失败，请重试", "Copy failed, please retry"));
     }
   };
 
@@ -1591,7 +1591,7 @@ export default function MemberActivityDataContent() {
                         className="h-7 px-2 text-xs gap-1"
                         onClick={() => {
                           navigator.clipboard.writeText(ref.memberCode);
-                          toast.success(t("已复制会员编号", "Member code copied"));
+                          notify.success(t("已复制会员编号", "Member code copied"));
                         }}
                       >
                         {t("复制会员编号", "Copy Code")}

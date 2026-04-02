@@ -29,7 +29,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Search, RefreshCw, Info, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { usePointsLedger, type PointsLedgerEntry } from "@/hooks/usePointsLedger";
 import { useMembers } from "@/hooks/useMembers";
 import { CURRENCIES, CURRENCY_LIST, type CurrencyCode } from "@/config/currencies";
@@ -264,7 +264,7 @@ export default function PointsTransactionsTab({
 
   const handleRefresh = useCallback(() => {
     refetch();
-    toast.success(t("已刷新", "Refreshed"));
+    notify.success(t("已刷新", "Refreshed"));
   }, [refetch, t]);
 
   const handleExport = useCallback(() => {
@@ -288,7 +288,7 @@ export default function PointsTransactionsTab({
       },
       { key: 'status', label: '状态', labelEn: 'Status', formatter: (v) => v === 'issued' ? '已发放' : v === 'reversed' ? '已回收' : v },
     ], '积分流水明细', false);
-    toast.success(t("导出成功", "Export successful"));
+    notify.success(t("导出成功", "Export successful"));
   }, [filteredLedger, t, getTypeConfig]);
 
   useEffect(() => {

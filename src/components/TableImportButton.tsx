@@ -25,7 +25,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Upload, FileUp, Loader2, CheckCircle2, XCircle, AlertTriangle, Download } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
@@ -111,7 +111,7 @@ export default function TableImportButton({
     if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
       const preview = await parseXLSXForPreview(file, tableName, isEnglish);
       if (!preview) {
-        toast.error(t('无法解析 Excel，请确认文件未加密且首行为表头', 'Could not parse Excel; use unencrypted file with header row'));
+        notify.error(t('无法解析 Excel，请确认文件未加密且首行为表头', 'Could not parse Excel; use unencrypted file with header row'));
         event.target.value = '';
         return;
       }
@@ -130,14 +130,14 @@ export default function TableImportButton({
         const content = await readCsvFileAsUtf8Text(file);
         const { headers, rows } = parseCSV(content);
         if (headers.length === 0) {
-          toast.error(t('文件为空', 'File is empty'));
+          notify.error(t('文件为空', 'File is empty'));
           return;
         }
         const validation = validateImportData(tableName, headers, isEnglish);
         setImportPreview({ headers, rowCount: rows.length, validation });
         setShowImportDialog(true);
       } catch {
-        toast.error(t('无法读取 CSV，请使用 UTF-8 编码', 'Could not read CSV; use UTF-8 encoding'));
+        notify.error(t('无法读取 CSV，请使用 UTF-8 编码', 'Could not read CSV; use UTF-8 encoding'));
       }
     })();
 
@@ -151,7 +151,7 @@ export default function TableImportButton({
     setIsImporting(true);
 
     if (tableName === 'members' && !memberImportTenantId) {
-      toast.error(
+      notify.error(
         t(
           '请先进入目标租户（租户管理 → 进入租户）再导入会员',
           'Enter a tenant from Tenant Management before importing members',
@@ -191,19 +191,19 @@ export default function TableImportButton({
           `导入成功: ${result.imported} 条${result.skipped > 0 ? `，跳过: ${result.skipped} 条` : ''}`,
           `Import successful: ${result.imported} records${result.skipped > 0 ? `, skipped: ${result.skipped}` : ''}`,
         );
-        toast.success(message);
+        notify.success(message);
         onImportComplete?.();
       } else if (result.skipped > 0) {
-        toast.warning(
+        notify.warning(
           t(
             `全部跳过: ${result.skipped} 条记录（可能已存在或数据无效）`,
             `All skipped: ${result.skipped} records (may exist or invalid)`,
           ),
         );
       } else if (result.errors.length > 0) {
-        toast.error(t(`导入失败: ${result.errors[0]}`, `Import failed: ${result.errors[0]}`));
+        notify.error(t(`导入失败: ${result.errors[0]}`, `Import failed: ${result.errors[0]}`));
       } else {
-        toast.error(t('导入失败：未知错误', 'Import failed: Unknown error'));
+        notify.error(t('导入失败：未知错误', 'Import failed: Unknown error'));
       }
     } finally {
       setIsImporting(false);
@@ -213,9 +213,9 @@ export default function TableImportButton({
   const handleDownloadTemplate = async () => {
     const result = await downloadImportTemplate(tableName, isEnglish, "xlsx");
     if (result.success) {
-      toast.success(t('模板下载成功', 'Template downloaded'));
+      notify.success(t('模板下载成功', 'Template downloaded'));
     } else if (result.error) {
-      toast.error(result.error);
+      notify.error(result.error);
     }
   };
 

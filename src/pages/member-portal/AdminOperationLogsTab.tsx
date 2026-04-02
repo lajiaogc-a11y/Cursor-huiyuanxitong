@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ScrollText, Star, Users, Activity, FileDown, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -84,7 +84,7 @@ export function AdminOperationLogsTab({ t }: { t: PortalT }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = `member_logs_${new Date().toISOString().slice(0,10)}.csv`;
     a.click(); URL.revokeObjectURL(url);
-    toast.success(t("导出成功", "Export successful"));
+    notify.success(t("导出成功", "Export successful"));
   };
 
   const ACTIONS = Object.keys(ACTION_MAP);

@@ -51,7 +51,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RefreshCw, Plus, Pencil, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import CurrencySelect from "@/components/CurrencySelect";
@@ -133,7 +133,7 @@ export default function RateSettingsTab({
   const { t } = useLanguage();
   const blockReadonly = () => {
     if (!isReadOnly) return false;
-    toast.error(t("平台总管理查看租户时为只读，无法修改汇率设置", "Read-only in platform admin tenant view"));
+    notify.error(t("平台总管理查看租户时为只读，无法修改汇率设置", "Read-only in platform admin tenant view"));
     return true;
   };
   const [rateSettingEntries, setRateSettingEntries] = useState<RateSettingEntry[]>([]);
@@ -233,7 +233,7 @@ export default function RateSettingsTab({
   const handleAddRateEntry = async () => {
     if (blockReadonly()) return;
     if (!newRateEntry.country || !newRateEntry.faceValue) {
-      toast.error(t("请填写完整信息", "Please fill in all fields"));
+      notify.error(t("请填写完整信息", "Please fill in all fields"));
       return;
     }
     setAdding(true);
@@ -276,10 +276,10 @@ export default function RateSettingsTab({
         rate: 0,
         profitRate: 0,
       });
-      toast.success(t("添加成功，已保存到服务器", "Added and saved to server"));
+      notify.success(t("添加成功，已保存到服务器", "Added and saved to server"));
     } catch (err) {
       console.error("Add rate entry failed:", err);
-      toast.error(t("保存失败，请重试", "Save failed, please retry"));
+      notify.error(t("保存失败，请重试", "Save failed, please retry"));
     } finally {
       setAdding(false);
     }
@@ -315,13 +315,13 @@ export default function RateSettingsTab({
       if (ok) {
         setRateSettingEntries(await loadRateSettingEntriesAsync());
         setEditingRateEntry(null);
-        toast.success(t("更新成功，已保存到服务器", "Updated and saved to server"));
+        notify.success(t("更新成功，已保存到服务器", "Updated and saved to server"));
       } else {
-        toast.error(t("保存失败，请重试", "Save failed, please retry"));
+        notify.error(t("保存失败，请重试", "Save failed, please retry"));
       }
     } catch (err) {
       console.error("Update rate entry failed:", err);
-      toast.error(t("保存失败，请重试", "Save failed, please retry"));
+      notify.error(t("保存失败，请重试", "Save failed, please retry"));
     } finally {
       setUpdating(false);
     }
@@ -333,13 +333,13 @@ export default function RateSettingsTab({
       const ok = await deleteRateSettingEntryAsync(id);
       if (ok) {
         setRateSettingEntries(await loadRateSettingEntriesAsync());
-        toast.success(t("删除成功，已保存到服务器", "Deleted and saved to server"));
+        notify.success(t("删除成功，已保存到服务器", "Deleted and saved to server"));
       } else {
-        toast.error(t("保存失败，请重试", "Save failed, please retry"));
+        notify.error(t("保存失败，请重试", "Save failed, please retry"));
       }
     } catch (err) {
       console.error("Delete rate entry failed:", err);
-      toast.error(t("保存失败，请重试", "Save failed, please retry"));
+      notify.error(t("保存失败，请重试", "Save failed, please retry"));
     }
   };
 
@@ -358,8 +358,8 @@ export default function RateSettingsTab({
     const reordered = arrayMove(rateSettingEntries, oldIndex, newIndex);
     setRateSettingEntries(reordered);
     const ok = await saveRateSettingEntriesAsync(reordered);
-    if (ok) toast.success(t("排序已保存", "Order saved"));
-    else toast.error(t("保存失败", "Save failed"));
+    if (ok) notify.success(t("排序已保存", "Order saved"));
+    else notify.error(t("保存失败", "Save failed"));
   };
 
   return (

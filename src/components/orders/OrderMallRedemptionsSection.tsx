@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { showServiceErrorToast } from "@/services/serviceErrorToast";
 import { ResolvableMediaThumb } from "@/components/ResolvableMediaThumb";
 import {
@@ -196,7 +196,7 @@ export function OrderMallRedemptionsSection({
     setProcessingId(orderId);
     try {
       await processMyPointsMallRedemptionOrder(orderId, action);
-      toast.success(
+      notify.success(
         action === "complete"
           ? t("订单已标记完成", "Order marked as completed")
           : t("订单已驳回并已退回积分", "Order rejected and points refunded"),

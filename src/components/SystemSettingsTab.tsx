@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Settings, Save } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import {
   getFeeSettings,
   saveFeeSettings,
@@ -41,16 +41,16 @@ export default function SystemSettingsTab({
 
   const handleSaveFeeSettings = () => {
     saveFeeSettings(feeSettings);
-    toast.success(t('systemSettings.feeSaved'));
+    notify.success(t('systemSettings.feeSaved'));
   };
 
   const handleSaveTrxQuantity = () => {
     saveTrxSettings(trxSettings);
-    toast.success(t('systemSettings.trxSaved'));
+    notify.success(t('systemSettings.trxSaved'));
   };
 
   const handleSaveRates = () => {
-    toast.success(t('systemSettings.rateSaved'));
+    notify.success(t('systemSettings.rateSaved'));
   };
 
 

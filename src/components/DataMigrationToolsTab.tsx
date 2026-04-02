@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { listTenantsResult, type TenantItem } from "@/services/tenantService";
@@ -158,7 +158,7 @@ export default function DataMigrationToolsTab() {
 
   const runPreview = useCallback(async () => {
     if (!sourceTenantId || !targetTenantId || sourceTenantId === targetTenantId) {
-      toast.error(t("请选择不同的源租户与目标租户", "Please select different source and target tenant"));
+      notify.error(t("请选择不同的源租户与目标租户", "Please select different source and target tenant"));
       return;
     }
     setRunningPreview(true);
@@ -169,7 +169,7 @@ export default function DataMigrationToolsTab() {
         return;
       }
       setPreview(result.data);
-      toast.success(t("预检查完成", "Dry-run completed"));
+      notify.success(t("预检查完成", "Dry-run completed"));
       void loadData();
     } catch (error) {
       console.error(error);
@@ -181,7 +181,7 @@ export default function DataMigrationToolsTab() {
 
   const runExport = useCallback(async () => {
     if (!sourceTenantId) {
-      toast.error(t("请选择源租户", "Please select source tenant"));
+      notify.error(t("请选择源租户", "Please select source tenant"));
       return;
     }
     setRunningExport(true);
@@ -197,7 +197,7 @@ export default function DataMigrationToolsTab() {
       const safeTenant = tenantName.replace(/[^\w-]+/g, "_");
       const filename = `tenant_export_${safeTenant}_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "_")}.json`;
       downloadJson(filename, result.data);
-      toast.success(t("导出成功", "Export completed"));
+      notify.success(t("导出成功", "Export completed"));
       void loadData();
     } catch (error) {
       console.error(error);
@@ -209,7 +209,7 @@ export default function DataMigrationToolsTab() {
 
   const runConflictDownload = useCallback(async () => {
     if (!sourceTenantId || !targetTenantId || sourceTenantId === targetTenantId) {
-      toast.error(t("请选择不同的源租户与目标租户", "Please select different source and target tenant"));
+      notify.error(t("请选择不同的源租户与目标租户", "Please select different source and target tenant"));
       return;
     }
     setDownloadingConflicts(true);
@@ -221,7 +221,7 @@ export default function DataMigrationToolsTab() {
       }
       const filename = `migration_conflicts_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "_")}.json`;
       downloadJson(filename, result.data);
-      toast.success(t("冲突明细已下载", "Conflict detail downloaded"));
+      notify.success(t("冲突明细已下载", "Conflict detail downloaded"));
     } catch (error) {
       console.error(error);
       showServiceErrorToast(error, t, "获取冲突明细失败", "Failed to get conflict details");
@@ -232,7 +232,7 @@ export default function DataMigrationToolsTab() {
 
   const runExecuteMigration = useCallback(async () => {
     if (!sourceTenantId || !targetTenantId || sourceTenantId === targetTenantId) {
-      toast.error(t("请选择不同的源租户与目标租户", "Please select different source and target tenant"));
+      notify.error(t("请选择不同的源租户与目标租户", "Please select different source and target tenant"));
       return;
     }
     setRunningExecute(true);
@@ -256,7 +256,7 @@ export default function DataMigrationToolsTab() {
       const singletonErr = result.data.singleton_errors;
       const failTables = [...(extraErr ? Object.keys(extraErr) : []), ...(singletonErr ? Object.keys(singletonErr) : [])];
 
-      toast.success(
+      notify.success(
         t(
           `迁移完成：员工 迁${result.data.migrated_employees}/跳过${result.data.skipped_employees}；会员 迁${result.data.migrated_members}/跳过${result.data.skipped_members}；订单 迁${result.data.migrated_orders}；活动礼赠 迁${gifts}；扩展表合计 +${extraSum} 行；单表配置 +${singletonSum} 行`,
           `Done: employees ${result.data.migrated_employees}/skip${result.data.skipped_employees}; members ${result.data.migrated_members}/skip${result.data.skipped_members}; orders ${result.data.migrated_orders}; gifts ${gifts}; extended +${extraSum} rows; singleton +${singletonSum}`,
@@ -265,7 +265,7 @@ export default function DataMigrationToolsTab() {
       if (failTables.length > 0) {
         const sample = failTables.slice(0, 6).join(", ");
         const more = failTables.length > 6 ? "…" : "";
-        toast.warning(
+        notify.warning(
           t(`部分表本轮未成功更新 tenant_id：${sample}${more}（详见任务 progress / 接口 extra_errors、singleton_errors）`, `Some tables failed tenant_id updates: ${sample}${more} (see job progress / extra_errors, singleton_errors)`),
         );
       }
@@ -287,7 +287,7 @@ export default function DataMigrationToolsTab() {
           showServiceErrorToast(result.error, t, "回滚失败", "Rollback failed");
           return;
         }
-        toast.success(t(`回滚完成，恢复 ${result.data.restored} 条`, `Rollback completed, restored ${result.data.restored}`));
+        notify.success(t(`回滚完成，恢复 ${result.data.restored} 条`, `Rollback completed, restored ${result.data.restored}`));
         void loadData();
       } catch (error) {
         console.error(error);
@@ -309,7 +309,7 @@ export default function DataMigrationToolsTab() {
           return;
         }
         setVerification((result.data.verification || {}) as Record<string, unknown>);
-        toast.success(t("迁移校验完成", "Migration verification completed"));
+        notify.success(t("迁移校验完成", "Migration verification completed"));
         void loadData();
       } catch (error) {
         console.error(error);
@@ -332,7 +332,7 @@ export default function DataMigrationToolsTab() {
         }
         const filename = `migration_audit_bundle_${jobId}_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "_")}.json`;
         downloadJson(filename, result.data);
-        toast.success(t("审计包已导出", "Audit bundle exported"));
+        notify.success(t("审计包已导出", "Audit bundle exported"));
       } catch (error) {
         console.error(error);
         showServiceErrorToast(error, t, "导出审计包失败", "Export audit bundle failed");
@@ -360,7 +360,7 @@ export default function DataMigrationToolsTab() {
         }
         const filename = `migration_audit_bundle_${jobId}_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "_")}.json`;
         downloadJson(filename, auditResult.data);
-        toast.success(t("校验并导出完成", "Verify and export completed"));
+        notify.success(t("校验并导出完成", "Verify and export completed"));
         void loadData();
       } catch (error) {
         console.error(error);

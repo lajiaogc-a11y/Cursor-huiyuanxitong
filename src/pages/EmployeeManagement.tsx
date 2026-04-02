@@ -36,7 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { Search, RefreshCw, Pencil, Plus, Loader2, KeyRound, History, Clock, Trash2, LogOut, CircleHelp } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -120,7 +120,7 @@ export default function EmployeeManagement() {
   const isAdminOrManager = currentEmployee?.role === 'admin' || currentEmployee?.role === 'manager';
   const blockReadonly = (actionZh: string, actionEn: string) => {
     if (!isPlatformAdminReadonlyView) return false;
-    toast.error(t(`平台总管理查看租户时为只读，无法${actionZh}`, `Read-only in platform admin tenant view: cannot ${actionEn}`));
+    notify.error(t(`平台总管理查看租户时为只读，无法${actionZh}`, `Read-only in platform admin tenant view: cannot ${actionEn}`));
     return true;
   };
   
@@ -164,13 +164,13 @@ export default function EmployeeManagement() {
   const confirmResetPassword = async () => {
     if (blockReadonly("重置密码", "reset password")) return;
     if (!resetTarget || !newPassword.trim()) {
-      toast.error(t('employees.enterPassword'));
+      notify.error(t('employees.enterPassword'));
       return;
     }
     const { validatePassword } = await import('@/lib/passwordValidation');
     const passwordCheck = validatePassword(newPassword);
     if (!passwordCheck.valid) {
-      toast.error(passwordCheck.errors[0]);
+      notify.error(passwordCheck.errors[0]);
       return;
     }
 
@@ -178,13 +178,13 @@ export default function EmployeeManagement() {
     try {
       const success = await resetEmployeePassword(resetTarget.id, newPassword);
       if (success) {
-        toast.success(t(`已重置 ${resetTarget.real_name} 的密码`, `Reset ${resetTarget.real_name}'s password`));
+        notify.success(t(`已重置 ${resetTarget.real_name} 的密码`, `Reset ${resetTarget.real_name}'s password`));
         setIsResetPasswordOpen(false);
       } else {
-        toast.error(t('employees.resetFailed'));
+        notify.error(t('employees.resetFailed'));
       }
     } catch (e: any) {
-      toast.error(t('employees.resetFailed') + ": " + e.message);
+      notify.error(t('employees.resetFailed') + ": " + e.message);
     } finally {
       setIsResetting(false);
     }
@@ -193,11 +193,11 @@ export default function EmployeeManagement() {
   const requestForceLogout = (target: Employee) => {
     if (blockReadonly("强制下线", "force logout")) return;
     if (!canModifyEmployee(target)) {
-      toast.error(t("权限不足，无法强制下线该员工", "No permission to force logout this employee"));
+      notify.error(t("权限不足，无法强制下线该员工", "No permission to force logout this employee"));
       return;
     }
     if (target.id === currentEmployee?.id) {
-      toast.error(t("不能强制下线当前登录账号", "Cannot force logout current account"));
+      notify.error(t("不能强制下线当前登录账号", "Cannot force logout current account"));
       return;
     }
     setForceLogoutTarget(target);
@@ -211,7 +211,7 @@ export default function EmployeeManagement() {
     try {
       const success = await forceLogoutEmployee(target.id, "admin_force_logout");
       if (!success) {
-        toast.error(t("强制下线失败", "Force logout failed"));
+        notify.error(t("强制下线失败", "Force logout failed"));
         return;
       }
 
@@ -223,9 +223,9 @@ export default function EmployeeManagement() {
         { forced: true },
         t(`强制下线员工: ${target.username}`, `Force logout employee: ${target.username}`)
       );
-      toast.success(t("已强制下线该员工所有会话", "All sessions have been force logged out"));
+      notify.success(t("已强制下线该员工所有会话", "All sessions have been force logged out"));
     } catch (e: any) {
-      toast.error(t("强制下线失败", "Force logout failed") + `: ${e?.message || "unknown"}`);
+      notify.error(t("强制下线失败", "Force logout failed") + `: ${e?.message || "unknown"}`);
     }
   };
 
@@ -285,7 +285,7 @@ export default function EmployeeManagement() {
 
   const handleRefresh = () => {
     refetch();
-    toast.success(t('employees.refreshed'));
+    notify.success(t('employees.refreshed'));
   };
 
   const handleAdd = () => {
@@ -315,24 +315,24 @@ export default function EmployeeManagement() {
   const handleSave = async () => {
     if (blockReadonly(editingEmployee ? "编辑员工" : "新增员工", editingEmployee ? "edit employee" : "add employee")) return;
     if (!formData.username || !formData.real_name) {
-      toast.error(t('employees.fillRequired'));
+      notify.error(t('employees.fillRequired'));
       return;
     }
     if (!editingEmployee && !formData.password) {
-      toast.error(t('employees.fillPassword'));
+      notify.error(t('employees.fillPassword'));
       return;
     }
     // 新增员工时验证密码强度
     if (!editingEmployee && formData.password) {
       const pwd = formData.password;
       if (pwd.length < 8) {
-        toast.error(t('密码至少需要8位字符', 'Password must be at least 8 characters'));
+        notify.error(t('密码至少需要8位字符', 'Password must be at least 8 characters'));
         return;
       }
       const hasLetter = /[a-zA-Z]/.test(pwd);
       const hasDigit = /[0-9]/.test(pwd);
       if (!hasLetter || !hasDigit) {
-        toast.error(t('密码需包含字母和数字', 'Password must contain both letters and numbers'));
+        notify.error(t('密码需包含字母和数字', 'Password must contain both letters and numbers'));
         return;
       }
     }
@@ -340,7 +340,7 @@ export default function EmployeeManagement() {
     if (editingEmployee && formData.password) {
       const pwd = formData.password;
       if (pwd.length < 8 || !/[a-zA-Z]/.test(pwd) || !/[0-9]/.test(pwd)) {
-        toast.error(t('新密码需至少8位且包含字母和数字', 'New password must be at least 8 characters and contain letters and numbers'));
+        notify.error(t('新密码需至少8位且包含字母和数字', 'New password must be at least 8 characters and contain letters and numbers'));
         return;
       }
     }
@@ -373,28 +373,28 @@ export default function EmployeeManagement() {
           );
           
           if (nameChanged) {
-            toast.success(t(
+            notify.success(t(
               `已更新，姓名变更已记录（${editingEmployee.real_name} → ${formData.real_name}）`,
               `Updated, name change recorded (${editingEmployee.real_name} → ${formData.real_name})`
             ));
           } else {
-            toast.success(t('employees.updated'));
+            notify.success(t('employees.updated'));
           }
           setIsDialogOpen(false);
           refetch();
         } else {
-          toast.error(result.message || t('employees.updateFailed'));
+          notify.error(result.message || t('employees.updateFailed'));
         }
       } else {
         const quotaResult = await checkMyTenantQuotaResult("employees");
         if (!quotaResult.ok) {
           const quotaText = getQuotaExceededText(quotaResult.error.message);
-          toast.error(quotaText ? t(quotaText.zh, quotaText.en) : t("员工数量已达到租户配额上限", "Employee quota exceeded"));
+          notify.error(quotaText ? t(quotaText.zh, quotaText.en) : t("员工数量已达到租户配额上限", "Employee quota exceeded"));
           return;
         }
         const softQuotaText = getQuotaSoftExceededText(quotaResult.data?.message);
         if (softQuotaText) {
-          toast.warning(t(softQuotaText.zh, softQuotaText.en));
+          notify.warning(t(softQuotaText.zh, softQuotaText.en));
         }
         const result = await addEmployee({
           username: formData.username,
@@ -413,17 +413,17 @@ export default function EmployeeManagement() {
             t(`新增员工: ${formData.real_name}`, `Add employee: ${formData.real_name}`)
           );
           
-          toast.success(t('employees.added'));
+          notify.success(t('employees.added'));
           setIsDialogOpen(false);
           refetch();
         } else {
           const lang = language === 'zh' ? 'zh' : 'en';
           const translated = result.error_code ? getEmployeeErrorMessage(result.error_code, lang) : '';
-          toast.error(translated && translated !== result.error_code ? translated : (result.message || t('employees.addFailed')));
+          notify.error(translated && translated !== result.error_code ? translated : (result.message || t('employees.addFailed')));
         }
       }
     } catch (error) {
-      toast.error(t('employees.saveFailed'));
+      notify.error(t('employees.saveFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -438,7 +438,7 @@ export default function EmployeeManagement() {
       const history = await getEmployeeNameHistory(employee.id);
       setNameHistory(history);
     } catch (error) {
-      toast.error(t('employees.loadHistoryFailed'));
+      notify.error(t('employees.loadHistoryFailed'));
     } finally {
       setIsLoadingHistory(false);
     }
@@ -452,7 +452,7 @@ export default function EmployeeManagement() {
     if (blockReadonly("删除员工", "delete employee")) return;
     if (!deletingEmployee) return;
     if (!canModifyEmployee(deletingEmployee)) {
-      toast.error(deletingEmployee.is_super_admin ? t('employees.superAdminNotModify') : t('employees.onlySuperAdminModify'));
+      notify.error(deletingEmployee.is_super_admin ? t('employees.superAdminNotModify') : t('employees.onlySuperAdminModify'));
       setDeletingEmployee(null);
       return;
     }
@@ -463,15 +463,15 @@ export default function EmployeeManagement() {
       });
       if (result.success) {
         logOperation('employee_management', 'delete', deletingEmployee.id, { username: deletingEmployee.username, real_name: deletingEmployee.real_name }, null, t(`删除员工: ${deletingEmployee.real_name}`, `Delete employee: ${deletingEmployee.real_name}`));
-        toast.success(t("员工已删除", "Employee deleted"));
+        notify.success(t("员工已删除", "Employee deleted"));
         setDeletingEmployee(null);
         refetch();
       } else {
         const msg = result.error_code === 'CANNOT_DELETE_SUPER_ADMIN' ? t('employees.superAdminNotModify') : (result.error_code === 'EMPLOYEE_NOT_FOUND' ? t("员工不存在", "Employee not found") : (result.error_code === 'NO_PERMISSION' ? t("无权限删除该员工", "No permission to delete this employee") : t("删除失败", "Delete failed")));
-        toast.error(msg);
+        notify.error(msg);
       }
     } catch (error) {
-      toast.error(t("删除失败", "Delete failed"));
+      notify.error(t("删除失败", "Delete failed"));
     } finally {
       setIsDeleting(false);
     }
@@ -485,9 +485,9 @@ export default function EmployeeManagement() {
     if (blockReadonly("修改员工状态", "change employee status")) return;
     if (!canModifyEmployee(employee)) {
       if (employee.is_super_admin) {
-        toast.error(t('employees.superAdminNotModify'));
+        notify.error(t('employees.superAdminNotModify'));
       } else if (employee.role === 'admin') {
-        toast.error(t('employees.onlySuperAdminModify'));
+        notify.error(t('employees.onlySuperAdminModify'));
       }
       return;
     }
@@ -507,7 +507,7 @@ export default function EmployeeManagement() {
         t(`${employee.real_name} 状态变更: ${beforeStatus} → ${newStatus}`, `${employee.real_name} status change: ${beforeStatus} → ${newStatus}`)
       );
       
-      toast.success(t('employees.statusUpdated'));
+      notify.success(t('employees.statusUpdated'));
       refetch();
     }
   };
@@ -632,7 +632,7 @@ export default function EmployeeManagement() {
                           checked={employee.visible}
                           onCheckedChange={async () => {
                             if (isPlatformAdminReadonlyView) {
-                              toast.error(t("平台总管理查看租户时为只读，无法修改员工可见性", "Read-only in platform admin tenant view: cannot change employee visibility"));
+                              notify.error(t("平台总管理查看租户时为只读，无法修改员工可见性", "Read-only in platform admin tenant view: cannot change employee visibility"));
                               return;
                             }
                             if (!canModifyEmployee(employee)) return;
@@ -718,23 +718,23 @@ export default function EmployeeManagement() {
                               checked={employee.visible}
                               onCheckedChange={async () => {
                                 if (isPlatformAdminReadonlyView) {
-                                  toast.error(t("平台总管理查看租户时为只读，无法修改员工可见性", "Read-only in platform admin tenant view: cannot change employee visibility"));
+                                  notify.error(t("平台总管理查看租户时为只读，无法修改员工可见性", "Read-only in platform admin tenant view: cannot change employee visibility"));
                                   return;
                                 }
                                 if (!canModifyEmployee(employee)) {
                                   if (employee.is_super_admin) {
-                                    toast.error(t('employees.superAdminNotModify'));
+                                    notify.error(t('employees.superAdminNotModify'));
                                   } else {
-                                    toast.error(t('employees.onlySuperAdminModify'));
+                                    notify.error(t('employees.onlySuperAdminModify'));
                                   }
                                   return;
                                 }
                                 const result = await updateEmployee(employee.id, { visible: !employee.visible });
                                 if (result.success) {
-                                  toast.success(employee.visible ? t('employees.setInvisible') : t('employees.setVisible'));
+                                  notify.success(employee.visible ? t('employees.setInvisible') : t('employees.setVisible'));
                                   refetch();
                                 } else {
-                                  toast.error(result.message || t('employees.updateFailed'));
+                                  notify.error(result.message || t('employees.updateFailed'));
                                 }
                               }}
                               disabled={!canModifyEmployee(employee)}

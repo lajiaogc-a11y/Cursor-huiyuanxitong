@@ -24,7 +24,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Webhook as WebhookIcon, Settings, FileText, Trash2, Send, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { format } from 'date-fns';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useIsMobile, useIsTablet } from '@/hooks/use-mobile';
 
@@ -65,11 +65,11 @@ export function WebhookManagementTab() {
 
   const handleCreate = async () => {
     if (!formName.trim() || !formUrl.trim()) {
-      toast.error(t('请填写名称和 URL', 'Please enter name and URL'));
+      notify.error(t('请填写名称和 URL', 'Please enter name and URL'));
       return;
     }
     if (formEvents.length === 0) {
-      toast.error(t('请至少选择一个事件', 'Please select at least one event'));
+      notify.error(t('请至少选择一个事件', 'Please select at least one event'));
       return;
     }
 
@@ -78,7 +78,7 @@ export function WebhookManagementTab() {
       try {
         headers = JSON.parse(formHeaders);
       } catch {
-        toast.error(t('自定义请求头格式错误，需为 JSON 格式', 'Invalid custom headers, must be JSON format'));
+        notify.error(t('自定义请求头格式错误，需为 JSON 格式', 'Invalid custom headers, must be JSON format'));
         return;
       }
     }
@@ -105,7 +105,7 @@ export function WebhookManagementTab() {
       try {
         headers = JSON.parse(formHeaders);
       } catch {
-        toast.error(t('自定义请求头格式错误', 'Invalid custom headers format'));
+        notify.error(t('自定义请求头格式错误', 'Invalid custom headers format'));
         return;
       }
     }
@@ -137,9 +137,9 @@ export function WebhookManagementTab() {
     setTesting(false);
     
     if (result.success) {
-      toast.success(t('测试推送成功', 'Test push successful'));
+      notify.success(t('测试推送成功', 'Test push successful'));
     } else {
-      toast.error(t(`测试失败: ${result.message}`, `Test failed: ${result.message}`));
+      notify.error(t(`测试失败: ${result.message}`, `Test failed: ${result.message}`));
     }
   };
 

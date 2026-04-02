@@ -35,7 +35,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissionVersions, type PermissionVersion } from '@/hooks/usePermissionVersions';
 import { usePermissionChangeLogs } from '@/hooks/usePermissionChangeLogs';
@@ -110,7 +110,7 @@ export function PermissionVersionManager({
 
   const handleSaveVersion = useCallback(async () => {
     if (!versionForm.name.trim()) {
-      toast.error(t('请输入版本名称', 'Please enter version name'));
+      notify.error(t('请输入版本名称', 'Please enter version name'));
       return;
     }
 
@@ -135,14 +135,14 @@ export function PermissionVersionManager({
       });
 
       if (version) {
-        toast.success(t('版本保存成功', 'Version saved successfully'));
+        notify.success(t('版本保存成功', 'Version saved successfully'));
         setShowSaveDialog(false);
         setVersionForm({ name: '', description: '' });
         fetchVersions(selectedRole);
       }
     } catch (error) {
       console.error('Failed to save version:', error);
-      toast.error(t('保存版本失败', 'Failed to save version'));
+      notify.error(t('保存版本失败', 'Failed to save version'));
     } finally {
       setSaving(false);
     }
@@ -155,7 +155,7 @@ export function PermissionVersionManager({
     try {
       const version = await getVersionById(restoreVersionId);
       if (!version) {
-        toast.error(t('找不到版本', 'Version not found'));
+        notify.error(t('找不到版本', 'Version not found'));
         return;
       }
 
@@ -217,14 +217,14 @@ export function PermissionVersionManager({
       // Notify parent to update UI
       onRestore(version.permissions_snapshot);
 
-      toast.success(t(
+      notify.success(t(
         `已恢复到版本 "${version.version_name}"`,
         `Restored to version "${version.version_name}"`
       ));
       setRestoreVersionId(null);
     } catch (error) {
       console.error('Failed to restore version:', error);
-      toast.error(t('恢复版本失败', 'Failed to restore version'));
+      notify.error(t('恢复版本失败', 'Failed to restore version'));
     } finally {
       setRestoring(false);
     }
@@ -235,10 +235,10 @@ export function PermissionVersionManager({
 
     const success = await deleteVersion(deleteVersionId);
     if (success) {
-      toast.success(t('版本已删除', 'Version deleted'));
+      notify.success(t('版本已删除', 'Version deleted'));
       setDeleteVersionId(null);
     } else {
-      toast.error(t('删除版本失败', 'Failed to delete version'));
+      notify.error(t('删除版本失败', 'Failed to delete version'));
     }
   }, [deleteVersionId, deleteVersion, t]);
 

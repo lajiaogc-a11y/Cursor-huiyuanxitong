@@ -47,7 +47,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { showSubmissionError } from "@/services/submissionErrorService";
 import WorkMemoTab from "@/components/WorkMemoTab";
 import ActivityGiftTab from "@/components/ActivityGiftTab";
@@ -180,7 +180,7 @@ export default function ExchangeRate() {
   const isMobile = useIsMobile();
   const blockReadonly = useCallback((actionText: string) => {
     if (!isPlatformAdminReadonlyView) return false;
-    toast.error(t(`平台总管理查看租户时为只读，无法${actionText}`, `Read-only in admin view, cannot ${actionText}`));
+    notify.error(t(`平台总管理查看租户时为只读，无法${actionText}`, `Read-only in admin view, cannot ${actionText}`));
     return true;
   }, [isPlatformAdminReadonlyView]);
   
@@ -431,7 +431,7 @@ export default function ExchangeRate() {
         calc2: t('台位 B', 'Station B'),
         calc3: t('台位 C', 'Station C'),
       };
-      toast.success(t(`已切换到 ${tabNames[value]}`, `Switched to ${tabNames[value]}`), {
+      notify.success(t(`已切换到 ${tabNames[value]}`, `Switched to ${tabNames[value]}`), {
         duration: 1500,
         icon: '✓',
       });
@@ -718,7 +718,7 @@ export default function ExchangeRate() {
   const handleRefreshCurrencyRates = useCallback(async (isManual = false) => {
     if (isPlatformAdminReadonlyView) {
       if (isManual) {
-        toast.error(t("平台总管理查看租户时为只读，无法手动更新汇率采集", "Read-only in admin view, cannot refresh exchange rates"));
+        notify.error(t("平台总管理查看租户时为只读，无法手动更新汇率采集", "Read-only in admin view, cannot refresh exchange rates"));
       }
       return;
     }
@@ -737,18 +737,18 @@ export default function ExchangeRate() {
       if (hasChanged) {
         setCurrencyRates(newRates);
         await saveCurrencyRates(newRates);
-        toast.success(t("汇率采集已更新", "Exchange rates updated"));
+        notify.success(t("汇率采集已更新", "Exchange rates updated"));
       } else {
         // 更新时间但不更新汇率
         const updatedRates = { ...oldRates, lastUpdated: new Date().toISOString() };
         setCurrencyRates(updatedRates);
         await saveCurrencyRates(updatedRates);
-        if (isManual) toast.info(t("汇率无变化", "No rate changes"));
+        if (isManual) notify.info(t("汇率无变化", "No rate changes"));
       }
     } else {
       // 采集失败：手动刷新时提示，自动刷新时静默使用缓存
       if (isManual) {
-        toast.error(t("汇率采集失败", "Failed to fetch rates"));
+        notify.error(t("汇率采集失败", "Failed to fetch rates"));
       }
     }
   }, [currencyRates, isPlatformAdminReadonlyView, t]);
@@ -858,7 +858,7 @@ export default function ExchangeRate() {
           setRemarkMember(dbMember.remark || "");
           setCurrencyPreferenceList(dbMember.currency_preferences || []);
           setCustomerSource(dbMember.source_id || "");
-          toast.success(t(`已匹配到会员: ${dbMember.member_code}`, `Member matched: ${dbMember.member_code}`));
+          notify.success(t(`已匹配到会员: ${dbMember.member_code}`, `Member matched: ${dbMember.member_code}`));
         } else {
           // 新会员 - 清空所有字段并生成新编号
           const newMemberCode = generateMemberId();
@@ -870,7 +870,7 @@ export default function ExchangeRate() {
           setRemarkMember("");
           setCurrencyPreferenceList([]);
           setCustomerSource("");
-          toast.info(t(`新会员，已生成编号: ${newMemberCode}`, `New member, code generated: ${newMemberCode}`));
+          notify.info(t(`新会员，已生成编号: ${newMemberCode}`, `New member, code generated: ${newMemberCode}`));
         }
       } catch (err) {
         console.error('查询会员出错:', err);
@@ -940,7 +940,7 @@ export default function ExchangeRate() {
     setPayNaira(rounded.toString());
     setPayCedi("");
     setPayUsdt("");
-    toast.success(t(`已填入支付奈拉: ${rounded}`, `Naira payment filled: ${rounded}`));
+    notify.success(t(`已填入支付奈拉: ${rounded}`, `Naira payment filled: ${rounded}`));
   };
 
   // 填充赛地金额（取整数，向下取整）
@@ -950,7 +950,7 @@ export default function ExchangeRate() {
     setPayCedi(rounded.toString());
     setPayNaira("");
     setPayUsdt("");
-    toast.success(t(`已填入支付赛地: ${rounded}`, `Cedi payment filled: ${rounded}`));
+    notify.success(t(`已填入支付赛地: ${rounded}`, `Cedi payment filled: ${rounded}`));
   };
 
   // 填充USDT金额（取整数，向下取整）
@@ -960,14 +960,14 @@ export default function ExchangeRate() {
     setPayUsdt(rounded.toString());
     setPayNaira("");
     setPayCedi("");
-    toast.success(t(`已填入支付USDT: ${rounded}`, `USDT payment filled: ${rounded}`));
+    notify.success(t(`已填入支付USDT: ${rounded}`, `USDT payment filled: ${rounded}`));
   };
 
   // 复制银行卡信息
   const copyBankCard = () => {
     if (bankCard) {
       navigator.clipboard.writeText(bankCard);
-      toast.success(t("复制成功", "Copy successful"));
+      notify.success(t("复制成功", "Copy successful"));
     }
   };
 
@@ -1205,7 +1205,7 @@ export default function ExchangeRate() {
           ? t('活动1', 'Activity 1')
           : t('积分说明', 'Points summary');
     navigator.clipboard.writeText(copyText).then(() => {
-      toast.info(t(`积分信息已复制到剪贴板 (${copyLabel})`, `Points info copied to clipboard (${copyLabel})`));
+      notify.info(t(`积分信息已复制到剪贴板 (${copyLabel})`, `Points info copied to clipboard (${copyLabel})`));
     }).catch(() => {
       console.error("复制失败");
     });
@@ -1393,7 +1393,7 @@ export default function ExchangeRate() {
 
       const updated = await updateMemberByPhone(phoneForMemberUpdate, memberUpdates as Partial<Member>);
       if (!updated) {
-        toast.error(
+        notify.error(
           t("会员信息保存失败，请检查会员编号是否与其他会员重复", "Failed to save member — check member code or network"),
         );
         return;
@@ -1427,7 +1427,7 @@ export default function ExchangeRate() {
         finalMemberCode = newMember.memberCode;
         setMemberCode(finalMemberCode);
       } else {
-        toast.error(t("会员创建失败，订单未提交", "Member creation failed, order not submitted"));
+        notify.error(t("会员创建失败，订单未提交", "Member creation failed, order not submitted"));
         return;
       }
     }
@@ -1467,7 +1467,7 @@ export default function ExchangeRate() {
       const usdtResult = await addUsdtOrderDb(usdtOrderData, memberId, employee?.id);
       // 活动数据永久累计由后端 createOrder API 写入 member_activity，避免仅依赖前端 Supabase 代理
 
-      toast.success(t("USDT订单提交成功", "USDT order submitted"));
+      notify.success(t("USDT订单提交成功", "USDT order submitted"));
       
       // 🔧 修复：立即执行复制，使用 await 确保在页面切换前完成
       if (usdtResult.order) {
@@ -1527,7 +1527,7 @@ export default function ExchangeRate() {
       const orderResult = await addOrder(orderData, memberId, employee?.id, finalMemberCode);
       // 活动数据永久累计由后端 createOrder API 写入 member_activity
 
-      toast.success(t("订单提交成功", "Order submitted"));
+      notify.success(t("订单提交成功", "Order submitted"));
       
       // 🔧 修复：立即执行复制，使用 await 确保在页面切换前完成
       if (orderResult.order) {
@@ -1580,7 +1580,7 @@ export default function ExchangeRate() {
     });
     } catch (err: any) {
       console.error('[executeOrderSubmit] Unhandled error:', err);
-      toast.error(t(
+      notify.error(t(
         `提交订单失败: ${err?.message || '未知错误'}`,
         `Order submission failed: ${err?.message || 'Unknown error'}`
       ));
@@ -2088,7 +2088,7 @@ export default function ExchangeRate() {
               onClick={() => {
                 if (blockReadonly("进行积分兑换")) return;
                 if (!redeemPaymentProvider) {
-                  toast.error(t("请选择代付商家", "Please select payment provider"));
+                  notify.error(t("请选择代付商家", "Please select payment provider"));
                   return;
                 }
                 setIsRedeemConfirmOpen(true);
@@ -2123,7 +2123,7 @@ export default function ExchangeRate() {
                 const result = await redeemPoints(redeemPreviewData.memberCode, redeemPreviewData.phoneNumber, redeemPreviewData.remainingPoints);
                 
                 if (!result.success) {
-                  toast.error(result.message || t("积分扣减失败", "Failed to deduct points"));
+                  notify.error(result.message || t("积分扣减失败", "Failed to deduct points"));
                   setIsRedeemConfirmOpen(false);
                   return;
                 }
@@ -2145,7 +2145,7 @@ export default function ExchangeRate() {
                   creatorName: employee?.real_name,
                 }, undefined, employee?.id);
                 
-                toast.success(t(
+                notify.success(t(
                   `兑换成功！已兑换 ${result.redeemedPoints} 积分，获得 ${redeemPreviewData.rewardAmount} ${redeemPreviewData.currency}，积分已清零`,
                   `Redemption successful! ${result.redeemedPoints} points redeemed for ${redeemPreviewData.rewardAmount} ${redeemPreviewData.currency}`
                 ));
@@ -2154,7 +2154,7 @@ export default function ExchangeRate() {
                 setIsRedeemDialogOpen(false);
               } catch (error) {
                 console.error("兑换过程发生错误:", error);
-                toast.error(t("兑换过程发生错误，请重试", "Redemption error, please try again"));
+                notify.error(t("兑换过程发生错误，请重试", "Redemption error, please try again"));
                 setIsRedeemConfirmOpen(false);
               }
             }}>

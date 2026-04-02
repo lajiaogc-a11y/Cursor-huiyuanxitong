@@ -41,7 +41,7 @@ import {
 } from "@dnd-kit/sortable";
 import { SortableTableRow } from "@/components/ui/sortable-item";
 import { Plus, Edit, Trash2, Activity, Save } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useActivityTypes, ActivityType } from "@/hooks/useActivityTypes";
 import { logOperation } from "@/stores/auditLogStore";
@@ -89,9 +89,9 @@ export default function ActivityTypeSettingsTab() {
       const success = await deleteActivityType(typeToDelete.id);
       if (success) {
         logOperation('activity_type', 'delete', typeToDelete.id, typeToDelete, null, `删除活动类型: ${typeToDelete.label}`);
-        toast.success(t("已删除", "Deleted"));
+        notify.success(t("已删除", "Deleted"));
       } else {
-        toast.error(t("删除失败", "Delete failed"));
+        notify.error(t("删除失败", "Delete failed"));
       }
     }
     setDeleteDialogOpen(false);
@@ -100,7 +100,7 @@ export default function ActivityTypeSettingsTab() {
 
   const handleSave = async () => {
     if (!newLabel.trim()) {
-      toast.error(t("请输入活动类型名称", "Please enter activity type name"));
+      notify.error(t("请输入活动类型名称", "Please enter activity type name"));
       return;
     }
 
@@ -109,18 +109,18 @@ export default function ActivityTypeSettingsTab() {
       const success = await updateActivityType(editingType.id, { label: newLabel.trim() });
       if (success) {
         logOperation('activity_type', 'update', editingType.id, beforeData, { ...editingType, label: newLabel.trim() }, `更新活动类型: ${newLabel.trim()}`);
-        toast.success(t("已更新", "Updated"));
+        notify.success(t("已更新", "Updated"));
       } else {
-        toast.error(t("更新失败", "Update failed"));
+        notify.error(t("更新失败", "Update failed"));
       }
     } else {
       const value = `type_${Date.now()}`;
       const success = await addActivityType(value, newLabel.trim());
       if (success) {
         logOperation('activity_type', 'create', value, null, { value, label: newLabel.trim() }, `新增活动类型: ${newLabel.trim()}`);
-        toast.success(t("已添加", "Added"));
+        notify.success(t("已添加", "Added"));
       } else {
-        toast.error(t("添加失败", "Add failed"));
+        notify.error(t("添加失败", "Add failed"));
       }
     }
 
@@ -132,7 +132,7 @@ export default function ActivityTypeSettingsTab() {
   const handleToggleActive = async (type: ActivityType) => {
     const success = await updateActivityType(type.id, { isActive: !type.isActive });
     if (success) {
-      toast.success(
+      notify.success(
         type.isActive
           ? t("已禁用", "Disabled")
           : t("已启用", "Enabled")
@@ -158,9 +158,9 @@ export default function ActivityTypeSettingsTab() {
 
       const success = await updateSortOrders(updates);
       if (success) {
-        toast.success(t("排序已更新", "Sort order updated"));
+        notify.success(t("排序已更新", "Sort order updated"));
       } else {
-        toast.error(t("排序更新失败", "Failed to update sort order"));
+        notify.error(t("排序更新失败", "Failed to update sort order"));
       }
     }
   };

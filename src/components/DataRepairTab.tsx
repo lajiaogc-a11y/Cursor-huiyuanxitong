@@ -20,7 +20,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Search, Wrench, Trash2, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import {
   scanMissingVendorLogs,
   scanMissingProviderLogs,
@@ -69,10 +69,10 @@ const DataRepairTab = forwardRef<HTMLDivElement>(function DataRepairTab(_, ref) 
       setProviderMissing(provider);
       setOrphanedLogs(orphaned);
       setLastScanTime(new Date());
-      toast.success(t('扫描完成', 'Scan completed'));
+      notify.success(t('扫描完成', 'Scan completed'));
     } catch (error) {
       console.error('[DataRepair] Scan failed:', error);
-      toast.error(t('扫描失败', 'Scan failed'));
+      notify.error(t('扫描失败', 'Scan failed'));
     } finally {
       setIsScanning(false);
     }
@@ -113,14 +113,14 @@ const DataRepairTab = forwardRef<HTMLDivElement>(function DataRepairTab(_, ref) 
         providerFix.errors.length;
 
       if (totalErrors > 0) {
-        toast.warning(
+        notify.warning(
           t(
             `修复完成，但有 ${totalErrors} 个错误（可重新扫描确认差异）`,
             `Repair completed with ${totalErrors} errors (re-scan to verify)`
           )
         );
       } else {
-        toast.success(
+        notify.success(
           t(
             `修复成功：补录 ${vendorResult.repaired + providerResult.repaired} 条，归属修复 ${vendorFix.moved + providerFix.moved} 条`,
             `Success: backfilled ${vendorResult.repaired + providerResult.repaired}, reassigned ${vendorFix.moved + providerFix.moved}`
@@ -140,7 +140,7 @@ const DataRepairTab = forwardRef<HTMLDivElement>(function DataRepairTab(_, ref) 
       setLastScanTime(new Date());
     } catch (error) {
       console.error('[DataRepair] Repair failed:', error);
-      toast.error(t('修复失败', 'Repair failed'));
+      notify.error(t('修复失败', 'Repair failed'));
     } finally {
       setIsRepairing(false);
     }
@@ -151,7 +151,7 @@ const DataRepairTab = forwardRef<HTMLDivElement>(function DataRepairTab(_, ref) 
     try {
       const result = await deleteOrphanedLogs();
       if (result.success) {
-        toast.success(
+        notify.success(
           t(`成功清理 ${result.repaired} 条孤立记录`, `Successfully cleaned ${result.repaired} orphaned records`)
         );
         // Re-scan to update stats
@@ -165,11 +165,11 @@ const DataRepairTab = forwardRef<HTMLDivElement>(function DataRepairTab(_, ref) 
         setOrphanedLogs(orphaned);
         setLastScanTime(new Date());
       } else {
-        toast.error(t('清理失败', 'Clean failed'));
+        notify.error(t('清理失败', 'Clean failed'));
       }
     } catch (error) {
       console.error('[DataRepair] Clean failed:', error);
-      toast.error(t('清理失败', 'Clean failed'));
+      notify.error(t('清理失败', 'Clean failed'));
     } finally {
       setIsCleaning(false);
     }

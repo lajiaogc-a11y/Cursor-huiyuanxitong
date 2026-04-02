@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Download, Loader2, Search, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobilePagination, MobileEmptyState } from '@/components/ui/mobile-data-card';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { ExportConfirmDialog } from '@/components/ExportConfirmDialog';
 import { useExportConfirm } from '@/hooks/useExportConfirm';
 import { exportToCSV, formatNumberForExport, formatDateTimeForExport } from '@/lib/exportUtils';
@@ -195,13 +195,13 @@ export default function LedgerTransactionContent({
       const result = await reconcileAccount(accountType, accountName);
       setReconcileResult(result);
       if (result && result.discrepancy < 0.01) {
-        toast.success(t('对账结果: 余额一致 ✓', 'Reconciliation: Balance matches ✓'));
+        notify.success(t('对账结果: 余额一致 ✓', 'Reconciliation: Balance matches ✓'));
       } else if (result) {
-        toast.error(t(`对账结果: 发现差异 — 差异金额: ¥${result.discrepancy.toFixed(2)}`, `Reconciliation: Discrepancy found — ¥${result.discrepancy.toFixed(2)}`));
+        notify.error(t(`对账结果: 发现差异 — 差异金额: ¥${result.discrepancy.toFixed(2)}`, `Reconciliation: Discrepancy found — ¥${result.discrepancy.toFixed(2)}`));
       }
     } catch (error) {
       console.error('Reconciliation failed:', error);
-      toast.error(t('对账失败', 'Reconciliation failed'));
+      notify.error(t('对账失败', 'Reconciliation failed'));
     } finally {
       setIsReconciling(false);
     }
@@ -215,14 +215,14 @@ export default function LedgerTransactionContent({
       accountId: accountName,
       correctionAmount: correction,
     });
-    toast.success(t('修正已创建', 'Correction entry created'));
+    notify.success(t('修正已创建', 'Correction entry created'));
     setReconcileResult(null);
     loadTransactions();
   };
 
   const handleExport = () => {
     if (filteredTransactions.length === 0) {
-      toast.error(t('没有数据可导出', 'No data to export'));
+      notify.error(t('没有数据可导出', 'No data to export'));
       return;
     }
     const exportData = filteredTransactions.map(tx => {
@@ -241,7 +241,7 @@ export default function LedgerTransactionContent({
       { key: 'note', label: '备注', labelEn: 'Note', formatter: (v: string | null) => formatLedgerNote(v, lang) },
     ];
     exportToCSV(exportData, columns, `ledger-${accountName}`, lang === 'en');
-    toast.success(t('导出成功', 'Export successful'));
+    notify.success(t('导出成功', 'Export successful'));
   };
 
   const formatAmount = (amount: number) => {

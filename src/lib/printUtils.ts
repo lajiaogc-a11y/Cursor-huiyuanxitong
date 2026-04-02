@@ -1,6 +1,6 @@
 // ============= 报表打印工具（报表管理等页面使用 printTable）=============
 
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { pickBilingual, readEffectiveAppLocale, type AppLocale } from "@/lib/appLocale";
 
@@ -38,7 +38,7 @@ export function printTable(
     const msg =
       options?.popupBlockedMessage ??
       L("请允许弹出窗口以进行打印", "Please allow popups for printing");
-    toast.error(msg);
+    notify.error(msg);
     return;
   }
 

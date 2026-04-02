@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Lock, User, AlertCircle, Loader2, WifiOff, ShieldX, KeyRound, MapPinOff, Eye, EyeOff, Info } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { withTimeout, TIMEOUT } from "@/lib/withTimeout";
@@ -126,7 +126,7 @@ export default function Login() {
         t('login.timeout')
       );
       if (result.success) {
-        toast.success(result.message);
+        notify.success(result.message);
         redirectingRef.current = true;
         navigate("/staff", { replace: true });
         return;

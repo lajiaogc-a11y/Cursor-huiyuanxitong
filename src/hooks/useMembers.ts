@@ -2,7 +2,7 @@
 // Performance: cache-first reads, realtime invalidation, mutations unchanged
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import {
   listMembersApi,
   listReferralsApi,
@@ -140,30 +140,30 @@ export function useMembers() {
   const addMember = async (memberData: Partial<Member> & { phoneNumber: string }): Promise<Member | null> => {
     try {
       if (isPlatformAdminReadonlyView) {
-        toast.error(t('平台总管理查看租户时为只读，无法新增会员', 'Read-only in admin view, cannot add member'));
+        notify.error(t('平台总管理查看租户时为只读，无法新增会员', 'Read-only in admin view, cannot add member'));
         return null;
       }
       if (!effectiveTenantId) {
-        toast.error(t("请先进入业务租户后再新增会员（系统租户不可用于业务数据）", "Please enter a business tenant first (system tenant cannot be used for business data)"));
+        notify.error(t("请先进入业务租户后再新增会员（系统租户不可用于业务数据）", "Please enter a business tenant first (system tenant cannot be used for business data)"));
         return null;
       }
       const quotaResult = await checkMyTenantQuotaResult("members");
       if (!quotaResult.ok) {
         const quotaText = getQuotaExceededText(quotaResult.error.message);
         if (quotaText) {
-          toast.error(quotaText.zh);
+          notify.error(quotaText.zh);
         } else {
-          toast.error(t('当前操作已超出租户配额限制', 'Current operation exceeds tenant quota limit'));
+          notify.error(t('当前操作已超出租户配额限制', 'Current operation exceeds tenant quota limit'));
         }
         return null;
       }
       const softQuotaText = getQuotaSoftExceededText(quotaResult.data?.message);
       if (softQuotaText) {
-        toast.warning(softQuotaText.zh);
+        notify.warning(softQuotaText.zh);
       }
       const existing = members.find(m => m.phoneNumber === memberData.phoneNumber);
       if (existing) {
-        toast.error(t('该电话号码已存在', 'This phone number already exists'));
+        notify.error(t('该电话号码已存在', 'This phone number already exists'));
         return null;
       }
 
@@ -209,12 +209,12 @@ export function useMembers() {
       console.error('Failed to add member:', error);
       if (error instanceof ApiError) {
         if (error.statusCode === 409) {
-          toast.error(t('该手机号或会员编号已存在', 'Phone or member code already exists'));
+          notify.error(t('该手机号或会员编号已存在', 'Phone or member code already exists'));
         } else {
-          toast.error(error.message || t('创建会员失败', 'Failed to create member'));
+          notify.error(error.message || t('创建会员失败', 'Failed to create member'));
         }
       } else {
-        toast.error(t('创建会员失败', 'Failed to create member'));
+        notify.error(t('创建会员失败', 'Failed to create member'));
       }
       return null;
     }
@@ -223,7 +223,7 @@ export function useMembers() {
   const updateMember = async (memberId: string, updates: Partial<Member>): Promise<Member | null> => {
     try {
       if (isPlatformAdminReadonlyView) {
-        toast.error(t('平台总管理查看租户时为只读，无法修改会员', 'Read-only in admin view, cannot modify member'));
+        notify.error(t('平台总管理查看租户时为只读，无法修改会员', 'Read-only in admin view, cannot modify member'));
         return null;
       }
       const body: Record<string, unknown> = {};
@@ -245,7 +245,7 @@ export function useMembers() {
       }
 
       if (Object.keys(body).length === 0) {
-        toast.info(t('没有需要更新的内容', 'Nothing to update'));
+        notify.info(t('没有需要更新的内容', 'Nothing to update'));
         return members.find(m => m.id === memberId) || null;
       }
       
@@ -269,19 +269,19 @@ export function useMembers() {
       console.error('Failed to update member:', error);
       if (error instanceof ApiError) {
         if (error.code === 'REFERRER_NOT_FOUND') {
-          toast.error(t('未找到该推荐人，请确认为本租户会员', 'Referrer not found in this tenant'));
+          notify.error(t('未找到该推荐人，请确认为本租户会员', 'Referrer not found in this tenant'));
           return null;
         }
         if (error.code === 'REFERRER_SELF') {
-          toast.error(t('不能将自己设为推荐人', 'Cannot set self as referrer'));
+          notify.error(t('不能将自己设为推荐人', 'Cannot set self as referrer'));
           return null;
         }
         if (error.code === 'REFERRER_TENANT_MISMATCH') {
-          toast.error(t('推荐人不在当前租户', 'Referrer is not in current tenant'));
+          notify.error(t('推荐人不在当前租户', 'Referrer is not in current tenant'));
           return null;
         }
       }
-      toast.error(t(`更新会员失败: ${error.message || '未知错误'}`, `Failed to update member: ${error.message || 'Unknown error'}`));
+      notify.error(t(`更新会员失败: ${error.message || '未知错误'}`, `Failed to update member: ${error.message || 'Unknown error'}`));
       return null;
     }
   };
@@ -289,7 +289,7 @@ export function useMembers() {
   const updateMemberByPhone = async (phone: string, updates: Partial<Member>): Promise<Member | null> => {
     try {
       if (isPlatformAdminReadonlyView) {
-        toast.error(t('平台总管理查看租户时为只读，无法修改会员', 'Read-only in admin view, cannot modify member'));
+        notify.error(t('平台总管理查看租户时为只读，无法修改会员', 'Read-only in admin view, cannot modify member'));
         return null;
       }
       const body: Record<string, unknown> = {};
@@ -334,21 +334,21 @@ export function useMembers() {
       console.error('Failed to update member by phone:', error);
       if (error instanceof ApiError) {
         if (error.code === 'REFERRER_NOT_FOUND') {
-          toast.error(t('未找到该推荐人，请确认为本租户会员', 'Referrer not found in this tenant'));
+          notify.error(t('未找到该推荐人，请确认为本租户会员', 'Referrer not found in this tenant'));
           return null;
         }
         if (error.code === 'REFERRER_SELF') {
-          toast.error(t('不能将自己设为推荐人', 'Cannot set self as referrer'));
+          notify.error(t('不能将自己设为推荐人', 'Cannot set self as referrer'));
           return null;
         }
         if (error.code === 'REFERRER_TENANT_MISMATCH') {
-          toast.error(t('推荐人不在当前租户', 'Referrer is not in current tenant'));
+          notify.error(t('推荐人不在当前租户', 'Referrer is not in current tenant'));
           return null;
         }
       }
       const msg = String(error?.message || error?.response?.data?.error?.message || '');
       if (msg.includes('MEMBER_CODE_TAKEN') || error?.response?.status === 409) {
-        toast.error(t('会员编号已被占用', 'Member code already in use'));
+        notify.error(t('会员编号已被占用', 'Member code already in use'));
       }
       return null;
     }
@@ -376,7 +376,7 @@ export function useMembers() {
   const deleteMember = async (memberId: string): Promise<boolean> => {
     try {
       if (isPlatformAdminReadonlyView) {
-        toast.error(t('平台总管理查看租户时为只读，无法删除会员', 'Read-only in admin view, cannot delete member'));
+        notify.error(t('平台总管理查看租户时为只读，无法删除会员', 'Read-only in admin view, cannot delete member'));
         return false;
       }
       const memberToDelete = members.find(m => m.id === memberId);
@@ -392,7 +392,7 @@ export function useMembers() {
       return true;
     } catch (error) {
       console.error('Failed to delete member:', error);
-      toast.error(t('删除会员失败', 'Failed to delete member'));
+      notify.error(t('删除会员失败', 'Failed to delete member'));
       return false;
     }
   };

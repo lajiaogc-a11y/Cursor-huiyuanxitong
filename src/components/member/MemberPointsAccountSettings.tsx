@@ -11,7 +11,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 
 export interface MemberPointsAccountSettingsProps {
   avatarUrl: string | null;
@@ -47,17 +47,17 @@ export function MemberPointsAccountSettings({
     setBusy(true);
     try {
       await onPickAvatar(file);
-      toast.success(t("头像已更新", "Avatar updated"));
+      notify.success(t("头像已更新", "Avatar updated"));
     } catch (e) {
       const code = e instanceof Error ? e.message : "";
       if (code === "FILE_TOO_LARGE") {
-        toast.error(t("单张原图最大 8MB，请换一张较小的图片", "Each file must be 8MB or smaller"));
+        notify.error(t("单张原图最大 8MB，请换一张较小的图片", "Each file must be 8MB or smaller"));
       } else if (code === "NOT_IMAGE") {
-        toast.error(t("请选择图片文件", "Please choose an image"));
+        notify.error(t("请选择图片文件", "Please choose an image"));
       } else if (e instanceof DOMException && e.name === "QuotaExceededError") {
-        toast.error(t("存储空间不足", "Storage full"));
+        notify.error(t("存储空间不足", "Storage full"));
       } else {
-        toast.error(t("处理图片失败，请换一张试试", "Could not process image"));
+        notify.error(t("处理图片失败，请换一张试试", "Could not process image"));
       }
     } finally {
       setBusy(false);
@@ -143,7 +143,7 @@ export function MemberPointsAccountSettings({
                 onClick={() => {
                   setRemoveAvatarOpen(false);
                   onClearAvatar();
-                  toast.message(t("已恢复默认头像", "Reset to default avatar"));
+                  notify.message(t("已恢复默认头像", "Reset to default avatar"));
                 }}
               >
                 {t("移除", "Remove")}

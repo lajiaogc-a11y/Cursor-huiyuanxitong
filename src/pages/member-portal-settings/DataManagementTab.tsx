@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, RefreshCw, Info } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
@@ -42,7 +42,7 @@ export function DataManagementTab({ tenantId }: DataManagementTabProps) {
 
   const blockReadonly = useCallback((actionZh: string, actionEn?: string) => {
     if (!isPlatformAdminReadonlyView) return false;
-    toast.error(t(`平台总管理查看租户时为只读，无法${actionZh}`, `Read-only in platform admin tenant view: cannot ${actionEn || actionZh}`));
+    notify.error(t(`平台总管理查看租户时为只读，无法${actionZh}`, `Read-only in platform admin tenant view: cannot ${actionEn || actionZh}`));
     return true;
   }, [isPlatformAdminReadonlyView, t]);
 
@@ -102,7 +102,7 @@ export function DataManagementTab({ tenantId }: DataManagementTabProps) {
     setCleanupRunning(true);
     try {
       const r = await runMemberPortalDataCleanup(tenantId);
-      toast.success(
+      notify.success(
         `${t("已清理人数", "Purged")}: ${r.purged} · ${t("符合条件人数", "Eligible")}: ${r.matched}`,
       );
       setCleanupPreviewCount(null);
@@ -224,7 +224,7 @@ export function DataManagementTab({ tenantId }: DataManagementTabProps) {
                     no_login_months: cleanupNoLoginM === "" ? null : Number(cleanupNoLoginM),
                     max_points_below: cleanupMaxPts === "" ? null : Number(cleanupMaxPts),
                   });
-                  toast.success(t("已保存", "Saved"));
+                  notify.success(t("已保存", "Saved"));
                   await loadDataCleanupForm();
                 } catch (e: unknown) {
                   showServiceErrorToast(e, t, "保存失败", "Save failed");
@@ -242,7 +242,7 @@ export function DataManagementTab({ tenantId }: DataManagementTabProps) {
                 try {
                   const p = await previewMemberPortalDataCleanup(tenantId);
                   setCleanupPreviewCount(p.count);
-                  toast.info(`${t("当前符合条件人数", "Eligible")}: ${p.count}`);
+                  notify.info(`${t("当前符合条件人数", "Eligible")}: ${p.count}`);
                 } catch (e: unknown) {
                   showServiceErrorToast(e, t, "预览失败", "Preview failed");
                 }

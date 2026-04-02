@@ -37,20 +37,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Search, Pencil, Trash2, RefreshCw, CreditCard, Store, Wallet, Loader2, GripVertical, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Upload } from "lucide-react";
-import { toast as sonnerToast } from "sonner";
 import TableImportButton from "@/components/TableImportButton";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
 import { useExportConfirm } from "@/hooks/useExportConfirm";
 import { exportTable } from "@/services/export";
-
-// Compatibility wrapper: converts old Radix toast API to sonner
-const toast = (opts: { title: string; variant?: string; description?: string }) => {
-  if (opts.variant === 'destructive') {
-    sonnerToast.error(opts.title, opts.description ? { description: opts.description } : undefined);
-  } else {
-    sonnerToast.success(opts.title, opts.description ? { description: opts.description } : undefined);
-  }
-};
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useCards, useVendors, usePaymentProviders, CardItem, Vendor, PaymentProvider } from "@/hooks/useMerchantConfig";
 import {
@@ -166,7 +157,7 @@ function CardTab() {
       const updates = newOrder.map((card, index) => ({ id: card.id, sortOrder: index + 1 }));
       const success = await updateCardSortOrders(updates);
       if (success) {
-        toast({ title: t('merchants.sortUpdated') });
+        notify.success(t('merchants.sortUpdated'));
       }
     }
   };
@@ -204,7 +195,7 @@ function CardTab() {
 
   const handleSave = async () => {
     if (!formName) {
-      toast({ title: t('merchants.fillCardName'), variant: "destructive" });
+      notify.error(t('merchants.fillCardName'));
       return;
     }
 
@@ -219,10 +210,10 @@ function CardTab() {
           cardVendors: formCardVendors,
         });
         if (success) {
-          toast({ title: t('merchants.cardUpdated') });
+          notify.success(t('merchants.cardUpdated'));
           setEditingCard(null);
         } else {
-          toast({ title: t('merchants.updateFailed'), variant: "destructive" });
+          notify.error(t('merchants.updateFailed'));
         }
       } else {
         const result = await addCard({
@@ -233,10 +224,10 @@ function CardTab() {
           cardVendors: formCardVendors,
         });
         if (result) {
-          toast({ title: t('merchants.cardAdded') });
+          notify.success(t('merchants.cardAdded'));
           setIsAddDialogOpen(false);
         } else {
-          toast({ title: t('merchants.addFailed'), variant: "destructive" });
+          notify.error(t('merchants.addFailed'));
         }
       }
       resetForm();
@@ -248,9 +239,9 @@ function CardTab() {
   const handleDelete = async (id: string) => {
     const success = await deleteCard(id);
     if (success) {
-      toast({ title: t('merchants.cardDeleted') });
+      notify.success(t('merchants.cardDeleted'));
     } else {
-      toast({ title: t('merchants.deleteFailed'), variant: "destructive" });
+      notify.error(t('merchants.deleteFailed'));
     }
   };
 
@@ -260,7 +251,7 @@ function CardTab() {
       const newStatus = card.status === "active" ? "inactive" : "active";
       const success = await updateCard(id, { status: newStatus });
       if (success) {
-        toast({ title: t('merchants.statusUpdated') });
+        notify.success(t('merchants.statusUpdated'));
       }
     }
   };
@@ -639,14 +630,14 @@ function VendorTab() {
       const updates = newOrder.map((vendor, index) => ({ id: vendor.id, sortOrder: index + 1 }));
       const success = await updateVendorSortOrders(updates);
       if (success) {
-        toast({ title: t('merchants.sortUpdated') });
+        notify.success(t('merchants.sortUpdated'));
       }
     }
   };
 
   const handleSave = async () => {
     if (!formName) {
-      toast({ title: t('merchants.fillVendorName'), variant: "destructive" });
+      notify.error(t('merchants.fillVendorName'));
       return;
     }
 
@@ -660,10 +651,10 @@ function VendorTab() {
           paymentProviders: formPaymentProviders,
         });
         if (success) {
-          toast({ title: t('merchants.vendorUpdated') });
+          notify.success(t('merchants.vendorUpdated'));
           setEditingVendor(null);
         } else {
-          toast({ title: t('merchants.updateFailed'), variant: "destructive" });
+          notify.error(t('merchants.updateFailed'));
         }
       } else {
         const result = await addVendor({
@@ -672,10 +663,10 @@ function VendorTab() {
           remark: formRemark,
         });
         if (result) {
-          toast({ title: t('merchants.vendorAdded') });
+          notify.success(t('merchants.vendorAdded'));
           setIsAddDialogOpen(false);
         } else {
-          toast({ title: t('merchants.addFailed'), variant: "destructive" });
+          notify.error(t('merchants.addFailed'));
         }
       }
       resetForm();
@@ -695,9 +686,9 @@ function VendorTab() {
   const handleDelete = async (id: string) => {
     const success = await deleteVendor(id);
     if (success) {
-      toast({ title: t('merchants.vendorDeleted') });
+      notify.success(t('merchants.vendorDeleted'));
     } else {
-      toast({ title: t('merchants.deleteFailed'), variant: "destructive" });
+      notify.error(t('merchants.deleteFailed'));
     }
   };
 
@@ -707,7 +698,7 @@ function VendorTab() {
       const newStatus = vendor.status === "active" ? "inactive" : "active";
       const success = await updateVendor(id, { status: newStatus });
       if (success) {
-        toast({ title: t('merchants.statusUpdated') });
+        notify.success(t('merchants.statusUpdated'));
       }
     }
   };
@@ -1067,7 +1058,7 @@ function PaymentProviderTab() {
       const updates = newOrder.map((provider, index) => ({ id: provider.id, sortOrder: index + 1 }));
       const success = await updateProviderSortOrders(updates);
       if (success) {
-        toast({ title: t('merchants.sortUpdated') });
+        notify.success(t('merchants.sortUpdated'));
       }
     }
   };
@@ -1081,7 +1072,7 @@ function PaymentProviderTab() {
 
   const handleSave = async () => {
     if (!formName) {
-      toast({ title: t('merchants.fillProviderName'), variant: "destructive" });
+      notify.error(t('merchants.fillProviderName'));
       return;
     }
 
@@ -1094,10 +1085,10 @@ function PaymentProviderTab() {
           remark: formRemark,
         });
         if (success) {
-          toast({ title: t('merchants.providerUpdated') });
+          notify.success(t('merchants.providerUpdated'));
           setEditingProvider(null);
         } else {
-          toast({ title: t('merchants.updateFailed'), variant: "destructive" });
+          notify.error(t('merchants.updateFailed'));
         }
       } else {
         const result = await addProvider({
@@ -1106,10 +1097,10 @@ function PaymentProviderTab() {
           remark: formRemark,
         });
         if (result) {
-          toast({ title: t('merchants.providerAdded') });
+          notify.success(t('merchants.providerAdded'));
           setIsAddDialogOpen(false);
         } else {
-          toast({ title: t('merchants.addFailed'), variant: "destructive" });
+          notify.error(t('merchants.addFailed'));
         }
       }
       resetForm();
@@ -1121,9 +1112,9 @@ function PaymentProviderTab() {
   const handleDelete = async (id: string) => {
     const success = await deleteProvider(id);
     if (success) {
-      toast({ title: t('merchants.providerDeleted') });
+      notify.success(t('merchants.providerDeleted'));
     } else {
-      toast({ title: t('merchants.deleteFailed'), variant: "destructive" });
+      notify.error(t('merchants.deleteFailed'));
     }
   };
 
@@ -1133,7 +1124,7 @@ function PaymentProviderTab() {
       const newStatus = provider.status === "active" ? "inactive" : "active";
       const success = await updateProvider(id, { status: newStatus });
       if (success) {
-        toast({ title: t('merchants.statusUpdated') });
+        notify.success(t('merchants.statusUpdated'));
       }
     }
   };

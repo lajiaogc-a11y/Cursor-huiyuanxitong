@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { UserPlus, Search, CheckCircle, XCircle, Users, ShoppingCart, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMembers, Member } from "@/hooks/useMembers";
 import { useTenantView } from "@/contexts/TenantViewContext";
@@ -93,19 +93,19 @@ export default function ReferralEntryTab() {
   const handleSubmit = async () => {
     // ===== 前置校验 =====
     if (!referrerInfo?.isMember || !referrerInfo.member) {
-      toast.error(t("介绍人必须是系统会员", "Referrer must be a system member"));
+      notify.error(t("介绍人必须是系统会员", "Referrer must be a system member"));
       return;
     }
     
     const refereeDigits = cleanPhoneNumber(refereePhone.trim());
     if (refereeDigits.length < 8 || refereeDigits.length > 18) {
-      toast.error(t("被推荐人请填写 8～18 位手机号（新会员）", "Please enter referee phone: 8–18 digits for new member"));
+      notify.error(t("被推荐人请填写 8～18 位手机号（新会员）", "Please enter referee phone: 8–18 digits for new member"));
       return;
     }
     
     // ===== 校验被推荐人不能是现有会员 =====
     if (refereeInfo?.exists) {
-      toast.error(t("该电话号码已是会员，无法被推荐", "This phone number is already a member"));
+      notify.error(t("该电话号码已是会员，无法被推荐", "This phone number is already a member"));
       return;
     }
     
@@ -144,7 +144,7 @@ export default function ReferralEntryTab() {
       );
       
       if (relation) {
-        toast.success(t("推荐关系提交成功，新会员已创建", "Referral submitted, new member created"));
+        notify.success(t("推荐关系提交成功，新会员已创建", "Referral submitted, new member created"));
         
         // 重置表单（同时清除持久化数据）
         clearPersistedForm();
@@ -153,7 +153,7 @@ export default function ReferralEntryTab() {
       }
     } catch (error) {
       console.error('Failed to submit referral:', error);
-      toast.error(t("提交失败", "Submission failed"));
+      notify.error(t("提交失败", "Submission failed"));
     } finally {
       setIsSubmitting(false);
     }

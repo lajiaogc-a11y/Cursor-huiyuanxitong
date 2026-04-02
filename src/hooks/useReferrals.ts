@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
 import { apiGet, apiPost, apiDelete } from '@/api/client';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { logOperation } from '@/stores/auditLogStore';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -78,7 +78,7 @@ export function useReferrals() {
       );
 
       if (existingRecord) {
-        toast.error(t('该电话号码已被其他人推荐', 'This phone number has already been referred'));
+        notify.error(t('该电话号码已被其他人推荐', 'This phone number has already been referred'));
         return null;
       }
 
@@ -113,7 +113,7 @@ export function useReferrals() {
       return newRelation;
     } catch (error) {
       console.error('Failed to add referral:', error);
-      toast.error(t('创建推荐关系失败', 'Failed to create referral'));
+      notify.error(t('创建推荐关系失败', 'Failed to create referral'));
       return null;
     }
   };

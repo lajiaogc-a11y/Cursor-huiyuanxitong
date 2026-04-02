@@ -6,7 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { saveGiftDistributionSettingsAsync } from "@/stores/systemSettings";
 import { useGiftDistributionSettings } from "@/hooks/useGiftDistributionSettings";
@@ -44,14 +44,14 @@ export default function GiftDistributionSettingsTab() {
     try {
       const success = await saveGiftDistributionSettingsAsync(settings);
       if (success) {
-        toast.success(t('设置已保存', 'Settings saved'));
+        notify.success(t('设置已保存', 'Settings saved'));
         refetch();
       } else {
-        toast.error(t('保存失败', 'Save failed'));
+        notify.error(t('保存失败', 'Save failed'));
       }
     } catch (error) {
       console.error('Failed to save settings:', error);
-      toast.error(t('保存失败', 'Save failed'));
+      notify.error(t('保存失败', 'Save failed'));
     } finally {
       setSaving(false);
     }

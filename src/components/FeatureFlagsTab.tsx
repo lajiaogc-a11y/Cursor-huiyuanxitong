@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { listTenantsResult, type TenantItem } from "@/services/tenantService";
 import {
@@ -81,7 +81,7 @@ export default function FeatureFlagsTab() {
           return;
         }
         setPhoneExtractFlags((prev) => ({ ...prev, [tenantId]: enabled }));
-        toast.success(
+        notify.success(
           enabled
             ? t("已开启号码提取功能", "Phone extract enabled")
             : t("已关闭号码提取功能", "Phone extract disabled")

@@ -7,7 +7,7 @@ import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
 import { apiGet, apiPatch } from '@/api/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { logOperation } from '@/stores/auditLogStore';
 /** audit_records JSON 列（替代 Supabase Json） */
 export type AuditJson =
@@ -407,13 +407,13 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
       );
 
       if (!record) {
-        toast.error(t('找不到审核记录', 'Audit record not found'));
+        notify.error(t('找不到审核记录', 'Audit record not found'));
         return false;
       }
 
       // 并发校验：仅允许审批仍为 pending 的记录，避免重复审批
       if (record.status !== 'pending') {
-        toast.error(t('该记录已被处理，无法重复审批', 'This record has been processed, cannot approve again'));
+        notify.error(t('该记录已被处理，无法重复审批', 'This record has been processed, cannot approve again'));
         return false;
       }
 
@@ -501,7 +501,7 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
         });
       } catch (updateError) {
         console.error('Failed to apply audit change:', updateError);
-        toast.error(t('应用修改失败', 'Failed to apply changes'));
+        notify.error(t('应用修改失败', 'Failed to apply changes'));
         return false;
       }
 
@@ -518,7 +518,7 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
         );
       } catch (auditError) {
         console.error('Failed to update audit record:', auditError);
-        toast.error(t('更新审核状态失败', 'Failed to update audit status'));
+        notify.error(t('更新审核状态失败', 'Failed to update audit status'));
         return false;
       }
 
@@ -547,11 +547,11 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
           }
         }
       }
-      toast.success(t('审核通过，修改已生效', 'Approved, changes applied'));
+      notify.success(t('审核通过，修改已生效', 'Approved, changes applied'));
       return true;
     } catch (err) {
       console.error('Error approving record:', err);
-      toast.error(t('处理失败', 'Processing failed'));
+      notify.error(t('处理失败', 'Processing failed'));
       return false;
     }
   }, [employee, queryClient, t]);
@@ -574,18 +574,18 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
         );
       } catch (error) {
         console.error('Failed to reject audit record:', error);
-        toast.error(t('拒绝审核失败', 'Failed to reject audit'));
+        notify.error(t('拒绝审核失败', 'Failed to reject audit'));
         return false;
       }
 
       logOperation('audit_center', 'reject', recordId, { status: 'pending' }, { status: 'rejected', reason }, `审核拒绝`);
       await queryClient.invalidateQueries({ queryKey: ['audit-records'] });
       await queryClient.invalidateQueries({ queryKey: ['audit-pending-count'] });
-      toast.success(t('已拒绝', 'Rejected'));
+      notify.success(t('已拒绝', 'Rejected'));
       return true;
     } catch (err) {
       console.error('Error rejecting record:', err);
-      toast.error(t('处理失败', 'Processing failed'));
+      notify.error(t('处理失败', 'Processing failed'));
       return false;
     }
   }, [employee, queryClient, t]);

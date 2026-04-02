@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Copy, Save, Info, PlayCircle, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { loadSharedData, saveSharedData } from "@/services/finance/sharedDataService";
 import { getActivitySettings } from "@/stores/activitySettingsStore";
@@ -171,9 +171,9 @@ export default function CopySettingsTab() {
     if (success) {
       settingsCache = settings;
       setHasChanges(false);
-      toast.success(t("复制设置已保存", "Copy settings saved"));
+      notify.success(t("复制设置已保存", "Copy settings saved"));
     } else {
-      toast.error(t("保存失败", "Save failed"));
+      notify.error(t("保存失败", "Save failed"));
     }
   };
 
@@ -227,7 +227,7 @@ export default function CopySettingsTab() {
     
     const generatedText = generateEnglishCopyText(testData);
     setPreviewText(generatedText);
-    toast.success(t("测试内容已生成", "Test content generated"));
+    notify.success(t("测试内容已生成", "Test content generated"));
   };
 
   const handleCopyPreview = () => {
@@ -252,7 +252,7 @@ export default function CopySettingsTab() {
     });
     
     navigator.clipboard.writeText(textToCopy);
-    toast.success(t("内容已复制到剪贴板", "Content copied to clipboard"));
+    notify.success(t("内容已复制到剪贴板", "Content copied to clipboard"));
   };
 
   if (isLoading) {

@@ -11,7 +11,7 @@ import {
   deleteWebhookRecord,
 } from '@/services/webhooks/webhookTableService';
 import { fetchApiUsageStats, type ApiDailyStats, type ApiEndpointStats } from '@/services/observability/apiUsageStatsService';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const STALE_TIME = 5 * 60 * 1000;
@@ -54,7 +54,7 @@ export function useWebhooks() {
       setDeliveryLogs(rows);
     } catch (error) {
       console.error('Failed to fetch delivery logs:', error);
-      toast.error(t('获取投递日志失败', 'Failed to fetch delivery logs'));
+      notify.error(t('获取投递日志失败', 'Failed to fetch delivery logs'));
     } finally {
       setLogsLoading(false);
     }
@@ -85,11 +85,11 @@ export function useWebhooks() {
       });
 
       invalidateWebhooks();
-      toast.success(t('Webhook 创建成功', 'Webhook created successfully'));
+      notify.success(t('Webhook 创建成功', 'Webhook created successfully'));
       return true;
     } catch (error) {
       console.error('Failed to create webhook:', error);
-      toast.error(t('创建 Webhook 失败', 'Failed to create Webhook'));
+      notify.error(t('创建 Webhook 失败', 'Failed to create Webhook'));
       return false;
     }
   };
@@ -122,11 +122,11 @@ export function useWebhooks() {
       });
 
       invalidateWebhooks();
-      toast.success(t('Webhook 更新成功', 'Webhook updated successfully'));
+      notify.success(t('Webhook 更新成功', 'Webhook updated successfully'));
       return true;
     } catch (error) {
       console.error('Failed to update webhook:', error);
-      toast.error(t('更新 Webhook 失败', 'Failed to update Webhook'));
+      notify.error(t('更新 Webhook 失败', 'Failed to update Webhook'));
       return false;
     }
   };
@@ -136,11 +136,11 @@ export function useWebhooks() {
       await deleteWebhookRecord(webhookId);
 
       invalidateWebhooks();
-      toast.success(t('Webhook 已删除', 'Webhook deleted'));
+      notify.success(t('Webhook 已删除', 'Webhook deleted'));
       return true;
     } catch (error) {
       console.error('Failed to delete webhook:', error);
-      toast.error(t('删除 Webhook 失败', 'Failed to delete Webhook'));
+      notify.error(t('删除 Webhook 失败', 'Failed to delete Webhook'));
       return false;
     }
   };

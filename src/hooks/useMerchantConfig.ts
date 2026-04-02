@@ -2,7 +2,7 @@
 // react-query 缓存确保页面切换不重复请求
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { logOperation } from '@/stores/auditLogStore';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { fetchMerchantCards, fetchMerchantVendors, fetchMerchantPaymentProviders } from '@/services/finance/merchantConfigReadService';
@@ -130,7 +130,7 @@ export function useCards() {
       return newCard;
     } catch (error) {
       console.error('Failed to add card:', error);
-      toast.error(t('创建卡片失败', 'Failed to create card'));
+      notify.error(t('创建卡片失败', 'Failed to create card'));
       return null;
     }
   };
@@ -241,7 +241,7 @@ export function useVendors() {
       return newVendor;
     } catch (error) {
       console.error('Failed to add vendor:', error);
-      toast.error(t('创建卡商失败', 'Failed to create vendor'));
+      notify.error(t('创建卡商失败', 'Failed to create vendor'));
       return null;
     }
   };
@@ -363,7 +363,7 @@ export function usePaymentProviders() {
       return newProvider;
     } catch (error) {
       console.error('Failed to add payment provider:', error);
-      toast.error(t('创建代付商家失败', 'Failed to create payment provider'));
+      notify.error(t('创建代付商家失败', 'Failed to create payment provider'));
       return null;
     }
   };

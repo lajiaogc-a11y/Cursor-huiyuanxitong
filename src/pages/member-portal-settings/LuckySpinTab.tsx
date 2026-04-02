@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Plus, Trash2, Save, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
   adminGetLotteryPrizes,
@@ -84,11 +84,11 @@ export default function LuckySpinTab({
 
   const saveLotteryPrizes = async () => {
     if (!isLotteryRateValid) {
-      toast.error(t('所有奖品概率总和必须等于 100%', 'Prize probabilities must total 100%'));
+      notify.error(t('所有奖品概率总和必须等于 100%', 'Prize probabilities must total 100%'));
       return;
     }
     if (!hasThanksPrize) {
-      toast.error(t('必须包含一个\u201C感谢参与\u201D类型奖品', 'Must include a \u201CThanks for participating\u201D prize'));
+      notify.error(t('必须包含一个\u201C感谢参与\u201D类型奖品', 'Must include a \u201CThanks for participating\u201D prize'));
       return;
     }
     setSavingSpinPrizes(true);
@@ -96,9 +96,9 @@ export default function LuckySpinTab({
       await adminSaveLotteryPrizes(lotteryPrizes);
       setProbFieldDrafts({});
       setLotteryPrizes(await adminGetLotteryPrizes());
-      toast.success(t('奖品配置已保存', 'Prize config saved'));
+      notify.success(t('奖品配置已保存', 'Prize config saved'));
     } catch (e: any) {
-      toast.error(e?.message || t('保存失败', 'Save failed'));
+      notify.error(e?.message || t('保存失败', 'Save failed'));
     } finally {
       setSavingSpinPrizes(false);
     }
@@ -107,9 +107,9 @@ export default function LuckySpinTab({
   const saveLotterySettingsHandler = async () => {
     try {
       await adminSaveLotterySettings(lotterySettings);
-      toast.success(t('抽奖设置已保存', 'Lottery settings saved'));
+      notify.success(t('抽奖设置已保存', 'Lottery settings saved'));
     } catch (e: any) {
-      toast.error(e?.message || t('保存失败', 'Save failed'));
+      notify.error(e?.message || t('保存失败', 'Save failed'));
     }
   };
 

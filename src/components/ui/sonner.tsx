@@ -4,7 +4,7 @@ import { useLocation } from "react-router-dom";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
 import { showMemberPortal } from "@/routes/siteMode";
-import { Toaster as Sonner, toast } from "sonner";
+import { Toaster as Sonner } from "sonner";
 
 type ToasterProps = ComponentProps<typeof Sonner>;
 
@@ -52,4 +52,4 @@ const Toaster = ({ ...props }: ToasterProps) => {
   );
 };
 
-export { Toaster, toast };
+export { Toaster };

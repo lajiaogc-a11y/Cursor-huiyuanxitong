@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Save, Star, RefreshCw, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
   getPointsSettings, 
@@ -124,7 +124,7 @@ export default function PointsSettingsTab() {
     setSettings(newSettings);
     savePointsSettings(newSettings);
     refetch();
-    toast.success(checked 
+    notify.success(checked 
       ? t("已切换为自动模式", "Switched to auto mode")
       : t("已切换为手动模式", "Switched to manual mode")
     );
@@ -139,7 +139,7 @@ export default function PointsSettingsTab() {
     savePointsSettings(newSettings);
     setSettings(newSettings);
     refetch();
-    toast.success(t("积分设置已保存", "Points settings saved"));
+    notify.success(t("积分设置已保存", "Points settings saved"));
   };
 
   const handleAutoUpdate = async () => {
@@ -149,12 +149,12 @@ export default function PointsSettingsTab() {
       setSettings(result.settings);
       refetch();
       if (result.hasChange) {
-        toast.success(t("汇率已更新（检测到波动）", "Rates updated (fluctuation detected)"));
+        notify.success(t("汇率已更新（检测到波动）", "Rates updated (fluctuation detected)"));
       } else {
-        toast.info(t("汇率无变化，保持当前值", "No rate change, keeping current values"));
+        notify.info(t("汇率无变化，保持当前值", "No rate change, keeping current values"));
       }
     } catch (error) {
-      toast.error(t("自动更新失败", "Auto update failed"));
+      notify.error(t("自动更新失败", "Auto update failed"));
     } finally {
       setIsAutoUpdating(false);
     }
@@ -169,13 +169,13 @@ export default function PointsSettingsTab() {
   const handleClearAllPoints = async () => {
     // 验证管理员账号密码
     if (!clearUsername || !clearPassword) {
-      toast.error(t("请输入管理员账号和密码", "Please enter admin username and password"));
+      notify.error(t("请输入管理员账号和密码", "Please enter admin username and password"));
       return;
     }
     
     // 验证是否是当前管理员账号
     if (employee?.username !== clearUsername) {
-      toast.error(t("账号不正确", "Incorrect username"));
+      notify.error(t("账号不正确", "Incorrect username"));
       return;
     }
     
@@ -184,7 +184,7 @@ export default function PointsSettingsTab() {
       const { deletePointsLedgerByMemberCodes, deletePointsAccountsByMemberCodes } = await import('@/services/staff/pointsTableService');
       const tenantId = employee?.tenant_id;
       if (!tenantId) {
-        toast.error(t("无法确定当前租户", "Cannot determine current tenant"));
+        notify.error(t("无法确定当前租户", "Cannot determine current tenant"));
         return;
       }
 
@@ -195,13 +195,13 @@ export default function PointsSettingsTab() {
 
       if (!list.length) {
         console.error('Failed to fetch tenant members: empty');
-        toast.error(t("获取租户会员失败", "Failed to fetch tenant members"));
+        notify.error(t("获取租户会员失败", "Failed to fetch tenant members"));
         return;
       }
 
       const memberCodes = list.map((m) => String(m.member_code || '').trim()).filter(Boolean);
       if (memberCodes.length === 0) {
-        toast.info(t("当前租户无会员数据", "No members in current tenant"));
+        notify.info(t("当前租户无会员数据", "No members in current tenant"));
         setIsClearDialogOpen(false);
         return;
       }
@@ -222,13 +222,13 @@ export default function PointsSettingsTab() {
         }
       }
 
-      toast.success(t("会员积分已清空", "All member points cleared"));
+      notify.success(t("会员积分已清空", "All member points cleared"));
       setIsClearDialogOpen(false);
       setClearUsername("");
       setClearPassword("");
     } catch (error) {
       console.error('Failed to clear points:', error);
-      toast.error(t("清空积分失败", "Failed to clear points"));
+      notify.error(t("清空积分失败", "Failed to clear points"));
     }
   };
 
@@ -293,7 +293,7 @@ export default function PointsSettingsTab() {
                       };
                   setSettings(newSettings);
                   savePointsSettings(newSettings);
-                  toast.success(checked 
+                  notify.success(checked 
                     ? t("推荐活动已开启", "Referral activity enabled")
                     : t("推荐活动已关闭，模式1和模式2已同时关闭", "Referral activity disabled, Mode 1 and Mode 2 also disabled")
                   );
@@ -340,7 +340,7 @@ export default function PointsSettingsTab() {
                     setSettings(newSettings);
                     savePointsSettings(newSettings);
                     refetch();
-                    toast.success(t("采集间隔已保存", "Interval saved"));
+                    notify.success(t("采集间隔已保存", "Interval saved"));
                   }}
                 >
                   <SelectTrigger className="h-8 w-[130px] text-xs">
@@ -413,12 +413,12 @@ export default function PointsSettingsTab() {
                   onCheckedChange={(checked) => {
                     // 如果推荐活动总开关关闭，不允许开启
                     if (settings.referralActivityEnabled === false) {
-                      toast.error(t("请先开启推荐活动总开关", "Please enable referral activity first"));
+                      notify.error(t("请先开启推荐活动总开关", "Please enable referral activity first"));
                       return;
                     }
                     // 如果尝试开启且模式2已开启，提示互斥
                     if (checked && settings.referralMode2Enabled) {
-                      toast.error(t("推荐模式1和模式2不可同时开启，请先关闭模式2", "Mode 1 and Mode 2 cannot be enabled at the same time. Please disable Mode 2 first."));
+                      notify.error(t("推荐模式1和模式2不可同时开启，请先关闭模式2", "Mode 1 and Mode 2 cannot be enabled at the same time. Please disable Mode 2 first."));
                       return;
                     }
                     // 同步更新 referralMode 和 referralMode1Enabled
@@ -431,7 +431,7 @@ export default function PointsSettingsTab() {
                     };
                     setSettings(newSettings);
                     savePointsSettings(newSettings);
-                    toast.success(checked 
+                    notify.success(checked 
                       ? t("推荐模式1已开启", "Referral mode 1 enabled")
                       : t("推荐模式1已关闭", "Referral mode 1 disabled")
                     );
@@ -467,12 +467,12 @@ export default function PointsSettingsTab() {
                   onCheckedChange={(checked) => {
                     // 如果推荐活动总开关关闭，不允许开启
                     if (settings.referralActivityEnabled === false) {
-                      toast.error(t("请先开启推荐活动总开关", "Please enable referral activity first"));
+                      notify.error(t("请先开启推荐活动总开关", "Please enable referral activity first"));
                       return;
                     }
                     // 如果尝试开启且模式1已开启，提示互斥
                     if (checked && settings.referralMode1Enabled !== false) {
-                      toast.error(t("推荐模式1和模式2不可同时开启，请先关闭模式1", "Mode 1 and Mode 2 cannot be enabled at the same time. Please disable Mode 1 first."));
+                      notify.error(t("推荐模式1和模式2不可同时开启，请先关闭模式1", "Mode 1 and Mode 2 cannot be enabled at the same time. Please disable Mode 1 first."));
                       return;
                     }
                     // 同步更新 referralMode 和 referralMode2Enabled
@@ -485,7 +485,7 @@ export default function PointsSettingsTab() {
                     };
                     setSettings(newSettings);
                     savePointsSettings(newSettings);
-                    toast.success(checked 
+                    notify.success(checked 
                       ? t("推荐模式2已开启", "Referral mode 2 enabled")
                       : t("推荐模式2已关闭", "Referral mode 2 disabled")
                     );

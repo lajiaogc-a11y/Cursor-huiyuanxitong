@@ -26,7 +26,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Plus, Key, Copy, Eye, EyeOff, RefreshCw, Trash2, Settings, FileText, Clock, Globe, Shield, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useIsMobile, useIsTablet } from '@/hooks/use-mobile';
 
@@ -66,11 +66,11 @@ export function ApiKeyManagementTab() {
 
   const handleCreate = async () => {
     if (!formName.trim()) {
-      toast.error(t('请输入 API Key 名称', 'Please enter API Key name'));
+      notify.error(t('请输入 API Key 名称', 'Please enter API Key name'));
       return;
     }
     if (formPermissions.length === 0) {
-      toast.error(t('请至少选择一个权限', 'Please select at least one permission'));
+      notify.error(t('请至少选择一个权限', 'Please select at least one permission'));
       return;
     }
 
@@ -143,7 +143,7 @@ export function ApiKeyManagementTab() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success(t('已复制到剪贴板', 'Copied to clipboard'));
+    notify.success(t('已复制到剪贴板', 'Copied to clipboard'));
   };
 
   const permissionLabel = (value: string) => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { listTenantsResult, getTenantEmployeesFull, type TenantItem } from "@/services/tenantService";
@@ -127,7 +127,7 @@ export default function Login2FATab() {
       const draft = drafts[employeeId];
       if (!draft) return;
       if (draft.enabled && draft.code && !/^\d{6}$/.test(draft.code)) {
-        toast.error(t("2FA验证码需为6位数字", "2FA code must be 6 digits"));
+        notify.error(t("2FA验证码需为6位数字", "2FA code must be 6 digits"));
         return;
       }
       setSavingId(employeeId);
@@ -136,17 +136,17 @@ export default function Login2FATab() {
         if (!result.ok) {
           const msg = result.error.message || "";
           if (msg.includes("TWO_FACTOR_CODE_REQUIRED")) {
-            toast.error(t("首次开启2FA必须设置6位验证码", "First time enabling 2FA requires a 6-digit code"));
+            notify.error(t("首次开启2FA必须设置6位验证码", "First time enabling 2FA requires a 6-digit code"));
             return;
           }
           if (msg.includes("INVALID_2FA_CODE_FORMAT")) {
-            toast.error(t("2FA验证码格式不正确", "Invalid 2FA code format"));
+            notify.error(t("2FA验证码格式不正确", "Invalid 2FA code format"));
             return;
           }
           showServiceErrorToast(result.error, t, "保存2FA配置失败", "Failed to save 2FA settings");
           return;
         }
-        toast.success(
+        notify.success(
           draft.enabled
             ? t("2FA已开启", "2FA enabled")
             : t("2FA已关闭", "2FA disabled")

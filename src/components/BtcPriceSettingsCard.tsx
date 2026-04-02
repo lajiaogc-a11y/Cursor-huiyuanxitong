@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Bitcoin, RefreshCw, Timer, Loader2, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { loadSharedData, saveSharedData, subscribeToSharedData } from "@/services/finance/sharedDataService";
@@ -125,11 +125,11 @@ export default function BtcPriceSettingsCard() {
     try {
       const ok = await saveSharedData('btcPriceSettings', newConfig);
       if (ok) setConfig(newConfig);
-      else toast.error(t("保存失败", "Failed to save"));
+      else notify.error(t("保存失败", "Failed to save"));
       return !!ok;
     } catch (error) {
       console.error('Failed to save BTC config:', error);
-      toast.error(t("保存失败", "Failed to save"));
+      notify.error(t("保存失败", "Failed to save"));
       return false;
     }
   }, [t]);
@@ -159,11 +159,11 @@ export default function BtcPriceSettingsCard() {
         setCountdown(config.refreshIntervalSeconds);
       }
       
-      toast.success(t("BTC价格已更新", "BTC price updated"));
+      notify.success(t("BTC价格已更新", "BTC price updated"));
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       setFetchError(errorMsg);
-      toast.error(t("采集失败: " + errorMsg, "Fetch failed: " + errorMsg));
+      notify.error(t("采集失败: " + errorMsg, "Fetch failed: " + errorMsg));
     } finally {
       if (isMountedRef.current) {
         setIsFetching(false);

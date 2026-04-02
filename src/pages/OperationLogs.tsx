@@ -59,7 +59,7 @@ import {
 import { RefreshCw, Search, Eye, RotateCcw, Shield, Lock, Loader2, Download, CheckSquare, AlertTriangle } from "lucide-react";
 import { ModuleCoverageDashboard } from "@/components/ModuleCoverageDashboard";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import {
   fetchAuditLogsPage,
   AuditLogEntry,
@@ -202,7 +202,7 @@ export default function OperationLogs() {
 
   const handleRefresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ['operation-logs'] });
-    toast.success(t("日志已刷新", "Logs refreshed"));
+    notify.success(t("日志已刷新", "Logs refreshed"));
   };
 
   const handleExport = () => {
@@ -216,7 +216,7 @@ export default function OperationLogs() {
       { key: 'objectDescription', label: '描述', labelEn: 'Description' },
       { key: 'isRestored', label: '已恢复', labelEn: 'Restored', formatter: (v) => v ? t('是', 'Yes') : t('否', 'No') },
     ], t('操作审计日志', 'Audit Logs'), language === 'en');
-    toast.success(t("导出成功", "Export successful"));
+    notify.success(t("导出成功", "Export successful"));
   };
 
   const getDiffDisplay = (log: AuditLogEntry) => {
@@ -227,18 +227,18 @@ export default function OperationLogs() {
     if (isRestoring) return; // 防重入
     
     if (!log.beforeData || !isRestorableModule(log.module)) {
-      toast.error(t("此操作不支持恢复", "This operation cannot be restored"));
+      notify.error(t("此操作不支持恢复", "This operation cannot be restored"));
       return;
     }
 
     // 撤回操作不可恢复
     if (String(log.objectDescription ?? '').includes('撤回')) {
-      toast.error(t("撤回操作不可恢复", "Undo operations cannot be restored"));
+      notify.error(t("撤回操作不可恢复", "Undo operations cannot be restored"));
       return;
     }
 
     if (!userIsAdmin) {
-      toast.error(t("只有管理员可以执行恢复操作", "Only admins can perform restore operations"));
+      notify.error(t("只有管理员可以执行恢复操作", "Only admins can perform restore operations"));
       return;
     }
 
@@ -399,7 +399,7 @@ export default function OperationLogs() {
           
           const beforeData = log.beforeData;
           if (!beforeData) {
-            toast.error(t('无法恢复：缺少原始数据', 'Cannot restore: missing original data'));
+            notify.error(t('无法恢复：缺少原始数据', 'Cannot restore: missing original data'));
             return;
           }
           
@@ -414,7 +414,7 @@ export default function OperationLogs() {
             const vendorName = vendorMatch?.[1]?.trim() || beforeData.vendorName || '';
             
             if (!vendorName) {
-              toast.error(t('无法恢复：无法确定卡商名称', 'Cannot restore: vendor name not found'));
+              notify.error(t('无法恢复：无法确定卡商名称', 'Cannot restore: vendor name not found'));
               return;
             }
             
@@ -426,7 +426,7 @@ export default function OperationLogs() {
               // Check if already exists
               const exists = settlement.withdrawals.some(w => String(w.id) === objectIdStr);
               if (exists) {
-                toast.error(t('该提款记录已存在，无需恢复', 'Withdrawal record already exists'));
+                notify.error(t('该提款记录已存在，无需恢复', 'Withdrawal record already exists'));
                 return;
               }
               
@@ -457,7 +457,7 @@ export default function OperationLogs() {
             const providerName = providerMatch?.[1]?.trim() || beforeData.providerName || '';
             
             if (!providerName) {
-              toast.error(t('无法恢复：无法确定代付商家名称', 'Cannot restore: provider name not found'));
+              notify.error(t('无法恢复：无法确定代付商家名称', 'Cannot restore: provider name not found'));
               return;
             }
             
@@ -468,7 +468,7 @@ export default function OperationLogs() {
             if (settlement) {
               const exists = settlement.recharges.some(r => String(r.id) === objectIdStr);
               if (exists) {
-                toast.error(t('该充值记录已存在，无需恢复', 'Recharge record already exists'));
+                notify.error(t('该充值记录已存在，无需恢复', 'Recharge record already exists'));
                 return;
               }
               
@@ -652,14 +652,14 @@ export default function OperationLogs() {
                 `恢复代付商家结算数据: ${providerName}`);
               notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
             } else {
-              toast.error(t('此类型的商家结算操作暂不支持恢复', 'This type of settlement operation cannot be restored'));
+              notify.error(t('此类型的商家结算操作暂不支持恢复', 'This type of settlement operation cannot be restored'));
               return;
             }
           }
           break;
         }
         default:
-          toast.error(t("此模块不支持恢复", "This module does not support restore"));
+          notify.error(t("此模块不支持恢复", "This module does not support restore"));
           return;
       }
 
@@ -668,9 +668,9 @@ export default function OperationLogs() {
       await refresh();
       await queryClient.invalidateQueries({ queryKey: ['operation-logs'] });
       if (markedOk) {
-        toast.success(t("数据已恢复，并生成了恢复操作日志", "Data restored and logged"));
+        notify.success(t("数据已恢复，并生成了恢复操作日志", "Data restored and logged"));
       } else {
-        toast.error(
+        notify.error(
           t(
             "数据已恢复，但无法将本条日志标为「已恢复」。请刷新页面后重试。",
             "Data was restored, but the log could not be marked as restored. Please refresh and try again.",
@@ -680,7 +680,7 @@ export default function OperationLogs() {
       setRestoreConfirm(null);
     } catch (error: any) {
       console.error('恢复失败:', error);
-      toast.error(t(`恢复失败: ${error?.message || '未知错误'}`, `Restore failed: ${error?.message || 'Unknown error'}`));
+      notify.error(t(`恢复失败: ${error?.message || '未知错误'}`, `Restore failed: ${error?.message || 'Unknown error'}`));
     } finally {
       setIsRestoring(false);
     }
@@ -806,9 +806,9 @@ export default function OperationLogs() {
     setSelectedLogs(new Set());
     
     if (successCount > 0) {
-      toast.success(t(`批量恢复完成: ${successCount} 条成功${failCount > 0 ? `, ${failCount} 条失败` : ''}`, `Batch restore done: ${successCount} succeeded${failCount > 0 ? `, ${failCount} failed` : ''}`));
+      notify.success(t(`批量恢复完成: ${successCount} 条成功${failCount > 0 ? `, ${failCount} 条失败` : ''}`, `Batch restore done: ${successCount} succeeded${failCount > 0 ? `, ${failCount} failed` : ''}`));
     } else if (failCount > 0) {
-      toast.error(t(`批量恢复失败: ${failCount} 条记录恢复失败`, `Batch restore failed: ${failCount} records failed`));
+      notify.error(t(`批量恢复失败: ${failCount} 条记录恢复失败`, `Batch restore failed: ${failCount} records failed`));
     }
     
     await refreshAuditLogCache();

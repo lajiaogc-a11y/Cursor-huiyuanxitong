@@ -3,10 +3,12 @@ import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
 import { formatMemberLocalTime } from "@/lib/memberLocalTime";
 import { Gift, History, Trophy, Star, Sparkles, ChevronDown, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/LoadingButton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useActionGuard } from "@/lib/actionGuard";
-import { toast } from "sonner";
+import { notifyError, notifyInfo } from "@/utils/notify";
 import {
   pickGridPrizesForSpinPage,
   loadMemberSpinPrizesAndQuota,
@@ -19,6 +21,18 @@ import {
 } from "@/services/memberPortal/memberLotteryPageService";
 import { getSpinSimFeed, type SpinSimFeedItem } from "@/services/lottery/lotteryService";
 import { normalizeSpinSimFeedLineForMember } from "@/lib/spinSimFeedDisplay";
+
+/** 滚动条只展示「最新」条数，与首页公告跑马灯同一套分段 + 竖线分隔（避免 flex gap 双份复制时 -50% 接缝错位闪现） */
+const SIM_FEED_DISPLAY_LIMIT = 10;
+
+function spinSimFeedLatestTenFingerprint(items: SpinSimFeedItem[]): string {
+  if (!items.length) return "";
+  return [...items]
+    .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))
+    .slice(0, SIM_FEED_DISPLAY_LIMIT)
+    .map((it) => `${it.id}\u001f${it.at}\u001f${it.text}`)
+    .join("\u001e");
+}
 
 /** 仅保留转盘抽奖结果行（排除若接口误混入的其它类型） */
 function isLotteryPrizeLogType(prizeType: string | undefined): boolean {
@@ -87,16 +101,24 @@ function prizeDisplayTier(p: LotteryPrize): "legendary" | "epic" | "rare" | "com
   return "common";
 }
 
-function prizeCellTierCn(tier: ReturnType<typeof prizeDisplayTier>) {
-  return cn(
-    tier === "legendary" &&
-      "border-pu-rose/30 bg-pu-rose/[0.08] shadow-[0_0_16px_hsl(12_85%_60%/0.1)]",
-    tier === "epic" && "border-pu-gold/25 bg-pu-gold/[0.06]",
-    tier === "rare" && "border-pu-emerald/25 bg-pu-emerald/[0.05]",
-    tier === "common" && "border-[hsl(var(--pu-m-surface-border)/0.22)] bg-[hsl(var(--pu-m-surface)/0.35)]",
-    tier === "miss" && "border-[hsl(var(--pu-m-surface-border)/0.12)] bg-[hsl(var(--pu-m-surface)/0.2)]",
-  );
+/**
+ * 会员端「活动奖品」列表右侧概率：优先后台「展示用概率」；
+ * 未配置展示概率时按 lotteryService 约定回退为真实 probability（转盘格子上仍不显示）。
+ */
+function formatPrizeListDisplayProbability(p: LotteryPrize): string | null {
+  const pick =
+    p.display_probability != null && Number.isFinite(Number(p.display_probability))
+      ? Number(p.display_probability)
+      : Number(p.probability);
+  if (!Number.isFinite(pick)) return null;
+  return pick % 1 === 0 ? `${pick}%` : `${pick.toFixed(1).replace(/\.0$/, "")}%`;
 }
+
+/**
+ * 九宫格奖品格：与页面上方「今日抽奖次数」卡同一套 m-glass + 金边 + 金→玫瑰晕（iOS 式圆角框架根色）
+ */
+const SPIN_PRIZE_CELL_FRAME =
+  "m-glass relative flex min-h-0 min-w-0 overflow-hidden rounded-2xl border border-pu-gold/20 bg-[hsl(var(--pu-m-surface)/0.45)] shadow-sm";
 
 const _spinCache = new Map<
   string,
@@ -130,6 +152,8 @@ export default function MemberSpin() {
   const [logsTotal, setLogsTotal] = useState(cached?.logsTotal ?? 0);
   const [probabilityNotice, setProbabilityNotice] = useState<string | null>(cached?.probabilityNotice ?? null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  /** 活动奖品说明区：默认收起，点击标题展开 */
+  const [prizesPanelOpen, setPrizesPanelOpen] = useState(false);
   const [pullNonce, setPullNonce] = useState(0);
   /** 定时刷新 / 切回前台时递增，与下拉刷新一样重新拉奖品与「概率说明」 */
   const [spinDataRefreshNonce, setSpinDataRefreshNonce] = useState(0);
@@ -139,10 +163,17 @@ export default function MemberSpin() {
   /** 点击中奖滚动条后暂停 3 秒再继续 */
   const [simFeedClickPaused, setSimFeedClickPaused] = useState(false);
   const simFeedClickPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** 与首页公告跑马灯一致：MemberDashboard `Math.max(14, announcementItems.length * 5)` */
+  const simFeedDisplayItems = useMemo(() => {
+    if (!simFeedItems.length) return [];
+    return [...simFeedItems]
+      .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))
+      .slice(0, SIM_FEED_DISPLAY_LIMIT);
+  }, [simFeedItems]);
+
+  /** 与首页公告一致：`Math.max(14, n * 5)`，n 为当前展示的条数（最多 10） */
   const simFeedMarqueeDurationSec = useMemo(
-    () => Math.max(14, simFeedItems.length * 5),
-    [simFeedItems.length],
+    () => Math.max(14, simFeedDisplayItems.length * 5),
+    [simFeedDisplayItems.length],
   );
 
   const onSimFeedStripClick = useCallback(() => {
@@ -250,8 +281,14 @@ export default function MemberSpin() {
     if (!member) return;
     let cancelled = false;
     const loadSim = () => {
-      void getSpinSimFeed().then((items) => {
-        if (!cancelled) setSimFeedItems(items);
+      void getSpinSimFeed().then((incoming) => {
+        if (cancelled) return;
+        setSimFeedItems((prev) => {
+          if (spinSimFeedLatestTenFingerprint(prev) === spinSimFeedLatestTenFingerprint(incoming)) {
+            return prev;
+          }
+          return incoming;
+        });
       });
     };
     loadSim();
@@ -275,7 +312,7 @@ export default function MemberSpin() {
   const handleSpin = useCallback(async () => {
     if (!member || spinning) return;
     if (remaining <= 0) {
-      toast.error(
+      notifyError(
         t("抽奖次数不足，请通过签到或任务获取更多。", "Not enough draw chances. Earn more via check-in or tasks."),
       );
       return;
@@ -292,18 +329,18 @@ export default function MemberSpin() {
         const r = await executeMemberLotteryDraw(member.id);
         if (!r.success) {
           if (r.error === "LOTTERY_DISABLED")
-            toast.error(t("抽奖暂时关闭", "Lottery is currently closed"));
+            notifyError(t("抽奖暂时关闭", "Lottery is currently closed"));
           else if (r.error === "NO_SPIN_QUOTA")
-            toast.error(
+            notifyError(
               t("抽奖次数不足，请通过签到或任务获取更多。", "Not enough draw chances. Earn more via check-in or tasks."),
             );
           else if (r.error === "PROBABILITY_SUM_NOT_100")
-            toast.error(t("抽奖配置异常，请联系客服。", "Lottery configuration error, please contact support."));
+            notifyError(t("抽奖配置异常，请联系客服。", "Lottery configuration error, please contact support."));
           else if (r.error === "NO_PRIZES_CONFIGURED")
-            toast.error(t("未配置奖品，请联系客服。", "No prizes configured, please contact support."));
+            notifyError(t("未配置奖品，请联系客服。", "No prizes configured, please contact support."));
           else if (r.error === "DUPLICATE_REQUEST")
-            toast.info(t("请勿重复点击", "Please do not tap repeatedly."));
-          else toast.error(r.error || t("抽奖失败", "Spin failed"));
+            notifyInfo(t("请勿重复点击", "Please do not tap repeatedly."));
+          else notifyError(r.error || t("抽奖失败", "Spin failed"));
           void getLotteryQuota(member.id)
             .then(applyQuota)
             .catch(() => { /* fallback quota refresh is best-effort */ });
@@ -362,7 +399,7 @@ export default function MemberSpin() {
         }
       } catch (e: any) {
         const msg = typeof e?.message === "string" && e.message.trim() ? e.message : "";
-        toast.error(msg || memberPortalNetworkToastMessage(t));
+        notifyError(msg || memberPortalNetworkToastMessage(t));
         playMemberSpinMiss();
         highlightCancelRef.current?.();
         highlightCancelRef.current = null;
@@ -533,7 +570,7 @@ export default function MemberSpin() {
           </div>
         </div>
 
-        {simFeedItems.length > 0 ? (
+        {simFeedDisplayItems.length > 0 ? (
           <div className="mb-5 px-5">
             <div
               className={cn(
@@ -545,18 +582,28 @@ export default function MemberSpin() {
               title={t("点击暂停三秒", "Tap to pause for 3 seconds")}
               onClick={onSimFeedStripClick}
             >
-              <div
-                className="member-spin-sim-feed__track flex w-max gap-10 pr-10"
-                style={{ animationDuration: `${simFeedMarqueeDurationSec}s` }}
-              >
-                {[...simFeedItems, ...simFeedItems].map((it, i) => (
-                  <span
-                    key={`${it.id}-${i}`}
-                    className="member-spin-sim-feed__seg shrink-0 whitespace-nowrap text-[11px] font-medium text-[hsl(var(--pu-m-text-dim)/0.88)]"
-                  >
-                    {normalizeSpinSimFeedLineForMember(it.text)}
-                  </span>
-                ))}
+              <div className="relative min-w-0 w-full overflow-hidden px-1">
+                <div
+                  className="member-spin-sim-feed__track inline-flex w-max max-w-none items-center animate-[marquee_18s_linear_infinite]"
+                  style={{ animationDuration: `${simFeedMarqueeDurationSec}s` }}
+                >
+                  {[...simFeedDisplayItems, ...simFeedDisplayItems].map((it, i) => (
+                    <span
+                      key={`${it.id}-${i}`}
+                      className="member-home-ann-segment inline-flex shrink-0 items-center"
+                    >
+                      {i > 0 ? (
+                        <span
+                          className="member-home-ann-sep mx-3 inline-block h-3.5 w-px shrink-0 rounded-full bg-[hsl(var(--pu-m-text)/0.28)]"
+                          aria-hidden
+                        />
+                      ) : null}
+                      <span className="whitespace-nowrap px-2 py-1 text-[11px] font-medium text-[hsl(var(--pu-m-text-dim)/0.88)]">
+                        {normalizeSpinSimFeedLineForMember(it.text)}
+                      </span>
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -564,8 +611,11 @@ export default function MemberSpin() {
 
         <main className="relative mx-auto w-full max-w-md flex-1 space-y-7 px-5 lg:max-w-lg">
           <div id="member-spin-wheel" className="mb-7 scroll-mt-24">
-            <div className="relative m-glass overflow-hidden rounded-2xl border border-pu-gold/15 p-5 shadow-sm">
-              <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.03] to-transparent" />
+            <div
+              className="relative m-glass overflow-hidden rounded-2xl border border-pu-gold/20 p-5 shadow-sm"
+              style={{ borderColor: "hsl(var(--pu-gold) / 0.15)" }}
+            >
+              <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-r from-pu-gold/[0.05] to-pu-rose/[0.04]" />
               <div
                 className="relative grid aspect-square w-full grid-cols-3 grid-rows-3 gap-3"
                 role="group"
@@ -574,17 +624,17 @@ export default function MemberSpin() {
             {Array.from({ length: 9 }).map((_, cellIdx) => {
               if (cellIdx === 4) {
                 return (
-                  <button
+                  <LoadingButton
                     key="go-btn"
                     type="button"
+                    variant="ghost"
+                    loading={spinning}
                     className={cn(
-                      /* 与 premium-ui-boost MemberSpin 一致：仅用 .btn-spin 的渐变呼吸，勿再叠 Tailwind 背景否则会盖住动效 */
-                      "btn-spin relative flex h-full min-h-0 w-full min-w-0 touch-manipulation flex-col items-center justify-center gap-1 outline-none transition-opacity duration-150 focus-visible:ring-2 focus-visible:ring-[hsl(var(--pu-gold))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pu-m-surface))]",
+                      "btn-spin relative !flex !h-full !min-h-0 !w-full !min-w-0 flex-col touch-manipulation items-center justify-center gap-1 rounded-[inherit] border-0 bg-transparent p-0 text-inherit shadow-none outline-none transition-opacity duration-150 hover:bg-transparent focus-visible:ring-2 focus-visible:ring-[hsl(var(--pu-gold))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pu-m-surface))] [&_svg]:text-white",
                       spinning ? "cursor-wait opacity-80" : "cursor-pointer",
                       "motion-reduce:transition-none",
                     )}
-                    onClick={handleSpin}
-                    disabled={spinning}
+                    onClick={() => void handleSpin()}
                     aria-busy={spinning}
                     aria-label={
                       spinning
@@ -595,21 +645,20 @@ export default function MemberSpin() {
                     {!spinning ? (
                       <span className="pointer-events-none absolute inset-0 rounded-[inherit] spin-ring" />
                     ) : null}
-                    <Sparkles
-                      size={24}
-                      className={cn(
-                        "text-white drop-shadow-[0_1px_2px_rgb(0_0_0_/_0.25)]",
-                        spinning && "spin-icon motion-reduce:animate-none",
-                      )}
-                      aria-hidden
-                    />
+                    {!spinning ? (
+                      <Sparkles
+                        size={24}
+                        className="text-white drop-shadow-[0_1px_2px_rgb(0_0_0_/_0.25)]"
+                        aria-hidden
+                      />
+                    ) : null}
                     <span className="text-sm font-extrabold text-white [text-shadow:0_1px_2px_rgb(0_0_0_/_0.2)]">
                       {spinning ? t("抽奖中", "Spinning") : t("抽奖", "Draw")}
                     </span>
                     <span className="text-[10px] font-bold text-[hsl(0_0%_100%_/_0.82)]">
                       {t(`剩余 ${remaining} 次`, `${remaining} left`)}
                     </span>
-                  </button>
+                  </LoadingButton>
                 );
               }
 
@@ -622,57 +671,50 @@ export default function MemberSpin() {
                 return (
                   <div
                     key={cellIdx}
-                    className="flex min-h-0 min-w-0 items-center justify-center rounded-2xl border border-[hsl(var(--pu-m-surface-border)/0.12)] bg-[hsl(var(--pu-m-surface)/0.2)]"
+                    className={cn(
+                      SPIN_PRIZE_CELL_FRAME,
+                      "items-center justify-center transition-transform duration-150 motion-reduce:transition-none motion-safe:hover:scale-[1.02]",
+                    )}
+                    style={{ borderColor: "hsl(var(--pu-gold) / 0.15)" }}
                   >
-                    <span className="text-lg text-[hsl(var(--pu-m-text-dim)/0.2)]">✦</span>
+                    <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.06] to-pu-rose/[0.04]" />
+                    <span className="relative z-10 text-lg text-[hsl(var(--pu-m-text-dim)/0.25)]">✦</span>
                   </div>
                 );
               }
               const prize = prizes[prizeIdx];
               const isActive = activeIndex === prizeIdx;
               const isWinner = showResult && result?.id === prize.id && !spinning;
-              const cellTier = prizeDisplayTier(prize);
               const wheelMain = spinWheelPrizeMainText(t, prize);
 
-              const winnerRing =
-                prize.type === "custom"
-                  ? "ring-2 ring-pu-emerald/90 scale-105 shadow-[0_0_24px_-4px_hsl(var(--pu-emerald)/0.4)]"
-                  : prize.type === "points"
-                    ? "ring-2 ring-pu-gold scale-105 shadow-pu-glow-gold"
-                    : "ring-2 ring-pu-gold/55 scale-[1.03] shadow-[0_0_18px_-4px_hsl(var(--pu-gold)/0.28)]";
-
+              /** 与框架根色一致：高亮统一金色光晕，不再按奖品类型分绿/金边框 */
               const highlightClass = isActive
-                ? "ring-2 ring-pu-gold scale-[1.04] shadow-pu-glow-gold bg-pu-gold/[0.12]"
+                ? "ring-2 ring-pu-gold scale-[1.04] shadow-pu-glow-gold"
                 : isWinner
-                  ? winnerRing
+                  ? "ring-2 ring-pu-gold scale-105 shadow-pu-glow-gold"
                   : !isActive && !isWinner
-                    ? "motion-safe:hover:scale-[1.03]"
+                    ? "motion-safe:hover:scale-[1.02]"
                     : "";
 
               return (
                 <div
                   key={cellIdx}
                   className={cn(
-                    "relative flex min-h-0 min-w-0 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-2xl border p-2 transition-all duration-150 motion-reduce:transition-none",
-                    prizeCellTierCn(cellTier),
+                    SPIN_PRIZE_CELL_FRAME,
+                    "flex flex-col items-center justify-center gap-0.5 p-2 transition-all duration-150 motion-reduce:transition-none",
                     highlightClass,
                   )}
+                  style={{ borderColor: "hsl(var(--pu-gold) / 0.15)" }}
                 >
+                  <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.06] to-pu-rose/[0.04]" />
                   {isActive && (
-                    <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.15] to-transparent" />
+                    <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.14] to-transparent" />
                   )}
                   {isWinner && (
-                    <div className="pointer-events-none absolute inset-0 animate-pulse rounded-[inherit] bg-gradient-to-br from-pu-emerald/[0.15] to-transparent motion-reduce:animate-none" />
+                    <div className="pointer-events-none absolute inset-0 animate-pulse rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.18] to-pu-rose/[0.06] motion-reduce:animate-none" />
                   )}
-                  <div
-                    className={cn(
-                      "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.2)] bg-[hsl(var(--pu-m-surface)/0.5)]",
-                      prize.type === "points" && "border-pu-gold/20 bg-pu-gold/12",
-                      prize.type === "custom" && "border-pu-emerald/25 bg-pu-emerald/12",
-                      prize.type === "none" && "bg-[hsl(var(--pu-m-surface)/0.35)]",
-                    )}
-                  >
-                    <Gift className="h-4 w-4 text-[hsl(var(--pu-m-text-dim)/0.45)]" strokeWidth={1.75} aria-hidden />
+                  <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-pu-gold/15 ring-1 ring-inset ring-pu-gold/20">
+                    <Gift className="h-4 w-4 text-pu-gold-soft" strokeWidth={1.75} aria-hidden />
                   </div>
                   <span
                     className={cn(
@@ -703,38 +745,63 @@ export default function MemberSpin() {
           </div>
 
           <div className="mb-7">
-            <div className="flex w-full items-center justify-between py-2 text-xs font-bold text-[hsl(var(--pu-m-text-dim))]">
-              <span className="flex items-center gap-1.5">
-                <Info className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-                {t("活动奖品", "Prizes")}
-              </span>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
-            </div>
-            <div className="m-glass mt-1.5 rounded-2xl border border-pu-gold/12 p-4 shadow-sm">
-              {probabilityNotice ? (
-                <p className="mb-3 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-[hsl(var(--pu-m-text)/0.88)]">
-                  {probabilityNotice}
-                </p>
-              ) : null}
-              <div className="space-y-2">
-                {prizes.length === 0 ? (
-                  <p className="text-center text-[12px] text-[hsl(var(--pu-m-text-dim)/0.72)]">
-                    {t("未配置转盘奖品", "No wheel prizes configured")}
-                  </p>
-                ) : (
-                  prizes.map((p) => (
-                    <div
-                      key={p.id ?? `${p.name}-${p.sort_order}`}
-                      className="flex items-center gap-2 text-xs font-medium text-[hsl(var(--pu-m-text)/0.9)]"
-                    >
-                      <span className="min-w-0 flex-1 break-words leading-snug">
-                        {spinWheelPrizeMainText(t, p)}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+            <Collapsible open={prizesPanelOpen} onOpenChange={setPrizesPanelOpen}>
+              <CollapsibleTrigger
+                type="button"
+                className="flex w-full items-center justify-between rounded-xl py-2 text-left text-xs font-bold text-[hsl(var(--pu-m-text-dim))] outline-none transition-colors hover:text-[hsl(var(--pu-m-text)/0.92)] focus-visible:ring-2 focus-visible:ring-pu-gold/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pu-m-surface))]"
+                aria-expanded={prizesPanelOpen}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
+                  {t("活动奖品", "Prizes")}
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "h-3.5 w-3.5 shrink-0 opacity-70 transition-transform duration-200",
+                    prizesPanelOpen && "rotate-180",
+                  )}
+                  aria-hidden
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="overflow-hidden">
+                <div className="m-glass mt-1.5 rounded-2xl border border-pu-gold/12 p-4 shadow-sm">
+                  {probabilityNotice ? (
+                    <p className="mb-3 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-[hsl(var(--pu-m-text)/0.88)]">
+                      {probabilityNotice}
+                    </p>
+                  ) : null}
+                  <div className="space-y-2.5">
+                    {prizes.length === 0 ? (
+                      <p className="text-center text-[12px] text-[hsl(var(--pu-m-text-dim)/0.72)]">
+                        {t("未配置转盘奖品", "No wheel prizes configured")}
+                      </p>
+                    ) : (
+                      prizes.map((p) => {
+                        const probLabel = formatPrizeListDisplayProbability(p);
+                        return (
+                          <div
+                            key={p.id ?? `${p.name}-${p.sort_order}`}
+                            className="flex items-start justify-between gap-3 text-xs font-medium text-[hsl(var(--pu-m-text)/0.9)]"
+                          >
+                            <span className="min-w-0 flex-1 break-words leading-snug">
+                              {spinWheelPrizeMainText(t, p)}
+                            </span>
+                            {probLabel ? (
+                              <span
+                                className="shrink-0 tabular-nums text-[11px] font-semibold text-[hsl(var(--pu-m-text-dim)/0.8)]"
+                                title={t("中奖概率（公示）", "Published odds")}
+                              >
+                                {probLabel}
+                              </span>
+                            ) : null}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
 
           <section className="mb-7" aria-labelledby="member-spin-history-heading">

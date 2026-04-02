@@ -24,7 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatBeijingTime } from "@/lib/beijingTime";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
 import {
   phoneBulkImportResult,
@@ -165,12 +165,12 @@ export function PhoneExtractSettingsSection() {
   const handleImport = async () => {
     if (!effectiveTenantId) return;
     if (isPlatformAdminReadonlyView) {
-      toast.error(t("平台总管理查看租户时为只读，无法导入号码", "Read-only in platform admin tenant view"));
+      notify.error(t("平台总管理查看租户时为只读，无法导入号码", "Read-only in platform admin tenant view"));
       return;
     }
     const lines = normalizeBulkImportPhoneLines(bulkText);
     if (lines.length === 0) {
-      toast.error(
+      notify.error(
         t(
           "未识别到有效号码（每段至少 6 位数字）。支持多行或一行内逗号/分号分隔。",
           "No valid numbers (min 6 digits per entry). Use multiple lines or comma/semicolon-separated.",
@@ -201,13 +201,13 @@ export function PhoneExtractSettingsSection() {
       setImportProgress(100);
       setImportStatus("");
       if (inserted === 0 && skipped > 0) {
-        toast.warning(
+        notify.warning(
           t(`导入完成：0 条新增，${skipped} 条跳过。请检查号码格式（需至少6位数字）或是否已存在`, `Import done: 0 inserted, ${skipped} skipped. Check format (min 6 digits) or duplicates`)
         );
       } else if (inserted === 0 && skipped === 0) {
-        toast.warning(t("未导入任何号码，请检查格式", "No numbers imported. Check format."));
+        notify.warning(t("未导入任何号码，请检查格式", "No numbers imported. Check format."));
       } else {
-        toast.success(
+        notify.success(
           t(`导入完成：新增 ${inserted}，跳过 ${skipped}`, `Import done: ${inserted} inserted, ${skipped} skipped`)
         );
       }
@@ -234,7 +234,7 @@ export function PhoneExtractSettingsSection() {
 
   const handleClearBulk = () => {
     if (!bulkText.trim()) {
-      toast.info(t("没有可清空的内容", "Nothing to clear"));
+      notify.info(t("没有可清空的内容", "Nothing to clear"));
       return;
     }
     setBulkText("");
@@ -243,7 +243,7 @@ export function PhoneExtractSettingsSection() {
     } catch {
       /* ignore */
     }
-    toast.success(t("已清空批量粘贴区", "Paste / upload area cleared"));
+    notify.success(t("已清空批量粘贴区", "Paste / upload area cleared"));
   };
 
   const handleRunHealthCheck = async () => {
@@ -255,16 +255,16 @@ export function PhoneExtractSettingsSection() {
       setHealthItems(rows);
       const bad = rows.filter((r) => !r.ok);
       if (bad.length) {
-        toast.error(
+        notify.error(
           t("部分项目异常，请查看下方明细", "Some checks failed — see details below"),
           { duration: 8000 }
         );
       } else {
-        toast.success(t("检测通过", "All checks passed"));
+        notify.success(t("检测通过", "All checks passed"));
       }
     } catch (e) {
       console.error(e);
-      toast.error(t("检测失败", "Health check failed"));
+      notify.error(t("检测失败", "Health check failed"));
     } finally {
       setHealthRunning(false);
     }
@@ -291,7 +291,7 @@ export function PhoneExtractSettingsSection() {
       const text = String(reader.result);
       const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
       setBulkText((prev) => (prev ? prev + "\n" + lines.join("\n") : lines.join("\n")));
-      toast.success(t(`已加载 ${lines.length} 行`, `Loaded ${lines.length} lines`));
+      notify.success(t(`已加载 ${lines.length} 行`, `Loaded ${lines.length} lines`));
     };
     reader.readAsText(file);
     e.target.value = "";
@@ -300,7 +300,7 @@ export function PhoneExtractSettingsSection() {
   const handleClearPool = async () => {
     if (!effectiveTenantId) return;
     if (isPlatformAdminReadonlyView) {
-      toast.error(t("平台总管理查看租户时为只读，无法清空号码池", "Read-only in platform admin tenant view"));
+      notify.error(t("平台总管理查看租户时为只读，无法清空号码池", "Read-only in platform admin tenant view"));
       return;
     }
     setClearingPool(true);
@@ -308,7 +308,7 @@ export function PhoneExtractSettingsSection() {
       const cleared = await clearPhonePoolResult(effectiveTenantId);
       if (!cleared.ok) throw cleared.error;
       await loadStats();
-      toast.success(t("号码池已清空", "Pool cleared"));
+      notify.success(t("号码池已清空", "Pool cleared"));
       setShowClearPoolConfirm(false);
     } catch (e) {
       showServiceErrorToast(e, t, "清空失败", "Clear failed");
@@ -319,7 +319,7 @@ export function PhoneExtractSettingsSection() {
 
   const handleOpenSettings = () => {
     if (isPlatformAdminReadonlyView) {
-      toast.error(t("平台总管理查看租户时为只读，无法修改设置", "Read-only in platform admin tenant view"));
+      notify.error(t("平台总管理查看租户时为只读，无法修改设置", "Read-only in platform admin tenant view"));
       return;
     }
     setSettingsForm({ per_extract_limit: settings.per_extract_limit, per_user_daily_limit: settings.per_user_daily_limit });
@@ -328,7 +328,7 @@ export function PhoneExtractSettingsSection() {
 
   const handleSaveSettings = async () => {
     if (isPlatformAdminReadonlyView) {
-      toast.error(t("平台总管理查看租户时为只读，无法保存设置", "Read-only in platform admin tenant view"));
+      notify.error(t("平台总管理查看租户时为只读，无法保存设置", "Read-only in platform admin tenant view"));
       return;
     }
     setSavingSettings(true);
@@ -337,7 +337,7 @@ export function PhoneExtractSettingsSection() {
       if (!updated.ok) throw updated.error;
       await loadSettings();
       setShowSettingsModal(false);
-      toast.success(t("设置已保存", "Settings saved"));
+      notify.success(t("设置已保存", "Settings saved"));
     } catch (e: any) {
       showServiceErrorToast(e, t, "保存失败", "Save failed");
     } finally {

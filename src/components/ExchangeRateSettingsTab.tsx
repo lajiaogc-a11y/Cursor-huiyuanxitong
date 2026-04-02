@@ -25,7 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, Globe, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { 
   Country,
   getCountriesAsync,
@@ -54,7 +54,7 @@ export default function ExchangeRateSettingsTab() {
       setCountries(data);
     } catch (error) {
       console.error('Failed to load countries:', error);
-      toast.error(t("加载国家数据失败", "Failed to load countries"));
+      notify.error(t("加载国家数据失败", "Failed to load countries"));
     } finally {
       setIsLoading(false);
     }
@@ -71,7 +71,7 @@ export default function ExchangeRateSettingsTab() {
       if (key === 'countries' && !isSaving) {
         // 只在非保存状态下接受外部更新，避免覆盖本地操作
         setCountries(value as Country[]);
-        toast.info(t("国家数据已被其他用户更新", "Country data updated by another user"));
+        notify.info(t("国家数据已被其他用户更新", "Country data updated by another user"));
       }
     });
 
@@ -81,7 +81,7 @@ export default function ExchangeRateSettingsTab() {
   // 添加国家 - Save-First Pattern
   const handleAddCountry = async () => {
     if (!newCountryName.trim()) {
-      toast.error(t("请输入国家名称", "Please enter country name"));
+      notify.error(t("请输入国家名称", "Please enter country name"));
       return;
     }
 
@@ -95,13 +95,13 @@ export default function ExchangeRateSettingsTab() {
         setNewCountryName("");
         setNewCountryRemark("");
         setIsCountryDialogOpen(false);
-        toast.success(t("国家添加成功", "Country added"));
+        notify.success(t("国家添加成功", "Country added"));
       } else {
-        toast.error(t("添加失败，请重试", "Failed to add, please retry"));
+        notify.error(t("添加失败，请重试", "Failed to add, please retry"));
       }
     } catch (error) {
       console.error('Failed to add country:', error);
-      toast.error(t("添加失败", "Failed to add"));
+      notify.error(t("添加失败", "Failed to add"));
     } finally {
       setIsSaving(false);
     }
@@ -110,7 +110,7 @@ export default function ExchangeRateSettingsTab() {
   // 更新国家 - Save-First Pattern
   const handleUpdateCountry = async () => {
     if (!editingCountry || !String(editingCountry.name ?? '').trim()) {
-      toast.error(t("请输入国家名称", "Please enter country name"));
+      notify.error(t("请输入国家名称", "Please enter country name"));
       return;
     }
 
@@ -126,13 +126,13 @@ export default function ExchangeRateSettingsTab() {
         // 成功后重新加载最新数据
         await loadCountries();
         setEditingCountry(null);
-        toast.success(t("国家更新成功", "Country updated"));
+        notify.success(t("国家更新成功", "Country updated"));
       } else {
-        toast.error(t("更新失败，可能已被删除", "Failed to update, might be deleted"));
+        notify.error(t("更新失败，可能已被删除", "Failed to update, might be deleted"));
       }
     } catch (error) {
       console.error('Failed to update country:', error);
-      toast.error(t("更新失败", "Failed to update"));
+      notify.error(t("更新失败", "Failed to update"));
     } finally {
       setIsSaving(false);
     }
@@ -147,13 +147,13 @@ export default function ExchangeRateSettingsTab() {
       if (success) {
         // 成功后重新加载最新数据
         await loadCountries();
-        toast.success(t("国家删除成功", "Country deleted"));
+        notify.success(t("国家删除成功", "Country deleted"));
       } else {
-        toast.error(t("删除失败，请重试", "Failed to delete, please retry"));
+        notify.error(t("删除失败，请重试", "Failed to delete, please retry"));
       }
     } catch (error) {
       console.error('Failed to delete country:', error);
-      toast.error(t("删除失败", "Failed to delete"));
+      notify.error(t("删除失败", "Failed to delete"));
     } finally {
       setIsSaving(false);
     }

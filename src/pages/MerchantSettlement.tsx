@@ -5,6 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
@@ -30,16 +37,7 @@ import { PageSizeSelect } from "@/components/ui/page-size-select";
 import { exportToCSV, formatNumberForExport } from "@/lib/exportUtils";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
 import { useExportConfirm } from "@/hooks/useExportConfirm";
-import { toast as sonnerToast } from "sonner";
-
-// Compatibility wrapper: converts old Radix toast API to sonner
-const toast = (opts: { title: string; variant?: string; description?: string }) => {
-  if (opts.variant === 'destructive') {
-    sonnerToast.error(opts.title, opts.description ? { description: opts.description } : undefined);
-  } else {
-    sonnerToast.success(opts.title, opts.description ? { description: opts.description } : undefined);
-  }
-};
+import { notify } from "@/lib/notifyHub";
 import { showSubmissionError } from "@/services/submissionErrorService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
@@ -166,7 +164,7 @@ export default function MerchantSettlement() {
   }, [checkPermission, isPlatformAdminReadonlyView]);
   const blockReadonly = (actionCn: string, actionEn: string) => {
     if (!isPlatformAdminReadonlyView) return false;
-    sonnerToast.error(t(`平台总管理查看租户时为只读，无法${actionCn}`, `Read-only mode when viewing tenant, cannot ${actionEn}`));
+    notify.error(t(`平台总管理查看租户时为只读，无法${actionCn}`, `Read-only mode when viewing tenant, cannot ${actionEn}`));
     return true;
   };
   
@@ -214,8 +212,20 @@ export default function MerchantSettlement() {
   const [editingWithdrawal, setEditingWithdrawal] = useState<WithdrawalRecord | null>(null);
   const [editingRecharge, setEditingRecharge] = useState<RechargeRecord | null>(null);
   const [deletingWithdrawalId, setDeletingWithdrawalId] = useState<string | null>(null);
+  const [selectedWithdrawalIds, setSelectedWithdrawalIds] = useState<Set<string>>(() => new Set());
+  const [pendingBatchWithdrawalDelete, setPendingBatchWithdrawalDelete] = useState<string[] | null>(null);
   const [deletingRechargeId, setDeletingRechargeId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const withdrawalSelectionState = useMemo(() => {
+    const ids = currentWithdrawals.map((w) => w.id);
+    const selectedOnPage = ids.filter((id) => selectedWithdrawalIds.has(id)).length;
+    return {
+      ids,
+      allSelected: canEditBalance && ids.length > 0 && selectedOnPage === ids.length,
+      someSelected: canEditBalance && selectedOnPage > 0 && selectedOnPage < ids.length,
+    };
+  }, [currentWithdrawals, selectedWithdrawalIds, canEditBalance]);
   
   // Provider form states
   const [providerInitialBalanceAmount, setProviderInitialBalanceAmount] = useState("");
@@ -474,11 +484,19 @@ export default function MerchantSettlement() {
     loadDataRef.current = loadData;
   }, [loadData]);
 
+  useEffect(() => {
+    setSelectedWithdrawalIds(new Set());
+  }, [currentVendor]);
+
+  useEffect(() => {
+    if (!isDetailsDialogOpen) setSelectedWithdrawalIds(new Set());
+  }, [isDetailsDialogOpen]);
+
   // 刷新按钮处理函数 - 强制重新加载数据
   const handleRefresh = async () => {
     await forceRefreshSettlementCache(); // 先强制刷新缓存
     await loadData();
-    toast({ title: t("数据已刷新", "Data refreshed") });
+    notify.success(t("数据已刷新", "Data refreshed"));
   };
 
 
@@ -651,7 +669,7 @@ export default function MerchantSettlement() {
   // 导出卡商结算数据
   const handleExportVendors = () => {
     if (filteredVendorData.length === 0) {
-      toast({ title: t("没有数据可导出", "No data to export"), variant: "destructive" });
+      notify.error(t("没有数据可导出", "No data to export"));
       return;
     }
     const columns = [
@@ -664,13 +682,13 @@ export default function MerchantSettlement() {
       { key: 'lastResetTime', label: '最后重置时间', labelEn: 'Last Reset Time', formatter: (v: string | null) => v || '-' },
     ];
     exportToCSV(filteredVendorData, columns, 'vendor-settlement');
-    toast({ title: t("导出成功", "Export successful") });
+    notify.success(t("导出成功", "Export successful"));
   };
   
   // Export payment provider settlement data
   const handleExportProviders = () => {
     if (filteredProviderData.length === 0) {
-      toast({ title: t("没有数据可导出", "No data to export"), variant: "destructive" });
+      notify.error(t("没有数据可导出", "No data to export"));
       return;
     }
     const columns = [
@@ -684,7 +702,7 @@ export default function MerchantSettlement() {
       { key: 'lastResetTime', label: '最后重置时间', labelEn: 'Last Reset Time', formatter: (v: string | null) => v || '-' },
     ];
     exportToCSV(filteredProviderData, columns, 'provider-settlement');
-    toast({ title: t("导出成功", "Export successful") });
+    notify.success(t("导出成功", "Export successful"));
   };
 
   // ==================== Card Merchant Handlers ====================
@@ -714,7 +732,7 @@ export default function MerchantSettlement() {
       // Skip forceRefreshSettlementCache — cache already updated by save; re-reading DB risks stale data
       await loadData();
       setIsInitialBalanceDialogOpen(false);
-      toast({ title: t("初始余额已设置", "Initial balance set") });
+      notify.success(t("初始余额已设置", "Initial balance set"));
     } finally {
       setIsSaving(false);
     }
@@ -752,7 +770,7 @@ export default function MerchantSettlement() {
       // Skip forceRefreshSettlementCache — cache already updated by save
       await loadData();
       setIsWithdrawalDialogOpen(false);
-      toast({ title: t("提款已录入", "Withdrawal added") });
+      notify.success(t("提款已录入", "Withdrawal added"));
     } finally {
       setIsSaving(false);
     }
@@ -877,7 +895,7 @@ export default function MerchantSettlement() {
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
         setCurrentWithdrawals(sortedWithdrawals);
-        toast({ title: t("已撤回上一步操作", "Last action undone") });
+        notify.success(t("已撤回上一步操作", "Last action undone"));
       } else {
         showSubmissionError(result.error || t("撤回失败", "Undo failed"));
       }
@@ -927,7 +945,7 @@ export default function MerchantSettlement() {
       );
       setCurrentWithdrawals(sortedWithdrawals);
       setEditingWithdrawal(null);
-      toast({ title: t("提款记录已更新", "Withdrawal updated") });
+      notify.success(t("提款记录已更新", "Withdrawal updated"));
       // 通知变动明细对话框刷新
       notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
     } finally {
@@ -957,8 +975,37 @@ export default function MerchantSettlement() {
       );
       setCurrentWithdrawals(sortedWithdrawals);
       setDeletingWithdrawalId(null);
-      toast({ title: t("提款记录已删除", "Withdrawal deleted") });
+      notify.success(t("提款记录已删除", "Withdrawal deleted"));
     } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleConfirmBatchDeleteWithdrawals = async () => {
+    if (blockReadonly("删除提款记录", "delete withdrawal")) return;
+    const ids = pendingBatchWithdrawalDelete;
+    if (!ids?.length || !currentVendor) return;
+
+    setIsSaving(true);
+    try {
+      markLocalSave();
+      for (const id of ids) {
+        await deleteWithdrawal(currentVendor, id);
+      }
+      await loadData();
+      const withdrawals = getWithdrawalsForVendor(currentVendor);
+      const sortedWithdrawals = [...withdrawals].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+      setCurrentWithdrawals(sortedWithdrawals);
+      setSelectedWithdrawalIds(new Set());
+      notify.success(t(`已删除 ${ids.length} 条提款记录`, `Deleted ${ids.length} withdrawal(s)`));
+      notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
+    } catch (err) {
+      console.error("[MerchantSettlement] batch delete withdrawals:", err);
+      showSubmissionError(t("批量删除失败，请重试", "Batch delete failed, please try again"));
+    } finally {
+      setPendingBatchWithdrawalDelete(null);
       setIsSaving(false);
     }
   };
@@ -990,7 +1037,7 @@ export default function MerchantSettlement() {
       // Skip forceRefreshSettlementCache — cache already updated by save
       await loadData();
       setIsProviderInitialBalanceDialogOpen(false);
-      toast({ title: t("初始余额已设置", "Initial balance set") });
+      notify.success(t("初始余额已设置", "Initial balance set"));
     } finally {
       setIsSaving(false);
     }
@@ -1028,7 +1075,7 @@ export default function MerchantSettlement() {
       // Skip forceRefreshSettlementCache — cache already updated by save
       await loadData();
       setIsRechargeDialogOpen(false);
-      toast({ title: t("充值已录入", "Recharge added") });
+      notify.success(t("充值已录入", "Recharge added"));
     } finally {
       setIsSaving(false);
     }
@@ -1115,7 +1162,7 @@ export default function MerchantSettlement() {
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
         setCurrentRecharges(sortedRecharges);
-        toast({ title: t("已撤回上一步操作", "Last action undone") });
+        notify.success(t("已撤回上一步操作", "Last action undone"));
       } else {
         showSubmissionError(result.error || t("撤回失败", "Undo failed"));
       }
@@ -1165,7 +1212,7 @@ export default function MerchantSettlement() {
       );
       setCurrentRecharges(sortedRecharges);
       setEditingRecharge(null);
-      toast({ title: t("充值记录已更新", "Recharge updated") });
+      notify.success(t("充值记录已更新", "Recharge updated"));
       // 通知变动明细对话框刷新
       notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
     } finally {
@@ -1195,7 +1242,7 @@ export default function MerchantSettlement() {
       );
       setCurrentRecharges(sortedRecharges);
       setDeletingRechargeId(null);
-      toast({ title: t("充值记录已删除", "Recharge deleted") });
+      notify.success(t("充值记录已删除", "Recharge deleted"));
     } finally {
       setIsSaving(false);
     }
@@ -1462,6 +1509,33 @@ export default function MerchantSettlement() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/50 border-b sticky top-0">
+                  {canEditBalance ? (
+                    <th className="w-10 p-3 text-center font-medium">
+                      <div className="flex justify-center">
+                        <Checkbox
+                          checked={
+                            withdrawalSelectionState.allSelected
+                              ? true
+                              : withdrawalSelectionState.someSelected
+                                ? "indeterminate"
+                                : false
+                          }
+                          onCheckedChange={() => {
+                            setSelectedWithdrawalIds((prev) => {
+                              const ids = withdrawalSelectionState.ids;
+                              const allOn =
+                                ids.length > 0 && ids.every((id) => prev.has(id));
+                              const next = new Set(prev);
+                              if (allOn) ids.forEach((id) => next.delete(id));
+                              else ids.forEach((id) => next.add(id));
+                              return next;
+                            });
+                          }}
+                          aria-label={t("全选列表", "Select all")}
+                        />
+                      </div>
+                    </th>
+                  ) : null}
                   <th className="text-left p-3 font-medium">{t("序号", "#")}</th>
                   <th className="text-left p-3 font-medium">{t("录入时间", "Entry Time")}</th>
                   <th className="text-left p-3 font-medium">{t("卡商名称", "Vendor Name")}</th>
@@ -1476,6 +1550,24 @@ export default function MerchantSettlement() {
               <tbody>
                 {currentWithdrawals.map((w, index) => (
                   <tr key={w.id} className="border-b">
+                    {canEditBalance ? (
+                      <td className="p-3 text-center">
+                        <div className="flex justify-center">
+                          <Checkbox
+                            checked={selectedWithdrawalIds.has(w.id)}
+                            onCheckedChange={() => {
+                              setSelectedWithdrawalIds((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(w.id)) next.delete(w.id);
+                                else next.add(w.id);
+                                return next;
+                              });
+                            }}
+                            aria-label={t("选择该行", "Select row")}
+                          />
+                        </div>
+                      </td>
+                    ) : null}
                     <td className="p-3">{index + 1}</td>
                     <td className="p-3">{w.createdAt}</td>
                     <td className="p-3">{w.vendorName}</td>
@@ -1486,23 +1578,35 @@ export default function MerchantSettlement() {
                     <td className="p-3">{w.recorderId ? getEmployeeNameById(w.recorderId) : '-'}</td>
                     <td className="p-3 text-center">
                       {canEditBalance ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditWithdrawal(w)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingWithdrawalId(w.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <TooltipProvider delayDuration={300}>
+                          <div className="flex items-center justify-center gap-2">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditWithdrawal(w)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom">{t("编辑", "Edit")}</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => setDeletingWithdrawalId(w.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom">{t("删除", "Delete")}</TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
                       ) : (
                         <span className="text-muted-foreground text-xs">-</span>
                       )}
@@ -1511,7 +1615,7 @@ export default function MerchantSettlement() {
                 ))}
                 {currentWithdrawals.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="p-6 text-center text-muted-foreground">
+                    <td colSpan={canEditBalance ? 10 : 9} className="p-6 text-center text-muted-foreground">
                       {t("暂无提款记录", "No withdrawal records")}
                     </td>
                   </tr>
@@ -1520,7 +1624,31 @@ export default function MerchantSettlement() {
             </table>
           </div>
           <div className="flex flex-wrap justify-end gap-2 pt-4 mt-4 border-t border-border">
-            <Button onClick={() => setIsDetailsDialogOpen(false)}>{t("关闭", "Close")}</Button>
+            {canEditBalance && selectedWithdrawalIds.size > 0 ? (
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      onClick={() => setPendingBatchWithdrawalDelete([...selectedWithdrawalIds])}
+                    >
+                      {t("批量删除", "Batch delete")}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    {t(`删除已选的 ${selectedWithdrawalIds.size} 条记录`, `Delete ${selectedWithdrawalIds.size} selected`)}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : null}
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button onClick={() => setIsDetailsDialogOpen(false)}>{t("关闭", "Close")}</Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">{t("关闭抽屉", "Close panel")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
       </DrawerDetail>
 
@@ -1598,6 +1726,39 @@ export default function MerchantSettlement() {
           <AlertDialogFooter>
             <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDeleteWithdrawal} disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("删除", "Delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={pendingBatchWithdrawalDelete !== null}
+        onOpenChange={(open) => !open && setPendingBatchWithdrawalDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("确认批量删除", "Confirm batch delete")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingBatchWithdrawalDelete?.length
+                ? t(
+                    `将删除 ${pendingBatchWithdrawalDelete.length} 条提款记录，确定继续？`,
+                    `Delete ${pendingBatchWithdrawalDelete.length} withdrawal record(s)?`,
+                  )
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                void handleConfirmBatchDeleteWithdrawals();
+              }}
+              disabled={isSaving}
+            >
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("删除", "Delete")}
             </AlertDialogAction>
@@ -1959,7 +2120,7 @@ export default function MerchantSettlement() {
             await loadData();
             const withdrawals = getWithdrawalsForVendor(currentVendor);
             setCurrentWithdrawals([...withdrawals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-            toast({ title: t("提款已录入", "Withdrawal added") });
+            notify.success(t("提款已录入", "Withdrawal added"));
             notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'manual' }).catch(console.error);
           } finally { setIsSaving(false); }
         }}
@@ -1971,7 +2132,7 @@ export default function MerchantSettlement() {
             markLocalSave();
             await setInitialBalance(currentVendor, amount, vendorData?.realTimeBalance || 0);
             await loadData();
-            toast({ title: t("初始余额已设置", "Initial balance set") });
+            notify.success(t("初始余额已设置", "Initial balance set"));
             notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           } finally { setIsSaving(false); }
         }}
@@ -1985,7 +2146,7 @@ export default function MerchantSettlement() {
             await loadData();
             const withdrawals = getWithdrawalsForVendor(currentVendor);
             setCurrentWithdrawals([...withdrawals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-            toast({ title: t("提款记录已更新", "Withdrawal updated") });
+            notify.success(t("提款记录已更新", "Withdrawal updated"));
             notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           } finally { setIsSaving(false); }
         }}
@@ -1999,7 +2160,7 @@ export default function MerchantSettlement() {
             await loadData();
             const withdrawals = getWithdrawalsForVendor(currentVendor);
             setCurrentWithdrawals([...withdrawals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-            toast({ title: t("提款记录已删除", "Withdrawal deleted") });
+            notify.success(t("提款记录已删除", "Withdrawal deleted"));
             notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           } finally { setIsSaving(false); }
         }}
@@ -2028,7 +2189,7 @@ export default function MerchantSettlement() {
             await loadData();
             const recharges = getRechargesForProvider(currentProvider);
             setCurrentRecharges([...recharges].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-            toast({ title: t("充值已录入", "Recharge added") });
+            notify.success(t("充值已录入", "Recharge added"));
           } finally { setIsSaving(false); }
         }}
         onSaveInitialBalance={async (amount) => {
@@ -2039,7 +2200,7 @@ export default function MerchantSettlement() {
             markLocalSave();
             await setProviderInitialBalance(currentProvider, amount, providerData?.realTimeBalance || 0);
             await loadData();
-            toast({ title: t("初始余额已设置", "Initial balance set") });
+            notify.success(t("初始余额已设置", "Initial balance set"));
           } finally { setIsSaving(false); }
         }}
         onEditRecharge={async (recharge, updates) => {
@@ -2052,7 +2213,7 @@ export default function MerchantSettlement() {
             await loadData();
             const recharges = getRechargesForProvider(currentProvider);
             setCurrentRecharges([...recharges].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-            toast({ title: t("充值记录已更新", "Recharge updated") });
+            notify.success(t("充值记录已更新", "Recharge updated"));
             notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           } finally { setIsSaving(false); }
         }}
@@ -2066,7 +2227,7 @@ export default function MerchantSettlement() {
             await loadData();
             const recharges = getRechargesForProvider(currentProvider);
             setCurrentRecharges([...recharges].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-            toast({ title: t("充值记录已删除", "Recharge deleted") });
+            notify.success(t("充值记录已删除", "Recharge deleted"));
             notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           } finally { setIsSaving(false); }
         }}

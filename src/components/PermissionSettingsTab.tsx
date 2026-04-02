@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { apiGet } from '@/api/client';
 import { saveRolePermissions } from '@/services/staff/dataApi/permissionsAndSettings';
@@ -91,7 +91,7 @@ export default function PermissionSettingsTab() {
       setPermissions(typedData);
     } catch (error) {
       console.error('Failed to fetch permissions:', error);
-      toast.error(t('加载权限设置失败', 'Failed to load permissions'));
+      notify.error(t('加载权限设置失败', 'Failed to load permissions'));
     } finally {
       setLoading(false);
     }
@@ -185,7 +185,7 @@ export default function PermissionSettingsTab() {
       }
 
       await saveRolePermissions(selectedRole, allItems);
-      toast.success(t('导航权限已保存', 'Navigation permissions saved'));
+      notify.success(t('导航权限已保存', 'Navigation permissions saved'));
       setHasChanges(false);
       await fetchPermissions();
       await refreshPermissions();
@@ -193,7 +193,7 @@ export default function PermissionSettingsTab() {
     } catch (error: unknown) {
       console.error('Failed to save permissions:', error);
       const msg = error instanceof Error ? error.message : '';
-      toast.error(t(`保存失败：${msg || '请重试'}`, `Save failed: ${msg || 'retry'}`));
+      notify.error(t(`保存失败：${msg || '请重试'}`, `Save failed: ${msg || 'retry'}`));
     } finally {
       setSaving(false);
     }
@@ -260,7 +260,7 @@ export default function PermissionSettingsTab() {
       return next;
     });
     setHasChanges(true);
-    toast.success(t('已应用模板，请点击保存', 'Template applied, click Save'));
+    notify.success(t('已应用模板，请点击保存', 'Template applied, click Save'));
   };
 
   const roleLabel = (r: PermissionRole) =>

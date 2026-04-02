@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 interface StickyScrollTableContainerProps {
   children: React.ReactNode;
   className?: string;
+  /** 内层最小宽度；不传则随容器 100% 自适应（列可用 min-w-* + truncate 控制） */
   minWidth?: string;
   /** 最大高度，支持 flex 布局下的垂直滚动 */
   maxHeight?: string;
@@ -21,7 +22,7 @@ interface StickyScrollTableContainerProps {
 const StickyScrollTableContainer = React.forwardRef<
   HTMLDivElement,
   StickyScrollTableContainerProps
->(({ className, children, minWidth = "2000px", maxHeight, ...props }, ref) => {
+>(({ className, children, minWidth, maxHeight, ...props }, ref) => {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const scrollbarRef = React.useRef<HTMLDivElement>(null);
   const scrollbarThumbRef = React.useRef<HTMLDivElement>(null);
@@ -163,8 +164,10 @@ const StickyScrollTableContainer = React.forwardRef<
         style={maxHeight ? { maxHeight } : undefined}
         data-spa-scroll-root="sticky-table"
       >
-        {/* minWidth 容器确保表格有足够宽度触发水平滚动 */}
-        <div style={{ minWidth }}>
+        <div
+          className={cn("w-full", minWidth == null || minWidth === "" ? "min-w-0" : undefined)}
+          style={minWidth != null && minWidth !== "" ? { minWidth } : undefined}
+        >
           {children}
         </div>
       </div>

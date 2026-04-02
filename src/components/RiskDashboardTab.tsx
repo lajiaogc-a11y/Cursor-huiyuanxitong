@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { ShieldAlert, ShieldCheck, CheckCircle, AlertTriangle } from 'lucide-react';
 import { getAllRiskScores, getRecentRiskEvents, resolveRiskEvent, type RiskScore, type RiskEvent } from '@/services/riskScoringService';
 import { formatBeijingTime } from '@/lib/beijingTime';
@@ -33,7 +33,7 @@ export function RiskDashboardTab() {
   const handleResolve = async (eventId: string) => {
     if (!employee?.id) return;
     await resolveRiskEvent(eventId, employee.id);
-    toast.success(t('已标记为已解决', 'Marked as resolved'));
+    notify.success(t('已标记为已解决', 'Marked as resolved'));
     loadData();
   };
 

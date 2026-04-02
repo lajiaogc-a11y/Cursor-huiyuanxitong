@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ROUTES } from "@/routes/constants";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
 import { cn } from "@/lib/utils";
 import { memberPortalGoldCssVarsFromHex } from "@/utils/memberPortalGoldCssVars";
@@ -59,29 +59,29 @@ export default function MemberFirstPassword() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!oldPwd.trim()) {
-      toast.error(t("请输入当前密码", "Enter your current password"));
+      notify.error(t("请输入当前密码", "Enter your current password"));
       return;
     }
     if (newPwd.length < 6) {
-      toast.error(t("新密码至少 6 位", "New password must be at least 6 characters"));
+      notify.error(t("新密码至少 6 位", "New password must be at least 6 characters"));
       return;
     }
     if (newPwd !== confirmPwd) {
-      toast.error(t("两次新密码不一致", "New passwords do not match"));
+      notify.error(t("两次新密码不一致", "New passwords do not match"));
       return;
     }
     if (newPwd === oldPwd) {
-      toast.error(t("新密码不能与当前密码相同", "New password must differ from the current one"));
+      notify.error(t("新密码不能与当前密码相同", "New password must differ from the current one"));
       return;
     }
     setBusy(true);
     try {
       const r = await setPassword(oldPwd, newPwd);
       if (r.success) {
-        toast.success(t("密码已更新，欢迎使用", "Password updated. Welcome!"));
+        notify.success(t("密码已更新，欢迎使用", "Password updated. Welcome!"));
         navigate(ROUTES.MEMBER.DASHBOARD, { replace: true });
       } else {
-        toast.error(r.message || t("密码更新失败", "Could not update password"));
+        notify.error(r.message || t("密码更新失败", "Could not update password"));
       }
     } finally {
       setBusy(false);

@@ -36,7 +36,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Send, Lock, Copy, ArrowDown, HelpCircle } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { getMemberByPhoneForMyTenant } from "@/services/members/memberLookupService";
 import { showSubmissionError } from "@/services/submissionErrorService";
 import { CURRENCIES } from "@/config/currencies";
@@ -394,7 +394,7 @@ export default function RateCalculator({
               currencyPreferenceList: dbMember.currency_preferences || [],
               customerSource: dbMember.source_id || "",
             });
-            toast.success(t(`已匹配到会员: ${dbMember.member_code}`, `Member matched: ${dbMember.member_code}`));
+            notify.success(t(`已匹配到会员: ${dbMember.member_code}`, `Member matched: ${dbMember.member_code}`));
           } else {
             setMemberLevelZhHint(null);
             const newMemberCode = generateMemberId();
@@ -408,7 +408,7 @@ export default function RateCalculator({
               currencyPreferenceList: [],
               customerSource: "",
             });
-            toast.info(t(`新会员，已生成编号: ${newMemberCode}`, `New member, code generated: ${newMemberCode}`));
+            notify.info(t(`新会员，已生成编号: ${newMemberCode}`, `New member, code generated: ${newMemberCode}`));
           }
         } catch (err) {
           console.error('查询会员出错:', err);
@@ -450,21 +450,21 @@ export default function RateCalculator({
     const num = parseInt(value) || 0;
     const rounded = Math.floor(num / 500) * 500;
     updateFields({ payNaira: rounded.toString(), payCedi: "", payUsdt: "" });
-    toast.success(t(`已填入支付奈拉: ${rounded}`, `Filled Naira: ${rounded}`));
+    notify.success(t(`已填入支付奈拉: ${rounded}`, `Filled Naira: ${rounded}`));
   };
 
   const fillCediAmount = (value: string) => {
     const num = parseFloat(value) || 0;
     const rounded = Math.floor(num);
     updateFields({ payCedi: rounded.toString(), payNaira: "", payUsdt: "" });
-    toast.success(t(`已填入支付赛地: ${rounded}`, `Filled Cedi: ${rounded}`));
+    notify.success(t(`已填入支付赛地: ${rounded}`, `Filled Cedi: ${rounded}`));
   };
 
   const fillUsdtAmount = (value: string) => {
     const num = parseFloat(value) || 0;
     const rounded = Math.floor(num);
     updateFields({ payUsdt: rounded.toString(), payNaira: "", payCedi: "" });
-    toast.success(t(`已填入支付USDT: ${rounded}`, `Filled USDT: ${rounded}`));
+    notify.success(t(`已填入支付USDT: ${rounded}`, `Filled USDT: ${rounded}`));
   };
 
   // 双击清空
@@ -476,7 +476,7 @@ export default function RateCalculator({
   const copyBankCard = () => {
     if (formData.bankCard) {
       navigator.clipboard.writeText(formData.bankCard);
-      toast.success(t("复制成功", "Copy successful"));
+      notify.success(t("复制成功", "Copy successful"));
     }
   };
 
@@ -695,7 +695,7 @@ export default function RateCalculator({
         }
       }
       
-      toast.success(t(`兑换成功！已赠送 ${exchangeAmount.toLocaleString()} ${exchangeCurrency}`, `Redeemed! Gifted ${exchangeAmount.toLocaleString()} ${exchangeCurrency}`));
+      notify.success(t(`兑换成功！已赠送 ${exchangeAmount.toLocaleString()} ${exchangeCurrency}`, `Redeemed! Gifted ${exchangeAmount.toLocaleString()} ${exchangeCurrency}`));
       
       // 记录积分兑换操作日志 - 使用 points_redemption 模块
       try {
@@ -824,7 +824,7 @@ export default function RateCalculator({
           document.execCommand('copy');
           document.body.removeChild(ta);
         }
-        toast.info(t("已自动复制积分信息到剪贴板", "Points info copied to clipboard"));
+        notify.info(t("已自动复制积分信息到剪贴板", "Points info copied to clipboard"));
         // 更新本地状态以保持UI一致
         setMemberPointsSummary(latestPointsSummary);
       }
@@ -845,7 +845,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
         document.execCommand('copy');
         document.body.removeChild(ta);
       }
-      toast.info(t("已自动复制简要信息到剪贴板", "Brief info copied to clipboard"));
+      notify.info(t("已自动复制简要信息到剪贴板", "Brief info copied to clipboard"));
     }
   };
 
@@ -968,7 +968,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
         return;
       }
       
-      toast.success(t("订单提交成功", "Order submitted successfully"));
+      notify.success(t("订单提交成功", "Order submitted successfully"));
 
       if (detectedCurrency) {
         appendExchangePaymentInfoEntry({

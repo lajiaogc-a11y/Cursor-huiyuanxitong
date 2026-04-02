@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -71,7 +71,7 @@ export default function MemberPromotionSettingsPage({ embedded = false }: Member
       );
     } catch (e) {
       console.error(e);
-      toast.error(t('加载等级规则失败', 'Failed to load level rules'));
+      notify.error(t('加载等级规则失败', 'Failed to load level rules'));
       setRows([]);
     } finally {
       setLoading(false);
@@ -103,7 +103,7 @@ export default function MemberPromotionSettingsPage({ embedded = false }: Member
 
   const save = async () => {
     if (!tenantId || isReadonlyView) {
-      toast.error(t('只读视图下无法保存', 'Cannot save in read-only view'));
+      notify.error(t('只读视图下无法保存', 'Cannot save in read-only view'));
       return;
     }
     const cleaned = rows
@@ -126,18 +126,18 @@ export default function MemberPromotionSettingsPage({ embedded = false }: Member
       .sort((a, b) => a.level_order - b.level_order || a.required_points - b.required_points);
 
     if (cleaned.length === 0) {
-      toast.error(t('至少保留一条等级', 'Keep at least one level'));
+      notify.error(t('至少保留一条等级', 'Keep at least one level'));
       return;
     }
 
     setSaving(true);
     try {
       await saveMemberLevelsApi(tenantId, cleaned);
-      toast.success(t('已保存并重新计算会员等级', 'Saved and recalculated member levels'));
+      notify.success(t('已保存并重新计算会员等级', 'Saved and recalculated member levels'));
       await load();
     } catch (e) {
       console.error(e);
-      toast.error(t('保存失败', 'Save failed'));
+      notify.error(t('保存失败', 'Save failed'));
     } finally {
       setSaving(false);
     }

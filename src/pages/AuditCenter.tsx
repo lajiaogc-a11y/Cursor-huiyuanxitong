@@ -21,7 +21,7 @@ import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { Textarea } from "@/components/ui/textarea";
 import { RefreshCw, Check, X, Settings, Search, Loader2, Info } from "lucide-react";
 import DataFieldPermissionsPanel from "@/components/DataFieldPermissionsPanel";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import DateRangeFilter from "@/components/DateRangeFilter";
 import { TimeRangeType, DateRange, getTimeRangeDates, filterByDateRange } from "@/lib/dateFilter";
 import { loadSharedData, saveSharedData } from "@/services/finance/sharedDataService";
@@ -103,7 +103,7 @@ export default function AuditCenter() {
       const ok = await saveSharedData('auditSettings', merged);
       if (cancelled) return;
       if (ok) {
-        toast.info(
+        notify.info(
           t(
             '已自动移除审核设置中的无效或过时勾选项并保存。若仍需对部分字段走审核，请在「审核设置」中按当前业务列表重新勾选。',
             'Removed invalid or obsolete audit selections and saved. To require approval again, re-select fields in Audit Settings using the current list.',
@@ -123,7 +123,7 @@ export default function AuditCenter() {
 
   const handleRefresh = () => {
     refetch();
-    toast.success(t("已刷新", "Refreshed"));
+    notify.success(t("已刷新", "Refreshed"));
   };
 
   const handleDateRangeChange = (range: TimeRangeType, start?: Date, end?: Date) => {
@@ -158,7 +158,7 @@ export default function AuditCenter() {
 
   const handleApprove = async (item: AuditItem) => {
     if (!canApprove()) {
-      toast.error(t("权限不足，无法审核", "Insufficient permissions"));
+      notify.error(t("权限不足，无法审核", "Insufficient permissions"));
       return;
     }
 
@@ -167,7 +167,7 @@ export default function AuditCenter() {
 
   const handleReject = (item: AuditItem) => {
     if (!canApprove()) {
-      toast.error(t("权限不足，无法审核", "Insufficient permissions"));
+      notify.error(t("权限不足，无法审核", "Insufficient permissions"));
       return;
     }
     

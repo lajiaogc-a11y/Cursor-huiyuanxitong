@@ -25,7 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Gift, Plus, Trash2, Save, AlertTriangle, Zap } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
   getActivitySettings,
@@ -82,7 +82,7 @@ export default function ActivitySettingsTab() {
 
   const handleAddTier = () => {
     if (newTier.minPoints <= 0) {
-      toast.error(t("积分下限必须大于0", "Min points must be greater than 0"));
+      notify.error(t("积分下限必须大于0", "Min points must be greater than 0"));
       return;
     }
     
@@ -91,7 +91,7 @@ export default function ActivitySettingsTab() {
       tier => tier.minPoints === newTier.minPoints
     );
     if (exists) {
-      toast.error(t("该积分下限已存在", "This min points already exists"));
+      notify.error(t("该积分下限已存在", "This min points already exists"));
       return;
     }
 
@@ -123,7 +123,7 @@ export default function ActivitySettingsTab() {
     }));
     setHasChanges(true);
     setNewTier({ minPoints: 0, rewardAmountNGN: 0, rewardAmountGHS: 0, rewardAmountUSDT: 0 });
-    toast.success(t("档位已添加", "Tier added"));
+    notify.success(t("档位已添加", "Tier added"));
   };
 
   const handleDeleteTier = (tierId: string) => {
@@ -131,13 +131,13 @@ export default function ActivitySettingsTab() {
     
     // 不允许删除最后一档
     if (tier?.maxPoints === null) {
-      toast.error(t("最后一档不可删除", "Cannot delete the last tier"));
+      notify.error(t("最后一档不可删除", "Cannot delete the last tier"));
       return;
     }
     
     // 至少保留一档
     if (settings.accumulatedRewardTiers.length <= 1) {
-      toast.error(t("至少保留一个档位", "At least one tier required"));
+      notify.error(t("至少保留一个档位", "At least one tier required"));
       return;
     }
 
@@ -157,14 +157,14 @@ export default function ActivitySettingsTab() {
       accumulatedRewardTiers: updatedTiers,
     }));
     setHasChanges(true);
-    toast.success(t("档位已删除", "Tier deleted"));
+    notify.success(t("档位已删除", "Tier deleted"));
   };
 
   // 活动1开关 - 互斥检查
   const handleActivity1Toggle = (enabled: boolean) => {
     // 检查互斥：如果要开启活动1，需要确保活动2已关闭
     if (enabled && settings.activity2?.enabled) {
-      toast.error(t(
+      notify.error(t(
         "活动1和活动2不可以同时开启，请先关闭当前已开启的活动。",
         "Activity 1 and Activity 2 cannot be enabled simultaneously. Please disable the current active one first."
       ));
@@ -182,7 +182,7 @@ export default function ActivitySettingsTab() {
   const handleActivity2Change = (field: keyof Activity2Config, value: any) => {
     // 如果是开启活动2，需要检查活动1是否已开启
     if (field === 'enabled' && value === true && settings.activity1Enabled) {
-      toast.error(t(
+      notify.error(t(
         "活动1和活动2不可以同时开启，请先关闭当前已开启的活动。",
         "Activity 1 and Activity 2 cannot be enabled simultaneously. Please disable the current active one first."
       ));
@@ -202,7 +202,7 @@ export default function ActivitySettingsTab() {
   const handleSave = () => {
     // 验证互斥逻辑
     if (settings.activity1Enabled && settings.activity2?.enabled) {
-      toast.error(t(
+      notify.error(t(
         "活动1和活动2不可以同时开启，请先关闭其中一个。",
         "Activity 1 and Activity 2 cannot both be enabled. Please disable one."
       ));
@@ -212,7 +212,7 @@ export default function ActivitySettingsTab() {
     // 仅当活动1开启时要求至少一档；活动1关闭时允许无档位，不影响保存活动2等配置
     const tiers = [...settings.accumulatedRewardTiers];
     if (settings.activity1Enabled && tiers.length === 0) {
-      toast.error(t("至少需要一个档位", "At least one tier required"));
+      notify.error(t("至少需要一个档位", "At least one tier required"));
       return;
     }
 
@@ -235,7 +235,7 @@ export default function ActivitySettingsTab() {
     };
     saveActivitySettings(settingsToSave);
     setHasChanges(false);
-    toast.success(t("活动设置已保存", "Activity settings saved"));
+    notify.success(t("活动设置已保存", "Activity settings saved"));
   };
 
   const formatTierRange = (tier: AccumulatedRewardTier): string => {

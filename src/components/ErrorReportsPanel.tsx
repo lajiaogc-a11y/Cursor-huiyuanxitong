@@ -15,7 +15,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { AlertTriangle, ChevronDown, Trash2, RefreshCw, ExternalLink, Lightbulb, Code, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { classifyError, getSeverityColor } from "@/lib/errorClassifier";
 import { formatBeijingTime } from "@/lib/beijingTime";
 
@@ -48,7 +48,7 @@ export default function ErrorReportsPanel() {
           ? String((err as { message: string }).message)
           : t("加载失败", "Failed to load");
       setFetchError(msg);
-      toast.error(t("异常报告加载失败", "Failed to load error reports"), { description: msg });
+      notify.error(t("异常报告加载失败", "Failed to load error reports"), { description: msg });
     } finally {
       setLoading(false);
     }
@@ -80,9 +80,9 @@ export default function ErrorReportsPanel() {
     try {
       await deleteErrorReport(id);
       setReports((prev) => prev.filter((r) => r.id !== id));
-      toast.success(t("已删除", "Deleted"));
+      notify.success(t("已删除", "Deleted"));
     } catch {
-      toast.error(t("删除失败", "Delete failed"));
+      notify.error(t("删除失败", "Delete failed"));
     }
   };
 
@@ -92,9 +92,9 @@ export default function ErrorReportsPanel() {
     try {
       await deleteErrorReportsByIds(ids);
       setReports([]);
-      toast.success(t("全部清除", "All cleared"));
+      notify.success(t("全部清除", "All cleared"));
     } catch {
-      toast.error(t("批量删除失败", "Batch delete failed"));
+      notify.error(t("批量删除失败", "Batch delete failed"));
     }
   };
 

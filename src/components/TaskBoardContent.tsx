@@ -22,7 +22,7 @@ import CustomerDetailHoverCard from "@/components/CustomerDetailHoverCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { cn } from "@/lib/utils";
 import {
   getMyTaskItems,
@@ -66,7 +66,7 @@ export default function TaskBoardContent({ compact, onRefresh }: TaskBoardConten
       setGroups(data);
     } catch (e) {
       console.error(e);
-      toast.error(t("加载失败", "Load failed"));
+      notify.error(t("加载失败", "Load failed"));
     } finally {
       setLoading(false);
     }
@@ -119,9 +119,9 @@ export default function TaskBoardContent({ compact, onRefresh }: TaskBoardConten
       setCopiedId(item.id);
       setTimeout(() => setCopiedId(null), 1500);
       if (employee?.id) await logTaskItemCopy(item.id, employee.id, effectiveTenantId);
-      toast.success(t("已复制", "Copied"));
+      notify.success(t("已复制", "Copied"));
     } catch {
-      toast.error(t("复制失败", "Copy failed"));
+      notify.error(t("复制失败", "Copy failed"));
     }
   };
 
@@ -142,7 +142,7 @@ export default function TaskBoardContent({ compact, onRefresh }: TaskBoardConten
       );
       onRefresh?.();
     } catch {
-      toast.error(t("保存备注失败", "Save remark failed"));
+      notify.error(t("保存备注失败", "Save remark failed"));
     } finally {
       setEditingRemarkId(null);
     }
@@ -164,10 +164,10 @@ export default function TaskBoardContent({ compact, onRefresh }: TaskBoardConten
           };
         })
       );
-      toast.success(t("已标记为已完成", "Marked as done"));
+      notify.success(t("已标记为已完成", "Marked as done"));
       onRefresh?.();
     } catch {
-      toast.error(t("操作失败", "Operation failed"));
+      notify.error(t("操作失败", "Operation failed"));
     }
   };
 

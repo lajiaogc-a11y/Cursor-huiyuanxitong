@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { RefreshCw, Search } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -128,7 +128,7 @@ export default function TenantQuotaTab() {
           showServiceErrorToast(result.error, t, "保存租户配额失败", "Failed to save tenant quota");
           return;
         }
-        toast.success(t("租户配额已保存", "Tenant quota saved"));
+        notify.success(t("租户配额已保存", "Tenant quota saved"));
         const statusResult = await getTenantQuotaStatusResult(tenantId);
         if (statusResult.ok) {
           setStatusMap((prev) => ({ ...prev, [tenantId]: statusResult.data }));

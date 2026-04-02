@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { listTenantsResult, type TenantItem } from "@/services/tenantService";
@@ -95,15 +95,15 @@ export default function AnnouncementsTab() {
 
   const handlePublish = useCallback(async () => {
     if (!title.trim()) {
-      toast.error(t("请输入公告标题", "Please enter announcement title"));
+      notify.error(t("请输入公告标题", "Please enter announcement title"));
       return;
     }
     if (!message.trim()) {
-      toast.error(t("请输入公告内容", "Please enter announcement message"));
+      notify.error(t("请输入公告内容", "Please enter announcement message"));
       return;
     }
     if (scope === "tenant" && !tenantId) {
-      toast.error(t("请选择租户", "Please select tenant"));
+      notify.error(t("请选择租户", "Please select tenant"));
       return;
     }
 
@@ -120,13 +120,13 @@ export default function AnnouncementsTab() {
       if (!result.ok) {
         if ((result.error.message || "").startsWith("RATE_LIMITED_ANNOUNCEMENT:")) {
           const minutes = Number((result.error.message || "").split(":")[1] || 1);
-          toast.error(t(`发布过于频繁，请${minutes}分钟后再试`, `Too many publish requests, retry in ${minutes} minute(s)`));
+          notify.error(t(`发布过于频繁，请${minutes}分钟后再试`, `Too many publish requests, retry in ${minutes} minute(s)`));
           return;
         }
         showServiceErrorToast(result.error, t, "发布公告失败", "Failed to publish announcement");
         return;
       }
-      toast.success(
+      notify.success(
         t(
           `发布成功，已投递 ${result.data.recipientCount} 个站内信`,
           `Published successfully, delivered to ${result.data.recipientCount} recipients`

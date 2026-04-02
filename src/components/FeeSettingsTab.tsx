@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, Trash2, DollarSign, Calculator, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { getFeeSettings, saveFeeSettings, FeeSettings, saveUsdtFee } from "@/stores/systemSettings";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CURRENCIES } from "@/config/currencies";
@@ -69,9 +69,9 @@ export default function FeeSettingsTab() {
     const success = await saveSharedData('systemSettings_usdtFee', feeValue);
     if (success) {
       saveUsdtFee(feeValue);  // 更新缓存
-      toast.success(t("手续费设定已保存", "Fee settings saved"));
+      notify.success(t("手续费设定已保存", "Fee settings saved"));
     } else {
-      toast.error(t("保存失败，请重试", "Save failed, please retry"));
+      notify.error(t("保存失败，请重试", "Save failed, please retry"));
     }
   };
 
@@ -82,10 +82,10 @@ export default function FeeSettingsTab() {
       if (success) {
         setUsdtFee("");
         saveUsdtFee(0);
-        toast.success(t("USDT手续费已清除", "USDT fee cleared"));
+        notify.success(t("USDT手续费已清除", "USDT fee cleared"));
         setClearUsdtFeeDialogOpen(false);
       } else {
-        toast.error(t("清除失败，请重试", "Clear failed, please retry"));
+        notify.error(t("清除失败，请重试", "Clear failed, please retry"));
       }
     } finally {
       setClearingUsdtFee(false);

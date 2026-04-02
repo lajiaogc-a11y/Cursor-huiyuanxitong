@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Plus, Pencil, Trash2, Users } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
   getShiftReceivers,
@@ -59,7 +59,7 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
   // 添加接班人
   const handleAdd = async () => {
     if (!newReceiverName.trim()) {
-      toast.error(t('shiftHandover.pleaseEnterName'));
+      notify.error(t('shiftHandover.pleaseEnterName'));
       return;
     }
     
@@ -68,9 +68,9 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
       await loadReceivers();
       setNewReceiverName('');
       setIsAddDialogOpen(false);
-      toast.success(t('shiftHandover.addedSuccessfully'));
+      notify.success(t('shiftHandover.addedSuccessfully'));
     } else {
-      toast.error(t('shiftHandover.addFailed'));
+      notify.error(t('shiftHandover.addFailed'));
     }
   };
   
@@ -84,7 +84,7 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
   // 保存编辑
   const handleSaveEdit = async () => {
     if (!editingReceiver || !editName.trim()) {
-      toast.error(t('shiftHandover.pleaseEnterName'));
+      notify.error(t('shiftHandover.pleaseEnterName'));
       return;
     }
     
@@ -93,9 +93,9 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
       await loadReceivers();
       setIsEditDialogOpen(false);
       setEditingReceiver(null);
-      toast.success(t('shiftHandover.updatedSuccessfully'));
+      notify.success(t('shiftHandover.updatedSuccessfully'));
     } else {
-      toast.error(t('shiftHandover.updateFailed'));
+      notify.error(t('shiftHandover.updateFailed'));
     }
   };
   
@@ -114,9 +114,9 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
       await loadReceivers();
       setIsDeleteDialogOpen(false);
       setDeletingReceiver(null);
-      toast.success(t('shiftHandover.deletedSuccessfully'));
+      notify.success(t('shiftHandover.deletedSuccessfully'));
     } else {
-      toast.error(t('shiftHandover.deleteFailed'));
+      notify.error(t('shiftHandover.deleteFailed'));
     }
   };
   

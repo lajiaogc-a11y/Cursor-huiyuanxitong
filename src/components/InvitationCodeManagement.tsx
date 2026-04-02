@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Copy, RefreshCw, Loader2, Ticket, ShieldAlert } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { apiGet, apiPost } from "@/api/client";
 import { deleteInvitationCode, toggleInvitationCodeActive } from "@/services/staff/invitationCodeTableService";
 import { useAuth } from "@/contexts/AuthContext";
@@ -75,7 +75,7 @@ export default function InvitationCodeManagement() {
 
   const handleGenerate = async () => {
     if (!canManageCodes) {
-      toast.error(
+      notify.error(
         t("仅租户管理员可生成员工邀请码", "Only tenant administrators can generate staff invitation codes"),
       );
       return;
@@ -93,13 +93,13 @@ export default function InvitationCodeManagement() {
         if (code) generatedCodes.push(code);
       }
 
-      toast.success(
+      notify.success(
         t(`成功生成 ${generatedCodes.length} 个邀请码`, `Generated ${generatedCodes.length} invitation code(s)`),
       );
       await fetchCodes();
     } catch (error: unknown) {
       console.error("Failed to generate invitation code:", error);
-      toast.error(t("生成邀请码失败", "Failed to generate invitation code"));
+      notify.error(t("生成邀请码失败", "Failed to generate invitation code"));
     } finally {
       setGenerating(false);
     }
@@ -108,19 +108,19 @@ export default function InvitationCodeManagement() {
   const handleDelete = async (id: string) => {
     try {
       await deleteInvitationCode(id);
-      toast.success(t("邀请码已删除", "Invitation code deleted"));
+      notify.success(t("邀请码已删除", "Invitation code deleted"));
       setDeleteConfirm(null);
       await fetchCodes();
     } catch (error) {
       console.error("Failed to delete invitation code:", error);
-      toast.error(t("删除失败", "Delete failed"));
+      notify.error(t("删除失败", "Delete failed"));
     }
   };
 
   const handleToggleActive = async (id: string, currentActive: boolean) => {
     try {
       await toggleInvitationCodeActive(id, !currentActive);
-      toast.success(
+      notify.success(
         currentActive ? t("邀请码已禁用", "Code disabled") : t("邀请码已启用", "Code enabled"),
       );
       await fetchCodes();
@@ -131,7 +131,7 @@ export default function InvitationCodeManagement() {
 
   const copyToClipboard = (code: string) => {
     navigator.clipboard.writeText(code);
-    toast.success(t("已复制到剪贴板", "Copied to clipboard"));
+    notify.success(t("已复制到剪贴板", "Copied to clipboard"));
   };
 
   if (!canManageCodes) {

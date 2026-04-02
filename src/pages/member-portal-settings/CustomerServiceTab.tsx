@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Headphones, Plus, Trash2, Upload, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { DrawerDetail } from '@/components/shell/DrawerDetail';
 import { verifyAdminPasswordApi } from '@/services/admin/adminApiService';
@@ -158,9 +158,9 @@ export default function CustomerServiceTab({ settings, onSettingsChange, imageFi
                       const updated = [...agents];
                       updated[idx] = { ...updated[idx], avatar_url: webpUrl };
                       onSettingsChange({ customer_service_agents: updated });
-                      toast.success(t("头像已转换为 WebP", "Avatar converted to WebP"));
+                      notify.success(t("头像已转换为 WebP", "Avatar converted to WebP"));
                     } catch {
-                      toast.error(t("图片处理失败", "Image processing failed"));
+                      notify.error(t("图片处理失败", "Image processing failed"));
                     } finally {
                       setUploadingAgentAvatarIdx(null);
                       e.target.value = '';
@@ -274,7 +274,7 @@ export default function CustomerServiceTab({ settings, onSettingsChange, imageFi
                 const updated = [...agents];
                 updated[i] = { ...updated[i], avatar_url: null };
                 onSettingsChange({ customer_service_agents: updated });
-                toast.success(t("头像已移除", "Avatar removed"));
+                notify.success(t("头像已移除", "Avatar removed"));
               }}
             >
               {t("移除", "Remove")}
@@ -330,16 +330,16 @@ export default function CustomerServiceTab({ settings, onSettingsChange, imageFi
                 try {
                   const ok = await verifyAdminPasswordApi(deleteAgentPwd);
                   if (!ok) {
-                    toast.error(t("密码错误，操作已取消", "Invalid password, action cancelled"));
+                    notify.error(t("密码错误，操作已取消", "Invalid password, action cancelled"));
                     return;
                   }
                   const updated = agents.filter((_, i) => i !== deleteAgentIdx);
                   onSettingsChange({ customer_service_agents: updated });
-                  toast.success(t("客服已删除", "Agent removed"));
+                  notify.success(t("客服已删除", "Agent removed"));
                   setDeleteAgentIdx(null);
                   setDeleteAgentPwd('');
                 } catch {
-                  toast.error(t("验证失败，请重试", "Verification failed, please retry"));
+                  notify.error(t("验证失败，请重试", "Verification failed, please retry"));
                 } finally {
                   setDeletingAgent(false);
                 }

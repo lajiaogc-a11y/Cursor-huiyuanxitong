@@ -42,7 +42,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, RefreshCw, Pencil, Trash2, ChevronDown, Download, KeyRound, UsersRound, Copy } from "lucide-react";
+import { Search, RefreshCw, Pencil, Trash2, ChevronDown, Download, KeyRound, UsersRound, Copy, X } from "lucide-react";
 import TableImportButton from "@/components/TableImportButton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobileCardActions, MobilePagination, MobileEmptyState } from "@/components/ui/mobile-data-card";
@@ -50,7 +50,7 @@ import { MobileFilterBar } from "@/components/ui/mobile-filter-bar";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
 import { useExportConfirm } from "@/hooks/useExportConfirm";
 import { exportTableToXLSX } from "@/services/dataExportImportService";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useMembers, Member } from "@/hooks/useMembers";
 import { logOperation } from "@/stores/auditLogStore";
 import { getCurrencyBadgeColor, normalizeCurrencyCode, CURRENCIES } from "@/config/currencies";
@@ -64,6 +64,9 @@ import { formatBeijingDate } from "@/lib/beijingTime";
 import { getMemberPortalDisplayName } from "@/lib/memberDisplayName";
 import { PageHeader, PageActions, FilterBar, KPIGrid } from "@/components/common";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
+import { useDebouncedValue } from "@/hooks/useDebounce";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const memberLevels = [...MEMBER_LEVELS];
 
@@ -78,7 +81,9 @@ export default function MemberManagement() {
   const { members, loading, updateMember, deleteMember, refetch } = useMembers();
   const exportConfirm = useExportConfirm();
   const { activeSources: customerSources } = useCustomerSources();
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchDraft, setSearchDraft] = useState("");
+  const debouncedSearch = useDebouncedValue(searchDraft, 300);
+  const [filterQuery, setFilterQuery] = useState("");
   const [searchError, setSearchError] = useState("");
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -108,7 +113,7 @@ export default function MemberManagement() {
 
   const handleRefresh = async () => {
     await refetch();
-    toast.success(t('members.listRefreshed'));
+    notify.success(t('members.listRefreshed'));
   };
 
   // 排序后的会员列表（按创建时间倒序）
@@ -120,9 +125,13 @@ export default function MemberManagement() {
     });
   }, [members]);
 
-  // 筛选后的会员
+  useEffect(() => {
+    setFilterQuery(debouncedSearch);
+  }, [debouncedSearch]);
+
+  // 筛选后的会员（防抖 + Enter 立即生效见 filterQuery）
   const filteredMembers = useMemo(() => {
-    const q = searchTerm.toLowerCase();
+    const q = filterQuery.trim().toLowerCase();
     return sortedMembers.filter(
       (member) =>
         String(member.phoneNumber ?? "").toLowerCase().includes(q) ||
@@ -131,7 +140,7 @@ export default function MemberManagement() {
         String(member.nickname ?? "").toLowerCase().includes(q) ||
         String(member.commonCards?.join(",") || "").toLowerCase().includes(q)
     );
-  }, [sortedMembers, searchTerm]);
+  }, [sortedMembers, filterQuery]);
   
   // 分页后的会员
   const paginatedMembers = useMemo(() => {
@@ -145,7 +154,7 @@ export default function MemberManagement() {
   // 重置页码当筛选条件变化
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, pageSize]);
+  }, [filterQuery, pageSize]);
 
   const memberKpiItems = useMemo(() => {
     const levelACount = members.filter((m) => m.level === "A").length;
@@ -192,7 +201,7 @@ export default function MemberManagement() {
           t(`修改会员: ${editingMember.phoneNumber}`, `Update member: ${editingMember.phoneNumber}`)
         );
         
-        toast.success(t('members.updateSuccess'));
+        notify.success(t('members.updateSuccess'));
         setIsEditDialogOpen(false);
         setEditingMember(null);
       }
@@ -202,7 +211,7 @@ export default function MemberManagement() {
   const handleDelete = async (memberId: string) => {
     const success = await deleteMember(memberId);
     if (success) {
-      toast.success(t('members.deleteSuccess'));
+      notify.success(t('members.deleteSuccess'));
     }
   };
 
@@ -219,14 +228,14 @@ export default function MemberManagement() {
   const handleCopyPassword = async (member: Member) => {
     const pwd = member.initialPassword;
     if (!pwd) {
-      toast.error(t("该会员暂无初始密码", "No initial password set for this member"));
+      notify.error(t("该会员暂无初始密码", "No initial password set for this member"));
       return;
     }
     try {
       await navigator.clipboard.writeText(pwd);
-      toast.success(`Your password is: ${pwd}`);
+      notify.success(`Your password is: ${pwd}`);
     } catch {
-      toast.info(`Your password is: ${pwd}`);
+      notify.info(`Your password is: ${pwd}`);
     }
   };
 
@@ -234,14 +243,14 @@ export default function MemberManagement() {
     if (!setPasswordMember) return;
     const pwd = setPasswordValue.trim();
     if (pwd.length < 6) {
-      toast.error(t("密码至少6位", "Password must be at least 6 characters"));
+      notify.error(t("密码至少6位", "Password must be at least 6 characters"));
       return;
     }
     setSetPasswordLoading(true);
     try {
       const result = await adminSetMemberInitialPassword(setPasswordMember.id, pwd);
       if (result?.success) {
-        toast.success(t("密码已设置", "Password set successfully"));
+        notify.success(t("密码已设置", "Password set successfully"));
         setSetPasswordMember(null);
         refetch();
       } else {
@@ -251,10 +260,10 @@ export default function MemberManagement() {
             : result?.error === "MEMBER_NOT_FOUND"
               ? t("会员不存在", "Member not found")
               : result?.error || t("设置失败", "Set failed");
-        toast.error(msg);
+        notify.error(msg);
       }
     } catch (e: unknown) {
-      toast.error(t("设置失败", "Set failed") + ": " + (e instanceof Error ? e.message : String(e)));
+      notify.error(t("设置失败", "Set failed") + ": " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setSetPasswordLoading(false);
     }
@@ -303,8 +312,8 @@ export default function MemberManagement() {
                   onClick={() =>
                     exportConfirm.requestExport(async () => {
                       const r = await exportTableToXLSX("members", false);
-                      if (r.success) toast.success(t("已导出 Excel（.xlsx）", "Exported as Excel (.xlsx)"));
-                      else if (r.error) toast.error(r.error);
+                      if (r.success) notify.success(t("已导出 Excel（.xlsx）", "Exported as Excel (.xlsx)"));
+                      else if (r.error) notify.error(r.error);
                     })
                   }
                 >
@@ -323,33 +332,54 @@ export default function MemberManagement() {
         <FilterBar>
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative min-w-0 max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-[1]" aria-hidden />
               <Input
                 placeholder={t("members.searchPlaceholder")}
-                value={searchTerm}
+                value={searchDraft}
+                data-staff-page-search
                 onChange={(e) => {
-                  setSearchTerm(e.target.value);
+                  setSearchDraft(e.target.value);
                   setSearchError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    setFilterQuery(searchDraft);
+                  }
                 }}
                 onPaste={(e) => {
                   e.preventDefault();
                   const raw = e.clipboardData.getData("text");
                   const pasted = raw.replace(/[^a-zA-Z0-9]/g, "");
-                  setSearchTerm(pasted);
+                  setSearchDraft(pasted);
                   setSearchError("");
                   if (raw !== pasted) {
-                    toast.info(
+                    notify.info(
                       t("已去除空格与符号，仅保留字母与数字以便匹配。", "Removed spaces and symbols; only letters and digits are kept for matching."),
                     );
                   }
                 }}
-                className={cn("pl-9", searchError && "border-destructive")}
+                className={cn("pl-9 pr-9", searchError && "border-destructive")}
                 autoComplete="off"
                 name="member-search"
                 data-lpignore="true"
                 aria-describedby="member-search-hint"
                 aria-invalid={!!searchError}
               />
+              {searchDraft ? (
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 z-[1] -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  onClick={() => {
+                    setSearchDraft("");
+                    setFilterQuery("");
+                    setSearchError("");
+                  }}
+                  aria-label={t("清空搜索", "Clear search")}
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              ) : null}
               <p id="member-search-hint" className="mt-1 text-[11px] text-muted-foreground">
                 {t("粘贴时会自动去掉空格与符号。", "Paste automatically strips spaces and symbols.")}
               </p>
@@ -368,9 +398,9 @@ export default function MemberManagement() {
           <CardHeader className="shrink-0 px-2.5 pb-2 pt-2">
             <div className="space-y-2">
               <MobileFilterBar
-                searchValue={searchTerm}
+                searchValue={searchDraft}
                 onSearchChange={(v) => {
-                  setSearchTerm(v);
+                  setSearchDraft(v);
                   setSearchError("");
                 }}
                 placeholder={t("members.searchPlaceholder")}
@@ -386,8 +416,8 @@ export default function MemberManagement() {
                         onClick={() =>
                           exportConfirm.requestExport(async () => {
                             const r = await exportTableToXLSX("members", false);
-                            if (r.success) toast.success(t("已导出 Excel（.xlsx）", "Exported as Excel (.xlsx)"));
-                            else if (r.error) toast.error(r.error);
+                            if (r.success) notify.success(t("已导出 Excel（.xlsx）", "Exported as Excel (.xlsx)"));
+                            else if (r.error) notify.error(r.error);
                           })
                         }
                       >
@@ -470,6 +500,7 @@ export default function MemberManagement() {
                 <MobilePagination currentPage={currentPage} totalPages={totalPages} totalItems={filteredMembers.length} onPageChange={setCurrentPage} pageSize={pageSize} onPageSizeChange={setPageSize} />
               </MobileCardList>
             ) : (
+            <TooltipProvider delayDuration={200}>
             <StickyScrollTableContainer>
               <Table className="text-sm">
                 <TableHeader className="sticky top-0 z-10">
@@ -492,12 +523,45 @@ export default function MemberManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedMembers.length === 0 ? (
+                {loading && members.length === 0 ? (
+                  Array.from({ length: 8 }).map((_, i) => (
+                    <TableRow key={`sk-${i}`}>
+                      {Array.from({ length: 14 }).map((__, j) => (
+                        <TableCell key={j} className="py-2">
+                          <Skeleton className="h-7 w-full" />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : paginatedMembers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
-                      {filteredMembers.length === 0 
-                        ? t('members.noMembers')
-                        : t('members.currentPageEmpty')}
+                    <TableCell colSpan={14} className="text-center py-10 text-muted-foreground">
+                      <div className="flex flex-col items-center gap-3">
+                        <p className="text-sm">
+                          {filteredMembers.length === 0
+                            ? members.length === 0
+                              ? t("members.noMembers")
+                              : t("无匹配结果", "No matches")
+                            : t("members.currentPageEmpty")}
+                        </p>
+                        {members.length === 0 && !loading ? (
+                          <Button variant="outline" size="sm" onClick={() => void refetch()}>
+                            {t("重试", "Retry")}
+                          </Button>
+                        ) : null}
+                        {filteredMembers.length === 0 && members.length > 0 ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSearchDraft("");
+                              setFilterQuery("");
+                            }}
+                          >
+                            {t("清空搜索", "Clear search")}
+                          </Button>
+                        ) : null}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -606,69 +670,93 @@ export default function MemberManagement() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleEdit(member)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleOpenSetPassword(member)}
-                            title={t('设置密码', 'Set Password')}
-                          >
-                            <KeyRound className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleCopyPassword(member)}
-                            title={t('复制密码', 'Copy Password')}
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleViewReferrals(member)}
-                            title={t('查看推荐人', 'View Referrals')}
-                          >
-                            <UsersRound className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                className="h-8 w-8"
+                                onClick={() => handleEdit(member)}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Pencil className="h-4 w-4" />
                               </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>{t('members.confirmDelete')}</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  {t('members.deleteWarning')}
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>{t('取消', 'Cancel')}</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDelete(member.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  {t('删除', 'Delete')}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">{t("编辑", "Edit")}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleOpenSetPassword(member)}
+                              >
+                                <KeyRound className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">{t("设置密码", "Set password")}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleCopyPassword(member)}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">{t("复制密码", "Copy password")}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleViewReferrals(member)}
+                              >
+                                <UsersRound className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">{t("查看推荐人", "View referrals")}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex">
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-destructive hover:text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>{t("members.confirmDelete")}</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        {t("members.deleteWarning")}
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDelete(member.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        {t("删除", "Delete")}
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">{t("删除", "Delete")}</TooltipContent>
+                          </Tooltip>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -677,6 +765,7 @@ export default function MemberManagement() {
               </TableBody>
             </Table>
            </StickyScrollTableContainer>
+            </TooltipProvider>
             )}
           </div>
           

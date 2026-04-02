@@ -4,7 +4,7 @@ import { apiPost } from '@/api/client';
 import { ApiError } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import { logOperationToDb } from './useOperationLogs';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { compressImageToUploadableFile } from '@/lib/imageClientCompress';
@@ -122,12 +122,12 @@ export function useKnowledgeCategories(
         `新增分类: ${name} (${finalVisibility === 'private' ? '私有' : '公开'})`
       );
       
-      toast.success(finalVisibility === 'private' ? t('私有分类添加成功', 'Private category added') : t('分类添加成功', 'Category added'));
+      notify.success(finalVisibility === 'private' ? t('私有分类添加成功', 'Private category added') : t('分类添加成功', 'Category added'));
       fetchCategories();
       return true;
     } catch (error) {
       console.error('Error adding category:', error);
-      toast.error(t('添加失败', 'Failed to add'));
+      notify.error(t('添加失败', 'Failed to add'));
       return false;
     }
   };
@@ -147,7 +147,7 @@ export function useKnowledgeCategories(
         `编辑分类: ${currentCategory?.name || id}`
       );
       
-      toast.success(t('分类更新成功', 'Category updated'));
+      notify.success(t('分类更新成功', 'Category updated'));
       fetchCategories();
       return true;
     } catch (error) {
@@ -156,7 +156,7 @@ export function useKnowledgeCategories(
         error instanceof ApiError && error.message
           ? error.message
           : t('更新失败', 'Failed to update');
-      toast.error(msg);
+      notify.error(msg);
       return false;
     }
   };
@@ -176,12 +176,12 @@ export function useKnowledgeCategories(
         `删除分类: ${currentCategory?.name || id}`
       );
       
-      toast.success(t('分类删除成功', 'Category deleted'));
+      notify.success(t('分类删除成功', 'Category deleted'));
       fetchCategories();
       return true;
     } catch (error) {
       console.error('Error deleting category:', error);
-      toast.error(t('删除失败', 'Failed to delete'));
+      notify.error(t('删除失败', 'Failed to delete'));
       return false;
     }
   };
@@ -207,12 +207,12 @@ export function useKnowledgeCategories(
         `调整分类顺序`
       );
       
-      toast.success(t('分类顺序已更新', 'Category order updated'));
+      notify.success(t('分类顺序已更新', 'Category order updated'));
       fetchCategories();
       return true;
     } catch (error) {
       console.error('Error reordering categories:', error);
-      toast.error(t('排序更新失败', 'Failed to update order'));
+      notify.error(t('排序更新失败', 'Failed to update order'));
       return false;
     }
   };
@@ -273,12 +273,12 @@ export function useKnowledgeArticles(
         }
       }
       
-      toast.success(t('内容发布成功', 'Content published'));
+      notify.success(t('内容发布成功', 'Content published'));
       fetchArticles();
       return true;
     } catch (error) {
       console.error('Error adding article:', error);
-      toast.error(t('发布失败', 'Failed to publish'));
+      notify.error(t('发布失败', 'Failed to publish'));
       return false;
     }
   };
@@ -298,12 +298,12 @@ export function useKnowledgeArticles(
         `编辑文章: ${currentArticle?.title_zh || updates.title_zh || id}`
       );
       
-      toast.success(t('内容更新成功', 'Content updated'));
+      notify.success(t('内容更新成功', 'Content updated'));
       fetchArticles();
       return true;
     } catch (error) {
       console.error('Error updating article:', error);
-      toast.error(t('更新失败', 'Failed to update'));
+      notify.error(t('更新失败', 'Failed to update'));
       return false;
     }
   };
@@ -323,12 +323,12 @@ export function useKnowledgeArticles(
         `删除文章: ${currentArticle?.title_zh || id}`
       );
       
-      toast.success(t('内容删除成功', 'Content deleted'));
+      notify.success(t('内容删除成功', 'Content deleted'));
       fetchArticles();
       return true;
     } catch (error) {
       console.error('Error deleting article:', error);
-      toast.error(t('删除失败', 'Failed to delete'));
+      notify.error(t('删除失败', 'Failed to delete'));
       return false;
     }
   };
@@ -353,7 +353,7 @@ export function useKnowledgeArticles(
       return true;
     } catch (error) {
       console.error('Error updating sort orders:', error);
-      toast.error(t('排序更新失败', 'Failed to update order'));
+      notify.error(t('排序更新失败', 'Failed to update order'));
       return false;
     }
   };
@@ -489,7 +489,7 @@ export async function uploadKnowledgeImage(file: File): Promise<string | null> {
     // Validate file size (max 10MB before compression)
     const MAX_SIZE = 10 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
-      toast.error('图片大小不能超过 10MB / Image must be under 10MB');
+      notify.error('图片大小不能超过 10MB / Image must be under 10MB');
       return null;
     }
 
@@ -506,7 +506,7 @@ export async function uploadKnowledgeImage(file: File): Promise<string | null> {
 
     const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
     if (compressed.size > MAX_UPLOAD_BYTES) {
-      toast.error('压缩后图片仍超过 2MB / Image still exceeds 2MB after compression');
+      notify.error('压缩后图片仍超过 2MB / Image still exceeds 2MB after compression');
       return null;
     }
 
@@ -534,7 +534,7 @@ export async function uploadKnowledgeImage(file: File): Promise<string | null> {
     return (resp as { url: string }).url;
   } catch (error) {
     console.error('Error uploading image:', error);
-    toast.error('图片上传失败 / Image upload failed');
+    notify.error('图片上传失败 / Image upload failed');
     return null;
   }
 }

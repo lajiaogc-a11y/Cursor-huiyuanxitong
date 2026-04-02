@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { UserPlus, RefreshCw, Copy, Check, Loader2, UserCheck, UserX, Search } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMembers, Member } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
@@ -292,27 +292,27 @@ export default function MemberEntryTab() {
     navigator.clipboard.writeText(formData.memberCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    toast.success(t("会员编号已复制", "Member code copied"));
+    notify.success(t("会员编号已复制", "Member code copied"));
   };
   
   // 验证表单
   const validateForm = (): boolean => {
     // 电话号码必填
     if (!formData.phoneNumber.trim()) {
-      toast.error(t("请输入电话号码", "Please enter phone number"));
+      notify.error(t("请输入电话号码", "Please enter phone number"));
       return false;
     }
     
     // 电话号码格式验证
     const phoneValidation = validatePhoneLength(formData.phoneNumber);
     if (!phoneValidation.valid) {
-      toast.error(phoneValidation.message);
+      notify.error(phoneValidation.message);
       return false;
     }
     
     // 来源必填
     if (!formData.customerSource) {
-      toast.error(t("请选择会员来源", "Please select member source"));
+      notify.error(t("请选择会员来源", "Please select member source"));
       return false;
     }
     
@@ -376,7 +376,7 @@ export default function MemberEntryTab() {
             `更新会员: ${updatedMember.phoneNumber}`
           );
           
-          toast.success(t("会员更新成功", "Member updated successfully"));
+          notify.success(t("会员更新成功", "Member updated successfully"));
           clearForm();
           setMemberStatus('empty');
           setExistingMemberId(null);
@@ -423,7 +423,7 @@ export default function MemberEntryTab() {
             `新增会员: ${newMember.phoneNumber}`
           );
           
-          toast.success(t("会员创建成功", "Member created successfully"));
+          notify.success(t("会员创建成功", "Member created successfully"));
           clearForm();
           setMemberStatus('empty');
           setExistingMemberId(null);
@@ -432,7 +432,7 @@ export default function MemberEntryTab() {
       }
     } catch (error) {
       console.error('Failed to save member:', error);
-      toast.error(t("保存会员失败", "Failed to save member"));
+      notify.error(t("保存会员失败", "Failed to save member"));
     } finally {
       setIsSubmitting(false);
     }
@@ -445,7 +445,7 @@ export default function MemberEntryTab() {
     setMemberStatus('empty');
     setExistingMemberId(null);
     setExistingMemberData(null);
-    toast.success(t("表单已重置", "Form has been reset"));
+    notify.success(t("表单已重置", "Form has been reset"));
   };
   
   // 渲染会员状态提示

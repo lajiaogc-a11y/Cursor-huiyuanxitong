@@ -4,7 +4,7 @@
 import { apiGet, apiPost } from '@/api/client';
 import { getCurrentOperatorSync, OperatorInfo } from '@/services/members/operatorService';
 import { postOperationLog } from '@/services/staff/dataApi';
-import { toast } from 'sonner';
+import { notify } from "@/lib/notifyHub";
 import {
   parseOperationLogDataField,
   INVALID_OPERATION_LOG_JSON,
@@ -260,7 +260,7 @@ export async function fetchAuditLogsPage(
     } catch (apiErr) {
       console.warn('[AuditLog] API fetch failed:', apiErr);
       if (typeof window !== 'undefined') {
-        toast.error(pickBilingual('操作日志加载失败，请确保后端服务已启动（cd server && npm run dev）', 'Failed to load audit logs. Please ensure the backend is running (cd server && npm run dev)'));
+        notify.error(pickBilingual('操作日志加载失败，请确保后端服务已启动（cd server && npm run dev）', 'Failed to load audit logs. Please ensure the backend is running (cd server && npm run dev)'));
       }
       throw apiErr;
     }

@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
+import { notify } from "@/lib/notifyHub";
 import CurrencySelect, { useCurrencies } from "@/components/CurrencySelect";
 import { CurrencyCode } from "@/config/currencies";
 import { calculateTransactionFee } from "@/lib/feeCalculation";
@@ -283,7 +283,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
 
           if (dbMember && dbMember.id) {
             setMemberError("");
-            toast.success(t(`会员匹配: ${dbMember.member_code}`, `Member matched: ${String(dbMember.member_code ?? '')}`));
+            notify.success(t(`会员匹配: ${dbMember.member_code}`, `Member matched: ${String(dbMember.member_code ?? '')}`));
           } else {
             setMemberError(t("未找到会员", "Member not found"));
           }
@@ -305,7 +305,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
           if (dbMember && dbMember.id) {
             setMemberError("");
             setPhoneNumber(String(dbMember.phone_number ?? ''));
-            toast.success(t(`会员匹配: ${dbMember.member_code}`, `Member matched: ${String(dbMember.member_code ?? '')}`));
+            notify.success(t(`会员匹配: ${dbMember.member_code}`, `Member matched: ${String(dbMember.member_code ?? '')}`));
           } else {
             setMemberError(t("未找到会员", "Member not found"));
           }
@@ -325,24 +325,24 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
 
   const handleSubmit = async () => {
     if (isPlatformAdminReadonlyView) {
-      toast.error(t("平台总管理查看租户时为只读，无法提交活动赠送", "Read-only in admin view, cannot submit activity gift"));
+      notify.error(t("平台总管理查看租户时为只读，无法提交活动赠送", "Read-only in admin view, cannot submit activity gift"));
       return;
     }
     if (!amount) {
-      toast.error(t('activityGift.pleaseEnterAmount'));
+      notify.error(t('activityGift.pleaseEnterAmount'));
       return;
     }
     if (!phoneNumber) {
-      toast.error(t('activityGift.pleaseEnterPhone'));
+      notify.error(t('activityGift.pleaseEnterPhone'));
       return;
     }
     if (!paymentAgent) {
-      toast.error(t('activityGift.pleaseSelectAgent'));
+      notify.error(t('activityGift.pleaseSelectAgent'));
       return;
     }
     const effRate = getEffectiveRate();
     if (!effRate || effRate <= 0) {
-      toast.error(t("请填写有效汇率或等待页面汇率同步", "Enter a valid rate or wait for rates to sync"));
+      notify.error(t("请填写有效汇率或等待页面汇率同步", "Enter a valid rate or wait for rates to sync"));
       return;
     }
 
@@ -358,7 +358,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
       } catch { /* DB lookup optional fallback */ }
     }
     if (!member) {
-      toast.error(t('activityGift.memberNotFoundError'));
+      notify.error(t('activityGift.memberNotFoundError'));
       return;
     }
 
@@ -379,13 +379,13 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
       } catch { /* ignore */ }
     }
     if (!member) {
-      toast.error(t('activityGift.memberNotFoundError'));
+      notify.error(t('activityGift.memberNotFoundError'));
       setConfirmOpen(false);
       return;
     }
     const effRateExec = getEffectiveRate();
     if (!effRateExec || effRateExec <= 0) {
-      toast.error(t("请填写有效汇率或等待页面汇率同步", "Enter a valid rate or wait for rates to sync"));
+      notify.error(t("请填写有效汇率或等待页面汇率同步", "Enter a valid rate or wait for rates to sync"));
       setConfirmOpen(false);
       return;
     }
@@ -407,7 +407,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
       }, member.id, employee?.id);
 
       if (result) {
-        toast.success(t('activityGift.submitted'));
+        notify.success(t('activityGift.submitted'));
         performReset();
       }
     } finally {
