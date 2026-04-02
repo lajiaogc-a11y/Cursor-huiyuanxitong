@@ -42,6 +42,7 @@ export async function getMemberInboxNotifyPolicy(tenantId: string): Promise<Memb
     };
   }
   const inboxEnabled = boolCol(row.enable_member_inbox, true);
+  // 子列在库中独立存储（可预配置）；实际是否写入/展示仍以 inboxEnabled 与各子列为与运算
   return {
     inboxEnabled,
     orderSpin: inboxEnabled && boolCol(row.member_inbox_notify_order_spin, true),

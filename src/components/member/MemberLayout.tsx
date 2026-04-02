@@ -174,7 +174,9 @@ export function MemberLayout({ children }: { children: ReactNode }) {
           accentColor={themeColor}
           brandName={String(settings.company_name || "").trim() || "FastGC"}
           logoUrl={settings.logo_url}
-          pendingBrand={Boolean(member?.id) && portalLoading}
+          pendingBrand={
+            Boolean(member?.id) && portalLoading && !String(settings.logo_url ?? "").trim()
+          }
           showSkip={false}
         />
       )}

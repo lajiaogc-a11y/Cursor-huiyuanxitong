@@ -61,6 +61,11 @@ import {
   readMemberPortalSplashBootstrap,
   persistMemberPortalSplashCache,
 } from "@/lib/memberPortalSplashCache";
+import {
+  getPlatformBrandLogoUrl,
+  mergePlatformBrandLogo,
+  seedPlatformBrandLogoFromSettings,
+} from "@/lib/memberPortalPlatformBrandLogo";
 import { preloadMemberPortalLogo } from "@/lib/memberPortalLogoPreload";
 import { applyMemberPortalFaviconFromLogoRaw } from "@/lib/memberPortalFavicon";
 import "@/styles/member-portal.css";
@@ -281,16 +286,18 @@ export default function MemberLogin() {
     (async () => {
       try {
         let next = DEFAULT_SETTINGS;
+        const defaultPayload = await getDefaultMemberPortalSettings();
+        const platformLogo = String(defaultPayload?.settings?.logo_url ?? "").trim() || null;
+        seedPlatformBrandLogoFromSettings(platformLogo);
         if (inviteOrRefCode) {
           const byInvite = await getMemberPortalSettingsByInviteCode(inviteOrRefCode);
-          if (byInvite?.settings) next = byInvite.settings;
-          else {
-            const data = await getDefaultMemberPortalSettings();
-            next = data?.settings || DEFAULT_SETTINGS;
+          if (byInvite?.settings) {
+            next = mergePlatformBrandLogo(byInvite.settings, platformLogo);
+          } else {
+            next = mergePlatformBrandLogo(defaultPayload?.settings || DEFAULT_SETTINGS, platformLogo);
           }
         } else {
-          const data = await getDefaultMemberPortalSettings();
-          next = data?.settings || DEFAULT_SETTINGS;
+          next = defaultPayload?.settings || DEFAULT_SETTINGS;
         }
         if (cancelled) return;
         setDefaultPortalSettings(next);
@@ -318,8 +325,9 @@ export default function MemberLogin() {
     const timer = window.setTimeout(async () => {
       try {
         const data = await getMemberPortalSettingsByAccount(account);
-        const next = data?.settings || defaultPortalSettings;
-        setPreviewSettings(next);
+        const raw = data?.settings || defaultPortalSettings;
+        const pl = await getPlatformBrandLogoUrl();
+        setPreviewSettings(mergePlatformBrandLogo(raw, pl));
       } catch {
         setPreviewSettings(defaultPortalSettings);
       }

@@ -1678,8 +1678,8 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
             <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
               {/* 左栏：手填（特点、来源）→ 自动（常交易卡、等级） */}
               <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5 rounded-md border border-primary/35 bg-primary/[0.08] px-1.5 py-1 dark:border-primary/35 dark:bg-primary/15">
-                  <Label className="text-[10px] w-14 shrink-0 font-medium text-primary dark:text-primary">
+                <div className="flex items-center gap-1.5 rounded-md border border-primary/35 bg-primary/[0.08] px-1.5 py-0 dark:border-primary/35 dark:bg-primary/15">
+                  <Label className="text-[10px] w-14 shrink-0 font-medium text-primary dark:text-primary leading-none">
                     {t("客户特点", "Feature")}
                   </Label>
                   <Input
@@ -1689,8 +1689,8 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
                     className="h-6 flex-1 text-[11px] border-primary/25 bg-background/90 shadow-none focus-visible:ring-primary/35 dark:border-primary/30 dark:bg-background/70"
                   />
                 </div>
-                <div className="flex items-center gap-1.5 rounded-md border border-primary/35 bg-primary/[0.08] px-1.5 py-1 dark:border-primary/35 dark:bg-primary/15">
-                  <Label className="text-[10px] w-14 shrink-0 font-medium text-primary dark:text-primary">
+                <div className="flex items-center gap-1.5 rounded-md border border-primary/35 bg-primary/[0.08] px-1.5 py-0 dark:border-primary/35 dark:bg-primary/15">
+                  <Label className="text-[10px] w-14 shrink-0 font-medium text-primary dark:text-primary leading-none">
                     {t("来源", "Source")}
                   </Label>
                   <Select value={formData.customerSource || undefined} onValueChange={(v) => updateField("customerSource", v)}>
@@ -1708,16 +1708,16 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex items-start gap-1.5 pt-0.5">
-                  <Label className="text-[10px] w-14 shrink-0 text-muted-foreground pt-0.5">{t("常交易卡", "Common Cards")}</Label>
-                  <div className="flex-1 min-h-[24px] flex flex-wrap gap-1 items-center rounded-md border border-border/60 bg-muted/30 px-1.5 py-1">
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-[10px] w-14 shrink-0 text-muted-foreground leading-none">{t("常交易卡", "Common Cards")}</Label>
+                  <div className="flex-1 h-6 flex flex-nowrap gap-1 items-center overflow-x-auto overflow-y-hidden rounded-md border border-border/60 bg-muted/30 px-1.5 [scrollbar-width:thin]">
                     {formData.selectedCommonCards.length === 0 ? (
-                      <span className="text-[11px] text-muted-foreground leading-snug">
+                      <span className="text-[11px] text-muted-foreground truncate min-w-0">
                         {t("暂无（有订单后自动汇总）", "None yet (filled from orders)")}
                       </span>
                     ) : (
                       formData.selectedCommonCards.map((name) => (
-                        <Badge key={name} variant="secondary" className="text-[10px] font-normal">
+                        <Badge key={name} variant="secondary" className="text-[10px] font-normal shrink-0">
                           {name}
                         </Badge>
                       ))

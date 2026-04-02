@@ -353,8 +353,12 @@ export default function OrderManagement() {
     if (currentEmployee?.id) {
       getEmployees().then(employees => {
         const emp = employees.find(e => e.id === currentEmployee.id);
-        setIsSuperAdmin(emp?.is_super_admin === true);
+        setIsSuperAdmin(
+          emp?.is_super_admin === true || currentEmployee.is_platform_super_admin === true,
+        );
       });
+    } else {
+      setIsSuperAdmin(currentEmployee?.is_platform_super_admin === true);
     }
     
     // 从数据库加载商家管理数据

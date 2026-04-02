@@ -134,7 +134,7 @@ async function clearFormState(skipPersist = false) {
 export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: ActivityGiftTabProps) {
   const { currencies } = useCurrencies();
   const { employee } = useAuth();
-  const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
+  const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant({ allowOperationalMutations: true });
   const { members, findMemberByPhone } = useMembers();
   const { activeProviders } = usePaymentProviders();
   const { addGift } = useActivityGifts();

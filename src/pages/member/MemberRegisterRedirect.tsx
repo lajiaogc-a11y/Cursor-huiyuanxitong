@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { memberRegisterInit, validateInviteAndSubmit } from "@/services/memberPortal/memberActivityService";
 import { ApiError } from "@/lib/apiClient";
+import { seedPlatformBrandLogoFromSettings } from "@/lib/memberPortalPlatformBrandLogo";
 import { toast } from "sonner";
 import {
   DEFAULT_SETTINGS,
@@ -124,6 +125,7 @@ export default function MemberRegisterRedirect() {
         const data = await getDefaultMemberPortalSettings();
         if (cancelled) return;
         if (data?.settings) {
+          seedPlatformBrandLogoFromSettings(data.settings.logo_url);
           setPortalSettings(data.settings);
           setDefaultTenantId(data.tenant_id ?? null);
         }

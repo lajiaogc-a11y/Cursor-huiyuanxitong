@@ -1757,8 +1757,8 @@ export default function MemberPortalSettingsPage() {
           <div className="space-y-4">
             <p className="text-xs text-muted-foreground">
               {t(
-                "控制会员端「消息通知」入口与收件箱：关闭总开关后会员端不展示铃铛，且不再产生新通知（已发布配置后生效）。",
-                "Control the member notifications bell and inbox: when the master switch is off, the bell is hidden and no new inbox rows are created (effective after publish).",
+                "控制会员端「消息通知」入口与收件箱。总开关关闭时：会员端不展示铃铛、接口不返回列表且不会写入新通知；下方子项仍可预先勾选，保存/发布后写入数据库，待总开关打开即按子项生效。",
+                "Member inbox and bell. When master is off: bell hidden, API returns no rows, no new writes. Sub-options stay editable as presets—save/publish stores them; when you turn master on, each channel follows its switch.",
               )}
             </p>
             <SwitchRow
@@ -1769,23 +1769,29 @@ export default function MemberPortalSettingsPage() {
             />
             <SwitchRow
               label={t("交易完成转盘奖励通知", "Trade completed — spin reward")}
-              desc={t("订单完成并发放转盘次数时写入一条通知。", "Creates an inbox item when a trade completes and spin credits are granted.")}
+              desc={t(
+                "总开关开启且此项开启时写入通知；总开关关闭时仅保存偏好，不推送。",
+                "Writes when master is on and this is on; when master is off, only saves your preference.",
+              )}
               checked={!!settings.member_inbox_notify_order_spin}
-              disabled={!settings.enable_member_inbox}
               onChange={(v) => handleSettingsChange({ member_inbox_notify_order_spin: v })}
             />
             <SwitchRow
               label={t("积分商城兑换结果通知", "Points mall redemption outcome")}
-              desc={t("兑换审核通过或驳回时写入通知。", "Creates an item when a redemption is approved or rejected.")}
+              desc={t(
+                "总开关开启且此项开启时写入通知；总开关关闭时仅保存偏好，不推送。",
+                "Writes when master is on and this is on; when master is off, only saves your preference.",
+              )}
               checked={!!settings.member_inbox_notify_mall_redemption}
-              disabled={!settings.enable_member_inbox}
               onChange={(v) => handleSettingsChange({ member_inbox_notify_mall_redemption: v })}
             />
             <SwitchRow
               label={t("门户公告同步至收件箱", "Portal announcements → inbox")}
-              desc={t("发布/更新首页公告时向会员批量推送收件箱条目。", "Fan-out new homepage announcements to each member inbox.")}
+              desc={t(
+                "总开关开启且此项开启时同步公告；总开关关闭时仅保存偏好，不推送。",
+                "Fan-out when master is on and this is on; when master is off, only saves your preference.",
+              )}
               checked={!!settings.member_inbox_notify_announcement}
-              disabled={!settings.enable_member_inbox}
               onChange={(v) => handleSettingsChange({ member_inbox_notify_announcement: v })}
             />
           </div>

@@ -9,6 +9,10 @@ import {
   readMemberPortalSettingsCache,
   writeMemberPortalSettingsCache,
 } from "@/lib/memberPortalBrowserCache";
+import {
+  getPlatformBrandLogoUrl,
+  mergePlatformBrandLogo,
+} from "@/lib/memberPortalPlatformBrandLogo";
 
 interface State {
   tenantId: string | null;
@@ -45,6 +49,22 @@ export function useMemberPortalSettings(memberId: string | undefined) {
     setLoading(true);
   }, [memberId]);
 
+  /** 平台基准租户 Logo 先到则先写入 settings.logo_url，启动页不必等整包门户接口即可出图 */
+  useEffect(() => {
+    if (!memberId) return;
+    let cancelled = false;
+    void getPlatformBrandLogoUrl().then((platformLogo) => {
+      if (cancelled || !platformLogo) return;
+      setState((s) => ({
+        ...s,
+        settings: mergePlatformBrandLogo(s.settings, platformLogo),
+      }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [memberId]);
+
   const refresh = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent === true;
     if (!memberId) {
@@ -55,8 +75,11 @@ export function useMemberPortalSettings(memberId: string | undefined) {
     refreshInFlight.current = true;
     if (!silent) setLoading(true);
     try {
-      const data = await getMemberPortalSettingsByMember(memberId);
-      const newSettings = data.settings;
+      const [platformLogo, data] = await Promise.all([
+        getPlatformBrandLogoUrl(),
+        getMemberPortalSettingsByMember(memberId),
+      ]);
+      const newSettings = mergePlatformBrandLogo(data.settings, platformLogo);
       setState({
         tenantId: data.tenant_id ?? null,
         tenantName: data.tenant_name,

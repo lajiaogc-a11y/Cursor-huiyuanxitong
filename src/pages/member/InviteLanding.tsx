@@ -20,9 +20,14 @@ import { memberRegisterInit, validateInviteAndSubmit } from "@/services/memberPo
 import { ApiError } from "@/lib/apiClient";
 import { toast } from "sonner";
 import {
+  getDefaultMemberPortalSettings,
   getMemberPortalSettingsByInviteCode,
   type MemberPortalSettings,
 } from "@/services/members/memberPortalSettingsService";
+import {
+  mergePlatformBrandLogo,
+  seedPlatformBrandLogoFromSettings,
+} from "@/lib/memberPortalPlatformBrandLogo";
 import "@/styles/member-portal.css";
 import { ROUTES } from "@/routes/constants";
 import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
@@ -117,13 +122,17 @@ export default function InviteLanding() {
       try {
         const data = await getMemberPortalSettingsByInviteCode(code);
         if (!data) return;
-        setPortalSettings(data.settings);
+        const defaultPayload = await getDefaultMemberPortalSettings();
+        const platformLogo = String(defaultPayload?.settings?.logo_url ?? "").trim() || null;
+        seedPlatformBrandLogoFromSettings(platformLogo);
+        const merged = mergePlatformBrandLogo(data.settings, platformLogo);
+        setPortalSettings(merged);
         setInviteTenantId(data.tenant_id ?? null);
-        setBrandName(data.settings.company_name || "FastGC");
-        setLogoUrl(data.settings.logo_url);
-        setInviteReward(Number(data.settings.invite_reward_spins || 3));
-        setInviteEnabled(!!data.settings.enable_invite);
-        const tc = String(data.settings.theme_primary_color || "").trim();
+        setBrandName(merged.company_name || "FastGC");
+        setLogoUrl(merged.logo_url);
+        setInviteReward(Number(merged.invite_reward_spins || 3));
+        setInviteEnabled(!!merged.enable_invite);
+        const tc = String(merged.theme_primary_color || "").trim();
         setThemeColor(/^#[0-9A-Fa-f]{6}$/i.test(tc) ? tc : "#4d8cff");
       } catch {
         console.warn("[InviteLanding] Failed to load portal settings for code:", code);

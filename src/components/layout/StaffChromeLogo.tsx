@@ -2,12 +2,14 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { getMyMemberPortalSettings } from "@/services/members/memberPortalSettingsService";
 import { resolveMemberMediaUrl } from "@/lib/memberMediaUrl";
+import { getPlatformBrandLogoUrl } from "@/lib/memberPortalPlatformBrandLogo";
 import { GCLogo } from "@/components/GCLogo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 /**
- * 员工端侧栏/顶栏品牌位：优先展示当前租户「会员系统设置」中已发布 Logo，与会员端一致；无配置或加载失败时回退 GC。
+ * 员工端侧栏/顶栏品牌位：与会员端一致，优先使用平台基准租户（最早一条会员门户设置）已发布 Logo；
+ * 未配置时再使用当前查看租户的门户 Logo；仍无则 GC。
  */
 export function StaffChromeLogo({ size, className }: { size: number; className?: string }) {
   const { viewingTenantId } = useTenantView() || {};
@@ -17,19 +19,30 @@ export function StaffChromeLogo({ size, className }: { size: number; className?:
   const [imgFailed, setImgFailed] = useState(false);
 
   useLayoutEffect(() => {
-    if (!tid) {
-      setReady(true);
-      setResolved(null);
-    } else {
-      setReady(false);
-    }
+    setReady(false);
   }, [tid]);
 
   useEffect(() => {
-    if (!tid) return;
     let cancelled = false;
     void (async () => {
       try {
+        const platformLogo = await getPlatformBrandLogoUrl();
+        const p = String(platformLogo ?? "").trim();
+        if (p) {
+          const url = resolveMemberMediaUrl(p);
+          if (!cancelled) {
+            setResolved(url && url.length > 0 ? url : null);
+            setReady(true);
+          }
+          return;
+        }
+        if (!tid) {
+          if (!cancelled) {
+            setResolved(null);
+            setReady(true);
+          }
+          return;
+        }
         const data = await getMyMemberPortalSettings(tid);
         const raw = data.settings?.logo_url;
         const t = String(raw ?? "").trim();
@@ -53,10 +66,6 @@ export function StaffChromeLogo({ size, className }: { size: number; className?:
   useEffect(() => {
     setImgFailed(false);
   }, [resolved]);
-
-  if (!tid) {
-    return <GCLogo size={size} className={className} />;
-  }
 
   if (!ready) {
     return (

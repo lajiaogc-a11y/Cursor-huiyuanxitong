@@ -91,7 +91,7 @@ export async function fetchActivityGiftsFromDb(tenantId?: string | null): Promis
 
 export function useActivityGifts() {
   const queryClient = useQueryClient();
-  const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
+  const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant({ allowOperationalMutations: true });
   const { t } = useLanguage();
   const { employee } = useAuth();
   const { viewingTenantId } = useTenantView() || {};
