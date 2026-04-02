@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API 连通性测试</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; background: #0f172a; color: #e2e8f0; }
+  h1 { color: #f59e0b; }
+  .test { padding: 12px 16px; margin: 8px 0; border-radius: 8px; background: #1e293b; }
+  .ok { border-left: 4px solid #22c55e; }
+  .fail { border-left: 4px solid #ef4444; }
+  .pending { border-left: 4px solid #94a3b8; }
+  button { background: #f59e0b; color: #0f172a; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 16px; }
+  button:hover { background: #d97706; }
+  #results { margin-top: 20px; }
+  pre { font-size: 12px; color: #94a3b8; margin: 4px 0 0; word-break: break-all; }
+</style>
+</head>
+<body>
+<h1>API 连通性测试</h1>
+<p>此页面直接从你的浏览器测试 API 连接。</p>
+<button onclick="runTests()">开始测试</button>
+<div id="results"></div>
+<script>
+const API = 'https://api.fastgc.cc';
+const results = document.getElementById('results');
+
+function log(name, ok, detail) {
+  const div = document.createElement('div');
+  div.className = 'test ' + (ok ? 'ok' : 'fail');
+  div.innerHTML = '<strong>' + (ok ? '✅' : '❌') + ' ' + name + '</strong>' + (detail ? '<pre>' + detail + '</pre>' : '');
+  results.appendChild(div);
+}
+
+async function runTests() {
+  results.innerHTML = '<div class="test pending"><strong>⏳ 正在测试...</strong></div>';
+  await new Promise(r => setTimeout(r, 100));
+  results.innerHTML = '';
+
+  // Test 1: Health
+  try {
+    const r = await fetch(API + '/health', { mode: 'cors' });
+    const j = await r.json();
+    log('Health 端点', r.ok, 'Status: ' + r.status + ' | ' + JSON.stringify(j));
+  } catch(e) {
+    log('Health 端点', false, e.message);
+  }
+
+  // Test 2: CORS Preflight
+  try {
+    const r = await fetch(API + '/api/member-auth/signin', {
+      method: 'OPTIONS',
+      headers: { 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'content-type' }
+    });
+    log('CORS Preflight', r.status === 204 || r.status === 200, 'Status: ' + r.status);
+  } catch(e) {
+    log('CORS Preflight', false, e.message);
+  }
+
+  // Test 3: Portal Settings (no auth)
+  try {
+    const r = await fetch(API + '/api/member-portal-settings/default');
+    const j = await r.json();
+    log('Portal Settings (公开)', r.ok, 'Status: ' + r.status + ' | company: ' + (j.settings?.company_name || 'N/A'));
+  } catch(e) {
+    log('Portal Settings', false, e.message);
+  }
+
+  // Test 4: Login
+  try {
+    const r = await fetch(API + '/api/member-auth/signin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: '17879942130', password: '123456' })
+    });
+    const j = await r.json();
+    log('会员登录', j.success, 'Status: ' + r.status + ' | ' + (j.success ? 'Member: ' + j.data.member.member_code : j.message));
+  } catch(e) {
+    log('会员登录', false, e.message);
+  }
+
+  // Summary
+  const fails = results.querySelectorAll('.fail').length;
+  const div = document.createElement('div');
+  div.className = 'test ' + (fails === 0 ? 'ok' : 'fail');
+  div.innerHTML = '<strong>' + (fails === 0 ? '🎉 全部通过！浏览器网络连接正常。' : '⚠️ 有 ' + fails + ' 项失败，请截图反馈。') + '</strong>';
+  results.appendChild(div);
+}
+</script>
+</body>
+</html>

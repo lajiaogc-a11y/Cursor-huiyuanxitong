@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="shortcut icon" type="image/png" href="/favicon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <!-- 默认深色顶栏；具体值由 theme-init.js 按 localStorage 覆盖 -->
+    <meta name="theme-color" content="#161922" />
+    <!-- 阻塞：在首帧前同步 html.dark 与 theme-color（CSP 禁止内联 script） -->
+    <script src="/theme-init.js?v=20260330"></script>
+    <link rel="apple-touch-icon" href="/pwa-192x192.png" />
+    <meta http-equiv="Content-Language" content="en" />
+    <!-- CSP：必须单行。多行 content 在部分移动浏览器（尤其 iOS Safari）解析失败会导致脚本/接口被拦、整站白屏。 -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://crm.fastgc.cc https://www.crm.fastgc.cc https://admin.crm.fastgc.cc; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://crm.fastgc.cc https://www.crm.fastgc.cc https://admin.crm.fastgc.cc https://open.er-api.com https://api.exchangerate-api.com https://latest.currency-api.pages.dev https://api.frankfurter.app https://api.coingecko.com https://api.binance.com https://api.coincap.io; frame-src 'none'; object-src 'none'; base-uri 'self';">
+    <title>FastGC Member System</title>
+    <meta name="description" content="FastGC member management — gift cards, orders, and loyalty in one place." />
+    <meta name="author" content="FastGC" />
+
+    <meta property="og:title" content="FastGC Member System" />
+    <meta property="og:description" content="FastGC member management — gift cards, orders, and loyalty in one place." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://crm.fastgc.cc" />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="FastGC会员系统" />
+    <meta name="twitter:description" content="FastGC会员管理系统 - 专业的会员管理解决方案" />
+
+    <link rel="canonical" href="https://crm.fastgc.cc" />
+
+    <style>
+      /* 关键首屏：在打包 CSS 到达前避免白块/错色（与 index.css .dark token 对齐） */
+      html {
+        min-height: 100%;
+      }
+      #root {
+        min-height: 100dvh;
+        min-height: 100vh;
+      }
+      html.dark {
+        color-scheme: dark;
+      }
+      html.dark,
+      html.dark body,
+      html.dark #root {
+        background-color: hsl(222 18% 11%);
+        color: hsl(210 20% 98%);
+      }
+      html:not(.dark) {
+        color-scheme: light;
+      }
+      html:not(.dark),
+      html:not(.dark) body,
+      html:not(.dark) #root {
+        background-color: hsl(210 20% 98%);
+        color: hsl(220 15% 10%);
+      }
+      /* 会员域名首屏：与 member-portal.css 深海金背景一致，避免误用员工端灰底看起来像「旧版」 */
+      html.member-html.dark,
+      html.member-html.dark body,
+      html.member-html.dark #root {
+        background-color: #070b14;
+        color: #f8fafc;
+      }
+      /* Hide Google Translate feedback / attribution bar */
+      .goog-te-banner-frame,
+      .skiptranslate,
+      #goog-gt-tt,
+      .goog-te-balloon-frame,
+      .goog-tooltip,
+      .goog-tooltip:hover,
+      .goog-text-highlight,
+      #google-translate-attribution,
+      .VIpgJd-ZVi9od-ORHb-OEVmcd,
+      .VIpgJd-ZVi9od-aZ2wEe-wOHMyf,
+      .VIpgJd-ZVi9od-aZ2wEe-OiiCO {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+      }
+      body { top: 0 !important; }
+    </style>
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

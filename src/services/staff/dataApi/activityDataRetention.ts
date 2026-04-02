@@ -1,0 +1,38 @@
+import { apiClient } from "@/lib/apiClient";
+
+export interface ActivityDataRetentionSettings {
+  enabled: boolean;
+  retentionDays: number;
+  lastRunAt: string | null;
+  lastSummary: {
+    lotteryLogs: number;
+    checkIns: number;
+    lotteryPointsLedger: number;
+  } | null;
+}
+
+export async function getActivityDataRetentionApi(
+  tenantId?: string | null,
+): Promise<ActivityDataRetentionSettings> {
+  const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";
+  return apiClient.get<ActivityDataRetentionSettings>(`/api/data/activity-data-retention${q}`);
+}
+
+export async function putActivityDataRetentionApi(
+  tenantId: string | null | undefined,
+  payload: { enabled: boolean; retentionDays: number },
+): Promise<ActivityDataRetentionSettings> {
+  const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";
+  return apiClient.put<ActivityDataRetentionSettings>(
+    `/api/data/activity-data-retention${q}`,
+    payload,
+  );
+}
+
+export async function postActivityDataRetentionRunApi(tenantId?: string | null): Promise<{
+  summary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number };
+  settings: ActivityDataRetentionSettings;
+}> {
+  const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";
+  return apiClient.post(`/api/data/activity-data-retention/run${q}`, {});
+}

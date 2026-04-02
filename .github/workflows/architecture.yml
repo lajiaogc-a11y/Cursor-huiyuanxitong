@@ -1,0 +1,123 @@
+# CI 门禁：构建 + 类型检查 + 测试 + 架构约束
+name: ci-gate
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  lint-incremental:
+    name: ESLint (changed .ts/.tsx only)
+    runs-on: ubuntu-latest
+    env:
+      HUSKY: 0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Incremental ESLint (PR vs base branch, or push vs HEAD~1)
+        shell: bash
+        run: |
+          set -e
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=50
+            node scripts/lint-incremental.mjs --base "origin/${{ github.base_ref }}"
+          else
+            node scripts/lint-incremental.mjs --base HEAD~1
+          fi
+
+  lint-full:
+    name: ESLint (full repo, informational)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      HUSKY: 0
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Full ESLint (does not block merge)
+        run: npm run lint
+
+  server:
+    name: Server (build + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install
+        working-directory: server
+        run: npm ci
+
+      - name: Build (tsc)
+        working-directory: server
+        run: npm run build
+
+      - name: Test (vitest)
+        working-directory: server
+        run: npm test
+
+  frontend:
+    name: Frontend (type-check + build + test)
+    runs-on: ubuntu-latest
+    env:
+      HUSKY: 0
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Type check (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: Build (vite)
+        run: npm run build
+
+      - name: Unit tests (vitest)
+        run: npm run test:unit
+
+  arch-gate:
+    name: Architecture gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Architecture gate
+        run: node scripts/architecture-gate.mjs

@@ -1,0 +1,7 @@
+# SPA fallback: 所有路径返回 index.html，由 React Router 处理
+# (Pages Functions 优先于此规则，/api/* 和 /health 由 functions/ 处理)
+/staff/login    /index.html   200
+/staff/signup   /index.html   200
+/login          /index.html   200
+/signup         /index.html   200
+/*              /index.html   200

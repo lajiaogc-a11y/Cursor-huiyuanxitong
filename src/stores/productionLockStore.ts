@@ -1,0 +1,200 @@
+// ============= Production Lock Store =============
+// 系统生产锁定管理 - 禁止所有自动数据生成
+// 数据存储在 shared_data_store 表中
+
+import { loadSharedData, saveSharedData, getSharedDataSync, saveSharedDataSync } from '@/services/finance/sharedDataService';
+import { clearMemberPortalSettingsBrowserCaches } from '@/lib/memberPortalBrowserCache';
+
+interface ProductionLockData {
+  isLocked: boolean;
+  isDataCleared: boolean;
+  lockTime?: string;
+  clearTime?: string;
+}
+
+const DEFAULT_LOCK_DATA: ProductionLockData = {
+  isLocked: false,
+  isDataCleared: false,
+};
+
+// 内存缓存
+let lockDataCache: ProductionLockData | null = null;
+
+// 获取生产锁定数据
+function getLockData(): ProductionLockData {
+  if (lockDataCache) {
+    // 异步刷新缓存
+    loadSharedData<ProductionLockData>('production_lock').then(data => {
+      if (data) lockDataCache = { ...DEFAULT_LOCK_DATA, ...data };
+    }).catch(console.error);
+    return lockDataCache;
+  }
+  
+  // 同步获取，同时触发异步加载
+  const syncData = getSharedDataSync<ProductionLockData>('production_lock', DEFAULT_LOCK_DATA);
+  lockDataCache = syncData;
+  return syncData;
+}
+
+// 保存生产锁定数据
+function saveLockData(data: ProductionLockData): void {
+  lockDataCache = data;
+  saveSharedDataSync('production_lock', data);
+}
+
+// 检查系统是否处于生产锁定状态
+export function isProductionLocked(): boolean {
+  return getLockData().isLocked;
+}
+
+// 启用生产锁定
+export function enableProductionLock(): void {
+  const data = getLockData();
+  data.isLocked = true;
+  data.lockTime = new Date().toISOString();
+  saveLockData(data);
+  console.log('[Production Lock] 系统已进入生产锁定状态');
+}
+
+// 检查数据是否已清理
+export function isDataCleared(): boolean {
+  return getLockData().isDataCleared;
+}
+
+// 标记数据已清理
+function markDataCleared(): void {
+  const data = getLockData();
+  data.isDataCleared = true;
+  data.clearTime = new Date().toISOString();
+  saveLockData(data);
+}
+
+// ============= 系统级数据清理 =============
+// 清理旧的 localStorage 缓存数据
+// 注意：业务数据已在数据库中，此函数仅清理本地缓存
+
+export interface ClearResult {
+  success: boolean;
+  clearedItems: {
+    orders: number;
+    usdtOrders: number;
+    members: number;
+    pointsLedger: number;
+    pointsAccounts: number;
+    activityGifts: number;
+    referralRelations: number;
+    auditLogs: number;
+    deletedOrders: number;
+    deletedUsdtOrders: number;
+  };
+  timestamp: string;
+  note: string;
+}
+
+export function clearAllBusinessData(): ClearResult {
+  const result: ClearResult = {
+    success: false,
+    clearedItems: {
+      orders: 0,
+      usdtOrders: 0,
+      members: 0,
+      pointsLedger: 0,
+      pointsAccounts: 0,
+      activityGifts: 0,
+      referralRelations: 0,
+      auditLogs: 0,
+      deletedOrders: 0,
+      deletedUsdtOrders: 0,
+    },
+    timestamp: new Date().toISOString(),
+    note: '仅清理 localStorage 缓存，数据库数据不受影响',
+  };
+
+  try {
+    // ===== 清理旧的 localStorage 缓存数据 =====
+    // 这些数据现在已迁移至数据库，localStorage 中的是旧缓存
+    
+    const keysToClean = [
+      'orders',
+      'usdtOrders',
+      'deletedOrders',
+      'deletedUsdtOrders',
+      'members',
+      'points_ledger',
+      'points_accounts',
+      'activityGifts',
+      'referral_relations',
+      'referralRelations',
+      'audit_logs',
+      'currentUser', // 清理旧的 currentUser
+      'production_lock_enabled', // 清理旧的 localStorage 锁定状态
+      'system_data_cleared', // 清理旧的 localStorage 清理标记
+    ];
+
+    keysToClean.forEach(key => {
+      const data = localStorage.getItem(key);
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          const count = Array.isArray(parsed) ? parsed.length : 1;
+          
+          // 更新计数
+          if (key === 'orders') result.clearedItems.orders = count;
+          if (key === 'usdtOrders') result.clearedItems.usdtOrders = count;
+          if (key === 'deletedOrders') result.clearedItems.deletedOrders = count;
+          if (key === 'deletedUsdtOrders') result.clearedItems.deletedUsdtOrders = count;
+          if (key === 'members') result.clearedItems.members = count;
+          if (key === 'points_ledger') result.clearedItems.pointsLedger = count;
+          if (key === 'points_accounts') result.clearedItems.pointsAccounts = count;
+          if (key === 'activityGifts') result.clearedItems.activityGifts = count;
+          if (key === 'referral_relations' || key === 'referralRelations') {
+            result.clearedItems.referralRelations += count;
+          }
+          if (key === 'audit_logs') result.clearedItems.auditLogs = count;
+        } catch {
+          // 忽略解析错误
+        }
+        localStorage.removeItem(key);
+      }
+    });
+
+    clearMemberPortalSettingsBrowserCaches();
+
+    // ===== 启用生产锁定 =====
+    enableProductionLock();
+    markDataCleared();
+
+    result.success = true;
+    console.log('[Data Cleanup] localStorage 缓存清理完成:', result);
+
+  } catch (error) {
+    console.error('[Data Cleanup] 数据清理失败:', error);
+    result.success = false;
+  }
+
+  return result;
+}
+
+// ============= 检查是否允许自动生成数据 =============
+// 在生产锁定状态下，禁止任何自动数据生成
+
+export function canAutoGenerateData(): boolean {
+  // 如果已启用生产锁定，禁止自动生成
+  if (isProductionLocked()) {
+    return false;
+  }
+  return true;
+}
+
+// ============= 异步初始化 =============
+export async function initializeProductionLock(): Promise<void> {
+  try {
+    const data = await loadSharedData<ProductionLockData>('production_lock');
+    if (data) {
+      lockDataCache = { ...DEFAULT_LOCK_DATA, ...data };
+    }
+    console.log('[ProductionLock] Initialized from database');
+  } catch (error) {
+    console.error('[ProductionLock] Failed to initialize:', error);
+  }
+}

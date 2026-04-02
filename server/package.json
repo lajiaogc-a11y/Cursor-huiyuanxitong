@@ -1,0 +1,49 @@
+{
+  "name": "gift-system-api",
+  "version": "1.1.2",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/app.ts",
+    "migrate:all": "node dist/cli/migrateAll.js",
+    "migrate:all:dev": "tsx src/cli/migrateAll.ts",
+    "verify:order-spin": "tsx src/cli/verifyOrderCompletedSpin.ts",
+    "seed:invite-leaderboard": "tsx src/cli/seedInviteLeaderboardFifty.ts",
+    "migrate:lottery": "tsx src/modules/lottery/runLotteryMigrate.ts",
+    "db:phone-pool-reserved-by": "node scripts/ensure-phone-pool-reserved-by-null.mjs",
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "start:dev": "tsx src/app.ts",
+    "start:verify-trust-proxy": "cross-env NODE_ENV=production TRUST_PROXY=1 tsx src/app.ts",
+    "start:verify-trust-proxy-dev": "cross-env VERIFY_TRUST_PROXY=1 TRUST_PROXY=1 tsx src/app.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.758.0",
+    "@aws-sdk/s3-request-presigner": "^3.758.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "express-rate-limit": "^8.3.1",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.0",
+    "mysql2": "^3.20.0",
+    "node-fetch": "^3.3.2",
+    "sharp": "^0.33.5",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.9",
+    "@types/node": "^22.16.5",
+    "cross-env": "^7.0.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.1"
+  }
+}

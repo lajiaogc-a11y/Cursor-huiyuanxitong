@@ -1,0 +1,11 @@
+# 可选：仅在通过 Railway.app 部署本 API 时使用；前端发布脚本不依赖此文件。
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "node dist/app.js"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+healthcheckPath = "/api/auth/me"
+healthcheckTimeout = 10

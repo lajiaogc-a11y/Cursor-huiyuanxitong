@@ -1,0 +1,274 @@
+// ============= Points Ledger Hook - react-query Migration =============
+// 积分流水 - react-query 缓存确保页面切换不重复请求；监听 data-refresh 与短周期轮询保证新数据及时展示
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
+import { apiGet } from '@/api/client';
+import { CurrencyCode } from '@/config/currencies';
+import { 
+  createPointsOnOrderCreate, 
+  reversePointsOnOrderCancel,
+  restorePointsOnOrderRestore,
+  getPointsTypeLabel,
+  type CreatePointsParams,
+} from '@/services/points/pointsService';
+
+export type PointsStatus = 'issued' | 'reversed';
+
+export interface PointsLedgerEntry {
+  id: string;
+  member_id?: string | null;
+  created_at: string;
+  member_code: string;
+  phone_number: string;
+  order_id: string | null;
+  transaction_type: string;
+  /** 库表 type（抽奖写入 lottery；与 transaction_type 二选一时常需合并理解） */
+  type?: string | null;
+  amount?: number | null;
+  description?: string | null;
+  reference_type?: string | null;
+  reference_id?: string | null;
+  balance_after?: number | null;
+  actual_payment: number | null;
+  currency: string | null;
+  exchange_rate: number | null;
+  usd_amount: number | null;
+  points_multiplier: number | null;
+  points_earned: number;
+  status: PointsStatus;
+  creator_id: string | null;
+}
+
+/**
+ * 统一流水语义：抽奖等路径只写 type + amount，transaction_type / points_earned 可能为空。
+ * 与活动数据页 ledgerAmt / ledgerTxn 规则一致，保证员工端积分明细为「全量一条时间线」。
+ */
+export function normalizePointsLedgerRow(raw: Record<string, unknown>): PointsLedgerEntry {
+  const r = raw as Record<string, unknown>;
+  const pointsEarned = Number(r.points_earned ?? r.amount ?? 0);
+  const txnRaw = String(r.transaction_type || r.type || '').trim();
+  const transaction_type = txnRaw || 'unknown';
+  const st = r.status;
+  const status: PointsStatus = st === 'reversed' ? 'reversed' : 'issued';
+  return {
+    ...(r as object),
+    points_earned: Number.isFinite(pointsEarned) ? pointsEarned : 0,
+    transaction_type,
+    status,
+  } as PointsLedgerEntry;
+}
+
+// Standalone fetch function
+export async function fetchPointsLedgerFromDb(): Promise<PointsLedgerEntry[]> {
+  const data = await apiGet<unknown>(
+    `/api/data/table/points_ledger?select=*&order=created_at.desc`
+  );
+  const rows = Array.isArray(data) ? data : [];
+  return rows.map((row) => normalizePointsLedgerRow(row as Record<string, unknown>));
+}
+
+export function usePointsLedger() {
+  const queryClient = useQueryClient();
+
+  const { data: entries = [], isLoading: loading } = useQuery({
+    queryKey: ['points-ledger'],
+    queryFn: fetchPointsLedgerFromDb,
+    staleTime: STALE_TIME_LIST_MS,
+    refetchInterval: 20_000, // 20 秒轮询，确保订单/抽奖/兑换等产生的积分及时展示
+    refetchIntervalInBackground: false, // 仅标签页可见时轮询
+  });
+
+  // 监听 data-refresh 事件（订单创建、活动赠送等 client 突变会触发 notifyDataMutation）
+  useEffect(() => {
+    const invalidate = () => queryClient.invalidateQueries({ queryKey: ['points-ledger'] });
+    const onPointsRefresh = () => invalidate();
+    const onDataRefresh = (e: Event) => {
+      const d = (e as CustomEvent<{ table?: string }>).detail;
+      if (d?.table === 'points_ledger' || d?.table === 'orders' || d?.table === 'activity_gifts') invalidate();
+    };
+    window.addEventListener('data-refresh:points_ledger', onPointsRefresh);
+    window.addEventListener('data-refresh', onDataRefresh);
+    return () => {
+      window.removeEventListener('data-refresh:points_ledger', onPointsRefresh);
+      window.removeEventListener('data-refresh', onDataRefresh);
+    };
+  }, [queryClient]);
+
+  const addPointsEntry = async (params: {
+    member_code: string;
+    phone: string;
+    order_id: string;
+    order_type: 'regular' | 'usdt';
+    paid_amount: number;
+    currency: CurrencyCode;
+    order_points: number;
+    creator_id?: string;
+  }): Promise<boolean> => {
+    const createParams: CreatePointsParams = {
+      orderId: params.order_id,
+      orderPhoneNumber: params.phone,
+      memberCode: params.member_code,
+      actualPayment: params.paid_amount,
+      currency: params.currency,
+      creatorId: params.creator_id,
+    };
+
+    const result = await createPointsOnOrderCreate(createParams);
+    
+    if (result.success) {
+      await queryClient.invalidateQueries({ queryKey: ['points-ledger'] });
+    }
+    
+    return result.success;
+  };
+
+  const reversePointsForOrder = async (order_id: string): Promise<boolean> => {
+    const success = await reversePointsOnOrderCancel(order_id);
+    if (success) {
+      await queryClient.invalidateQueries({ queryKey: ['points-ledger'] });
+    }
+    return success;
+  };
+
+  const restorePointsForOrder = async (params: {
+    order_id: string;
+    order_points: number;
+    member_code: string;
+    phone: string;
+    order_type: 'regular' | 'usdt';
+    paid_amount: number;
+    currency: CurrencyCode;
+  }): Promise<boolean> => {
+    const restoreParams: CreatePointsParams = {
+      orderId: params.order_id,
+      orderPhoneNumber: params.phone,
+      memberCode: params.member_code,
+      actualPayment: params.paid_amount,
+      currency: params.currency,
+    };
+
+    const result = await restorePointsOnOrderRestore(restoreParams);
+    if (result.success) {
+      await queryClient.invalidateQueries({ queryKey: ['points-ledger'] });
+    }
+    return result.success;
+  };
+
+  const getMemberPointsBalance = async (member_code: string, lastResetTime?: string | null): Promise<number> => {
+    try {
+      const resetQ = lastResetTime
+        ? `&created_at=gt.${encodeURIComponent(lastResetTime)}`
+        : '';
+      const rows = await apiGet<{ points_earned?: number | null; amount?: number | null }[]>(
+        `/api/data/table/points_ledger?select=points_earned,amount,status&member_code=eq.${encodeURIComponent(member_code)}&status=in.(issued,reversed)${resetQ}`
+      );
+      const data = Array.isArray(rows) ? rows : [];
+
+      const total = data.reduce(
+        (sum: number, e: { points_earned?: number | null; amount?: number | null }) =>
+          sum + Number(e.points_earned ?? e.amount ?? 0),
+        0
+      );
+      return total;
+    } catch (error) {
+      console.error('Failed to calculate member points:', error);
+      return 0;
+    }
+  };
+
+  const getMemberPointsBalanceSync = (member_code: string, lastResetTime?: string | null): number => {
+    let filtered = entries.filter(e => 
+      e.member_code === member_code && 
+      (e.status === 'issued' || e.status === 'reversed')
+    );
+
+    if (lastResetTime) {
+      const resetDate = new Date(lastResetTime).getTime();
+      filtered = filtered.filter(e => new Date(e.created_at).getTime() > resetDate);
+    }
+
+    return filtered.reduce((sum, e) => sum + (e.points_earned || 0), 0);
+  };
+
+  const getMemberPointsLedger = (member_code: string): PointsLedgerEntry[] => {
+    return entries.filter(e => e.member_code === member_code);
+  };
+
+  const getOrderPointsLedger = (order_id: string): PointsLedgerEntry[] => {
+    return entries.filter(e => e.order_id === order_id);
+  };
+
+  const hasOrderEarnedPoints = (order_id: string): boolean => {
+    return entries.some(
+      e => e.order_id === order_id && 
+           e.status === 'issued' &&
+           e.points_earned > 0
+    );
+  };
+
+  const getPointsStatistics = () => {
+    const totalIssued = entries
+      .filter(e => e.points_earned > 0)
+      .reduce((sum, e) => sum + e.points_earned, 0);
+
+    const totalReversed = entries
+      .filter(e => e.points_earned < 0)
+      .reduce((sum, e) => sum + Math.abs(e.points_earned), 0);
+
+    const netPoints = totalIssued - totalReversed;
+
+    const absLedger = (e: PointsLedgerEntry) =>
+      Math.abs(Number(e.points_earned ?? (e as { amount?: number }).amount ?? 0));
+
+    /** 订单等冲正流水，status=reversed（与列表「已回收」一致；不含积分兑换扣减） */
+    const totalRecoveredIssued = entries
+      .filter(e => e.status === 'reversed' && e.points_earned < 0)
+      .reduce((sum, e) => sum + absLedger(e), 0);
+
+    const rt = (e: PointsLedgerEntry) => String(e.reference_type || '').trim().toLowerCase();
+
+    /** 会员端：积分商城（mall_redemption）+ 会员提交的积分兑换单冻结（point_order_freeze） */
+    const totalMallRedeemPoints = entries
+      .filter(e => {
+        const r = rt(e);
+        return (r === 'mall_redemption' || r === 'point_order_freeze') && absLedger(e) > 0;
+      })
+      .reduce((sum, e) => sum + absLedger(e), 0);
+
+    /** 员工后台「积分兑换」活动：reference_type=redemption（redeem_activity_1/2） */
+    const totalStaffRedeemPoints = entries
+      .filter(e => rt(e) === 'redemption' && absLedger(e) > 0)
+      .reduce((sum, e) => sum + absLedger(e), 0);
+
+    return {
+      totalIssued,
+      totalReversed,
+      netPoints,
+      transactionCount: entries.length,
+      totalRecoveredIssued,
+      totalMallRedeemPoints,
+      totalStaffRedeemPoints,
+    };
+  };
+
+  const getTypeLabel = (type: string): string => {
+    return getPointsTypeLabel(type);
+  };
+
+  return {
+    entries,
+    loading,
+    addPointsEntry,
+    reversePointsForOrder,
+    restorePointsForOrder,
+    getMemberPointsBalance,
+    getMemberPointsBalanceSync,
+    getMemberPointsLedger,
+    getOrderPointsLedger,
+    hasOrderEarnedPoints,
+    getPointsStatistics,
+    getTypeLabel,
+    refetch: () => queryClient.invalidateQueries({ queryKey: ['points-ledger'] }),
+  };
+}

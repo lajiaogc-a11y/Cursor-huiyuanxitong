@@ -1,0 +1,596 @@
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { Navigate, useSearchParams, Link } from "react-router-dom";
+import {
+  Gift,
+  Globe,
+  Loader2,
+  ArrowRight,
+  Phone,
+  KeyRound,
+  Eye,
+  EyeOff,
+  UserPlus,
+  Shield,
+  Lock,
+  Sparkles,
+} from "lucide-react";
+import { memberRegisterInit, validateInviteAndSubmit } from "@/services/memberPortal/memberActivityService";
+import { ApiError } from "@/lib/apiClient";
+import { toast } from "sonner";
+import {
+  DEFAULT_SETTINGS,
+  getDefaultMemberPortalSettings,
+  type MemberPortalSettings,
+} from "@/services/members/memberPortalSettingsService";
+import "@/styles/member-portal.css";
+import { ROUTES } from "@/routes/constants";
+import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { MemberLegalDrawer } from "@/components/member/MemberLegalDrawer";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { memberPortalLegalBody } from "@/lib/memberPortalLegalBody";
+import { memberPortalGoldCssVarsFromHex } from "@/utils/memberPortalGoldCssVars";
+import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
+import { cn } from "@/lib/utils";
+
+function RegisterBrandLogo({
+  logoUrl,
+  logoKey,
+  logoAlt,
+}: {
+  logoUrl: string | null | undefined;
+  logoKey: string;
+  logoAlt: string;
+}) {
+  const raw = String(logoUrl ?? "").trim();
+  const { resolvedSrc, usePlaceholder, onImageError } = useMemberResolvableMedia(logoKey, raw || undefined);
+  const showImg = raw && !usePlaceholder;
+  /** 勿对容器设小于「图高+padding」的 max-h，否则会裁切 logo */
+  const imgShellClass =
+    "mb-3 flex min-h-[3.5rem] w-auto max-w-[min(300px,90vw)] items-center justify-center rounded-2xl border border-[hsl(var(--pu-m-surface-border)/0.25)] bg-[hsl(var(--pu-m-surface)/0.2)] px-4 py-3 shadow-[0_8px_28px_rgba(0,0,0,0.3)]";
+  if (showImg) {
+    return (
+      <div className={imgShellClass}>
+        <img
+          src={resolvedSrc}
+          alt={logoAlt}
+          loading="lazy"
+          decoding="async"
+          onError={onImageError}
+          className="max-h-[min(8rem,36vw)] w-auto max-w-full object-contain object-center"
+        />
+      </div>
+    );
+  }
+  return (
+    <div
+      className={cn(
+        "mb-3 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--pu-m-surface-border)/0.25)]",
+        "shadow-[0_8px_28px_hsl(var(--pu-gold)/0.3)]",
+      )}
+      style={{
+        background: "linear-gradient(135deg, hsl(var(--pu-gold)), hsl(var(--pu-gold-soft)))",
+      }}
+    >
+      <Gift className="h-[26px] w-[26px] text-[hsl(var(--pu-primary-foreground))]" strokeWidth={2} aria-hidden />
+    </div>
+  );
+}
+
+/**
+ * /member/register?ref= / ?code= → 跳转 /invite/CODE（与推广链接一致）
+ * 无参数：与 InviteLanding 同构的注册页 — 先填手机与密码，邀请码在最后一步填写并完成校验
+ */
+export default function MemberRegisterRedirect() {
+  const { t, language } = useLanguage();
+  const [sp] = useSearchParams();
+  const ref = sp.get("ref")?.trim() || sp.get("code")?.trim();
+
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [portalSettings, setPortalSettings] = useState<MemberPortalSettings>(DEFAULT_SETTINGS);
+  const [defaultTenantId, setDefaultTenantId] = useState<string | null>(null);
+  const [agreeLegal, setAgreeLegal] = useState(false);
+  const [legalDoc, setLegalDoc] = useState<null | "terms" | "privacy">(null);
+
+  const brandName = portalSettings.company_name || "FastGC";
+  const logoUrl = portalSettings.logo_url;
+  const inviteReward = Number(portalSettings.invite_reward_spins || 3);
+  const inviteEnabled = !!portalSettings.enable_invite;
+  const themeColor = useMemo(() => {
+    const tc = String(portalSettings.theme_primary_color || "").trim();
+    return /^#[0-9A-Fa-f]{6}$/i.test(tc) ? tc : "#4d8cff";
+  }, [portalSettings.theme_primary_color]);
+
+  useEffect(() => {
+    document.documentElement.classList.add("member-html");
+    return () => {
+      document.documentElement.classList.remove("member-html");
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await getDefaultMemberPortalSettings();
+        if (cancelled) return;
+        if (data?.settings) {
+          setPortalSettings(data.settings);
+          setDefaultTenantId(data.tenant_id ?? null);
+        }
+      } catch {
+        /* keep DEFAULT_SETTINGS */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const inviteLegalRequired = portalSettings.registration_require_legal_agreement !== false;
+
+  const handleSubmit = async () => {
+    if (!phone.trim()) {
+      toast.error(t("请填写手机号", "Phone is required"));
+      return;
+    }
+    if (!password.trim()) {
+      toast.error(t("请填写密码", "Password is required"));
+      return;
+    }
+    if (password.length < 6) {
+      toast.error(t("密码至少 6 位", "Min 6 characters"));
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast.error(t("两次密码不一致", "Passwords do not match"));
+      return;
+    }
+    const code = inviteCode.trim();
+    if (!code) {
+      toast.error(t("请填写邀请码", "Invite code is required"));
+      return;
+    }
+    if (inviteLegalRequired && !agreeLegal) {
+      toast.error(t("请阅读并同意条款", "Please agree to the terms to continue"));
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const init = await memberRegisterInit(code);
+      if (!init.success) {
+        if (init.error === "INVALID_CODE") {
+          toast.error(t("邀请码无效或已失效", "Invalid or expired invite code"));
+        } else if (init.error === "INVITE_DISABLED") {
+          toast.error(t("邀请活动已关闭", "Invites are currently disabled"));
+        } else {
+          toast.error(t("无法校验邀请码，请稍后重试", "Could not verify invite code"));
+        }
+        setLoading(false);
+        return;
+      }
+
+      const r = await validateInviteAndSubmit({
+        registerToken: init.registerToken,
+        phone: phone.trim(),
+        password,
+      });
+      if (!r.success) {
+        if (r.error === "INVALID_CODE") toast.error(t("邀请码无效", "Invalid invite code"));
+        else if (r.error === "TOKEN_EXPIRED" || r.error === "INVALID_TOKEN") {
+          toast.error(t("验证已过期，请重试", "Session expired — try again"));
+        } else if (r.error === "TOKEN_USED")
+          toast.error(t("该验证已使用，请重新打开邀请链接", "This link was already used — open the invite again"));
+        else if (r.error === "RATE_LIMIT")
+          toast.error(t("请求过于频繁，请稍后再试", "Too many attempts, please try again later"));
+        else if (r.error === "SELF_REFERRAL")
+          toast.error(t("不能使用推荐人本人的手机号注册", "You cannot register with the referrer's own phone"));
+        else if (r.error === "ALREADY_INVITED") toast.error(t("已被邀请过", "Already invited"));
+        else if (r.error === "REGISTER_FAILED")
+          toast.error(t("注册失败，请重试", "Registration failed, please try again"));
+        else if (r.error?.includes("invitee") || r.error?.includes("unique"))
+          toast.error(t("该手机号已注册", "Phone already registered"));
+        else toast.error(r.error || t("注册失败", "Registration failed"));
+        setLoading(false);
+        return;
+      }
+      setSubmitted(true);
+      toast.success(t("注册成功", "Registration successful!"));
+    } catch (e: unknown) {
+      if (e instanceof ApiError && e.statusCode === 429) {
+        toast.error(e.message || t("请求过于频繁，请稍后再试", "Too many attempts, please try again later"));
+      } else {
+        toast.error(e instanceof Error ? e.message : t("发生错误，请重试", "Something went wrong"));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const brandSlug = String(brandName || "MEMBER")
+    .trim()
+    .slice(0, 24)
+    .toUpperCase();
+
+  const inputBase =
+    "h-12 w-full rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.25)] bg-[hsl(var(--pu-m-surface)/0.45)] text-sm font-medium text-[hsl(var(--pu-m-text))] outline-none transition-all placeholder:text-[hsl(var(--pu-m-text-dim)/0.4)] focus-visible:ring-2 focus-visible:ring-pu-gold/25";
+
+  const portalRootStyle = useMemo(
+    () =>
+      ({
+        "--m-theme": themeColor,
+        ...memberPortalGoldCssVarsFromHex(themeColor),
+      }) as CSSProperties,
+    [themeColor],
+  );
+
+  const perks = inviteEnabled
+    ? [
+        { emoji: "🎰", text: t(`${inviteReward} 次免费转盘`, `${inviteReward} free spins`) },
+        { emoji: "💰", text: t("积分商城", "Points mall") },
+        { emoji: "🎁", text: t("新人礼遇", "Welcome perks") },
+      ]
+    : [];
+
+  if (ref) {
+    return <Navigate to={`/invite/${encodeURIComponent(ref)}`} replace />;
+  }
+
+  return (
+    <div
+      className="member-login-premium-root member-portal-wrap flex min-h-dvh flex-col overflow-x-hidden"
+      style={{
+        ...portalRootStyle,
+        background: "hsl(var(--pu-m-bg-1))",
+        color: "hsl(var(--pu-m-text))",
+      }}
+    >
+      <div className="relative flex shrink-0 flex-col items-center overflow-x-hidden overflow-y-visible pb-10 pt-[max(4.25rem,calc(env(safe-area-inset-top)+2rem))]">
+        <MemberPageAmbientOrbs />
+
+        <Link
+          to={ROUTES.MEMBER.ROOT}
+          className="absolute left-[max(1.25rem,env(safe-area-inset-left))] top-[max(1.25rem,env(safe-area-inset-top))] z-[2] text-xs font-bold text-[hsl(var(--pu-m-text-dim))] transition hover:text-[hsl(var(--pu-m-text))]"
+        >
+          ← {t("返回", "Back")}
+        </Link>
+
+        <div className="relative z-[2] flex flex-col items-center px-3 pt-2">
+          <RegisterBrandLogo
+            logoUrl={logoUrl}
+            logoKey={`member-register-logo-${defaultTenantId ?? "default"}`}
+            logoAlt={t("品牌标识", "Brand logo")}
+          />
+          <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-[hsl(var(--pu-m-text-dim))]">
+            {brandSlug}
+          </span>
+        </div>
+      </div>
+
+      <div className="relative z-[1] mx-auto flex w-full max-w-[480px] flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        {!inviteEnabled ? (
+          <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-pu-gold/22 bg-gradient-to-b from-pu-gold/[0.08] via-[hsl(var(--pu-m-surface)/0.22)] to-[hsl(var(--pu-m-surface)/0.28)] px-5 py-12 text-center">
+            <p className="m-0 text-base font-semibold text-[hsl(var(--pu-m-text))]">{t("邀请已关闭", "Invite Disabled")}</p>
+            <p className="mt-2 text-sm leading-relaxed text-[hsl(var(--pu-m-text-dim))]">
+              {t("邀请活动当前不可用。", "The invite activity is currently not available.")}
+            </p>
+            <Button
+              asChild
+              className="mt-6 h-11 w-full max-w-[280px] rounded-2xl border-0 text-base font-bold text-[hsl(var(--pu-primary-foreground))]"
+              style={{
+                background: "linear-gradient(135deg, hsl(var(--pu-gold)), hsl(var(--pu-gold-soft)))",
+              }}
+            >
+              <Link to={ROUTES.MEMBER.LOGIN_LEGACY}>{t("前往登录", "Go to Login")}</Link>
+            </Button>
+          </div>
+        ) : submitted ? (
+          <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-[hsl(var(--pu-m-surface-border)/0.2)] bg-[hsl(var(--pu-m-surface)/0.25)] px-5 py-12 text-center">
+            <div
+              className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl"
+              style={{
+                background: "linear-gradient(135deg, hsl(var(--pu-emerald)), hsl(var(--pu-emerald-soft)))",
+                boxShadow: "0 8px 32px -8px hsl(var(--pu-emerald) / 0.4)",
+              }}
+            >
+              <Gift className="h-8 w-8 text-[hsl(var(--pu-m-bg-1))]" aria-hidden />
+            </div>
+            <h2 className="m-0 text-xl font-extrabold tracking-tight text-[hsl(var(--pu-m-text))]">{t("欢迎加入", "Welcome!")}</h2>
+            <p className="mt-2 text-sm leading-relaxed text-[hsl(var(--pu-m-text-dim))]">
+              {t(
+                `账户已创建，您已获得 ${inviteReward} 次免费转盘！请登录开始使用。`,
+                `Account created. You've earned ${inviteReward} free spins! Login to start.`,
+              )}
+            </p>
+            <Button
+              asChild
+              className="mt-8 h-12 w-full max-w-[280px] rounded-2xl border-0 text-base font-bold text-[hsl(var(--pu-primary-foreground))]"
+              style={{
+                background: "linear-gradient(135deg, hsl(var(--pu-gold)), hsl(var(--pu-gold-soft)))",
+              }}
+            >
+              <Link to={ROUTES.MEMBER.LOGIN_LEGACY} className="inline-flex items-center justify-center gap-2">
+                {t("立即登录", "Login Now")}
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="mb-5">
+              <div className="mb-1 flex items-center gap-2">
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-xl"
+                  style={{
+                    background: "linear-gradient(135deg, hsl(var(--pu-emerald)), hsl(var(--pu-emerald-soft)))",
+                    boxShadow: "0 6px 20px -6px hsl(var(--pu-emerald) / 0.45)",
+                  }}
+                >
+                  <UserPlus className="h-4 w-4 text-[hsl(var(--pu-m-bg-1))]" aria-hidden />
+                </div>
+                <h1 className="text-xl font-extrabold tracking-tight text-[hsl(var(--pu-m-text))]">
+                  {t("创建账户", "Create account")}
+                </h1>
+              </div>
+              <p className="text-xs leading-relaxed text-[hsl(var(--pu-m-text-dim))]">
+                {t(
+                  "先设置登录手机号与密码；最后在下方填写好友邀请码完成开通（与邀请落地页相同流程）。",
+                  "Set your phone and password first, then enter your invite code below to finish — same flow as the invite page.",
+                )}
+              </p>
+            </div>
+
+            {perks.length > 0 ? (
+              <div className="mb-6 flex flex-wrap justify-center gap-2">
+                {perks.map((p) => (
+                  <span
+                    key={p.text}
+                    className="flex items-center gap-1.5 rounded-full border border-[hsl(var(--pu-m-surface-border)/0.2)] bg-[hsl(var(--pu-m-surface)/0.5)] px-3 py-1.5 text-[11px] font-bold text-[hsl(var(--pu-m-text))]"
+                  >
+                    <span aria-hidden>{p.emoji}</span>
+                    {p.text}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
+            <form
+              className="flex flex-1 flex-col"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleSubmit();
+              }}
+            >
+              <div className="space-y-5">
+                <div>
+                  <label className="mb-2 block text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))]">
+                    {t("手机号码", "Phone")}
+                  </label>
+                  <div className="relative">
+                    <Phone
+                      className="pointer-events-none absolute left-3.5 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-[hsl(var(--pu-m-text-dim)/0.4)]"
+                      aria-hidden
+                    />
+                    <Input
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder={t("例如 08012345678", "e.g. 08012345678")}
+                      autoComplete="tel"
+                      className={cn(inputBase, "pl-10")}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))]">
+                    {t("密码（至少 6 位）", "Password (min 6)")}
+                  </label>
+                  <div className="relative">
+                    <KeyRound
+                      className="pointer-events-none absolute left-3.5 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-[hsl(var(--pu-m-text-dim)/0.4)]"
+                      aria-hidden
+                    />
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder={t("创建密码", "Create a password")}
+                      autoComplete="new-password"
+                      className={cn(inputBase, "pl-10 pr-12")}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[hsl(var(--pu-m-text-dim))]"
+                      aria-label={showPassword ? t("隐藏密码", "Hide password") : t("显示密码", "Show password")}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))]">
+                    {t("确认密码", "Confirm password")}
+                  </label>
+                  <div className="relative">
+                    <KeyRound
+                      className="pointer-events-none absolute left-3.5 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-[hsl(var(--pu-m-text-dim)/0.4)]"
+                      aria-hidden
+                    />
+                    <Input
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder={t("再次输入密码", "Confirm password")}
+                      autoComplete="new-password"
+                      className={cn(inputBase, "pl-10 pr-12")}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[hsl(var(--pu-m-text-dim))]"
+                      aria-label={
+                        showConfirmPassword ? t("隐藏密码", "Hide password") : t("显示密码", "Show password")
+                      }
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 flex items-center gap-1.5 text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))]">
+                    <Sparkles className="h-3 w-3 shrink-0 text-pu-gold-soft" aria-hidden />
+                    {t("邀请码", "Invite code")}
+                  </label>
+                  <Input
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                    placeholder={t("粘贴好友邀请码", "Paste invite code")}
+                    autoComplete="off"
+                    className={cn(inputBase, "font-mono text-xs font-semibold uppercase tracking-wider placeholder:normal-case placeholder:tracking-normal")}
+                  />
+                  <p className="mt-2 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.85)]">
+                    {t("与链接中 /invite/ 后的代码一致。", "Same as the code after /invite/ in your link.")}
+                  </p>
+                </div>
+              </div>
+
+              {inviteLegalRequired ? (
+                <div className="mt-6 flex items-start gap-2.5">
+                  <Checkbox
+                    id="member-register-terms"
+                    checked={agreeLegal}
+                    onCheckedChange={(c) => setAgreeLegal(c === true)}
+                    className={cn(
+                      "member-legal-consent-checkbox mt-0.5 h-[18px] w-[18px] shrink-0 rounded-[6px] border shadow-none",
+                      "focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=checked]:text-[#0B0E14]",
+                    )}
+                    style={{ ["--member-legal-check" as string]: themeColor }}
+                  />
+                  <div className="min-w-0 flex-1 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim))]">
+                    <label htmlFor="member-register-terms" className="cursor-pointer">
+                      {t("我已阅读并同意", "I have read and agree to the ")}
+                    </label>
+                    <button
+                      type="button"
+                      className="font-bold text-pu-gold motion-reduce:transition-none hover:underline"
+                      onClick={() => setLegalDoc("terms")}
+                    >
+                      {t("服务条款", "Terms of Service")}
+                    </button>
+                    <span>{t("与", " and ")}</span>
+                    <button
+                      type="button"
+                      className="font-bold text-pu-gold hover:underline"
+                      onClick={() => setLegalDoc("privacy")}
+                    >
+                      {t("隐私说明", "Privacy Policy")}
+                    </button>
+                    <span>{t("。", ".")}</span>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="min-h-6 flex-1" />
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold text-[hsl(var(--pu-primary-foreground))] transition-all active:scale-[0.97] disabled:opacity-50 motion-reduce:transition-none"
+                style={{
+                  background: "linear-gradient(135deg, hsl(var(--pu-gold)), hsl(var(--pu-gold-soft)))",
+                  boxShadow: "0 8px 28px -8px hsl(var(--pu-gold) / 0.5)",
+                }}
+              >
+                {loading ? t("注册中…", "Registering...") : t("立即注册", "Register now")}
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" aria-hidden />
+                ) : (
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                )}
+              </button>
+
+              <p className="mb-4 text-center text-xs text-[hsl(var(--pu-m-text-dim))]">
+                {t("已有账户？", "Already have an account?")}{" "}
+                <Link to={ROUTES.MEMBER.LOGIN_LEGACY} className="font-bold text-pu-gold transition hover:underline">
+                  {t("去登录", "Sign in")}
+                </Link>
+              </p>
+
+              {/* 无邀请码：仅占位，置于主流程之后避免打断表单 */}
+              <details className="mb-6 rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.22)] bg-[hsl(var(--pu-m-surface)/0.14)] px-3 py-2 [&_summary::-webkit-details-marker]:hidden">
+                <summary className="cursor-pointer list-none text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim)/0.92)] transition hover:text-[hsl(var(--pu-m-text))]">
+                  {t("没有邀请码？", "No invite code?")}
+                </summary>
+                <p className="mt-2 text-[10px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.72)]">
+                  {t(
+                    "开放自助注册需服务端支持，后续将在此开放。当前请向好友索取邀请链接或使用上方邀请码。",
+                    "Open self-serve sign-up needs backend support and will appear here later. Ask a friend for a link or use an invite code above.",
+                  )}
+                </p>
+                <div className="mt-2 flex justify-center">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled
+                    className="h-8 rounded-lg px-4 text-[10px] font-semibold opacity-55"
+                  >
+                    {t("即将开放", "Coming soon")}
+                  </Button>
+                </div>
+              </details>
+
+              <div className="mb-2 flex items-center justify-center gap-4 border-t border-[hsl(var(--pu-m-surface-border)/0.15)] pt-4">
+                {[
+                  { icon: Shield, label: t("SSL", "SSL") },
+                  { icon: Lock, label: t("加密", "Secure") },
+                  { icon: Sparkles, label: t("验证", "Verified") },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-1">
+                    <item.icon className="h-3 w-3 text-[hsl(var(--pu-m-text-dim)/0.35)]" aria-hidden />
+                    <span className="text-[10px] font-medium text-[hsl(var(--pu-m-text-dim)/0.35)]">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-center text-[10px] text-[hsl(var(--pu-m-text-dim)/0.45)]">
+                {t("您的数据受保护并已加密。", "Your data is protected and encrypted.")}
+              </p>
+            </form>
+          </>
+        )}
+      </div>
+
+      <MemberLegalDrawer
+        open={legalDoc === "terms"}
+        onOpenChange={(o) => {
+          if (!o) setLegalDoc(null);
+        }}
+        title={t("服务条款", "Terms of Service")}
+      >
+        {memberPortalLegalBody(portalSettings, language, "terms")}
+      </MemberLegalDrawer>
+      <MemberLegalDrawer
+        open={legalDoc === "privacy"}
+        onOpenChange={(o) => {
+          if (!o) setLegalDoc(null);
+        }}
+        title={t("隐私说明", "Privacy Policy")}
+      >
+        {memberPortalLegalBody(portalSettings, language, "privacy")}
+      </MemberLegalDrawer>
+    </div>
+  );
+}
