@@ -55,7 +55,7 @@ function SplashBrandMark({
           <img
             src={resolvedSrc}
             alt=""
-            className="h-full w-full object-cover transition-opacity duration-200 motion-reduce:transition-none"
+            className="box-border h-full w-full object-contain object-center p-2 transition-opacity duration-200 motion-reduce:transition-none"
             style={{ opacity: imgShown ? 1 : 0 }}
             loading="eager"
             fetchPriority="high"

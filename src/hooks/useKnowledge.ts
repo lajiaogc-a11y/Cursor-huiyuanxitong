@@ -429,16 +429,18 @@ export function useUnreadCount() {
     }
   };
 
-  const markAllAsRead = async () => {
-    if (!employee?.id) return;
+  const markAllAsRead = async (): Promise<boolean> => {
+    if (!employee?.id) return false;
 
     try {
       await postKnowledgeMarkAllRead(effectiveTenantId);
       setUnreadCount(0);
       setUnreadByCategory({});
       window.dispatchEvent(new CustomEvent('knowledge-read-update'));
+      return true;
     } catch (error) {
       console.error('Error marking all as read:', error);
+      return false;
     }
   };
 

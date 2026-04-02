@@ -4,16 +4,13 @@
 import { withTransaction } from '../../database/index.js';
 import { randomUUID } from 'crypto';
 import type { PoolConnection } from 'mysql2/promise';
+import type { ResultSetHeader } from 'mysql2';
 import { buildMysqlUserLockName, mysqlGetLock, mysqlReleaseLock } from '../../lib/mysqlUserLock.js';
 import { applyPointsLedgerDeltaOnConn } from '../points/pointsLedgerAccount.js';
-import {
-  getEffectiveDailyFreeSpins,
-  getEffectiveDailyFreeSpinsConn,
-  getLotterySettings,
-  listEnabledPrizes,
-} from './repository.js';
+import { getEffectiveDailyFreeSpinsConn, getLotterySettings, listEnabledPrizes } from './repository.js';
 import { pickLotteryPrizeByConfiguredProbability } from './prizePick.js';
 import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
+import { syncLotteryQuotaDayAndLoadConn } from './spinBalanceAccount.js';
 
 const recentDraws = new Map<string, number>();
 const DRAW_IDEMPOTENCY_WINDOW_MS = 2000;
@@ -98,34 +95,16 @@ export async function draw(memberId: string): Promise<DrawResult> {
       return { success: false, error: 'LOTTERY_DISABLED' };
     }
 
-    // 1. 次数检查 — lottery_logs 的 COUNT 天然反映已用次数（范围查询利于 created_at 索引，语义同上海日历日）
     const today = getShanghaiDateString();
     const dayStart = `${today} 00:00:00`;
-    const usedRow = await queryOneConn<{ cnt: number }>(
-      conn,
-      `SELECT COUNT(*) as cnt FROM lottery_logs
-       WHERE member_id = ?
-         AND created_at >= ?
-         AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
-      [memberId, dayStart, dayStart]
-    );
-    const usedToday = usedRow?.cnt ?? 0;
-
     const dailyFree = await getEffectiveDailyFreeSpinsConn(conn, tenantId);
-
-    const creditsRow = await queryOneConn<{ total: number }>(
-      conn, 'SELECT COALESCE(SUM(amount),0) as total FROM spin_credits WHERE member_id = ?', [memberId]
-    );
-    const credits = Math.max(0, Number(creditsRow?.total ?? 0));
-
-    const totalAllowed = dailyFree + credits;
-    const remaining = Math.max(0, totalAllowed - usedToday);
-
-    if (remaining <= 0) {
+    const quotaSnap = await syncLotteryQuotaDayAndLoadConn(conn, memberId, today, dailyFree);
+    const freeRemaining = Math.max(0, dailyFree - quotaSnap.freeDrawsUsed);
+    const totalRemaining = freeRemaining + quotaSnap.balance;
+    if (totalRemaining <= 0) {
       return { success: false, error: 'NO_SPIN_QUOTA', remaining: 0 };
     }
 
-    // 2. 获取启用奖品
     const prizes = await queryConn<LotteryPrize>(
       conn,
       'SELECT id, name, type, value, description, probability FROM lottery_prizes WHERE (tenant_id IS NULL OR tenant_id = ?) AND enabled = 1 ORDER BY sort_order ASC',
@@ -135,7 +114,6 @@ export async function draw(memberId: string): Promise<DrawResult> {
       return { success: false, error: 'NO_PRIZES_CONFIGURED' };
     }
 
-    // 3. 校验概率 + 4. 与 simulateLotteryDrawForTenant 共用同一套加权随机
     let hit: LotteryPrize;
     try {
       hit = pickLotteryPrizeByConfiguredProbability(prizes);
@@ -143,7 +121,28 @@ export async function draw(memberId: string): Promise<DrawResult> {
       return { success: false, error: 'PROBABILITY_SUM_NOT_100' };
     }
 
-    // 5. 写抽奖日志（也是次数扣减的唯一凭据 — 无需单独扣减字段）
+    let newRemaining = 0;
+    if (freeRemaining > 0) {
+      await execConn(
+        conn,
+        'UPDATE member_activity SET lottery_free_draws_used = COALESCE(lottery_free_draws_used, 0) + 1, updated_at = NOW(3) WHERE member_id = ?',
+        [memberId],
+      );
+      const nextFreeUsed = quotaSnap.freeDrawsUsed + 1;
+      newRemaining = Math.max(0, dailyFree - nextFreeUsed) + quotaSnap.balance;
+    } else {
+      const [ur] = await conn.query(
+        'UPDATE member_activity SET lottery_spin_balance = COALESCE(lottery_spin_balance, 0) - 1, updated_at = NOW(3) WHERE member_id = ? AND COALESCE(lottery_spin_balance, 0) >= 1',
+        [memberId],
+      );
+      const aff = Number((ur as ResultSetHeader).affectedRows ?? 0);
+      if (aff !== 1) {
+        return { success: false, error: 'NO_SPIN_QUOTA', remaining: 0 };
+      }
+      newRemaining = Math.max(0, dailyFree - quotaSnap.freeDrawsUsed) + (quotaSnap.balance - 1);
+    }
+
+    // 写抽奖日志（次数已在 member_activity 扣减）
     const logId = randomUUID();
     await execConn(conn,
       `INSERT INTO lottery_logs (id, member_id, tenant_id, prize_id, prize_name, prize_type, prize_value)
@@ -186,8 +185,6 @@ export async function draw(memberId: string): Promise<DrawResult> {
       );
     }
 
-    const newRemaining = Math.max(0, totalAllowed - usedToday - 1);
-
     return {
       success: true,
       prize: {
@@ -220,21 +217,25 @@ export async function getQuota(memberId: string) {
 
   const today = getShanghaiDateString();
   const dayStart = `${today} 00:00:00`;
-  const usedRow = await queryOne<{ cnt: number }>(
-    `SELECT COUNT(*) as cnt FROM lottery_logs
-     WHERE member_id = ?
-       AND created_at >= ?
-       AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
-    [memberId, dayStart, dayStart]
-  );
-  const usedToday = usedRow?.cnt ?? 0;
-  const dailyFree = await getEffectiveDailyFreeSpins(tenantId);
-  const creditsRow = await queryOne<{ total: number }>(
-    'SELECT COALESCE(SUM(amount),0) as total FROM spin_credits WHERE member_id = ?', [memberId]
-  );
-  const credits = Math.max(0, Number(creditsRow?.total ?? 0));
-  const remaining = Math.max(0, dailyFree + credits - usedToday);
-  return { remaining, daily_free: dailyFree, credits, used_today: usedToday, enabled };
+
+  return withTransaction(async (conn) => {
+    const dailyFree = await getEffectiveDailyFreeSpinsConn(conn, tenantId);
+    const snap = await syncLotteryQuotaDayAndLoadConn(conn, memberId, today, dailyFree);
+    const freeRem = Math.max(0, dailyFree - snap.freeDrawsUsed);
+    const remaining = freeRem + snap.balance;
+
+    const usedRow = await queryOneConn<{ cnt: number }>(
+      conn,
+      `SELECT COUNT(*) as cnt FROM lottery_logs
+       WHERE member_id = ?
+         AND created_at >= ?
+         AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
+      [memberId, dayStart, dayStart],
+    );
+    const usedToday = usedRow?.cnt ?? 0;
+
+    return { remaining, daily_free: dailyFree, credits: snap.balance, used_today: usedToday, enabled };
+  });
 }
 
 /**

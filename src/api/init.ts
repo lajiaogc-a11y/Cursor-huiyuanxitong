@@ -64,9 +64,8 @@ export function initApiClient(): void {
       /* ignore */
     }
 
-    toast.error('您的账号已在其他设备登录，请及时修改密码', {
-      description:
-        '如非本人操作请尽快修改登录密码。Your account signed in on another device; change your password if this was not you.',
+    toast.error('Your account signed in on another device', {
+      description: 'If this was not you, change your password as soon as possible.',
       duration: 6500,
     });
 

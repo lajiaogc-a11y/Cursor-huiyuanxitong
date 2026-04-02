@@ -10,6 +10,7 @@ import {
   getLowestMemberLevelRuleRepository,
   getMemberLevelRuleByIdRepository,
   getMemberLevelRuleByNameRepository,
+  resolveLevelNameZhForMember,
 } from '../memberLevels/repository.js';
 
 function generateRandomPassword(length = 8): string {
@@ -695,6 +696,7 @@ export async function getCustomerDetailByPhoneRepository(phone: string, tenantId
     phone_number: string;
     member_code: string;
     member_level: string | null;
+    member_level_zh: string | null;
     common_cards: string[];
     currency_preferences: string[];
     bank_card: string | null;
@@ -776,6 +778,7 @@ export async function getCustomerDetailByPhoneRepository(phone: string, tenantId
     referralsAsReferrerNorm,
     sourceRow,
     recorderRow,
+    memberLevelZhResolved,
   ] = await Promise.all([
     queryOne(
       `SELECT referrer_phone, referrer_member_code FROM referral_relations 
@@ -812,6 +815,11 @@ export async function getCustomerDetailByPhoneRepository(phone: string, tenantId
     member.creator_id
       ? queryOne(`SELECT real_name FROM employees WHERE id = ?`, [member.creator_id])
       : Promise.resolve(null),
+    resolveLevelNameZhForMember(
+      (member as { tenant_id?: string | null }).tenant_id ?? null,
+      (member as { current_level_id?: string | null }).current_level_id ?? null,
+      (member as { member_level?: string | null }).member_level ?? null,
+    ),
   ]);
 
   const activityByPhone = activityByPhoneCanon || activityByPhoneNorm;
@@ -850,6 +858,7 @@ export async function getCustomerDetailByPhoneRepository(phone: string, tenantId
       phone_number: member.phone_number,
       member_code: member.member_code,
       member_level: member.member_level || null,
+      member_level_zh: memberLevelZhResolved || null,
       common_cards: parseJson(member.common_cards, []),
       currency_preferences: parseJson(member.currency_preferences, []),
       bank_card: bankCardFromDb(member.bank_card),

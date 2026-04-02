@@ -17,7 +17,7 @@ import {
   Home, ShoppingBag, Star, Info,
   Dices, ScrollText, Link2, Headphones, BarChart3, Coins,
   Globe2, Database, LogIn, Scale,
-  ClipboardList, Users,
+  ClipboardList, Users, Bell,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -490,6 +490,7 @@ const TABS = [
   { key: "activity_data", label: "活动数据", labelEn: "Activity Data", icon: BarChart3 },
   { key: "invite_simulation", label: "邀请与模拟", labelEn: "Invite & simulation", icon: Users },
   { key: "customer_service", label: "客服设置", labelEn: "Customer Service", icon: Headphones },
+  { key: "member_inbox", label: "会员通知", labelEn: "Member inbox", icon: Bell },
   { key: "website_data", label: "网站数据", labelEn: "Site analytics", icon: Globe2 },
   { key: "data_management", label: "数据管理", labelEn: "Data cleanup", icon: Database },
   { key: "legal_policies", label: "条款与隐私", labelEn: "Terms & Privacy", icon: Scale },
@@ -541,19 +542,26 @@ function SwitchRow({
   desc,
   checked,
   onChange,
+  disabled,
 }: {
   label: string;
   desc?: string;
   checked: boolean;
   onChange: (v: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-xl border bg-card px-4 py-3 gap-4">
+    <div
+      className={cn(
+        "flex items-center justify-between rounded-xl border bg-card px-4 py-3 gap-4",
+        disabled && "opacity-60",
+      )}
+    >
       <div>
         <p className="text-sm font-medium leading-none">{label}</p>
         {desc && <p className="text-xs text-muted-foreground mt-1">{desc}</p>}
       </div>
-      <Switch checked={checked} onCheckedChange={onChange} />
+      <Switch checked={checked} onCheckedChange={onChange} disabled={disabled} />
     </div>
   );
 }
@@ -1743,6 +1751,44 @@ export default function MemberPortalSettingsPage() {
             onSettingsChange={handleSettingsChange}
             imageFileToWebpDataUrl={imageFileToWebpDataUrl}
           />
+        )}
+
+        {activeTab === "member_inbox" && (
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "控制会员端「消息通知」入口与收件箱：关闭总开关后会员端不展示铃铛，且不再产生新通知（已发布配置后生效）。",
+                "Control the member notifications bell and inbox: when the master switch is off, the bell is hidden and no new inbox rows are created (effective after publish).",
+              )}
+            </p>
+            <SwitchRow
+              label={t("启用会员收件箱", "Enable member inbox")}
+              desc={t("关闭后会员端隐藏通知入口，列表与未读数为空。", "When off, the bell is hidden; list and unread count are empty.")}
+              checked={!!settings.enable_member_inbox}
+              onChange={(v) => handleSettingsChange({ enable_member_inbox: v })}
+            />
+            <SwitchRow
+              label={t("交易完成转盘奖励通知", "Trade completed — spin reward")}
+              desc={t("订单完成并发放转盘次数时写入一条通知。", "Creates an inbox item when a trade completes and spin credits are granted.")}
+              checked={!!settings.member_inbox_notify_order_spin}
+              disabled={!settings.enable_member_inbox}
+              onChange={(v) => handleSettingsChange({ member_inbox_notify_order_spin: v })}
+            />
+            <SwitchRow
+              label={t("积分商城兑换结果通知", "Points mall redemption outcome")}
+              desc={t("兑换审核通过或驳回时写入通知。", "Creates an item when a redemption is approved or rejected.")}
+              checked={!!settings.member_inbox_notify_mall_redemption}
+              disabled={!settings.enable_member_inbox}
+              onChange={(v) => handleSettingsChange({ member_inbox_notify_mall_redemption: v })}
+            />
+            <SwitchRow
+              label={t("门户公告同步至收件箱", "Portal announcements → inbox")}
+              desc={t("发布/更新首页公告时向会员批量推送收件箱条目。", "Fan-out new homepage announcements to each member inbox.")}
+              checked={!!settings.member_inbox_notify_announcement}
+              disabled={!settings.enable_member_inbox}
+              onChange={(v) => handleSettingsChange({ member_inbox_notify_announcement: v })}
+            />
+          </div>
         )}
 
         {activeTab === "legal_policies" && (

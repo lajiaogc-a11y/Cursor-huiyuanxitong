@@ -145,10 +145,35 @@ export default function MemberSpin() {
   const highlightCancelRef = useRef<(() => void) | null>(null);
 
   const [simFeedItems, setSimFeedItems] = useState<SpinSimFeedItem[]>([]);
+  /** 点击中奖滚动条后暂停 3 秒再继续 */
+  const [simFeedClickPaused, setSimFeedClickPaused] = useState(false);
+  const simFeedClickPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** 与首页公告跑马灯一致：MemberDashboard `Math.max(14, announcementItems.length * 5)` */
   const simFeedMarqueeDurationSec = useMemo(
     () => Math.max(14, simFeedItems.length * 5),
     [simFeedItems.length],
+  );
+
+  const onSimFeedStripClick = useCallback(() => {
+    if (simFeedClickPauseTimerRef.current) {
+      window.clearTimeout(simFeedClickPauseTimerRef.current);
+      simFeedClickPauseTimerRef.current = null;
+    }
+    setSimFeedClickPaused(true);
+    simFeedClickPauseTimerRef.current = window.setTimeout(() => {
+      setSimFeedClickPaused(false);
+      simFeedClickPauseTimerRef.current = null;
+    }, 3000);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (simFeedClickPauseTimerRef.current) {
+        window.clearTimeout(simFeedClickPauseTimerRef.current);
+        simFeedClickPauseTimerRef.current = null;
+      }
+    },
+    [],
   );
 
   useMemberPullRefreshSignal(() => {
@@ -520,9 +545,14 @@ export default function MemberSpin() {
         {simFeedItems.length > 0 ? (
           <div className="mb-5 px-5">
             <div
-              className="member-spin-sim-feed relative overflow-hidden rounded-2xl border border-pu-gold/15 bg-[hsl(var(--pu-m-surface)/0.35)] py-2.5"
+              className={cn(
+                "member-spin-sim-feed relative cursor-pointer overflow-hidden rounded-2xl border border-pu-gold/15 bg-[hsl(var(--pu-m-surface)/0.35)] py-2.5 select-none touch-manipulation",
+                simFeedClickPaused && "member-spin-sim-feed--click-paused",
+              )}
               role="status"
               aria-live="polite"
+              title={t("点击暂停三秒", "Tap to pause for 3 seconds")}
+              onClick={onSimFeedStripClick}
             >
               <div
                 className="member-spin-sim-feed__track flex w-max gap-10 pr-10"

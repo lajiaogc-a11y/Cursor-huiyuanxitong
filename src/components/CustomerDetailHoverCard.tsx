@@ -8,6 +8,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { getCustomerDetailByPhone, type CustomerDetail } from "@/services/members/customerDetailService";
+import { displayMemberLevelLabel } from "@/lib/memberLevelDisplay";
 import { cn } from "@/lib/utils";
 import { formatBeijingTime } from "@/lib/beijingTime";
 
@@ -22,7 +23,7 @@ function formatDate(iso: string) {
 }
 
 export default function CustomerDetailHoverCard({ phone, children, className }: CustomerDetailHoverCardProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { employee } = useAuth();
   const { viewingTenantId } = useTenantView() || {};
   const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
@@ -92,7 +93,14 @@ export default function CustomerDetailHoverCard({ phone, children, className }: 
                   <div className="space-y-0">
                     {renderRow(t("会员编号", "Member Code"), detail.member.member_code)}
                     {renderRow(t("推荐人", "Referrer"), detail.member.referrer_display)}
-                    {renderRow(t("等级", "Level"), detail.member.member_level)}
+                    {renderRow(
+                      t("等级", "Level"),
+                      displayMemberLevelLabel(
+                        detail.member.member_level,
+                        detail.member.member_level_zh,
+                        language,
+                      ) || null,
+                    )}
                     {renderRow(t("常交易卡", "Common Cards"), detail.member.common_cards?.join("、") || null)}
                     {renderRow(t("币种偏好", "Currency Preference"), detail.member.currency_preferences?.join("、") || null)}
                     {renderRow(t("银行卡", "Bank Card"), detail.member.bank_card)}

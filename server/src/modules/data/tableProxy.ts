@@ -25,6 +25,7 @@ import { generateUniqueActivityGiftNumber } from '../../lib/giftNumber.js';
 import { ensureOrderNumberForInsert } from '../orders/orderNumber.js';
 import { draw, getQuota } from '../lottery/service.js';
 import { grantOrderCompletedSpinCredits } from '../lottery/repository.js';
+import { incrementLotterySpinBalanceConn } from '../lottery/spinBalanceAccount.js';
 import { notifyMemberOrderCompletedSpinReward } from '../memberInboxNotifications/repository.js';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { runWebhookProcessorRpc } from '../webhooks/rpcBridge.js';
@@ -295,6 +296,34 @@ export async function tableInsertController(req: AuthenticatedRequest, res: Resp
       // 回查插入的行
       const inserted = await queryOne(`SELECT * FROM \`${table}\` WHERE id = ?`, [row.id]);
       results.push(inserted);
+
+      if (table === 'orders' && inserted && typeof inserted === 'object') {
+        const ins = inserted as Record<string, unknown>;
+        const st = String(ins.status ?? '').toLowerCase().trim();
+        if (st === 'completed' && ins.id) {
+          const memberId = ins.member_id != null ? String(ins.member_id).trim() : '';
+          const tenantId = ins.tenant_id != null ? String(ins.tenant_id).trim() : '';
+          if (memberId && tenantId) {
+            try {
+              const { granted, amount } = await grantOrderCompletedSpinCredits({
+                orderId: String(ins.id),
+                memberId,
+                tenantId,
+              });
+              if (granted && amount > 0) {
+                await notifyMemberOrderCompletedSpinReward({
+                  tenantId,
+                  memberId,
+                  orderId: String(ins.id),
+                  spins: amount,
+                });
+              }
+            } catch (spinErr) {
+              console.error('[TableProxy] INSERT orders completed spin:', spinErr);
+            }
+          }
+        }
+      }
     }
 
     res.json({ data: results.length === 1 ? results[0] : results, error: null });
@@ -582,6 +611,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                   'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW())',
                   [memberId, creditAmount, 'check_in'],
                 );
+                await incrementLotterySpinBalanceConn(conn, memberId, creditAmount);
               }
 
               return {
@@ -1058,6 +1088,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
               'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (?, ?, ?, ?, NOW())',
               [id, memberId, shareReward, 'share'],
             );
+            await incrementLotterySpinBalanceConn(conn, memberId, shareReward);
             const [sumAfter] = await conn.query(
               `SELECT COALESCE(SUM(amount), 0) AS total FROM spin_credits
                WHERE member_id = ? AND source = 'share'

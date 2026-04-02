@@ -25,40 +25,39 @@ export const DEFAULT_MEMBER_LEVEL_SEED: ReadonlyArray<readonly [string, number, 
   ['Elite', 50000, 7],
 ];
 
+function normalizeRuleRow(r: MemberLevelRuleRow): MemberLevelRuleRow {
+  return {
+    ...r,
+    level_name_zh: String((r as { level_name_zh?: string }).level_name_zh ?? '').trim(),
+    required_points: Number(r.required_points),
+    level_order: Number(r.level_order),
+    rate_bonus: r.rate_bonus != null ? Number(r.rate_bonus) : null,
+    priority_level: r.priority_level != null ? Number(r.priority_level) : null,
+  };
+}
+
 export async function listMemberLevelRulesRepository(tenantId: string): Promise<MemberLevelRuleRow[]> {
   const rows = await query<MemberLevelRuleRow>(
-    `SELECT id, tenant_id, level_name, required_points, level_order,
+    `SELECT id, tenant_id, level_name, level_name_zh, required_points, level_order,
             rate_bonus, priority_level, created_at, updated_at
      FROM member_level_rules
      WHERE tenant_id = ?
      ORDER BY level_order ASC, required_points ASC, id ASC`,
     [tenantId],
   );
-  return rows.map((r) => ({
-    ...r,
-    required_points: Number(r.required_points),
-    level_order: Number(r.level_order),
-    rate_bonus: r.rate_bonus != null ? Number(r.rate_bonus) : null,
-    priority_level: r.priority_level != null ? Number(r.priority_level) : null,
-  }));
+  return rows.map((r) => normalizeRuleRow(r));
 }
 
 export async function listMemberLevelRulesOrderedForCompute(tenantId: string): Promise<MemberLevelRuleRow[]> {
   const rows = await query<MemberLevelRuleRow>(
-    `SELECT id, tenant_id, level_name, required_points, level_order,
+    `SELECT id, tenant_id, level_name, level_name_zh, required_points, level_order,
             rate_bonus, priority_level, created_at, updated_at
      FROM member_level_rules
      WHERE tenant_id = ?
      ORDER BY required_points ASC, level_order ASC, id ASC`,
     [tenantId],
   );
-  return rows.map((r) => ({
-    ...r,
-    required_points: Number(r.required_points),
-    level_order: Number(r.level_order),
-    rate_bonus: r.rate_bonus != null ? Number(r.rate_bonus) : null,
-    priority_level: r.priority_level != null ? Number(r.priority_level) : null,
-  }));
+  return rows.map((r) => normalizeRuleRow(r));
 }
 
 export async function ensureDefaultMemberLevelRulesRepository(tenantId: string): Promise<void> {
@@ -71,8 +70,8 @@ export async function ensureDefaultMemberLevelRulesRepository(tenantId: string):
     const id = randomUUID();
     await execute(
       `INSERT INTO member_level_rules (
-         id, tenant_id, level_name, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NOW(3), NOW(3))`,
+         id, tenant_id, level_name, level_name_zh, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
+       ) VALUES (?, ?, ?, '', ?, ?, NULL, NULL, NOW(3), NOW(3))`,
       [id, tenantId, name, pts, ord],
     );
   }
@@ -88,7 +87,7 @@ export async function syncMemberLevelFromTotalOnConn(
   if (!tenantId) return;
   await ensureDefaultMemberLevelRulesOnConn(conn, tenantId);
   const [rows] = await conn.query(
-    `SELECT id, tenant_id, level_name, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
+    `SELECT id, tenant_id, level_name, level_name_zh, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
      FROM member_level_rules
      WHERE tenant_id = ?
      ORDER BY required_points ASC, level_order ASC, id ASC`,
@@ -97,6 +96,7 @@ export async function syncMemberLevelFromTotalOnConn(
   const list = rows as MemberLevelRuleRow[];
   const normalized = list.map((r) => ({
     ...r,
+    level_name_zh: String((r as { level_name_zh?: string }).level_name_zh ?? '').trim(),
     required_points: Number(r.required_points),
     level_order: Number(r.level_order),
   }));
@@ -121,8 +121,8 @@ async function ensureDefaultMemberLevelRulesOnConn(conn: PoolConnection, tenantI
     await exec(
       conn,
       `INSERT INTO member_level_rules (
-         id, tenant_id, level_name, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NOW(3), NOW(3))`,
+         id, tenant_id, level_name, level_name_zh, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
+       ) VALUES (?, ?, ?, '', ?, ?, NULL, NULL, NOW(3), NOW(3))`,
       [id, tenantId, name, pts, ord],
     );
   }
@@ -134,12 +134,13 @@ export async function replaceMemberLevelRulesRepository(tenantId: string, rules:
     const id = randomUUID();
     await execute(
       `INSERT INTO member_level_rules (
-         id, tenant_id, level_name, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
+         id, tenant_id, level_name, level_name_zh, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
       [
         id,
         tenantId,
         String(r.level_name || '').trim() || 'Level',
+        String(r.level_name_zh ?? '').trim(),
         Number(r.required_points) || 0,
         Number(r.level_order) || 0,
         r.rate_bonus != null && Number.isFinite(Number(r.rate_bonus)) ? Number(r.rate_bonus) : null,
@@ -158,18 +159,12 @@ export async function getMemberLevelRuleByNameRepository(
   if (!name) return null;
   await ensureDefaultMemberLevelRulesRepository(tenantId);
   const row = await queryOne<MemberLevelRuleRow>(
-    `SELECT id, tenant_id, level_name, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
+    `SELECT id, tenant_id, level_name, level_name_zh, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
      FROM member_level_rules WHERE tenant_id = ? AND level_name = ? LIMIT 1`,
     [tenantId, name],
   );
   if (!row) return null;
-  return {
-    ...row,
-    required_points: Number(row.required_points),
-    level_order: Number(row.level_order),
-    rate_bonus: row.rate_bonus != null ? Number(row.rate_bonus) : null,
-    priority_level: row.priority_level != null ? Number(row.priority_level) : null,
-  };
+  return normalizeRuleRow(row);
 }
 
 export async function getMemberLevelRuleByIdRepository(
@@ -177,24 +172,18 @@ export async function getMemberLevelRuleByIdRepository(
   tenantId: string,
 ): Promise<MemberLevelRuleRow | null> {
   const row = await queryOne<MemberLevelRuleRow>(
-    `SELECT id, tenant_id, level_name, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
+    `SELECT id, tenant_id, level_name, level_name_zh, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
      FROM member_level_rules WHERE id = ? AND tenant_id = ? LIMIT 1`,
     [id, tenantId],
   );
   if (!row) return null;
-  return {
-    ...row,
-    required_points: Number(row.required_points),
-    level_order: Number(row.level_order),
-    rate_bonus: row.rate_bonus != null ? Number(row.rate_bonus) : null,
-    priority_level: row.priority_level != null ? Number(row.priority_level) : null,
-  };
+  return normalizeRuleRow(row);
 }
 
 export async function getLowestMemberLevelRuleRepository(tenantId: string): Promise<MemberLevelRuleRow | null> {
   await ensureDefaultMemberLevelRulesRepository(tenantId);
   const row = await queryOne<MemberLevelRuleRow>(
-    `SELECT id, tenant_id, level_name, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
+    `SELECT id, tenant_id, level_name, level_name_zh, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
      FROM member_level_rules
      WHERE tenant_id = ?
      ORDER BY level_order ASC, required_points ASC, id ASC
@@ -202,13 +191,7 @@ export async function getLowestMemberLevelRuleRepository(tenantId: string): Prom
     [tenantId],
   );
   if (!row) return null;
-  return {
-    ...row,
-    required_points: Number(row.required_points),
-    level_order: Number(row.level_order),
-    rate_bonus: row.rate_bonus != null ? Number(row.rate_bonus) : null,
-    priority_level: row.priority_level != null ? Number(row.priority_level) : null,
-  };
+  return normalizeRuleRow(row);
 }
 
 export async function recomputeAllMemberLevelsForTenantRepository(tenantId: string): Promise<void> {
@@ -227,4 +210,31 @@ export async function recomputeAllMemberLevelsForTenantRepository(tenantId: stri
       m.id,
     ]);
   }
+}
+
+/** 按 current_level_id 或英文 level_name 解析规则表中的中文名（供 API 展示） */
+export async function resolveLevelNameZhForMember(
+  tenantId: string | null | undefined,
+  currentLevelId: string | null | undefined,
+  memberLevel: string | null | undefined,
+): Promise<string | null> {
+  const tid = tenantId != null ? String(tenantId).trim() : '';
+  if (!tid) return null;
+  const cid = currentLevelId != null ? String(currentLevelId).trim() : '';
+  if (cid) {
+    const byId = await queryOne<{ level_name_zh: string | null }>(
+      `SELECT level_name_zh FROM member_level_rules WHERE tenant_id = ? AND id = ? LIMIT 1`,
+      [tid, cid],
+    );
+    const z = byId?.level_name_zh != null ? String(byId.level_name_zh).trim() : '';
+    if (z) return z;
+  }
+  const lv = memberLevel != null ? String(memberLevel).trim() : '';
+  if (!lv) return null;
+  const byName = await queryOne<{ level_name_zh: string | null }>(
+    `SELECT level_name_zh FROM member_level_rules WHERE tenant_id = ? AND level_name = ? LIMIT 1`,
+    [tid, lv],
+  );
+  const z2 = byName?.level_name_zh != null ? String(byName.level_name_zh).trim() : '';
+  return z2 || null;
 }

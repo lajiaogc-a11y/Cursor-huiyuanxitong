@@ -13,6 +13,7 @@ import { STAFF_AUTH_MODULE_ITEMS } from "@/components/auth/staffAuthMarketing";
 import { fetchStaffDeviceWhitelistStatus } from "@/services/staff/staffDeviceWhitelistService";
 import { getStaffDeviceVisitorId } from "@/lib/staffDeviceFingerprint";
 import { StaffAuthLanguageToggle } from "@/components/auth/StaffAuthLanguageToggle";
+import { GCLogo } from "@/components/GCLogo";
 
 export default function Login() {
   const navigate = useNavigate();

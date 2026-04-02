@@ -5709,6 +5709,10 @@ html.member-html:not(.dark) .member-spin-sim-feed {
 .member-spin-sim-feed:hover .member-spin-sim-feed__track {
   animation-play-state: paused;
 }
+/* 点击后暂停 3 秒（由 MemberSpin 切换类名） */
+.member-spin-sim-feed--click-paused .member-spin-sim-feed__track {
+  animation-play-state: paused;
+}
 .member-spin-sim-feed__seg {
   display: inline-flex;
   align-items: center;

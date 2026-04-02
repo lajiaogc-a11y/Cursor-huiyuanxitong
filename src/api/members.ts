@@ -37,6 +37,8 @@ export interface CustomerDetailMember {
   phone_number: string;
   member_code: string;
   member_level: string | null;
+  /** 与 member_level_rules.level_name_zh 对应，用于中文界面展示 */
+  member_level_zh?: string | null;
   common_cards: string[];
   currency_preferences: string[];
   bank_card: string | null;

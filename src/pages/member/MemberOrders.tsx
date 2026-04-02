@@ -127,7 +127,7 @@ export default function MemberOrders() {
             }
           >
             <Clock className="h-4 w-4 shrink-0" aria-hidden />
-            {t("兑换记录", "Redemption history")}
+            {t("兑换记录", "Record")}
           </NavLink>
         </div>
       </div>

@@ -4,6 +4,7 @@
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { query, queryOne, execute } from '../../database/index.js';
+import { resolveLevelNameZhForMember } from '../memberLevels/repository.js';
 
 /** 员工要求改密 OR 尚未完成首次门户改密（且未因曾登录被豁免） */
 export function memberEffectiveMustChangePassword(mustChangePassword: unknown, firstLoginDone: unknown): boolean {
@@ -18,6 +19,8 @@ export interface MemberInfo {
   phone_number: string;
   nickname: string | null;
   member_level: string | null;
+  /** 等级中文名（来自 member_level_rules；无则省略） */
+  member_level_zh?: string | null;
   wallet_balance: number;
   tenant_id?: string | null;
   avatar_url?: string | null;
@@ -38,6 +41,7 @@ export async function verifyMemberPasswordRepository(
   const row = await queryOne<{
     id: string; member_code: string; phone_number: string;
     nickname: string | null; member_level: string | null;
+    current_level_id: string | null;
     wallet_balance: number; password_hash: string | null;
     tenant_id: string | null; avatar_url: string | null;
     must_change_password: number | string | null;
@@ -46,7 +50,7 @@ export async function verifyMemberPasswordRepository(
     lifetime_reward_points_earned: number | string | null;
     total_points: number | string | null;
   }>(
-    `SELECT id, member_code, phone_number, nickname, member_level, wallet_balance, password_hash, tenant_id, avatar_url,
+    `SELECT id, member_code, phone_number, nickname, member_level, current_level_id, wallet_balance, password_hash, tenant_id, avatar_url,
             COALESCE(must_change_password, 0) AS must_change_password,
             COALESCE(member_portal_first_login_done, 0) AS member_portal_first_login_done,
             COALESCE(invite_success_lifetime_count, 0) AS invite_success_lifetime_count,
@@ -65,6 +69,7 @@ export async function verifyMemberPasswordRepository(
   if (!match) {
     return { success: false, error: 'WRONG_PASSWORD' };
   }
+  const member_level_zh = await resolveLevelNameZhForMember(row.tenant_id, row.current_level_id, row.member_level);
   return {
     success: true,
     member: {
@@ -73,6 +78,7 @@ export async function verifyMemberPasswordRepository(
       phone_number: row.phone_number,
       nickname: row.nickname,
       member_level: row.member_level,
+      member_level_zh: member_level_zh ?? undefined,
       wallet_balance: Number(row.wallet_balance) || 0,
       tenant_id: row.tenant_id,
       avatar_url: row.avatar_url || null,
@@ -218,6 +224,7 @@ export async function getMemberInfoRepository(memberId: string): Promise<{ succe
   const row = await queryOne<{
     id: string; member_code: string; phone_number: string;
     nickname: string | null; member_level: string | null;
+    current_level_id: string | null;
     wallet_balance: number; tenant_id: string | null; avatar_url: string | null;
     must_change_password: number | string | null;
     member_portal_first_login_done: number | string | null;
@@ -225,7 +232,7 @@ export async function getMemberInfoRepository(memberId: string): Promise<{ succe
     lifetime_reward_points_earned: number | string | null;
     total_points: number | string | null;
   }>(
-    `SELECT id, member_code, phone_number, nickname, member_level, wallet_balance, tenant_id, avatar_url,
+    `SELECT id, member_code, phone_number, nickname, member_level, current_level_id, wallet_balance, tenant_id, avatar_url,
             COALESCE(must_change_password, 0) AS must_change_password,
             COALESCE(member_portal_first_login_done, 0) AS member_portal_first_login_done,
             COALESCE(invite_success_lifetime_count, 0) AS invite_success_lifetime_count,
@@ -239,6 +246,7 @@ export async function getMemberInfoRepository(memberId: string): Promise<{ succe
   if (!row) {
     return { success: false };
   }
+  const member_level_zh = await resolveLevelNameZhForMember(row.tenant_id, row.current_level_id, row.member_level);
   return {
     success: true,
     member: {
@@ -247,6 +255,7 @@ export async function getMemberInfoRepository(memberId: string): Promise<{ succe
       phone_number: row.phone_number,
       nickname: row.nickname,
       member_level: row.member_level,
+      member_level_zh: member_level_zh ?? undefined,
       wallet_balance: Number(row.wallet_balance) || 0,
       tenant_id: row.tenant_id,
       avatar_url: row.avatar_url || null,

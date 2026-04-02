@@ -28,6 +28,7 @@ import { preloadMemberRouteChunk } from "@/lib/memberRouteChunkPreload";
 import { MemberTabbedShell } from "@/components/member/MemberTabbedShell";
 import "@/styles/member-portal.css";
 import { applyMemberPortalFaviconFromLogoRaw } from "@/lib/memberPortalFavicon";
+import { preloadMemberPortalLogo } from "@/lib/memberPortalLogoPreload";
 
 /** 首进会员壳：最短品牌展示；最长避免弱网卡在启动页 */
 const MEMBER_ENTRY_SPLASH_MIN_MS = 1200;
@@ -52,6 +53,9 @@ export function MemberLayout({ children }: { children: ReactNode }) {
   const { member } = useMemberAuth();
   const { t } = useLanguage();
   const { settings, loading: portalLoading } = useMemberPortalSettings(member?.id);
+  const tenantLogoRaw = String(settings.logo_url ?? "").trim();
+  /** 有关闭启动页前尽量完成 Logo 解码，避免仅看到色块或闪一下不完整图 */
+  const [entryLogoDecoded, setEntryLogoDecoded] = useState(() => !member?.id || !tenantLogoRaw);
   const themeColor = useMemo(() => {
     const c = String(settings.theme_primary_color || "").trim();
     return /^#[0-9A-Fa-f]{6}$/i.test(c) ? c : "#4d8cff";
@@ -118,6 +122,25 @@ export function MemberLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!member?.id) {
+      setEntryLogoDecoded(true);
+      return;
+    }
+    if (!tenantLogoRaw) {
+      setEntryLogoDecoded(true);
+      return;
+    }
+    let cancelled = false;
+    setEntryLogoDecoded(false);
+    void preloadMemberPortalLogo(tenantLogoRaw).finally(() => {
+      if (!cancelled) setEntryLogoDecoded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [member?.id, tenantLogoRaw]);
+
+  useEffect(() => {
+    if (!member?.id) {
       setEntryChunkReady(true);
       return;
     }
@@ -136,7 +159,8 @@ export function MemberLayout({ children }: { children: ReactNode }) {
   };
 
   const splashDismissReady =
-    !member?.id || (!portalLoading && entryChunkReady);
+    !member?.id ||
+    (!portalLoading && entryChunkReady && (!tenantLogoRaw || entryLogoDecoded));
 
   return (
     <ErrorBoundary surface="member">

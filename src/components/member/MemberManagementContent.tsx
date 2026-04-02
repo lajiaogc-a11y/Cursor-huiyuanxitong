@@ -65,6 +65,7 @@ import { loadSharedData } from "@/services/finance/sharedDataService";
 import { mergeAuditSettings } from "@/lib/auditSettingsTypes";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { fetchMemberLevelsApi } from "@/services/members/memberLevelsApi";
+import { displayMemberLevelLabel } from "@/lib/memberLevelDisplay";
 
 /** 与 handleSaveEdit 中变更检测一致，供「提交审核 / 确认修改」按钮按当前实际改动判断 */
 function getMemberFieldChanges(
@@ -117,7 +118,7 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
   // Performance tracking
   trackRender('MemberManagementContent');
   
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const isMobile = useIsMobile();
   const { isAdmin, employee } = useAuth();
   const { viewingTenantId } = useTenantView() || {};
@@ -136,7 +137,9 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [allowManualMemberLevel, setAllowManualMemberLevel] = useState(false);
-  const [promotionRules, setPromotionRules] = useState<{ id: string; level_name: string }[]>([]);
+  const [promotionRules, setPromotionRules] = useState<
+    { id: string; level_name: string; level_name_zh: string }[]
+  >([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,7 +161,13 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
     fetchMemberLevelsApi(effectiveTenantId)
       .then((rows) => {
         if (cancelled) return;
-        setPromotionRules((rows || []).map((r) => ({ id: r.id, level_name: r.level_name })));
+        setPromotionRules(
+          (rows || []).map((r) => ({
+            id: r.id,
+            level_name: r.level_name,
+            level_name_zh: r.level_name_zh ?? '',
+          })),
+        );
       })
       .catch(() => {
         if (!cancelled) setPromotionRules([]);
@@ -494,12 +503,19 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
     return level || "普通会员";
   };
 
+  /** 员工端列表/详情：中文界面优先规则表中的中文名 */
+  const staffLevelDisplay = (level: string) => {
+    const z = promotionRules.find((r) => r.level_name === level)?.level_name_zh?.trim();
+    if (language === "zh" && z) return z;
+    return formatLevelDisplay(level);
+  };
+
   const renderEditingLevelControl = () => {
     if (!editingMember) return null;
     if (!canEditPromotionLevel) {
       return (
         <div className="space-y-1">
-          <Input value={formatLevelDisplay(editingMember.level)} readOnly className="bg-muted" />
+          <Input value={staffLevelDisplay(editingMember.level)} readOnly className="bg-muted" />
           <p className="text-[10px] text-muted-foreground">
             {t(
               "等级由累计积分自动计算。需在审核中心开启「允许手动修改会员等级」且具备等级编辑权限后才可调整。",
@@ -534,7 +550,7 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
         <SelectContent>
           {promotionRules.map((r) => (
             <SelectItem key={r.id} value={r.id}>
-              {r.level_name}
+              {displayMemberLevelLabel(r.level_name, r.level_name_zh, language)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -565,7 +581,7 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
                       <span className="font-medium text-sm font-mono">{getDisplayPhone(member.phoneNumber, isAdmin)}</span>
                       {canViewField('member_level') && (
                         <Badge className={getLevelBadgeColor(member.level)}>
-                          {formatLevelDisplay(member.level)}
+                          {staffLevelDisplay(member.level)}
                         </Badge>
                       )}
                     </MobileCardHeader>
@@ -780,7 +796,7 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
                       {canViewField('member_level') && (
                         <TableCell className="text-center whitespace-nowrap px-1.5">
                           <Badge className={getLevelBadgeColor(member.level)}>
-                            {formatLevelDisplay(member.level)}
+                            {staffLevelDisplay(member.level)}
                           </Badge>
                         </TableCell>
                       )}

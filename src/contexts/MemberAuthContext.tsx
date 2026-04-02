@@ -24,6 +24,8 @@ export interface MemberInfo {
   phone_number: string;
   nickname: string | null;
   member_level: string | null;
+  /** 等级中文名（后台规则表配置） */
+  member_level_zh?: string | null;
   wallet_balance: number;
   tenant_id?: string | null;
   avatar_url?: string | null;

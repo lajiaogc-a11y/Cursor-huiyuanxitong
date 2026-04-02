@@ -33,6 +33,7 @@ import { MEMBER_SKELETON_MIN_MS } from "@/lib/memberPortalUx";
 import { MemberEmptyStateCta } from "@/components/member/MemberEmptyStateCta";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
+import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
 import { setMemberInboxUnreadCount } from "@/lib/memberInboxUnreadStore";
 import {
   deleteMemberInboxNotification,
@@ -101,6 +102,8 @@ const FILTER_KEYS = ["all", "system", "reward", "activity", "invite", "order"] a
 export default function MemberNotifications() {
   const { t, language } = useLanguage();
   const { refreshMember, member } = useMemberAuth();
+  const { settings: portalSettings, loading: portalSettingsLoading } = useMemberPortalSettings(member?.id);
+  const inboxEnabled = !!portalSettings.enable_member_inbox;
   const [notifications, setNotifications] = useState<NotifItem[]>([]);
   const [activeFilter, setActiveFilter] = useState<(typeof FILTER_KEYS)[number]>("all");
   const [loading, setLoading] = useState(true);
@@ -117,6 +120,14 @@ export default function MemberNotifications() {
       setNotifications([]);
       const tmr = window.setTimeout(() => setLoading(false), MEMBER_SKELETON_MIN_MS);
       return () => window.clearTimeout(tmr);
+    }
+    if (portalSettingsLoading) {
+      return;
+    }
+    if (!inboxEnabled) {
+      setNotifications([]);
+      setLoading(false);
+      return;
     }
     let cancelled = false;
     const started = Date.now();
@@ -141,7 +152,13 @@ export default function MemberNotifications() {
     return () => {
       cancelled = true;
     };
-  }, [member?.id, reloadGen, language, t]);
+  }, [member?.id, reloadGen, language, t, portalSettingsLoading, inboxEnabled]);
+
+  useEffect(() => {
+    if (member?.id && !portalSettingsLoading && !inboxEnabled) {
+      setMemberInboxUnreadCount(0);
+    }
+  }, [member?.id, portalSettingsLoading, inboxEnabled]);
 
   const filtered =
     activeFilter === "all" ? notifications : notifications.filter((n) => n.type === activeFilter);
@@ -191,6 +208,41 @@ export default function MemberNotifications() {
     };
     return t(m[key][0], m[key][1]);
   };
+
+  if (member?.id && portalSettingsLoading) {
+    return (
+      <MemberPageLoadingShell title={t("消息通知", "Notifications")}>
+        <ListSkeleton rows={6} />
+      </MemberPageLoadingShell>
+    );
+  }
+
+  if (member?.id && !inboxEnabled) {
+    return (
+      <div className="m-page-bg relative min-h-screen pb-24">
+        <MemberPageAmbientOrbs />
+        <div className="relative z-[1] min-h-screen">
+          <BackHeader title={t("消息通知", "Notifications")} />
+          <div className="px-5 pt-6">
+            <div className="rounded-2xl border border-dashed border-[hsl(var(--pu-m-surface-border)/0.45)] bg-[hsl(var(--pu-m-surface)/0.18)] px-4 py-14 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[hsl(var(--pu-m-surface)/0.45)] text-[hsl(var(--pu-m-text-dim)/0.35)]">
+                <Bell className="h-8 w-8" aria-hidden />
+              </div>
+              <p className="text-sm font-semibold text-[hsl(var(--pu-m-text))]">
+                {t("通知功能已关闭", "Notifications are turned off")}
+              </p>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.65)]">
+                {t("当前租户未开启会员收件箱，如有疑问请联系客服。", "Your organization has disabled the inbox. Contact support if you need help.")}
+              </p>
+              <MemberEmptyStateCta
+                primary={{ to: ROUTES.MEMBER.DASHBOARD, label: t("返回首页", "Back to Home") }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

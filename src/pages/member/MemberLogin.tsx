@@ -132,7 +132,10 @@ function LoginIdleHeaderLogo({
           <img
             src={resolvedSrc}
             alt=""
-            className={cn("object-cover transition-opacity duration-200 motion-reduce:transition-none", imgCls)}
+            className={cn(
+              "box-border object-contain object-center p-0.5 transition-opacity duration-200 motion-reduce:transition-none",
+              imgCls,
+            )}
             style={{ opacity: imgShown ? 1 : 0 }}
             loading="eager"
             fetchPriority="high"

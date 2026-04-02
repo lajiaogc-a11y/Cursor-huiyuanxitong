@@ -177,6 +177,8 @@ interface MemberActivityRow {
   permanentGiftUsdt: number;
   accumulatedProfit: number;
   accumulatedProfitUsdt: number;
+  /** 抽奖剩余次数余额（服务端 member_activity.lottery_spin_balance，不含当日免费额度） */
+  lotterySpinBalance: number;
   /** 消费次数：本人已完成订单，时间筛选 + 重置后 */
   orderCount: number;
   remainingPoints: number;
@@ -290,6 +292,7 @@ export default function MemberActivityDataContent() {
     { key: 'phone', label: t('电话号码', 'Phone') },
     { key: 'memberCode', label: t('会员编号', 'Member Code') },
     { key: 'memberName', label: t('会员名称', 'Member name') },
+    { key: 'lotterySpinBalance', label: t('抽奖次数', 'Lottery draws') },
     { key: 'orderCount', label: t('消费次数', 'Consumption count') },
     { key: 'accumulatedProfit', label: t('累计利润', 'Total profit') },
     { key: 'permanentAccumulatedNgn', label: t('兑换奈拉', 'Redeem NGN') },
@@ -596,6 +599,7 @@ export default function MemberActivityDataContent() {
         permanentGiftUsdt: memberActivity?.total_gift_usdt || 0,
         accumulatedProfit: memberActivity?.accumulated_profit || 0,
         accumulatedProfitUsdt: memberActivity?.accumulated_profit_usdt || 0,
+        lotterySpinBalance: Math.max(0, Math.floor(Number(memberActivity?.lottery_spin_balance ?? 0))),
         orderCount: consumptionOrderCount,
         remainingPoints,
         resetTime,
@@ -1014,6 +1018,7 @@ export default function MemberActivityDataContent() {
         "电话号码",
         "会员编号",
         "会员名称",
+        "抽奖次数",
         "消费次数",
         "累计利润",
         "兑换奈拉",
@@ -1035,6 +1040,7 @@ export default function MemberActivityDataContent() {
           row.member.phoneNumber,
           row.member.memberCode,
           row.member.memberDisplayName ?? row.member.memberCode,
+          row.lotterySpinBalance,
           row.orderCount,
           (() => {
             const parts: string[] = [];
@@ -1256,6 +1262,7 @@ export default function MemberActivityDataContent() {
                     <Badge variant="outline" className="font-mono text-xs">{row.member.memberCode}</Badge>
                   </MobileCardHeader>
                   <MobileCardRow label={t("会员名称", "Member name")} value={row.member.memberDisplayName ?? row.member.memberCode} />
+                  <MobileCardRow label={t("抽奖次数", "Lottery draws")} value={String(row.lotterySpinBalance)} />
                   <MobileCardRow label={t("消费次数", "Consumption count")} value={row.orderCount} />
                   <MobileCardRow label={t("剩余积分", "Points")} value={<span className={`font-bold ${row.remainingPoints < 0 ? "text-destructive" : "text-primary"}`}>{row.remainingPoints}</span>} highlight />
                   <MobileCardRow label={t("累计利润", "Total profit")} value={(() => {
@@ -1301,13 +1308,14 @@ export default function MemberActivityDataContent() {
             </MobileCardList>
           ) : (
           <>
-          <StickyScrollTableContainer minWidth="1200px">
+          <StickyScrollTableContainer minWidth="1260px">
             <Table className="text-sm">
               <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
                 <TableRow className="bg-muted/50">
                   {isVisible('phone') && <TableHead className="text-center whitespace-nowrap px-2">{t("电话号码", "Phone")}</TableHead>}
                   {isVisible('memberCode') && <TableHead className="text-center whitespace-nowrap px-2">{t("会员编号", "Member Code")}</TableHead>}
                   {isVisible('memberName') && <SortableTableHead sortKey="member.memberDisplayName" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2 max-w-[140px]">{t("会员名称", "Member name")}</SortableTableHead>}
+                  {isVisible('lotterySpinBalance') && <SortableTableHead sortKey="lotterySpinBalance" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("抽奖次数", "Lottery draws")}</SortableTableHead>}
                   {isVisible('orderCount') && <SortableTableHead sortKey="orderCount" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("消费次数", "Consumption count")}</SortableTableHead>}
                   {isVisible('accumulatedProfit') && <SortableTableHead sortKey="accumulatedProfit" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("累计利润", "Total profit")}</SortableTableHead>}
                   {isVisible('permanentAccumulatedNgn') && <SortableTableHead sortKey="exchangeNgn" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("兑换奈拉", "Redeem NGN")}</SortableTableHead>}
@@ -1344,6 +1352,9 @@ export default function MemberActivityDataContent() {
                       </TableCell>}
                       {isVisible('memberName') && <TableCell className="text-center max-w-[160px] truncate" title={row.member.memberDisplayName ?? row.member.memberCode}>
                         {row.member.memberDisplayName ?? row.member.memberCode}
+                      </TableCell>}
+                      {isVisible('lotterySpinBalance') && <TableCell className="text-center font-medium text-violet-600 dark:text-violet-400 tabular-nums">
+                        {row.lotterySpinBalance}
                       </TableCell>}
                       {isVisible('orderCount') && <TableCell className="text-center font-medium text-blue-600 dark:text-blue-400">
                         {row.orderCount > 0 ? row.orderCount : "0"}

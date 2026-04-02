@@ -3,6 +3,7 @@
  */
 import { createHash, randomUUID } from 'node:crypto';
 import { execute, query, queryOne } from '../../database/index.js';
+import { getMemberInboxNotifyPolicy } from './notifyPolicy.js';
 
 export type MemberInboxCategory = 'system' | 'reward' | 'activity' | 'invite' | 'order';
 
@@ -191,6 +192,8 @@ export async function notifyMemberOrderCompletedSpinReward(input: {
   orderId: string;
   spins: number;
 }): Promise<void> {
+  const policy = await getMemberInboxNotifyPolicy(input.tenantId);
+  if (!policy.orderSpin) return;
   const n = Math.max(0, Math.floor(Number(input.spins) || 0));
   if (n <= 0) return;
   const dedupeKey = `order_spin_reward:${input.orderId}`.slice(0, 191);
@@ -234,6 +237,8 @@ export async function notifyMemberMallRedemptionOutcome(input: {
   points: number;
   note?: string | null;
 }): Promise<void> {
+  const policy = await getMemberInboxNotifyPolicy(input.tenantId);
+  if (!policy.mallRedemption) return;
   const dedupeKey = `mall_rdm:${input.redemptionId}:${input.outcome}`.slice(0, 191);
   const qty = Math.max(1, Math.floor(input.quantity || 1));
   const pts = Math.max(0, Math.floor(Number(input.points) || 0));
@@ -277,6 +282,8 @@ export async function fanOutAnnouncementInbox(input: {
   body: string;
   metadata: Record<string, unknown>;
 }): Promise<number> {
+  const policy = await getMemberInboxNotifyPolicy(input.tenantId);
+  if (!policy.announcement) return 0;
   const dk = input.dedupeKey.slice(0, 191);
   const metaJson = JSON.stringify(input.metadata);
   const members = await query<{ id: string }>(

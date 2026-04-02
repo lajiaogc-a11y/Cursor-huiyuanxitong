@@ -52,6 +52,7 @@ import {
 import { getMemberCurrentPoints } from "@/stores/pointsAccountStore";
 import { getActivitySettings, getRewardAmountByPointsAndCurrency } from "@/stores/activitySettingsStore";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { displayMemberLevelLabel } from "@/lib/memberLevelDisplay";
 import { getPointsLedger } from "@/stores/pointsLedgerStore";
 import { getPointsSettings } from "@/stores/pointsSettingsStore";
 import { getMemberLastResetTime } from "@/stores/pointsAccountStore";
@@ -66,7 +67,10 @@ import { redeemPointsAndRecordRpc } from "@/services/members/memberPointsRedeemR
 import { getMemberPointsSummary, MemberPointsSummary } from "@/services/points/pointsCalculationService";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 import { logOperation } from "@/stores/auditLogStore";
-import { appendExchangePaymentInfoEntry } from "@/lib/exchangePaymentInfoLedger";
+import {
+  appendExchangePaymentInfoEntry,
+  formatExchangePaymentAmountForCopy,
+} from "@/lib/exchangePaymentInfoLedger";
 
 interface RateCalculatorProps {
   calcId: CalculatorId;
@@ -120,13 +124,14 @@ export default function RateCalculator({
   memberLookupTenantId = null,
 }: RateCalculatorProps) {
   trackRender('RateCalculator');
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { employee } = useAuth();
   const isMobile = useIsMobile();
   
   // 使用独立的表单状态
   const { formData, updateField, updateFields, clearForm } = useCalculatorForm(calcId);
-  
+  const [memberLevelZhHint, setMemberLevelZhHint] = useState<string | null>(null);
+
   // 已填支付 USDT → 用较低价 usdtBid（卖出 USDT/付 USDT 估值）；未填 → 用较高价 usdtAsk（买入侧）
   const usdtRate = useMemo(() => {
     const payUsdtVal = parseFloat(formData.payUsdt) || 0;
@@ -165,6 +170,8 @@ export default function RateCalculator({
   const [isRedeemConfirmOpen, setIsRedeemConfirmOpen] = useState(false);
   const [redeemPaymentProvider, setRedeemPaymentProvider] = useState("");
   const [redeemRemark, setRedeemRemark] = useState("");
+  /** 积分兑换写活动赠送用汇率；可与页面同步，也可手改 */
+  const [redeemGiftRateInput, setRedeemGiftRateInput] = useState("");
   const [redeemPreviewData, setRedeemPreviewData] = useState<any>(null);
 
   // 会员积分摘要（从数据库实时获取，与活动数据统一）
@@ -375,6 +382,8 @@ export default function RateCalculator({
           const dbMember = await getMemberByPhoneForMyTenant(cleanedValue, memberLookupTenantId);
           
         if (dbMember) {
+            const z = dbMember.member_level_zh?.trim();
+            setMemberLevelZhHint(z || null);
             updateFields({
               memberCode: dbMember.member_code,
               memberLevel: dbMember.member_level || '',
@@ -387,6 +396,7 @@ export default function RateCalculator({
             });
             toast.success(t(`已匹配到会员: ${dbMember.member_code}`, `Member matched: ${dbMember.member_code}`));
           } else {
+            setMemberLevelZhHint(null);
             const newMemberCode = generateMemberId();
             updateFields({
               memberCode: newMemberCode,
@@ -405,6 +415,7 @@ export default function RateCalculator({
         }
       }, 300);
     } else {
+      setMemberLevelZhHint(null);
       updateFields({
         memberCode: "",
         memberLevel: "",
@@ -484,6 +495,28 @@ export default function RateCalculator({
     return true;
   };
 
+  // 活动赠送 / 积分兑换：与「活动赠送」Tab 一致，USDT 用采集卖出价(bid)
+  const getSyncedGiftRate = useCallback(
+    (c: CurrencyCode): number => {
+      if (c === "NGN") return nairaRate ?? 0;
+      if (c === "GHS") return cediRate ?? 0;
+      return usdtBid > 0 ? usdtBid : usdtRateProp;
+    },
+    [nairaRate, cediRate, usdtBid, usdtRateProp],
+  );
+
+  const resolveRedeemGiftRate = useCallback(
+    (exchangeCurrency: CurrencyCode): number => {
+      const synced = getSyncedGiftRate(exchangeCurrency);
+      const raw = redeemGiftRateInput.trim().replace(/,/g, "");
+      if (raw === "") return synced;
+      const n = parseFloat(raw);
+      if (!Number.isFinite(n) || n <= 0) return synced;
+      return n;
+    },
+    [redeemGiftRateInput, getSyncedGiftRate],
+  );
+
   // ========= 积分兑换逻辑 =========
   const openRedeemDialog = () => {
     if (!formData.phoneNumber || !formData.memberCode) {
@@ -518,6 +551,9 @@ export default function RateCalculator({
     });
     setRedeemPaymentProvider(formData.paymentAgent || "");
     setRedeemRemark("");
+    const ec = preview.exchangeCurrency as CurrencyCode;
+    const sync = getSyncedGiftRate(ec);
+    setRedeemGiftRateInput(sync > 0 ? String(sync) : "");
     setIsRedeemDialogOpen(true);
   };
 
@@ -541,15 +577,12 @@ export default function RateCalculator({
   // GHS: amount * cediRate = RMB价值  
   // USDT: amount * usdtRate = RMB价值
   const calculateRedeemGiftValue = (currency: CurrencyCode, amount: number, rate: number, fee: number): number => {
+    if (!rate || rate <= 0) return 0;
     if (currency === "NGN") {
-      // NGN金额除以汇率得到RMB价值，手续费也要除以汇率
-      return amount / nairaRate + fee;
-    } else if (currency === "GHS") {
-      // GHS金额乘以汇率得到RMB价值
-      return amount * cediRate + fee;
-    } else if (currency === "USDT") {
-      // USDT金额乘以汇率得到RMB价值
-      return amount * usdtRate + fee;
+      return amount / rate + fee;
+    }
+    if (currency === "GHS" || currency === "USDT") {
+      return amount * rate + fee;
     }
     return amount;
   };
@@ -569,7 +602,11 @@ export default function RateCalculator({
     const { exchangeCurrency, exchangeAmount } = preview;
     
     const fee = calculateRedeemFee(exchangeCurrency, exchangeAmount);
-    const rate = exchangeCurrency === 'NGN' ? nairaRate : exchangeCurrency === 'GHS' ? cediRate : usdtRate;
+    const rate = resolveRedeemGiftRate(exchangeCurrency);
+    if (!rate || rate <= 0) {
+      showSubmissionError(t("请填写有效汇率", "Enter a valid exchange rate"));
+      return;
+    }
     const giftValue = calculateRedeemGiftValue(exchangeCurrency, exchangeAmount, rate, fee);
     
     let existingMember = findMemberByPhone(formData.phoneNumber);
@@ -938,7 +975,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
           tenantId: memberLookupTenantId ?? employee?.tenant_id,
           phone: formData.phoneNumber,
           bankCard: formData.bankCard || "",
-          paymentDisplay: `${actualPaid.toLocaleString()} ${detectedCurrency}`,
+          paymentDisplay: formatExchangePaymentAmountForCopy(actualPaid),
         });
       }
 
@@ -971,6 +1008,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
       // 必须先等复制完成再清空表单：performAutoCopy 内有 await，若与 clearForm 并行会读到已清空的 formData
       await copyPromise;
       await clearForm();
+      setMemberLevelZhHint(null);
     } catch (error) {
       console.error('[RateCalculator] performSubmitOrder failed:', error);
       showSubmissionError(t("提交订单失败，请重试", "Order submission failed, please retry"));
@@ -1691,7 +1729,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
                   <Input
                     readOnly
                     value={
-                      formData.memberLevel ||
+                      displayMemberLevelLabel(formData.memberLevel, memberLevelZhHint, language) ||
                       (formData.phoneNumber.length >= 8 ? t("新会员→最低档", "New → lowest tier") : "")
                     }
                     title={t("等级由累计积分自动计算，不可在此修改", "Level is automatic from points; not editable here")}
@@ -1835,6 +1873,42 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
                       {redeemPreviewData.preview?.exchangeAmount?.toLocaleString()} {redeemPreviewData.preview?.exchangeCurrency}
                     </span>
                   </div>
+                </div>
+
+                <div className="border-t pt-2 space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">
+                    {t("活动赠送汇率（可修改）", "Gift record rate (editable)")}
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={redeemGiftRateInput}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/[^0-9.,]/g, "").replace(/(\..*)\./g, "$1");
+                        setRedeemGiftRateInput(v);
+                      }}
+                      placeholder={t("留空则用页面同步价", "Blank = use synced rate")}
+                      className="h-9 font-mono text-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 shrink-0 px-2 text-xs"
+                      onClick={() => {
+                        const ec = redeemPreviewData.preview?.exchangeCurrency as CurrencyCode;
+                        const s = getSyncedGiftRate(ec);
+                        setRedeemGiftRateInput(s > 0 ? String(s) : "");
+                      }}
+                    >
+                      {t("同步", "Sync")}
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    {t(
+                      "写入活动赠送记录时使用此汇率计算赠送价值；默认与当前页奈拉/赛地/USDT 同步。",
+                      "Used to compute gift value on the activity record; defaults match NGN/GHS/USDT on this page.",
+                    )}
+                  </p>
                 </div>
                 
                 <div className="border-t pt-2">

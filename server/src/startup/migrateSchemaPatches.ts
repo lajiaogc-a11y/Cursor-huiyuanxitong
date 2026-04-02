@@ -347,6 +347,26 @@ export async function migrateSchemaPatches(): Promise<void> {
     'home_first_trade_contact_en',
     'TEXT NULL COMMENT \'首页首笔交易联系客服说明(英文)\'',
   );
+  await addCol(
+    'member_portal_settings',
+    'enable_member_inbox',
+    'TINYINT(1) NOT NULL DEFAULT 1 COMMENT \'会员端收件箱总开关\'',
+  );
+  await addCol(
+    'member_portal_settings',
+    'member_inbox_notify_order_spin',
+    'TINYINT(1) NOT NULL DEFAULT 1 COMMENT \'交易完成转盘奖励通知\'',
+  );
+  await addCol(
+    'member_portal_settings',
+    'member_inbox_notify_mall_redemption',
+    'TINYINT(1) NOT NULL DEFAULT 1 COMMENT \'积分商城兑换结果通知\'',
+  );
+  await addCol(
+    'member_portal_settings',
+    'member_inbox_notify_announcement',
+    'TINYINT(1) NOT NULL DEFAULT 1 COMMENT \'门户公告同步至收件箱\'',
+  );
 
   // ── phone_pool / phone_reservations columns ──
   if (await tableExists('phone_pool')) {
@@ -1153,8 +1173,8 @@ export async function migrateSchemaPatches(): Promise<void> {
       for (const [name, pts, ord] of DEFAULT_LEVELS) {
         await execute(
           `INSERT INTO member_level_rules (
-             id, tenant_id, level_name, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
-           ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NOW(3), NOW(3))`,
+             id, tenant_id, level_name, level_name_zh, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
+           ) VALUES (?, ?, ?, '', ?, ?, NULL, NULL, NOW(3), NOW(3))`,
           [randomUUID(), tid, name, pts, ord],
         );
       }
@@ -1199,6 +1219,41 @@ export async function migrateSchemaPatches(): Promise<void> {
     await migrateEmployeeDevicesTable();
   } catch (e: unknown) {
     console.warn('[schema-patch] employee_devices / admin_device_whitelist:', ((e as Error).message || '').slice(0, 120));
+  }
+
+  // 会员等级规则：中文名称（展示用）；level_name 为英文/系统主键名，写入 members.member_level
+  await addCol(
+    'member_level_rules',
+    'level_name_zh',
+    "VARCHAR(128) NOT NULL DEFAULT '' COMMENT '等级中文名称（展示）'",
+  );
+
+  // 抽奖：可扣减次数存 member_activity，与 spin_credits 发放同步；每日免费单独计数
+  await addCol(
+    'member_activity',
+    'lottery_spin_balance',
+    "INT NOT NULL DEFAULT 0 COMMENT '抽奖次数余额（发放递增、抽奖递减）'",
+  );
+  await addCol(
+    'member_activity',
+    'lottery_quota_day',
+    "DATE NULL COMMENT 'lottery_free_draws_used 对应的上海日历日'",
+  );
+  await addCol(
+    'member_activity',
+    'lottery_free_draws_used',
+    "INT NOT NULL DEFAULT 0 COMMENT '当日内已消耗的每日免费抽奖次数'",
+  );
+  try {
+    await execute(`
+      UPDATE member_activity ma
+      LEFT JOIN (
+        SELECT member_id, SUM(amount) AS s FROM spin_credits GROUP BY member_id
+      ) sc ON sc.member_id = ma.member_id
+      SET ma.lottery_spin_balance = GREATEST(0, COALESCE(sc.s, 0))
+    `);
+  } catch (e: unknown) {
+    console.warn('[schema-patch] lottery_spin_balance backfill:', ((e as Error).message || '').slice(0, 120));
   }
 
   await createTbl(

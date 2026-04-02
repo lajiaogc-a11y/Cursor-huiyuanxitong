@@ -10,6 +10,7 @@ export interface MemberInfo {
   phone_number: string;
   nickname: string | null;
   member_level: string | null;
+  member_level_zh?: string | null;
   wallet_balance: number;
   tenant_id?: string | null;
   avatar_url?: string | null;
@@ -49,6 +50,7 @@ export async function memberSignIn(
           phone_number: member.phone_number,
           nickname: member.nickname ?? null,
           member_level: member.member_level ?? null,
+          member_level_zh: (member as { member_level_zh?: string | null }).member_level_zh ?? null,
           wallet_balance: Number(member.wallet_balance) || 0,
           tenant_id: (member as { tenant_id?: string | null }).tenant_id ?? null,
           avatar_url: member.avatar_url?.trim() ? member.avatar_url : null,
@@ -95,6 +97,7 @@ function mapMemberPayload(m: Record<string, unknown>): MemberInfo {
     phone_number: String(m.phone_number ?? ""),
     nickname: (m.nickname as string | null) ?? null,
     member_level: (m.member_level as string | null) ?? null,
+    member_level_zh: (m.member_level_zh as string | null | undefined) ?? null,
     wallet_balance: Number(m.wallet_balance) || 0,
     tenant_id: (m.tenant_id as string | null) ?? null,
     avatar_url: m.avatar_url && String(m.avatar_url).trim() ? String(m.avatar_url) : null,
@@ -161,6 +164,7 @@ export async function memberGetInfo(memberId: string): Promise<MemberInfo | null
         phone_number: member.phone_number,
         nickname: member.nickname ?? null,
         member_level: member.member_level ?? null,
+        member_level_zh: (member as { member_level_zh?: string | null }).member_level_zh ?? null,
         wallet_balance: Number(member.wallet_balance) || 0,
         tenant_id: (member as { tenant_id?: string | null }).tenant_id ?? null,
         avatar_url: (member as { avatar_url?: string | null }).avatar_url ?? null,

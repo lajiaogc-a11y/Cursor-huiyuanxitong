@@ -5,6 +5,7 @@ import type { PoolConnection } from 'mysql2/promise';
 import { query, queryOne, execute, withTransaction } from '../../database/index.js';
 import { randomUUID } from 'crypto';
 import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
+import { incrementLotterySpinBalanceConn } from './spinBalanceAccount.js';
 
 async function queryOneConn<T = unknown>(
   conn: PoolConnection,
@@ -330,14 +331,21 @@ export async function grantOrderCompletedSpinCredits(args: {
   if (amount <= 0) return { granted: false, amount: 0 };
 
   const source = `order_completed:${args.orderId}`;
-  const dup = await queryOne<{ id: string }>('SELECT id FROM spin_credits WHERE source = ? LIMIT 1', [source]);
-  if (dup) return { granted: false, amount: 0 };
+  return withTransaction(async (conn) => {
+    const dup = await queryOneConn<{ id: string }>(
+      conn,
+      'SELECT id FROM spin_credits WHERE source = ? LIMIT 1',
+      [source],
+    );
+    if (dup) return { granted: false, amount: 0 };
 
-  await execute(
-    'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
-    [memberId, amount, source],
-  );
-  return { granted: true, amount };
+    await conn.query(
+      'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
+      [memberId, amount, source],
+    );
+    await incrementLotterySpinBalanceConn(conn, memberId, amount);
+    return { granted: true, amount };
+  });
 }
 
 /* ──────────── 会员 tenant 查询 ──────────── */

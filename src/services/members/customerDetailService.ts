@@ -8,6 +8,7 @@ export interface CustomerDetailMember {
   phone_number: string;
   member_code: string;
   member_level: string | null;
+  member_level_zh?: string | null;
   common_cards: string[];
   currency_preferences: string[];
   bank_card: string | null;

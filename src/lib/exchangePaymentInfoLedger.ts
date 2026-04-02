@@ -19,6 +19,15 @@ export function normalizeTenantId(tenantId: string | null | undefined): string {
   return (tenantId && String(tenantId).trim()) || "_default";
 }
 
+/** 汇率页「付款信息」复制用金额：无千分位、无币种代码（与银行卡号空格拼接） */
+export function formatExchangePaymentAmountForCopy(amount: number): string {
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return "0";
+  if (Math.abs(n - Math.round(n)) < 1e-9) return String(Math.round(n));
+  const s = n.toFixed(8).replace(/\.?0+$/, "");
+  return s;
+}
+
 function parseRows(raw: string | null): ExchangePaymentInfoEntry[] {
   if (!raw) return [];
   try {
@@ -101,6 +110,16 @@ export function markExchangePaymentInfoCopied(tenantId: string | null | undefine
   const tid = normalizeTenantId(tenantId);
   const prev = readRows(tid);
   const next = prev.map((r) => (r.id === id ? { ...r, copied: true } : r));
+  writeRows(tid, next);
+  notify();
+}
+
+export function removeExchangePaymentInfoEntry(tenantId: string | null | undefined, id: string): void {
+  if (typeof window === "undefined") return;
+  const tid = normalizeTenantId(tenantId);
+  const prev = readRows(tid);
+  const next = prev.filter((r) => r.id !== id);
+  if (next.length === prev.length) return;
   writeRows(tid, next);
   notify();
 }

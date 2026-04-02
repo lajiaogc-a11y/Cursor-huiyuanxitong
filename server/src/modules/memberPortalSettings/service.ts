@@ -110,6 +110,10 @@ const MEMBER_PORTAL_SETTINGS_WRITABLE_COLUMNS = new Set<string>([
   'registration_require_legal_agreement',
   'home_first_trade_contact_zh',
   'home_first_trade_contact_en',
+  'enable_member_inbox',
+  'member_inbox_notify_order_spin',
+  'member_inbox_notify_mall_redemption',
+  'member_inbox_notify_announcement',
 ]);
 
 /** MySQL JSON 列可能为 Buffer / 字符串 / 已解析数组 — 统一解析为 JS 数组 */
@@ -497,6 +501,20 @@ async function applySettingsPayload(
       raw === false || raw === 0 || raw === '0' ? 0 : 1;
   }
 
+  const inboxBoolCols = [
+    'enable_member_inbox',
+    'member_inbox_notify_order_spin',
+    'member_inbox_notify_mall_redemption',
+    'member_inbox_notify_announcement',
+  ] as const;
+  for (const col of inboxBoolCols) {
+    if (Object.prototype.hasOwnProperty.call(filtered, col)) {
+      const raw = (filtered as Record<string, unknown>)[col];
+      (filtered as Record<string, unknown>)[col] =
+        raw === false || raw === 0 || raw === '0' ? 0 : 1;
+    }
+  }
+
   /** 仅坐席列表生效：废弃全局统一链接，避免与会员端展示条数不一致 */
   if (Object.prototype.hasOwnProperty.call(filtered, 'customer_service_agents')) {
     filtered.customer_service_link = null;
@@ -668,6 +686,10 @@ export async function getMemberPortalSettingsForEmployee(
     registration_require_legal_agreement: registrationRequireLegalFromRow(row.registration_require_legal_agreement),
     home_first_trade_contact_zh: row.home_first_trade_contact_zh ?? '',
     home_first_trade_contact_en: row.home_first_trade_contact_en ?? '',
+    enable_member_inbox: row.enable_member_inbox ?? true,
+    member_inbox_notify_order_spin: row.member_inbox_notify_order_spin ?? true,
+    member_inbox_notify_mall_redemption: row.member_inbox_notify_mall_redemption ?? true,
+    member_inbox_notify_announcement: row.member_inbox_notify_announcement ?? true,
   };
   return {
     success: true,
@@ -773,6 +795,10 @@ function buildPublicSettings(row: Record<string, unknown>): Record<string, unkno
     registration_require_legal_agreement: registrationRequireLegalFromRow(row.registration_require_legal_agreement),
     home_first_trade_contact_zh: row.home_first_trade_contact_zh ?? '',
     home_first_trade_contact_en: row.home_first_trade_contact_en ?? '',
+    enable_member_inbox: row.enable_member_inbox ?? true,
+    member_inbox_notify_order_spin: row.member_inbox_notify_order_spin ?? true,
+    member_inbox_notify_mall_redemption: row.member_inbox_notify_mall_redemption ?? true,
+    member_inbox_notify_announcement: row.member_inbox_notify_announcement ?? true,
   };
 }
 
@@ -825,6 +851,10 @@ export async function getDefaultPortalSettingsPublic(): Promise<GetSettingsResul
     registration_require_legal_agreement: true,
     home_first_trade_contact_zh: '',
     home_first_trade_contact_en: '',
+    enable_member_inbox: true,
+    member_inbox_notify_order_spin: true,
+    member_inbox_notify_mall_redemption: true,
+    member_inbox_notify_announcement: true,
   };
 
   if (!row) {

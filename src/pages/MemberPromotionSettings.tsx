@@ -62,6 +62,7 @@ export default function MemberPromotionSettingsPage({ embedded = false }: Member
         (data || []).map((r) => ({
           id: r.id,
           level_name: r.level_name,
+          level_name_zh: r.level_name_zh ?? '',
           required_points: Number(r.required_points) || 0,
           level_order: Number(r.level_order) || 0,
           rate_bonus: r.rate_bonus ?? null,
@@ -87,6 +88,7 @@ export default function MemberPromotionSettingsPage({ embedded = false }: Member
       ...rows,
       {
         level_name: '',
+        level_name_zh: '',
         required_points: 0,
         level_order: nextOrder,
         rate_bonus: null,
@@ -107,6 +109,7 @@ export default function MemberPromotionSettingsPage({ embedded = false }: Member
     const cleaned = rows
       .map((r, i) => ({
         level_name: String(r.level_name || '').trim() || `Level ${i + 1}`,
+        level_name_zh: String(r.level_name_zh ?? '').trim(),
         required_points: Math.max(0, Number(r.required_points) || 0),
         level_order: Number(r.level_order) || i + 1,
         rate_bonus:
@@ -201,7 +204,8 @@ export default function MemberPromotionSettingsPage({ embedded = false }: Member
               <TableHeader>
                 <TableRow>
                   <TableHead>{t('排序', 'Order')}</TableHead>
-                  <TableHead>{t('等级名称', 'Name')}</TableHead>
+                  <TableHead>{t('会员等级英文', 'Level (English)')}</TableHead>
+                  <TableHead>{t('等级名称中文', 'Name (Chinese)')}</TableHead>
                   <TableHead>{t('所需累计积分', 'Points required')}</TableHead>
                   <TableHead className="hidden md:table-cell">{t('汇率加成(预留)', 'Rate bonus')}</TableHead>
                   <TableHead className="hidden md:table-cell">{t('优先级(预留)', 'Priority')}</TableHead>
@@ -233,6 +237,18 @@ export default function MemberPromotionSettingsPage({ embedded = false }: Member
                         }}
                         disabled={isReadonlyView}
                         placeholder="Starter"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        value={r.level_name_zh}
+                        onChange={(e) => {
+                          const v = rows.slice();
+                          v[i] = { ...v[i], level_name_zh: e.target.value };
+                          setRows(v);
+                        }}
+                        disabled={isReadonlyView}
+                        placeholder={t('如：青铜会员', 'e.g. 青铜')}
                       />
                     </TableCell>
                     <TableCell className="w-36">

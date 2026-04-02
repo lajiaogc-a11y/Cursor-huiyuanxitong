@@ -10,6 +10,7 @@ export interface MemberByPhone {
   phone_number: string;
   member_code: string;
   member_level: string | null;
+  member_level_zh?: string | null;
   common_cards: string[] | null;
   currency_preferences: string[] | null;
   bank_card: string | null;
@@ -31,6 +32,7 @@ interface CustomerDetailResponse {
     phone_number: string;
     member_code: string;
     member_level: string | null;
+    member_level_zh?: string | null;
     common_cards: string[];
     currency_preferences: string[];
     bank_card: string | null;
@@ -82,6 +84,7 @@ export async function getMemberByPhoneForMyTenant(
       phone_number: m.phone_number,
       member_code: m.member_code,
       member_level: m.member_level,
+      member_level_zh: m.member_level_zh ?? null,
       common_cards: m.common_cards ?? [],
       currency_preferences: m.currency_preferences ?? [],
       bank_card: m.bank_card,

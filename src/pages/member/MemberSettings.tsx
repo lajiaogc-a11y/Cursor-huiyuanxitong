@@ -21,6 +21,7 @@ import { ROUTES } from "@/routes/constants";
 import { useMemberLocalAvatar } from "@/hooks/useMemberLocalAvatar";
 import { MemberPointsAccountSettings } from "@/components/member/MemberPointsAccountSettings";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { displayMemberLevelLabel } from "@/lib/memberLevelDisplay";
 import { mapDbRowToMemberPortalOrderView, type MemberPortalOrderView } from "@/hooks/orders/utils";
 import { resolveCardName, tryRecoverMisdecodedUtf8 } from "@/services/members/nameResolver";
 import { toast } from "sonner";
@@ -162,7 +163,7 @@ function MemberSettingsLedgerCard({
 
 export default function MemberSettings() {
   const location = useLocation();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { member, setPassword, refreshMember, signOut } = useMemberAuth();
   const { avatarUrl: settingsAvatarUrl, setFromFile: setSettingsAvatarFromFile, clear: clearSettingsAvatar } =
     useMemberLocalAvatar(member?.id, member?.avatar_url, () => {
@@ -327,7 +328,8 @@ export default function MemberSettings() {
   const displayName = member.nickname || member.member_code || member.phone_number;
   /** 与员工端/库中 member_level 一致，随后台配置变化 */
   const tierLabel =
-    (member.member_level && String(member.member_level).trim()) || t("VIP 会员", "VIP Member");
+    displayMemberLevelLabel(member.member_level, member.member_level_zh, language) ||
+    t("VIP 会员", "VIP Member");
   const phoneDisplay = formatMemberSettingsPhone(member.phone_number);
   const codeDisplay = String(member.member_code ?? "").trim();
   const avatarLetter = String(displayName || "?").trim().charAt(0).toUpperCase() || "?";

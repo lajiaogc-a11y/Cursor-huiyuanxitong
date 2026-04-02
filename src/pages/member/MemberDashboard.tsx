@@ -42,6 +42,7 @@ import { useMemberSkeletonGate } from "@/hooks/useMemberSkeletonGate";
 import { resolveHomePointsBalanceFooter } from "@/lib/memberPortalBilingualHint";
 import { useMemberLocalAvatar } from "@/hooks/useMemberLocalAvatar";
 import { getMemberPortalDisplayName } from "@/lib/memberDisplayName";
+import { displayMemberLevelLabel } from "@/lib/memberLevelDisplay";
 import { getMemberPointsLedgerRpc } from "@/services/points/memberPointsRpcService";
 import { sumTodayEarnedFromLedger } from "@/lib/memberLedgerToday";
 import { formatAnnouncementPublishedAt } from "@/lib/memberPortalAnnouncementDate";
@@ -127,6 +128,7 @@ export default function MemberDashboard() {
   const { breakdown, loading, error: pointsError, refresh: refreshPoints } = useMemberPointsBreakdown(member?.id);
   const { remaining: spinRemaining, error: spinError, refresh: refreshSpinQuota } = useMemberSpinQuota(member?.id);
   const { settings: ps } = useMemberPortalSettings(member?.id);
+  const showMemberInbox = !!ps.enable_member_inbox;
   const [popupOpen, setPopupOpen] = useState(false);
   const fallbackBannerSlides = useFallbackHomeBannerSlides(t);
   const [fallbackBannerIdx, setFallbackBannerIdx] = useState(0);
@@ -394,6 +396,10 @@ export default function MemberDashboard() {
 
   useEffect(() => {
     if (!member?.id) return;
+    if (!showMemberInbox) {
+      setMemberInboxUnreadCount(0);
+      return;
+    }
     void (async () => {
       try {
         const n = await fetchMemberInboxUnreadCount();
@@ -402,7 +408,7 @@ export default function MemberDashboard() {
         /* keep badge as-is */
       }
     })();
-  }, [member?.id, pullRefreshGen]);
+  }, [member?.id, pullRefreshGen, showMemberInbox]);
 
   if (!member) return null;
 
@@ -413,7 +419,8 @@ export default function MemberDashboard() {
       phoneNumber: member.phone_number,
     }).trim() || t("会员", "Member");
   const tierDisplay =
-    (member.member_level && String(member.member_level).trim()) || t("VIP 会员", "VIP Member");
+    displayMemberLevelLabel(member.member_level, member.member_level_zh, language) ||
+    t("VIP 会员", "VIP Member");
   const avatarLetter =
     portalDisplayName.trim().slice(0, 1).toUpperCase() ||
     (member.member_code?.trim().slice(0, 1).toUpperCase() ?? "M");
@@ -662,12 +669,6 @@ export default function MemberDashboard() {
                 <span className="mt-1 inline-block rounded-full bg-pu-gold/15 px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-pu-gold-soft ring-1 ring-inset ring-pu-gold/20">
                   {tierDisplay}
                 </span>
-                <p className="mt-1 text-[10px] text-[hsl(var(--pu-m-text-dim))]">
-                  {t("晋级累计积分", "Tier lifetime points")}:{" "}
-                  <span className="font-semibold tabular-nums text-[hsl(var(--pu-m-text)/0.9)]">
-                    {fmtPts(Number(member.total_points ?? member.lifetime_reward_points_earned ?? 0))}
-                  </span>
-                </p>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -678,19 +679,21 @@ export default function MemberDashboard() {
                   <Moon className="h-5 w-5 text-[hsl(var(--pu-m-text-dim))]" aria-hidden />
                 )}
               </button>
-              <button
-                type="button"
-                className={`relative ${surfaceBtn}`}
-                onClick={() => navigate(ROUTES.MEMBER.NOTIFICATIONS)}
-                aria-label={t("通知", "Notifications")}
-              >
-                <Bell className="h-5 w-5 text-[hsl(var(--pu-m-text-dim))]" aria-hidden />
-                {notificationUnreadCount > 0 ? (
-                  <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-destructive px-0.5 text-[8px] font-extrabold text-white">
-                    {notificationUnreadCount > 9 ? "9+" : notificationUnreadCount}
-                  </span>
-                ) : null}
-              </button>
+              {showMemberInbox ? (
+                <button
+                  type="button"
+                  className={`relative ${surfaceBtn}`}
+                  onClick={() => navigate(ROUTES.MEMBER.NOTIFICATIONS)}
+                  aria-label={t("通知", "Notifications")}
+                >
+                  <Bell className="h-5 w-5 text-[hsl(var(--pu-m-text-dim))]" aria-hidden />
+                  {notificationUnreadCount > 0 ? (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-destructive px-0.5 text-[8px] font-extrabold text-white">
+                      {notificationUnreadCount > 9 ? "9+" : notificationUnreadCount}
+                    </span>
+                  ) : null}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className={surfaceBtn}

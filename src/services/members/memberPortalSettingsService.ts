@@ -114,6 +114,14 @@ export interface MemberPortalSettings {
   home_first_trade_contact_zh: string;
   /** 首页「首笔交易」联系客服页说明（英文） */
   home_first_trade_contact_en: string;
+  /** 会员端消息收件箱总开关（后台配置，关闭后列表/未读为空且不再写入） */
+  enable_member_inbox: boolean;
+  /** 交易完成发放转盘次数时写入收件箱 */
+  member_inbox_notify_order_spin: boolean;
+  /** 积分商城兑换审核结果写入收件箱 */
+  member_inbox_notify_mall_redemption: boolean;
+  /** 门户公告发布同步至各会员收件箱 */
+  member_inbox_notify_announcement: boolean;
 }
 
 export interface MemberPortalSettingsPayload {
@@ -196,6 +204,10 @@ export const DEFAULT_SETTINGS: MemberPortalSettings = {
   registration_require_legal_agreement: true,
   home_first_trade_contact_zh: "",
   home_first_trade_contact_en: "",
+  enable_member_inbox: true,
+  member_inbox_notify_order_spin: true,
+  member_inbox_notify_mall_redemption: true,
+  member_inbox_notify_announcement: true,
 };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -208,6 +220,12 @@ function coalesceLegalBody(raw: unknown, fallback: string): string {
 }
 
 /** 功能徽章：兼容 JSON 数组、JSON 字符串、换行文本；空则回退默认 */
+function normalizePortalBool(raw: unknown, fallback: boolean): boolean {
+  if (raw === false || raw === 0 || raw === "0") return false;
+  if (raw === true || raw === 1 || raw === "1") return true;
+  return fallback;
+}
+
 function normalizeAnnouncementPopupFrequency(raw: Record<string, unknown>): AnnouncementPopupFrequency {
   const v = String(raw.announcement_popup_frequency ?? "")
     .trim()
@@ -394,6 +412,19 @@ function normalizeSettings(raw: Record<string, unknown> = {}): MemberPortalSetti
       if (v === false || v === 0 || v === "0") return false;
       return true;
     })(),
+    enable_member_inbox: normalizePortalBool(raw?.enable_member_inbox, DEFAULT_SETTINGS.enable_member_inbox),
+    member_inbox_notify_order_spin: normalizePortalBool(
+      raw?.member_inbox_notify_order_spin,
+      DEFAULT_SETTINGS.member_inbox_notify_order_spin,
+    ),
+    member_inbox_notify_mall_redemption: normalizePortalBool(
+      raw?.member_inbox_notify_mall_redemption,
+      DEFAULT_SETTINGS.member_inbox_notify_mall_redemption,
+    ),
+    member_inbox_notify_announcement: normalizePortalBool(
+      raw?.member_inbox_notify_announcement,
+      DEFAULT_SETTINGS.member_inbox_notify_announcement,
+    ),
   };
 }
 

@@ -299,7 +299,7 @@ function MemberRedemptionHistoryFeed({
     return (
       <div className="relative overflow-hidden rounded-2xl border border-dashed border-pu-rose/28 bg-gradient-to-b from-pu-rose/[0.06] via-[hsl(var(--pu-m-surface)/0.18)] to-[hsl(var(--pu-m-surface)/0.22)] px-4 py-8 text-center">
         <p className="m-0 text-sm font-semibold text-[hsl(var(--pu-m-text))]">
-          {t("兑换记录加载失败", "Could not load redemption history")}
+          {t("兑换记录加载失败", "Could not load records")}
         </p>
         <p className="mt-1.5 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.65)]">
           {t("请检查网络后重试，或下拉刷新页面。", "Check your network and try again, or pull down to refresh.")}
@@ -325,7 +325,7 @@ function MemberRedemptionHistoryFeed({
             <Package className="h-6 w-6" strokeWidth={1.75} aria-hidden />
           </div>
           <p className="m-0 text-sm font-semibold text-[hsl(var(--pu-m-text))]">
-            {t("暂无兑换记录", "No redemption history yet")}
+            {t("暂无兑换记录", "No records yet")}
           </p>
           <p className="mt-1.5 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.65)]">
             {t("在商城兑换商品后，记录将显示在这里。", "Redeem items in the mall to see them here.")}
@@ -668,7 +668,7 @@ export default function MemberPoints() {
             onClick={() => setPointsTab("history")}
           >
             <Clock className="h-4 w-4 shrink-0" aria-hidden />
-            {t("兑换历史", "Redemption history")}
+            {t("兑换历史", "Record")}
           </button>
         </div>
       </div>
@@ -866,7 +866,7 @@ export default function MemberPoints() {
             <div className="mb-3 flex items-center gap-2">
               <div className="h-5 w-1 rounded-full bg-pu-gold" aria-hidden />
               <h2 className="m-0 text-base font-extrabold text-[hsl(var(--pu-m-text))]">
-                {t("兑换历史", "Redemption history")}
+                {t("兑换历史", "Record")}
               </h2>
             </div>
             <p className="mb-4 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.78)]">

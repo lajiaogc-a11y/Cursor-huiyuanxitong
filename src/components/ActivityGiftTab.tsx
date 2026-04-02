@@ -74,6 +74,8 @@ interface ActivityGiftFormState {
   paymentAgent: string;
   giftType: string;
   remark: string;
+  /** 手工汇率；空字符串表示沿用页面同步汇率 */
+  giftRateManual?: string;
 }
 
 // 内存缓存
@@ -148,6 +150,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
   const [paymentAgent, setPaymentAgent] = useState(savedState?.paymentAgent || "");
   const [giftType, setGiftType] = useState(savedState?.giftType || "");
   const [remark, setRemark] = useState(savedState?.remark || "");
+  const [giftRateManual, setGiftRateManual] = useState(savedState?.giftRateManual ?? "");
   const [activityTypes, setActivityTypes] = useState<{ value: string; label: string }[]>([]);
   const [memberError, setMemberError] = useState("");
   const [isFormLoaded, setIsFormLoaded] = useState(false);
@@ -164,6 +167,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
         if (saved.paymentAgent) setPaymentAgent(saved.paymentAgent);
         if (saved.giftType) setGiftType(saved.giftType);
         if (saved.remark) setRemark(saved.remark);
+        if (saved.giftRateManual != null) setGiftRateManual(saved.giftRateManual);
         setIsFormLoaded(true);
       }
     });
@@ -194,11 +198,14 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
   
   // 自动保存表单状态 - 使用防抖
   useEffect(() => {
-    saveFormStateDebounced({ currency, amount, phoneNumber, paymentAgent, giftType, remark }, isPlatformAdminReadonlyView);
-  }, [currency, amount, phoneNumber, paymentAgent, giftType, remark, isPlatformAdminReadonlyView]);
+    saveFormStateDebounced(
+      { currency, amount, phoneNumber, paymentAgent, giftType, remark, giftRateManual },
+      isPlatformAdminReadonlyView,
+    );
+  }, [currency, amount, phoneNumber, paymentAgent, giftType, remark, giftRateManual, isPlatformAdminReadonlyView]);
 
-  // Get rate based on currency - with null safety
-  const getRate = (): number => {
+  // Get rate based on currency - with null safety（页面同步值）
+  const getSyncedRate = (): number => {
     switch (currency) {
       case "NGN":
         return nairaRate ?? 0;
@@ -211,9 +218,14 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
     }
   };
 
-  // Get rate label - simplified
-  const getRateLabel = () => {
-    return t("汇率", "Rate");
+  /** 手工填写优先；空或无效则用页面同步汇率 */
+  const getEffectiveRate = (): number => {
+    const synced = getSyncedRate();
+    const raw = giftRateManual.trim().replace(/,/g, "");
+    if (raw === "") return synced;
+    const n = parseFloat(raw);
+    if (!Number.isFinite(n) || n <= 0) return synced;
+    return n;
   };
 
   // 计算手续费 - 与活动报表/汇率页同源规则
@@ -227,10 +239,10 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
   // USDT: amount * rate = RMB价值
   const calculatedGiftValue = useMemo(() => {
     const amountNum = parseFloat(amount) || 0;
-    const rate = getRate();
-    
+    const rate = getEffectiveRate();
+
     if (!amountNum || !rate) return 0;
-    
+
     // 奈拉：赠送金额 ÷ 当时汇率 + 手续费
     // 赛地/USDT：赠送金额 × 当时汇率 + 手续费
     if (currency === "NGN") {
@@ -238,7 +250,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
     } else {
       return Math.abs(amountNum) * rate + calculatedFee;
     }
-  }, [currency, amount, calculatedFee]);
+  }, [currency, amount, calculatedFee, giftRateManual, nairaRate, cediRate, usdtRate]);
 
   // Handle phone number or member code change - 支持电话号码和会员编号两种查询
   const handlePhoneNumberChange = async (value: string) => {
@@ -328,6 +340,11 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
       toast.error(t('activityGift.pleaseSelectAgent'));
       return;
     }
+    const effRate = getEffectiveRate();
+    if (!effRate || effRate <= 0) {
+      toast.error(t("请填写有效汇率或等待页面汇率同步", "Enter a valid rate or wait for rates to sync"));
+      return;
+    }
 
     let member = findMemberByPhone(phoneNumber);
     if (!member) {
@@ -366,6 +383,12 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
       setConfirmOpen(false);
       return;
     }
+    const effRateExec = getEffectiveRate();
+    if (!effRateExec || effRateExec <= 0) {
+      toast.error(t("请填写有效汇率或等待页面汇率同步", "Enter a valid rate or wait for rates to sync"));
+      setConfirmOpen(false);
+      return;
+    }
 
     setConfirmOpen(false);
     setIsSubmitting(true);
@@ -373,7 +396,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
       const result = await addGift({
         currency,
         amount: parseFloat(amount),
-        rate: getRate(),
+        rate: effRateExec,
         phoneNumber,
         paymentAgent,
         giftType,
@@ -399,6 +422,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
     setPaymentAgent("");
     setGiftType(activityTypes.length > 0 ? activityTypes[0].value : "");
     setRemark("");
+    setGiftRateManual("");
     setMemberError("");
     clearFormState(isPlatformAdminReadonlyView);
   };
@@ -423,6 +447,9 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
                   <li>{t("电话", "Phone")}: {getDisplayPhone(phoneNumber)}</li>
                   <li>{t("币种", "Currency")}: {currency}</li>
                   <li>{t("赠送金额", "Amount")}: {amount}</li>
+                  <li>
+                    {t("汇率", "FX rate")}: {getEffectiveRate().toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                  </li>
                   <li>{t("赠送价值", "Gift value")} (RMB): {calculatedGiftValue ? calculatedGiftValue.toFixed(2) : "0.00"}</li>
                   <li>{t("代付商家", "Payment agent")}: {paymentAgent}</li>
                   <li>{t("类型", "Type")}: {giftTypeLabel || "-"}</li>
@@ -478,7 +505,13 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Label className="text-xs w-20 shrink-0">{t('activityGift.giftCurrency')}</Label>
-              <Select value={currency} onValueChange={(v) => setCurrency(v as CurrencyCode)}>
+              <Select
+                value={currency}
+                onValueChange={(v) => {
+                  setGiftRateManual("");
+                  setCurrency(v as CurrencyCode);
+                }}
+              >
                   <SelectTrigger className="h-7 flex-1 bg-secondary border-border text-foreground">
                     <SelectValue placeholder={t('activityGift.selectAgent')} />
                   </SelectTrigger>
@@ -510,13 +543,42 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
                 />
               </div>
 
-              <div className="flex items-center gap-2">
-                <Label className="text-xs w-20 shrink-0 text-orange-600">* {t('activityGift.rate')}</Label>
-                <Input
-                  value={getRate().toString()}
-                  readOnly
-                  className="h-7 flex-1 bg-muted text-sm"
-                />
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                <Label className="text-xs w-20 shrink-0 text-orange-600 pt-0 sm:pt-0">
+                  * {t('activityGift.rate')}
+                </Label>
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <div className="flex gap-1.5">
+                    <Input
+                      value={giftRateManual}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/[^0-9.,]/g, "").replace(/(\..*)\./g, "$1");
+                        setGiftRateManual(v);
+                      }}
+                      placeholder={
+                        getSyncedRate() > 0
+                          ? t("留空则用", "Blank = use") + ` ${getSyncedRate()}`
+                          : t("等待汇率或手填", "Wait for rate or type")
+                      }
+                      className="h-7 flex-1 text-sm border-orange-200"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 shrink-0 px-2 text-[10px]"
+                      onClick={() => setGiftRateManual("")}
+                    >
+                      {t("同步页汇率", "Sync")}
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    {t(
+                      "默认与汇率页当前币种一致；可改为您需要的数值后再提交。",
+                      "Defaults to the rate shown on this page for the selected currency; override when needed.",
+                    )}
+                  </p>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">

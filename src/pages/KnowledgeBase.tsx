@@ -23,6 +23,7 @@ import {
 import { TablePagination } from "@/components/ui/table-pagination";
 import { 
   Copy, 
+  CheckCheck,
   Image, 
   FileText, 
   MessageSquare, 
@@ -41,6 +42,7 @@ import {
   FolderPlus,
   Settings2,
   ImageOff,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -172,7 +174,7 @@ export default function KnowledgeBase() {
     deleteArticle,
   } = useKnowledgeArticles(activeCategory, employee?.id, isSuperAdmin, isPlatformSuperAdmin);
 
-  const { markAsRead, unreadByCategory } = useUnreadCount();
+  const { markAsRead, unreadByCategory, unreadCount, markAllAsRead } = useUnreadCount();
   const { readArticleIds } = useArticleReadStatus();
   const kbExportConfirm = useExportConfirm();
 
@@ -193,6 +195,8 @@ export default function KnowledgeBase() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [markAllReadOpen, setMarkAllReadOpen] = useState(false);
+  const [markAllReadSubmitting, setMarkAllReadSubmitting] = useState(false);
 
   // Category CRUD dialogs
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
@@ -588,8 +592,8 @@ export default function KnowledgeBase() {
           {/* Category Navigation */}
           <div className="border-b bg-muted/30">
             <div className="px-3 sm:px-4 py-3">
-              <div className={isMobile ? "space-y-2" : "flex items-start justify-between gap-4"}>
-                <div className={isMobile ? "grid grid-cols-2 gap-1.5" : "flex flex-wrap gap-2 flex-1"}>
+              <div className={isMobile ? "space-y-2" : "flex items-start justify-between gap-3"}>
+                <div className={isMobile ? "grid grid-cols-2 gap-1.5" : "flex flex-wrap gap-2 flex-1 min-w-0"}>
                   {categories.map(category => {
                     const IconComponent = getCategoryIcon(category.name, category.content_type);
                     const isActive = activeCategory === category.id;
@@ -656,7 +660,35 @@ export default function KnowledgeBase() {
                     </button>
                   )}
                 </div>
+                {!isMobile && employee?.id ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 shrink-0 gap-1.5"
+                    disabled={unreadCount <= 0}
+                    onClick={() => setMarkAllReadOpen(true)}
+                  >
+                    <CheckCheck className="h-3.5 w-3.5" aria-hidden />
+                    {t("knowledge.oneClickAllRead")}
+                  </Button>
+                ) : null}
               </div>
+              {isMobile && employee?.id ? (
+                <div className="flex justify-end pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 gap-1.5"
+                    disabled={unreadCount <= 0}
+                    onClick={() => setMarkAllReadOpen(true)}
+                  >
+                    <CheckCheck className="h-3.5 w-3.5" aria-hidden />
+                    {t("knowledge.oneClickAllRead")}
+                  </Button>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -1162,6 +1194,53 @@ export default function KnowledgeBase() {
             <AlertDialogCancel>{t('取消', 'Cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteArticle} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {t('删除', 'Delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={markAllReadOpen}
+        onOpenChange={(open) => {
+          if (!markAllReadSubmitting) setMarkAllReadOpen(open);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("knowledge.markAllReadConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("knowledge.markAllReadConfirmDesc")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={markAllReadSubmitting}>{t("取消", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={markAllReadSubmitting}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={(e) => {
+                e.preventDefault();
+                void (async () => {
+                  setMarkAllReadSubmitting(true);
+                  try {
+                    const ok = await markAllAsRead();
+                    if (ok) {
+                      toast.success(t("knowledge.markAllReadDone"));
+                      setMarkAllReadOpen(false);
+                    } else {
+                      toast.error(t("knowledge.markAllReadFailed"));
+                    }
+                  } finally {
+                    setMarkAllReadSubmitting(false);
+                  }
+                })();
+              }}
+            >
+              {markAllReadSubmitting ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
+                  {t("处理中…", "Working…")}
+                </span>
+              ) : (
+                t("确认", "Confirm")
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

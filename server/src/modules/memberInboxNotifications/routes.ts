@@ -10,6 +10,7 @@ import {
   markAllMemberInboxRead,
   markMemberInboxRead,
 } from './repository.js';
+import { getMemberInboxNotifyPolicy } from './notifyPolicy.js';
 
 const router = Router();
 
@@ -32,6 +33,11 @@ router.get('/notifications', memberAuthMiddleware, async (req: MemberAuthenticat
   }
   const lim = Math.min(200, Math.max(1, parseInt(String(req.query.limit || '80'), 10) || 80));
   try {
+    const policy = await getMemberInboxNotifyPolicy(tenantId);
+    if (!policy.inboxEnabled) {
+      res.json({ success: true, items: [] });
+      return;
+    }
     const items = await listMemberInbox(memberId, tenantId, lim);
     res.json({ success: true, items });
   } catch (e) {
@@ -51,6 +57,11 @@ router.get('/unread-count', memberAuthMiddleware, async (req: MemberAuthenticate
     return;
   }
   try {
+    const policy = await getMemberInboxNotifyPolicy(tenantId);
+    if (!policy.inboxEnabled) {
+      res.json({ success: true, unread: 0 });
+      return;
+    }
     const unread = await countUnreadMemberInbox(memberId, tenantId);
     res.json({ success: true, unread });
   } catch (e) {

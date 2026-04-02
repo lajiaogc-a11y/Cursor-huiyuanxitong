@@ -7,6 +7,7 @@ import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { query, execute, withTransaction } from '../../database/index.js';
 import { config } from '../../config/index.js';
 import { ensureDefaultMemberLevelRulesRepository } from '../memberLevels/repository.js';
+import { incrementLotterySpinBalanceConn } from '../lottery/spinBalanceAccount.js';
 
 type ReferrerResolved = {
   tenantId: string;
@@ -356,10 +357,12 @@ export async function completeInviteRegister(params: {
           'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
           [referrer.id, rewardSpins, 'referral'],
         );
+        await incrementLotterySpinBalanceConn(conn, referrer.id, rewardSpins);
         await conn.query(
           'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
           [newId, rewardSpins, 'invite_welcome'],
         );
+        await incrementLotterySpinBalanceConn(conn, newId, rewardSpins);
       }
 
       try {
