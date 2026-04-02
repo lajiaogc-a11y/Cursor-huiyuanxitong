@@ -1157,9 +1157,10 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
         // 优先取 gift_cards JOIN 名称，其次取 orders.card_name 快照，避免会员端展示 UUID 或乱码
         const orders = await query(
           `SELECT o.*,
+                  o.card_type AS order_type,
                   COALESCE(NULLIF(TRIM(gc.name), ''), NULLIF(TRIM(o.card_name), '')) AS gift_card_name
            FROM orders o
-           LEFT JOIN gift_cards gc ON gc.id = TRIM(o.order_type)
+           LEFT JOIN gift_cards gc ON gc.id = TRIM(o.card_type)
            WHERE (o.member_id = ? OR (o.phone_number IS NOT NULL AND o.phone_number = ?))
            AND COALESCE(o.is_deleted, 0) = 0
            ORDER BY o.created_at DESC

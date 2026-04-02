@@ -16,6 +16,7 @@ import { PageTransition } from "@/components/PageTransition";
 import { RouteProgressBar } from "@/components/RouteProgressBar";
 import { BackgroundUpdateIndicator } from "@/components/BackgroundUpdateIndicator";
 import { TenantViewBanner, TenantViewFloatingIndicator } from "@/components/TenantViewBanner";
+import { MallRedemptionStaffNotifier } from "@/components/staff/MallRedemptionStaffNotifier";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -114,6 +115,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           </div>
         </main>
         <TenantViewFloatingIndicator />
+        <MallRedemptionStaffNotifier />
       </div>
     );
   }
@@ -152,6 +154,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       </div>
       </div>
       <TenantViewFloatingIndicator />
+      <MallRedemptionStaffNotifier />
     </div>
   );
 }

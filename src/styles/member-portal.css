@@ -23,6 +23,19 @@ html.member-html.member-theme-toggling *::after {
     background 0.45s ease !important;
 }
 
+/* 浅色：主题切换过渡更短，减少整屏「漂色」感（布局不变） */
+html.member-html:not(.dark).member-theme-toggling,
+html.member-html:not(.dark).member-theme-toggling *,
+html.member-html:not(.dark).member-theme-toggling *::before,
+html.member-html:not(.dark).member-theme-toggling *::after {
+  transition:
+    background-color 0.2s ease,
+    color 0.14s ease,
+    border-color 0.18s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease !important;
+}
+
 /*
  * premium-ui-boost-main/src/index.css — Financial Dark（:root/.dark）
  */
@@ -4998,6 +5011,7 @@ html.member-html:not(.dark) .member-login-premium-root .m-glass-strong {
 }
 
 html.member-html:not(.dark) .m-premium-card:hover {
+  transform: none;
   box-shadow: 0 6px 24px -6px rgb(15 23 42 / 0.1);
 }
 
@@ -5008,6 +5022,8 @@ html.member-html:not(.dark) .member-login-premium-root .pattern-dots {
 }
 
 html.member-html:not(.dark) .gold-shimmer {
+  animation: none;
+  background-size: 100% 100%;
   background: linear-gradient(
     110deg,
     transparent 0%,
@@ -5027,6 +5043,7 @@ html.member-html:not(.dark) .member-login-premium-root .btn-glow {
 html.member-html:not(.dark) .btn-glow:hover,
 html.member-html:not(.dark) .member-portal-wrap .btn-glow:hover,
 html.member-html:not(.dark) .member-login-premium-root .btn-glow:hover {
+  transform: none;
   box-shadow: 0 8px 24px -6px hsl(var(--pu-gold) / 0.38);
 }
 
@@ -5036,22 +5053,56 @@ html.member-html:not(.dark) .member-login-premium-root .btn-mint {
   color: hsl(0 0% 100%);
 }
 
+html.member-html:not(.dark) .btn-mint:hover,
+html.member-html:not(.dark) .member-portal-wrap .btn-mint:hover,
+html.member-html:not(.dark) .member-login-premium-root .btn-mint:hover {
+  transform: none;
+}
+
+/* 浅色：去掉骨架流光等装饰循环动画，保留占位形状 */
+html.member-html:not(.dark) .m-shimmer {
+  animation: none;
+  background-position: center;
+}
+
+/* 浅色：公告不跑跑马灯，横向滑动查看（viewport 见 MemberDashboard .member-home-ann-viewport） */
+html.member-html:not(.dark) .member-home-ann-viewport {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--pu-gold) / 0.28) hsl(var(--pu-m-text) / 0.06);
+}
+html.member-html:not(.dark) .member-home-ann-viewport::-webkit-scrollbar {
+  height: 4px;
+}
+html.member-html:not(.dark) .member-home-ann-viewport::-webkit-scrollbar-thumb {
+  background: hsl(var(--pu-gold) / 0.35);
+  border-radius: 4px;
+}
+html.member-html:not(.dark) .member-home-ann-track {
+  animation: none !important;
+}
+
 html.member-html:not(.dark) .btn-spin,
 html.member-html:not(.dark) .member-portal-wrap .btn-spin,
 html.member-html:not(.dark) .member-login-premium-root .btn-spin {
+  animation: none;
+  background-size: 100% 100%;
   color: hsl(0 0% 100%);
   box-shadow:
-    0 0 20px -4px hsl(var(--pu-gold) / 0.35),
-    0 0 40px -8px hsl(var(--pu-gold-deep) / 0.2),
-    inset 0 1px 0 hsl(219 100% 90% / 0.25);
+    0 2px 12px -4px hsl(var(--pu-gold) / 0.28),
+    0 4px 20px -8px hsl(var(--pu-gold-deep) / 0.14),
+    inset 0 1px 0 hsl(219 100% 90% / 0.22);
 }
 html.member-html:not(.dark) .btn-spin:hover,
 html.member-html:not(.dark) .member-portal-wrap .btn-spin:hover,
 html.member-html:not(.dark) .member-login-premium-root .btn-spin:hover {
+  transform: scale(1.02);
   box-shadow:
-    0 0 28px -4px hsl(var(--pu-gold) / 0.42),
-    0 0 52px -8px hsl(var(--pu-gold-deep) / 0.28),
-    inset 0 1px 0 hsl(219 100% 90% / 0.3);
+    0 4px 18px -4px hsl(var(--pu-gold) / 0.34),
+    0 8px 28px -8px hsl(var(--pu-gold-deep) / 0.2),
+    inset 0 1px 0 hsl(219 100% 90% / 0.26);
 }
 
 html.member-html:not(.dark) .m-nav-active-glow::after {

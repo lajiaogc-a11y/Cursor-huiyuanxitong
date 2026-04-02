@@ -297,7 +297,10 @@ describe('getReverseAliasMap — 反向列名映射', () => {
 
   it('returns null for tables without alias', () => {
     expect(getReverseAliasMap('members')).toBeNull();
-    expect(getReverseAliasMap('orders')).toBeNull();
+  });
+
+  it('orders: reverse map card_type → order_type', () => {
+    expect(getReverseAliasMap('orders')).toEqual({ card_type: 'order_type' });
   });
 });
 
@@ -310,6 +313,12 @@ describe('mapBodyColumns — 请求体列名映射', () => {
   it('returns unchanged body when no alias exists', () => {
     const body = { id: '1', status: 'active' };
     expect(mapBodyColumns('members', body)).toEqual(body);
+  });
+
+  it('maps orders order_type → card_type', () => {
+    expect(
+      mapBodyColumns('orders', { order_type: 'uuid-card', vendor_id: 'v1' }),
+    ).toEqual({ card_type: 'uuid-card', vendor_id: 'v1' });
   });
 });
 

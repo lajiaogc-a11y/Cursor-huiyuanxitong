@@ -25,7 +25,7 @@ export async function syncMemberCommonCardsFromOrdersRepository(
        SELECT COALESCE(NULLIF(TRIM(o.card_name), ''), NULLIF(TRIM(g.name), '')) AS x
        FROM orders o
        LEFT JOIN gift_cards g
-         ON o.order_type = g.id
+         ON TRIM(o.card_type) = TRIM(g.id)
          AND (g.tenant_id = o.tenant_id OR g.tenant_id IS NULL)
        WHERE o.tenant_id = ?
          AND (o.is_deleted IS NULL OR o.is_deleted = 0)

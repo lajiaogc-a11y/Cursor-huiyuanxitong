@@ -310,6 +310,8 @@ export function effectiveMemberIdForRpc(req: AuthenticatedRequest, params: Recor
 
 // 列名映射：某些表的前端列名与 MySQL 实际列名不同
 export const COLUMN_ALIAS_MAP: Record<string, Record<string, string>> = {
+  /** 前端/创建订单使用 order_type（礼品卡 id）；MySQL 补丁列为 card_type */
+  orders: { order_type: 'card_type' },
   /** 前端沿用 Supabase 的 current_points，MySQL 账务列为 balance */
   points_accounts: { current_points: 'balance' },
   user_data_store: { data_key: 'store_key', data_value: 'store_value' },

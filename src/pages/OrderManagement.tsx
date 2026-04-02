@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { safeNumber } from "@/lib/safeCalc";
 import { 
   calculateNormalOrderDerivedValues, 
@@ -249,8 +250,10 @@ export default function OrderManagement() {
   const { isAdmin, employee: currentEmployee } = useAuth();
   const { viewingTenantId } = useTenantView() || {};
   const effectiveTenantId = viewingTenantId || currentEmployee?.tenant_id || null;
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("normal");
   const [mallOrdersRefreshNonce, setMallOrdersRefreshNonce] = useState(0);
+  const [mallHighlightId, setMallHighlightId] = useState<string | null>(null);
   const exportConfirm = useExportConfirm();
 
   // 检查当前用户是否为总管理员
@@ -352,6 +355,32 @@ export default function OrderManagement() {
   const refetchUsdtOrdersRef = useRef(refetchUsdtOrders);
   refetchOrdersRef.current = refetchOrders;
   refetchUsdtOrdersRef.current = refetchUsdtOrders;
+
+  // 右下角商城兑换通知「前往订单」：?tab=mall&highlightMall=<redemptionId>
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    const raw = searchParams.get("highlightMall");
+    if (tab !== "mall" && !raw) return;
+    if (tab === "mall") setActiveTab("mall");
+    if (raw) {
+      try {
+        setMallHighlightId(decodeURIComponent(raw).trim() || null);
+      } catch {
+        setMallHighlightId(String(raw).trim() || null);
+      }
+    }
+    setMallOrdersRefreshNonce((n) => n + 1);
+    const next = new URLSearchParams(searchParams);
+    next.delete("tab");
+    next.delete("highlightMall");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!mallHighlightId) return;
+    const timer = window.setTimeout(() => setMallHighlightId(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [mallHighlightId]);
 
   // 加载商家管理数据 + 检查总管理员身份
   useEffect(() => {
@@ -650,14 +679,14 @@ export default function OrderManagement() {
         currency: currency,
       });
       
-      // 重要：正确的字段映射
-      // - order_type: 卡片类型UUID (cards表)
-      // - card_merchant_id: 卡商UUID (vendors表)
-      // - vendor_id: 代付商家UUID (payment_providers表)
+      // 重要：与 mapOrderToDbAsync 一致 — vendor_id / card_merchant_id 为卡商(vendors FK)，代付写入 payment_provider
       const updates: any = {
-        order_type: editingOrder.cardType,              // 卡片类型
-        card_merchant_id: editingOrder.vendor,          // 卡商
-        vendor_id: editingOrder.paymentProvider,        // 代付商家
+        order_type: editingOrder.cardType,              // 卡片类型（表代理映射为 card_type）
+        card_merchant_id: editingOrder.vendor,
+        vendor_id: editingOrder.vendor,
+        payment_provider: editingOrder.paymentProvider
+          ? String(editingOrder.paymentProvider).trim() || null
+          : null,
         card_value: editingOrder.cardValue,
         exchange_rate: editingOrder.cardRate,
         payment_value: derived.paymentValue,            // 自动计算代付价值
@@ -678,6 +707,7 @@ export default function OrderManagement() {
         if (newSid && newSid !== oldSid) {
           updates.sales_user_id = newSid;
           updates.creator_id = newSid;
+          updates.account_id = newSid;
         }
       }
 
@@ -998,14 +1028,14 @@ export default function OrderManagement() {
         feeUsdt: editingUsdtOrder.feeUsdt,
       });
       
-      // 重要：正确的字段映射
-      // - order_type: 卡片类型UUID (cards表)
-      // - card_merchant_id: 卡商UUID (vendors表)
-      // - vendor_id: 代付商家UUID (payment_providers表)
+      // 重要：与 mapOrderToDbAsync 一致 — vendor_id / card_merchant_id 为卡商，代付写入 payment_provider
       const updates: any = {
-        order_type: editingUsdtOrder.cardType,          // 卡片类型
-        card_merchant_id: editingUsdtOrder.vendor,      // 卡商
-        vendor_id: editingUsdtOrder.paymentProvider,    // 代付商家
+        order_type: editingUsdtOrder.cardType,
+        card_merchant_id: editingUsdtOrder.vendor,
+        vendor_id: editingUsdtOrder.vendor,
+        payment_provider: editingUsdtOrder.paymentProvider
+          ? String(editingUsdtOrder.paymentProvider).trim() || null
+          : null,
         card_value: editingUsdtOrder.cardValue,
         exchange_rate: editingUsdtOrder.cardRate,
         foreign_rate: usdtRateValue,                    // USDT汇率，保留4位小数
@@ -1025,6 +1055,7 @@ export default function OrderManagement() {
         if (newSid && newSid !== oldSid) {
           updates.sales_user_id = newSid;
           updates.creator_id = newSid;
+          updates.account_id = newSid;
         }
       }
 

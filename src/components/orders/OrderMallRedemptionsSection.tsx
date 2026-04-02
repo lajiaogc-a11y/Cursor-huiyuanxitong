@@ -28,6 +28,7 @@ import {
   processMyPointsMallRedemptionOrder,
   type PointsMallRedemptionOrder,
 } from "@/services/members/memberPointsMallService";
+import { cn } from "@/lib/utils";
 
 function formatBeijingTime(iso: string): string {
   try {
@@ -53,6 +54,8 @@ export interface OrderMallRedemptionsSectionProps {
   isMobile: boolean;
   /** 与顶部「刷新」联动，变化时重新拉取列表 */
   refreshNonce?: number;
+  /** 外部跳转高亮某条兑换（如右下角通知「前往订单」） */
+  highlightRedemptionId?: string | null;
   t: (zh: string, en: string) => string;
 }
 
@@ -62,6 +65,7 @@ export function OrderMallRedemptionsSection({
   isActive,
   isMobile,
   refreshNonce = 0,
+  highlightRedemptionId = null,
   t,
 }: OrderMallRedemptionsSectionProps) {
   const [orders, setOrders] = useState<PointsMallRedemptionOrder[]>([]);
@@ -108,6 +112,16 @@ export function OrderMallRedemptionsSection({
       return hay.includes(q);
     });
   }, [orders, searchTerm]);
+
+  useEffect(() => {
+    const id = highlightRedemptionId?.trim();
+    if (!id || !isActive) return;
+    const tmr = window.setTimeout(() => {
+      const el = document.getElementById(`mall-rdm-row-${id}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 400);
+    return () => window.clearTimeout(tmr);
+  }, [highlightRedemptionId, isActive, filtered]);
 
   const processOne = async (orderId: string, action: "complete" | "reject") => {
     setProcessingId(orderId);
@@ -156,7 +170,11 @@ export function OrderMallRedemptionsSection({
           {filtered.map((o) => (
             <div
               key={o.id}
-              className="rounded-lg border bg-card p-3 text-sm shadow-sm"
+              id={`mall-rdm-row-${o.id}`}
+              className={cn(
+                "rounded-lg border bg-card p-3 text-sm shadow-sm transition-shadow duration-500",
+                highlightRedemptionId === o.id && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+              )}
             >
               <div className="flex items-start gap-2">
                 {String(o.item_image_url || "").trim() ? (
@@ -249,7 +267,13 @@ export function OrderMallRedemptionsSection({
             </TableHeader>
             <TableBody>
               {filtered.map((o) => (
-                <TableRow key={o.id}>
+                <TableRow
+                  key={o.id}
+                  id={`mall-rdm-row-${o.id}`}
+                  className={cn(
+                    highlightRedemptionId === o.id && "bg-primary/5 ring-2 ring-inset ring-primary/60",
+                  )}
+                >
                   <TableCell>
                     {String(o.item_image_url || "").trim() ? (
                       <ResolvableMediaThumb

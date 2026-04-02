@@ -798,7 +798,7 @@ export default function MemberDashboard() {
           {announcementItems.length > 0 ? (
             <div className="m-glass mb-4 flex items-center gap-2.5 overflow-hidden p-3">
               <Megaphone className="h-4 w-4 shrink-0 text-pu-rose-soft" aria-hidden />
-              <div className="relative flex-1 overflow-hidden">
+              <div className="member-home-ann-viewport relative min-w-0 flex-1 overflow-hidden">
                 <div
                   className="member-home-ann-track inline-flex w-max items-center animate-[marquee_18s_linear_infinite]"
                   style={{
