@@ -100,7 +100,7 @@ function Build-ScpArgs {
     foreach ($t in $script:sshIdent) { [void]$list.Add($t) }
     foreach ($t in (Get-SshAliveOptions -ConnectTimeout $ConnectTimeout)) { [void]$list.Add($t) }
     foreach ($t in $Tail) { [void]$list.Add($t) }
-    ,$list.ToArray()
+    return $list.ToArray()
 }
 
 function Build-SshArgs {
@@ -114,7 +114,7 @@ function Build-SshArgs {
     foreach ($t in (Get-SshAliveOptions -ConnectTimeout $ConnectTimeout)) { [void]$list.Add($t) }
     [void]$list.Add($SshTarget)
     [void]$list.Add($RemoteCommand)
-    ,$list.ToArray()
+    return $list.ToArray()
 }
 
 $sshIdent = Get-DeploySshIdentityArg
