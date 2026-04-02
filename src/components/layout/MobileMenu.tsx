@@ -105,6 +105,9 @@ function isMenuPathActive(itemPath: string, pathname: string, search: string): b
     return canonical === itemPath;
   }
   const [itemPathname, itemSearch] = itemPath.split('?');
+  if (itemPathname === "/staff/member-portal") {
+    return pathname === itemPathname || pathname.startsWith(`${itemPathname}/`);
+  }
   if (!pathname.startsWith(itemPathname)) return false;
   if (itemPathname !== '/staff' && pathname !== itemPathname) return false;
   if (itemPathname === '/staff' && pathname !== '/staff') return false;

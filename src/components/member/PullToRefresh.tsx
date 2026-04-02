@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
 import { memberQueryKeys } from "@/lib/memberQueryKeys";
 import { isMemberBottomTabPath } from "@/lib/memberBottomTabPaths";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);
@@ -46,11 +47,6 @@ function touchTargetDefersPull(target: EventTarget | null): boolean {
   );
 }
 
-function ptrT(zh: string, en: string): string {
-  if (typeof localStorage === "undefined") return zh;
-  return localStorage.getItem("appLanguage") === "en" ? en : zh;
-}
-
 /** Custom event dispatched after a pull-to-refresh so pages can react to data-level refresh */
 export const MEMBER_PULL_REFRESH_EVENT = "member:pull-refresh";
 
@@ -65,6 +61,7 @@ interface Props {
 }
 
 export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContainer = false, className, scrollElRef }: Props) {
+  const { t } = useLanguage();
   const [pulling, setPulling] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -221,7 +218,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
         {refreshing ? (
           <>
             <span className="sr-only" role="status">
-              {ptrT("正在刷新内容…", "Refreshing…")}
+              {t("正在刷新内容…", "Refreshing…")}
             </span>
             <svg width="24" height="24" viewBox="0 0 24 24" className="member-ptr-spinner" aria-hidden>
               <circle cx="12" cy="12" r="10" fill="none" stroke={themeColor} strokeWidth="2.5" strokeDasharray="48 16" strokeLinecap="round" />
@@ -262,7 +259,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
           className="native-scroll-y min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-auto [overscroll-behavior-x:contain]"
           role="region"
           aria-busy={refreshing}
-          aria-label={ptrT("会员中心滚动区域", "Member portal scroll area")}
+          aria-label={t("会员中心滚动区域", "Member portal scroll area")}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}

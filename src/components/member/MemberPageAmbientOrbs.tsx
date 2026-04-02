@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 export function MemberPageAmbientOrbs({ className }: { className?: string }) {
   return (
     <div
-      className={cn("pointer-events-none absolute inset-0 overflow-hidden", className)}
+      className={cn("member-ambient-orbs pointer-events-none absolute inset-0 overflow-hidden", className)}
       aria-hidden
     >
       <div className="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-pu-gold/[0.06] blur-[100px]" />

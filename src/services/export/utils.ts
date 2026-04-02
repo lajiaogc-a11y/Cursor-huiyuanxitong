@@ -11,10 +11,27 @@ export function escapeCSVField(value: any): string {
     str = JSON.stringify(value);
   }
 
-  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r') || str.includes('\t')) {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
+}
+
+/**
+ * UTF-8 CSV Blob（含 BOM 的完整字符串），供 Excel / WPS 正确识别中文。
+ * 使用 TextEncoder 输出字节，避免部分环境下字符串 Blob 编码不一致。
+ */
+export function createUtf8CsvBlob(csvText: string): Blob {
+  return new Blob([new TextEncoder().encode(csvText)], { type: 'text/csv;charset=utf-8' });
+}
+
+/** 读取 CSV 文件为 UTF-8 文本（识别并去掉 BOM，与导出一致） */
+export async function readCsvFileAsUtf8Text(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  const u8 = new Uint8Array(buf);
+  let start = 0;
+  if (u8.length >= 3 && u8[0] === 0xef && u8[1] === 0xbb && u8[2] === 0xbf) start = 3;
+  return new TextDecoder('utf-8', { fatal: false }).decode(u8.subarray(start));
 }
 
 export function formatDateForFilename(): string {

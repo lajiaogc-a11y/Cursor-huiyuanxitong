@@ -8,6 +8,7 @@ import { submitErrorReport } from '@/services/observability/errorReportService';
 import { shouldSuppressGlobalErrorReport } from '@/lib/errorReportFilters';
 import { isoUtcTimestampDigits14 } from '@/lib/isoTimestampDigits';
 import { getCurrentUserApi } from '@/services/auth/authApiService';
+import { pickBilingual } from '@/lib/appLocale';
 
 interface ErrorMessages {
   title: string;
@@ -33,18 +34,22 @@ interface State {
   error: Error | null;
 }
 
-function _t(zh: string, en: string): string {
-  return (typeof localStorage !== 'undefined' && localStorage.getItem('appLanguage') === 'en') ? en : zh;
+function defaultErrorMessages(): ErrorMessages {
+  return {
+    title: pickBilingual("页面加载出错", "Page Load Error"),
+    description: pickBilingual(
+      "抱歉，页面加载时遇到了问题。请尝试重试或刷新页面。",
+      "Sorry, an error occurred while loading this page. Please try again or refresh.",
+    ),
+    viewDetails: pickBilingual("查看错误详情", "View Error Details"),
+    retry: pickBilingual("重试", "Retry"),
+    refresh: pickBilingual("刷新页面", "Refresh Page"),
+    tip: pickBilingual(
+      "提示：如果多次重试仍无法解决，请尝试刷新页面",
+      "Tip: If retrying doesn't work, try refreshing the page",
+    ),
+  };
 }
-
-const DEFAULT_MESSAGES: ErrorMessages = {
-  title: _t('页面加载出错', 'Page Load Error'),
-  description: _t('抱歉，页面加载时遇到了问题。请尝试重试或刷新页面。', 'Sorry, an error occurred while loading this page. Please try again or refresh.'),
-  viewDetails: _t('查看错误详情', 'View Error Details'),
-  retry: _t('重试', 'Retry'),
-  refresh: _t('刷新页面', 'Refresh Page'),
-  tip: _t('提示：如果多次重试仍无法解决，请尝试刷新页面', 'Tip: If retrying doesn\'t work, try refreshing the page'),
-};
 
 interface ErrorBoundaryState extends State {
   retryKey: number;
@@ -138,7 +143,7 @@ export class ErrorBoundary extends Component<Props, ErrorBoundaryState> {
   };
 
   render() {
-    const messages = this.props.messages || DEFAULT_MESSAGES;
+    const messages = this.props.messages || defaultErrorMessages();
     
     if (this.state.hasError) {
       if (this.props.fallback) {
@@ -225,7 +230,7 @@ export class ErrorBoundary extends Component<Props, ErrorBoundaryState> {
             <p className="mt-2 text-xs text-muted-foreground">{messages.tip}</p>
             {this.state.error?.message?.includes("Content Security Policy") ? (
               <p className="mt-2 max-w-md text-left text-xs text-amber-700 dark:text-amber-400">
-                {_t(
+                {pickBilingual(
                   "疑似 CSP 拦截：请在 index.html 的 connect-src 中加入你的 API 域名，或查看 docs/CSP与白屏排查.md。",
                   "Likely CSP block: add your API origin to connect-src in index.html, or see docs/CSP与白屏排查.md.",
                 )}

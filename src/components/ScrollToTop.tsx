@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
-// TODO: unused - verify before delete (no importers in repo; ts-prune)
+/** 路由切换后将主窗口滚回顶部（与会员/员工布局的主滚动区无关时仍改善全页体验） */
 export function ScrollToTop() {
   const { pathname } = useLocation();
 

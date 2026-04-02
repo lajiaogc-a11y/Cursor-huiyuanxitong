@@ -11,10 +11,7 @@ import {
   OPERATION_LOG_RAW_PREVIEW,
 } from '@/lib/operationLogPayload';
 import { repairUtf8MisdecodedAsLatin1 } from '@/lib/utf8MojibakeRepair';
-
-function _t(zh: string, en: string): string {
-  return (typeof localStorage !== 'undefined' && localStorage.getItem('appLanguage') === 'en') ? en : zh;
-}
+import { pickBilingual } from '@/lib/appLocale';
 export type OperationType =
   | 'create' | 'update' | 'cancel' | 'restore' | 'delete'
   | 'audit' | 'reject'
@@ -263,7 +260,7 @@ export async function fetchAuditLogsPage(
     } catch (apiErr) {
       console.warn('[AuditLog] API fetch failed:', apiErr);
       if (typeof window !== 'undefined') {
-        toast.error(_t('操作日志加载失败，请确保后端服务已启动（cd server && npm run dev）', 'Failed to load audit logs. Please ensure the backend is running (cd server && npm run dev)'));
+        toast.error(pickBilingual('操作日志加载失败，请确保后端服务已启动（cd server && npm run dev）', 'Failed to load audit logs. Please ensure the backend is running (cd server && npm run dev)'));
       }
       throw apiErr;
     }

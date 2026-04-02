@@ -49,7 +49,7 @@ import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCard
 import { MobileFilterBar } from "@/components/ui/mobile-filter-bar";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
 import { useExportConfirm } from "@/hooks/useExportConfirm";
-import { exportTableToCSV } from "@/services/dataExportImportService";
+import { exportTableToXLSX } from "@/services/dataExportImportService";
 import { toast } from "sonner";
 import { useMembers, Member } from "@/hooks/useMembers";
 import { logOperation } from "@/stores/auditLogStore";
@@ -298,7 +298,17 @@ export default function MemberManagement() {
               </Button>
               <TableImportButton tableName="members" onImportComplete={refetch} />
               {isAdmin && (
-                <Button variant="outline" size="sm" onClick={() => exportConfirm.requestExport(() => exportTableToCSV("members", false))}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    exportConfirm.requestExport(async () => {
+                      const r = await exportTableToXLSX("members", false);
+                      if (r.success) toast.success(t("已导出 Excel（.xlsx）", "Exported as Excel (.xlsx)"));
+                      else if (r.error) toast.error(r.error);
+                    })
+                  }
+                >
                   <Download className="h-4 w-4 sm:mr-1" />
                   <span className="hidden sm:inline">{t("导出", "Export")}</span>
                 </Button>
@@ -314,7 +324,7 @@ export default function MemberManagement() {
         <FilterBar>
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative min-w-0 max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
               <Input
                 placeholder={t("members.searchPlaceholder")}
                 value={searchTerm}
@@ -324,16 +334,31 @@ export default function MemberManagement() {
                 }}
                 onPaste={(e) => {
                   e.preventDefault();
-                  const pasted = e.clipboardData.getData("text").replace(/[^a-zA-Z0-9]/g, "");
+                  const raw = e.clipboardData.getData("text");
+                  const pasted = raw.replace(/[^a-zA-Z0-9]/g, "");
                   setSearchTerm(pasted);
                   setSearchError("");
+                  if (raw !== pasted) {
+                    toast.info(
+                      t("已去除空格与符号，仅保留字母与数字以便匹配。", "Removed spaces and symbols; only letters and digits are kept for matching."),
+                    );
+                  }
                 }}
                 className={cn("pl-9", searchError && "border-destructive")}
                 autoComplete="off"
                 name="member-search"
                 data-lpignore="true"
+                aria-describedby="member-search-hint"
+                aria-invalid={!!searchError}
               />
-              {searchError ? <span className="mt-1 block text-xs text-destructive">{searchError}</span> : null}
+              <p id="member-search-hint" className="mt-1 text-[11px] text-muted-foreground">
+                {t("粘贴时会自动去掉空格与符号。", "Paste automatically strips spaces and symbols.")}
+              </p>
+              {searchError ? (
+                <span className="mt-1 block text-xs text-destructive" role="alert">
+                  {searchError}
+                </span>
+              ) : null}
             </div>
           </div>
         </FilterBar>
@@ -359,7 +384,13 @@ export default function MemberManagement() {
                         variant="outline"
                         size="icon"
                         className="h-10 w-10 shrink-0 touch-manipulation rounded-lg"
-                        onClick={() => exportConfirm.requestExport(() => exportTableToCSV("members", false))}
+                        onClick={() =>
+                          exportConfirm.requestExport(async () => {
+                            const r = await exportTableToXLSX("members", false);
+                            if (r.success) toast.success(t("已导出 Excel（.xlsx）", "Exported as Excel (.xlsx)"));
+                            else if (r.error) toast.error(r.error);
+                          })
+                        }
                       >
                         <Download className="h-4 w-4" />
                       </Button>

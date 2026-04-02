@@ -7,10 +7,7 @@ import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
 import { apiPost, apiPatch, apiDelete } from '@/api/client';
 import { logOperation } from '@/stores/auditLogStore';
 import { getActivityTypesApi } from '@/services/staff/dataApi';
-
-function _t(zh: string, en: string): string {
-  return (typeof localStorage !== 'undefined' && localStorage.getItem('appLanguage') === 'en') ? en : zh;
-}
+import { pickBilingual } from '@/lib/appLocale';
 
 function unwrapSingleRow<T>(data: unknown): T | null {
   if (data == null) return null;
@@ -44,8 +41,8 @@ export async function fetchActivityTypesFromDb(): Promise<ActivityType[]> {
   }
 
   return [
-    { id: 'default-activity-1', value: 'activity_1', label: _t('活动1', 'Activity 1'), isActive: true, sortOrder: 1 },
-    { id: 'default-activity-2', value: 'activity_2', label: _t('活动2', 'Activity 2'), isActive: true, sortOrder: 2 },
+    { id: 'default-activity-1', value: 'activity_1', label: pickBilingual('活动1', 'Activity 1'), isActive: true, sortOrder: 1 },
+    { id: 'default-activity-2', value: 'activity_2', label: pickBilingual('活动2', 'Activity 2'), isActive: true, sortOrder: 2 },
   ];
 }
 
@@ -75,7 +72,7 @@ export function useActivityTypes() {
       const data = unwrapSingleRow<{ id: string }>(inserted);
       if (!data?.id) throw new Error('Insert returned no row');
 
-      logOperation('activity_type', 'create', data.id, null, { value, label, is_active: true }, _t(`新增活动类型: ${label}`, `Add activity type: ${label}`));
+      logOperation('activity_type', 'create', data.id, null, { value, label, is_active: true }, pickBilingual(`新增活动类型: ${label}`, `Add activity type: ${label}`));
       await queryClient.invalidateQueries({ queryKey: ['activity-types'] });
       return true;
     } catch (error) {
@@ -96,7 +93,7 @@ export function useActivityTypes() {
 
       await apiPatch(`/api/data/table/activity_types?id=eq.${encodeURIComponent(id)}`, { data: updateData });
       
-      logOperation('activity_type', 'update', id, beforeData, { ...beforeData, ...updates }, _t(`更新活动类型: ${updates.label || beforeData?.label}`, `Update activity type: ${updates.label || beforeData?.label}`));
+      logOperation('activity_type', 'update', id, beforeData, { ...beforeData, ...updates }, pickBilingual(`更新活动类型: ${updates.label || beforeData?.label}`, `Update activity type: ${updates.label || beforeData?.label}`));
       
       await queryClient.invalidateQueries({ queryKey: ['activity-types'] });
       return true;
@@ -131,7 +128,7 @@ export function useActivityTypes() {
       await apiDelete(`/api/data/table/activity_types?id=eq.${encodeURIComponent(id)}`);
       
       if (typeToDelete) {
-        logOperation('activity_type', 'delete', id, typeToDelete, null, _t(`删除活动类型: ${typeToDelete.label}`, `Delete activity type: ${typeToDelete.label}`));
+        logOperation('activity_type', 'delete', id, typeToDelete, null, pickBilingual(`删除活动类型: ${typeToDelete.label}`, `Delete activity type: ${typeToDelete.label}`));
       }
       
       await queryClient.invalidateQueries({ queryKey: ['activity-types'] });

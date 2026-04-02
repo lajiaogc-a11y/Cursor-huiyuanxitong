@@ -54,6 +54,8 @@ export const ROUTES = {
     TASKS_PHONE_EXTRACT: "/staff/tasks/phone-extract",
     MEMBER_PROMOTION: "/staff/member-promotion",
     MEMBER_PORTAL: "/staff/member-portal",
+    /** 会员门户设置分区（与 MemberPortalSettings TABS key 一致） */
+    MEMBER_PORTAL_SECTION: "/staff/member-portal/:tabKey",
     ADMIN_ROOT: "/staff/admin",
     ADMIN_TENANTS: "/staff/admin/tenants",
     ADMIN_TENANT_VIEW: "/staff/admin/tenant-view",

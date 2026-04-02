@@ -107,7 +107,8 @@ export const staffExtendedRoutes: Array<{ path: string; element: ReactNode }> = 
   { path: ROUTES.STAFF.TASKS_HISTORY, element: <TasksHistory /> },
   { path: ROUTES.STAFF.TASKS_POSTERS, element: <TasksPosters /> },
   { path: ROUTES.STAFF.TASKS_PHONE_EXTRACT, element: <TasksPhoneExtract /> },
-  { path: ROUTES.STAFF.MEMBER_PORTAL, element: <MemberPortalSettingsPage /> },
+  { path: ROUTES.STAFF.MEMBER_PORTAL, element: <Navigate to={`${ROUTES.STAFF.MEMBER_PORTAL}/login`} replace /> },
+  { path: ROUTES.STAFF.MEMBER_PORTAL_SECTION, element: <MemberPortalSettingsPage /> },
   {
     path: ROUTES.STAFF.MEMBER_PROMOTION,
     element: <Navigate to={`${ROUTES.STAFF.SETTINGS}?tab=member-levels`} replace />,

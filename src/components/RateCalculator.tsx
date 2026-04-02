@@ -1280,7 +1280,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
       {/* 第二行：利润分析 */}
       {isMobile ? (
         /* ===== 移动端：垂直卡片布局 ===== */
-        <Card className="overflow-hidden">
+        <Card className="overflow-x-auto overflow-y-visible">
           <div className="bg-muted/50 px-3 py-1.5 border-b">
             <span className="text-xs font-bold text-foreground">{t("利润分析", "Profit Analysis")}</span>
           </div>
@@ -1339,7 +1339,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
         </Card>
       ) : (
         /* ===== 桌面端：原始表格布局 ===== */
-        <Card className="overflow-hidden">
+        <Card className="overflow-x-auto overflow-y-visible">
           <div className="divide-y divide-border/50 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
             <div className="grid bg-muted/50" style={profitGridStyle}>
               <div className="px-2 sm:px-3 py-1.5 border-r border-border/30 flex items-center">
@@ -1408,7 +1408,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
       {/* 第四行：支付信息(5/12) + 会员信息(7/12，含备注) */}
       <div className={`grid gap-2 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-12'}`}>
         {/* 支付输入区域 - 5/12 */}
-        <Card className={isMobile ? '' : 'xl:col-span-5 overflow-hidden'}>
+        <Card className={isMobile ? "" : "xl:col-span-5 overflow-x-auto overflow-y-visible"}>
           <div className="bg-muted/50 px-3 py-1 border-b">
             <span className="text-xs font-bold text-foreground">{t("支付信息", "Payment Info")}</span>
           </div>
@@ -1669,7 +1669,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
           </Card>
 
           {/* 会员信息区域 */}
-          <Card className="overflow-hidden">
+          <Card className="overflow-x-auto overflow-y-visible">
           <div className="bg-muted/50 px-3 py-1 border-b flex items-center justify-between">
             <span className="text-xs font-bold text-foreground">{t("会员信息", "Member Info")}</span>
           </div>

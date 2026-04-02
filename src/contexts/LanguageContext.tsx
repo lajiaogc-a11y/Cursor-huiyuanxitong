@@ -2,7 +2,7 @@ import { createContext, useContext, ReactNode, useCallback, useEffect, useMemo, 
 import { useLocation } from "react-router-dom";
 import { translations } from '@/locales/translations';
 import { repairUtf8MisdecodedAsLatin1 } from '@/lib/utf8MojibakeRepair';
-import { showMemberPortal } from '@/routes/siteMode';
+import { APP_LANGUAGE_STORAGE_KEY, readStoredAppLocale, isMemberFacingPathname } from '@/lib/appLocale';
 
 /** 统一修复源码/API 中偶发的 UTF-8 被按 Latin-1 存储导致的乱码 */
 function fixMojibakeUi(s: string): string {
@@ -12,27 +12,9 @@ function fixMojibakeUi(s: string): string {
 
 export type Language = 'zh' | 'en';
 
-const STORAGE_KEY = "appLanguage";
-
-function readStoredLanguage(): Language {
-  try {
-    if (typeof localStorage === "undefined") return "zh";
-    const v = localStorage.getItem(STORAGE_KEY);
-    if (v === "zh" || v === "en") return v;
-  } catch {
-    /* ignore */
-  }
-  return "zh";
-}
-
 /** 会员端界面固定英文；员工端与其它公共页使用用户偏好语言 */
 function isMemberFacingPath(pathname: string): boolean {
-  const path = (pathname.split("?")[0] ?? pathname).split("#")[0] ?? pathname;
-  // 勿用 path.startsWith("/member")：会误把 /member-portal 等员工配置页当成会员域
-  if (path === "/member" || path.startsWith("/member/")) return true;
-  if (path.startsWith("/invite")) return true;
-  if (path === "/" || path === "") return showMemberPortal;
-  return false;
+  return isMemberFacingPathname(pathname);
 }
 
 interface LanguageContextType {
@@ -73,7 +55,7 @@ function resolveByKey(key: string, lang: Language): string {
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
-  const [preferredLanguage, setPreferredLanguageState] = useState<Language>(readStoredLanguage);
+  const [preferredLanguage, setPreferredLanguageState] = useState<Language>(readStoredAppLocale);
 
   const memberFacing = isMemberFacingPath(pathname);
   const effectiveLanguage: Language = memberFacing ? "en" : preferredLanguage;
@@ -86,7 +68,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setPreferredLanguageState(lang);
     try {
       if (typeof localStorage !== "undefined") {
-        localStorage.setItem(STORAGE_KEY, lang);
+        localStorage.setItem(APP_LANGUAGE_STORAGE_KEY, lang);
       }
     } catch {
       /* ignore */

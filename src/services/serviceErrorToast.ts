@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import { ApiError } from "@/lib/apiClient";
+import { readEffectiveAppLocale } from "@/lib/appLocale";
 
 type Translate = (zh: string, en: string) => string;
 
@@ -228,13 +229,7 @@ export function showServiceErrorToast(
     raw &&
     raw !== "请求失败" &&
     !/^请求失败 \(HTTP/.test(raw) &&
-    (() => {
-      try {
-        return localStorage.getItem("appLanguage") === "en";
-      } catch {
-        return false;
-      }
-    })();
+    readEffectiveAppLocale() === "en";
   const detail = useDetail ? ` (${raw})` : "";
   toast.error(t(`${fallbackZh}${detail}`, `${fallbackEn}${detail}`));
 }

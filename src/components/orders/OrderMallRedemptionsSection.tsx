@@ -10,6 +10,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { StickyScrollTableContainer } from "@/components/ui/sticky-scroll-table";
+import {
+  MobileCardList,
+  MobileCard,
+  MobileCardGrid,
+  MobileCardGridItem,
+  MobileCardRow,
+  MobileCardCollapsible,
+  MobilePagination,
+} from "@/components/ui/mobile-data-card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,7 +38,12 @@ import {
   processMyPointsMallRedemptionOrder,
   type PointsMallRedemptionOrder,
 } from "@/services/members/memberPointsMallService";
+import { OrderPagination } from "./OrderPagination";
 import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 50;
+
+export type MallOrderStatusFilter = "all" | "pending" | "completed" | "rejected";
 
 function formatBeijingTime(iso: string): string {
   try {
@@ -47,9 +62,34 @@ function displayStr(v: unknown, empty: string): string {
   return s.length > 0 ? s : empty;
 }
 
+function normalizeDigits(s: string): string {
+  return s.replace(/\D/g, "");
+}
+
+/** 支持多关键词（空格分隔）、手机号仅数字匹配 */
+function matchesMallSearch(o: PointsMallRedemptionOrder, qRaw: string): boolean {
+  const q = qRaw.trim().toLowerCase();
+  if (!q) return true;
+  const tokens = q.split(/\s+/).filter(Boolean);
+  const parts = [o.item_title, o.member_code, o.member_phone, o.handler_name, o.id].map((x) =>
+    x == null ? "" : String(x),
+  );
+  const hay = parts.join(" ").toLowerCase();
+  const hayDigits = normalizeDigits(parts.join(""));
+  return tokens.every((tok) => {
+    const tl = tok.toLowerCase();
+    if (hay.includes(tl)) return true;
+    const dTok = normalizeDigits(tok);
+    if (dTok.length >= 3 && hayDigits.includes(dTok)) return true;
+    return false;
+  });
+}
+
 export interface OrderMallRedemptionsSectionProps {
   tenantId: string | null;
   searchTerm: string;
+  /** 与顶部状态筛选一致，会传给列表接口 */
+  statusFilter: MallOrderStatusFilter;
   isActive: boolean;
   isMobile: boolean;
   /** 与顶部「刷新」联动，变化时重新拉取列表 */
@@ -62,6 +102,7 @@ export interface OrderMallRedemptionsSectionProps {
 export function OrderMallRedemptionsSection({
   tenantId,
   searchTerm,
+  statusFilter,
   isActive,
   isMobile,
   refreshNonce = 0,
@@ -73,6 +114,8 @@ export function OrderMallRedemptionsSection({
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [confirmCompleteId, setConfirmCompleteId] = useState<string | null>(null);
   const [confirmRejectId, setConfirmRejectId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [jumpToPage, setJumpToPage] = useState("");
 
   const load = useCallback(async () => {
     if (!tenantId) {
@@ -81,7 +124,11 @@ export function OrderMallRedemptionsSection({
     }
     setLoading(true);
     try {
-      const list = await listMyPointsMallRedemptionOrders(undefined, 500, tenantId);
+      const list = await listMyPointsMallRedemptionOrders(
+        statusFilter === "all" ? undefined : statusFilter,
+        500,
+        tenantId,
+      );
       setOrders(list);
     } catch (e: unknown) {
       showServiceErrorToast(e, t, "商城订单加载失败", "Failed to load mall orders");
@@ -89,29 +136,43 @@ export function OrderMallRedemptionsSection({
     } finally {
       setLoading(false);
     }
-  }, [tenantId, t]);
+  }, [tenantId, t, statusFilter]);
 
   useEffect(() => {
     if (isActive && tenantId) void load();
   }, [isActive, tenantId, load, refreshNonce]);
 
   const filtered = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
-    if (!q) return orders;
-    return orders.filter((o) => {
-      const hay = [
-        o.item_title,
-        o.member_code,
-        o.member_phone,
-        o.handler_name,
-        o.id,
-      ]
-        .map((x) => (x == null ? "" : String(x)))
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
+    return orders.filter((o) => matchesMallSearch(o, searchTerm));
   }, [orders, searchTerm]);
+
+  const totalCount = filtered.length;
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / PAGE_SIZE)), [totalCount]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setJumpToPage("");
+  }, [searchTerm, statusFilter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const safePage = Math.min(currentPage, totalPages);
+  const pageRows = useMemo(
+    () => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filtered, safePage],
+  );
+
+  useEffect(() => {
+    const id = highlightRedemptionId?.trim();
+    if (!id || !isActive) return;
+    const idx = filtered.findIndex((o) => o.id === id);
+    if (idx >= 0) {
+      const targetPage = Math.floor(idx / PAGE_SIZE) + 1;
+      setCurrentPage(targetPage);
+    }
+  }, [highlightRedemptionId, isActive, filtered]);
 
   useEffect(() => {
     const id = highlightRedemptionId?.trim();
@@ -121,7 +182,15 @@ export function OrderMallRedemptionsSection({
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 400);
     return () => window.clearTimeout(tmr);
-  }, [highlightRedemptionId, isActive, filtered]);
+  }, [highlightRedemptionId, isActive, pageRows]);
+
+  const handleJumpToPage = () => {
+    const page = parseInt(jumpToPage, 10);
+    if (!isNaN(page) && page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      setJumpToPage("");
+    }
+  };
 
   const processOne = async (orderId: string, action: "complete" | "reject") => {
     setProcessingId(orderId);
@@ -139,6 +208,18 @@ export function OrderMallRedemptionsSection({
       setProcessingId(null);
     }
   };
+
+  const statusBadge = (o: PointsMallRedemptionOrder) => (
+    <Badge variant={o.status === "pending" ? "secondary" : "outline"} className="shrink-0 text-[10px]">
+      {o.status === "pending"
+        ? t("待处理", "Pending")
+        : o.status === "completed"
+          ? t("已完成", "Completed")
+          : o.status === "rejected"
+            ? t("已驳回", "Rejected")
+            : o.status}
+    </Badge>
+  );
 
   if (!tenantId) {
     return (
@@ -161,193 +242,197 @@ export function OrderMallRedemptionsSection({
         <div className="flex justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : orders.length === 0 ? (
         <p className="text-sm text-muted-foreground py-10 text-center">
           {t("暂无商城兑换订单。", "No mall redemption orders.")}
         </p>
+      ) : filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-10 text-center">
+          {t("无匹配的商城订单，请调整搜索或状态筛选。", "No mall orders match. Adjust search or status.")}
+        </p>
       ) : isMobile ? (
-        <div className="flex flex-col gap-3">
-          {filtered.map((o) => (
-            <div
-              key={o.id}
-              id={`mall-rdm-row-${o.id}`}
-              className={cn(
-                "rounded-lg border bg-card p-3 text-sm shadow-sm transition-shadow duration-500",
-                highlightRedemptionId === o.id && "ring-2 ring-primary ring-offset-2 ring-offset-background",
-              )}
-            >
-              <div className="flex items-start gap-2">
-                {String(o.item_image_url || "").trim() ? (
-                  <ResolvableMediaThumb
-                    idKey={`mall-ord-m-${o.id}`}
-                    url={o.item_image_url}
-                    frameClassName="h-10 w-10 shrink-0 rounded-md"
-                    imgClassName="border object-cover"
-                  />
-                ) : (
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md border bg-muted/40 text-[10px] text-muted-foreground">
-                    —
+        <>
+          <MobileCardList>
+            {pageRows.map((o) => (
+              <MobileCard
+                key={o.id}
+                id={`mall-rdm-row-${o.id}`}
+                className={cn(
+                  highlightRedemptionId === o.id && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+                )}
+              >
+                <div className="flex items-start gap-2">
+                  {String(o.item_image_url || "").trim() ? (
+                    <ResolvableMediaThumb
+                      idKey={`mall-ord-m-${o.id}`}
+                      url={o.item_image_url}
+                      frameClassName="h-10 w-10 shrink-0 rounded-md"
+                      imgClassName="border object-cover"
+                    />
+                  ) : (
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md border bg-muted/40 text-[10px] text-muted-foreground">
+                      —
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-sm truncate">{o.item_title}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">{statusBadge(o)}</div>
+                  </div>
+                </div>
+                <MobileCardGrid cols={2}>
+                  <MobileCardGridItem label={t("电话", "Phone")} value={displayStr(o.member_phone, "—")} />
+                  <MobileCardGridItem label={t("会员编号", "Member code")} value={displayStr(o.member_code, "—")} />
+                  <MobileCardGridItem label={t("数量", "Qty")} value={String(o.quantity)} />
+                  <MobileCardGridItem label={t("积分", "Pts")} value={String(o.points_used)} highlight />
+                </MobileCardGrid>
+                <MobileCardCollapsible>
+                  <MobileCardRow label={t("时间", "Time")} value={formatBeijingTime(o.created_at)} />
+                  <MobileCardRow label={t("经手人", "Handler")} value={displayStr(o.handler_name, "—")} />
+                </MobileCardCollapsible>
+                {o.status === "pending" && (
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-9 flex-1 text-xs touch-manipulation"
+                      disabled={processingId === o.id}
+                      onClick={() => setConfirmRejectId(o.id)}
+                    >
+                      {t("驳回", "Reject")}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-9 flex-1 text-xs touch-manipulation"
+                      disabled={processingId === o.id}
+                      onClick={() => setConfirmCompleteId(o.id)}
+                    >
+                      {t("完成", "Complete")}
+                    </Button>
                   </div>
                 )}
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium truncate">{o.item_title}</div>
-                  <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
-                    <div>
-                      {t("电话", "Phone")}: {displayStr(o.member_phone, "—")}
-                    </div>
-                    <div>
-                      {t("会员编号", "Member code")}: {displayStr(o.member_code, "—")}
-                    </div>
-                    <div>
-                      {t("经手人", "Handler")}: {displayStr(o.handler_name, "—")}
-                    </div>
-                  </div>
-                </div>
-                <Badge variant={o.status === "pending" ? "secondary" : "outline"} className="shrink-0 text-[10px]">
-                  {o.status === "pending"
-                    ? t("待处理", "Pending")
-                    : o.status === "completed"
-                      ? t("已完成", "Completed")
-                      : o.status === "rejected"
-                        ? t("已驳回", "Rejected")
-                        : o.status}
-                </Badge>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <span>
-                  {t("数量", "Qty")}: {o.quantity}
-                </span>
-                <span>
-                  {t("积分", "Pts")}: {o.points_used}
-                </span>
-                <span>{formatBeijingTime(o.created_at)}</span>
-              </div>
-              {o.status === "pending" && (
-                <div className="mt-2 flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-8 flex-1 text-xs"
-                    disabled={processingId === o.id}
-                    onClick={() => setConfirmRejectId(o.id)}
-                  >
-                    {t("驳回", "Reject")}
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-8 flex-1 text-xs"
-                    disabled={processingId === o.id}
-                    onClick={() => setConfirmCompleteId(o.id)}
-                  >
-                    {t("完成", "Complete")}
-                  </Button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+              </MobileCard>
+            ))}
+            <MobilePagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalItems={totalCount}
+              onPageChange={setCurrentPage}
+              pageSize={PAGE_SIZE}
+            />
+          </MobileCardList>
+        </>
       ) : (
-        <div className="rounded-lg border bg-card overflow-x-auto">
-          <Table className="min-w-[980px] text-xs">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-14">{t("图", "Img")}</TableHead>
-                <TableHead>{t("商品", "Item")}</TableHead>
-                <TableHead className="whitespace-nowrap min-w-[108px]">{t("电话号码", "Phone")}</TableHead>
-                <TableHead className="whitespace-nowrap">{t("会员编号", "Member code")}</TableHead>
-                <TableHead className="w-14">{t("数量", "Qty")}</TableHead>
-                <TableHead className="w-20">{t("积分", "Pts")}</TableHead>
-                <TableHead className="w-24">{t("状态", "Status")}</TableHead>
-                <TableHead className="min-w-[132px]">{t("时间", "Time")}</TableHead>
-                <TableHead className="min-w-[100px]">{t("经手人", "Handler")}</TableHead>
-                <TableHead className="w-[140px] text-right">{t("操作", "Actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((o) => (
-                <TableRow
-                  key={o.id}
-                  id={`mall-rdm-row-${o.id}`}
-                  className={cn(
-                    highlightRedemptionId === o.id && "bg-primary/5 ring-2 ring-inset ring-primary/60",
-                  )}
-                >
-                  <TableCell>
-                    {String(o.item_image_url || "").trim() ? (
-                      <ResolvableMediaThumb
-                        idKey={`mall-ord-t-${o.id}`}
-                        url={o.item_image_url}
-                        frameClassName="h-10 w-10 shrink-0 rounded-md"
-                        imgClassName="border object-cover"
-                      />
-                    ) : (
-                      <div className="grid h-10 w-10 place-items-center rounded-md border bg-muted/40 text-[10px] text-muted-foreground">
-                        —
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-medium max-w-[200px] truncate" title={o.item_title}>
-                    {o.item_title}
-                  </TableCell>
-                  <TableCell className="font-mono text-[11px] whitespace-nowrap">
-                    {displayStr(o.member_phone, "—")}
-                  </TableCell>
-                  <TableCell className="font-mono text-[11px] whitespace-nowrap">
-                    {displayStr(o.member_code, "—")}
-                  </TableCell>
-                  <TableCell>{o.quantity}</TableCell>
-                  <TableCell>{o.points_used}</TableCell>
-                  <TableCell>
-                    <Badge variant={o.status === "pending" ? "secondary" : "outline"} className="text-[10px]">
-                      {o.status === "pending"
-                        ? t("待处理", "Pending")
-                        : o.status === "completed"
-                          ? t("已完成", "Completed")
-                          : o.status === "rejected"
-                            ? t("已驳回", "Rejected")
-                            : o.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground whitespace-nowrap">
-                    {formatBeijingTime(o.created_at)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground whitespace-nowrap max-w-[140px] truncate" title={o.handler_name || ""}>
-                    {displayStr(o.handler_name, "—")}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {o.status === "pending" ? (
-                      <div className="flex justify-end gap-1 flex-wrap">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-[10px] px-2"
-                          disabled={processingId === o.id}
-                          onClick={() => setConfirmRejectId(o.id)}
-                        >
-                          {t("驳回", "Reject")}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="h-7 text-[10px] px-2"
-                          disabled={processingId === o.id}
-                          onClick={() => setConfirmCompleteId(o.id)}
-                        >
-                          {t("完成", "Complete")}
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <>
+          <div className="rounded-lg border bg-card overflow-hidden">
+            <StickyScrollTableContainer minWidth="980px">
+              <Table className="text-xs">
+                <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
+                  <TableRow className="bg-muted/50 hover:bg-transparent">
+                    <TableHead className="w-14 px-1.5">{t("图", "Img")}</TableHead>
+                    <TableHead className="px-1.5 min-w-[120px]">{t("商品", "Item")}</TableHead>
+                    <TableHead className="whitespace-nowrap min-w-[108px] px-1.5">{t("电话号码", "Phone")}</TableHead>
+                    <TableHead className="whitespace-nowrap px-1.5">{t("会员编号", "Member code")}</TableHead>
+                    <TableHead className="w-14 px-1.5 text-center">{t("数量", "Qty")}</TableHead>
+                    <TableHead className="w-20 px-1.5 text-center">{t("积分", "Pts")}</TableHead>
+                    <TableHead className="w-24 px-1.5">{t("状态", "Status")}</TableHead>
+                    <TableHead className="min-w-[132px] px-1.5">{t("时间", "Time")}</TableHead>
+                    <TableHead className="min-w-[100px] px-1.5">{t("经手人", "Handler")}</TableHead>
+                    <TableHead className="w-[140px] text-right px-1.5 sticky right-0 z-20 bg-muted shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.15)]">
+                      {t("操作", "Actions")}
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pageRows.map((o) => (
+                    <TableRow
+                      key={o.id}
+                      id={`mall-rdm-row-${o.id}`}
+                      className={cn(
+                        highlightRedemptionId === o.id && "bg-primary/5 ring-2 ring-inset ring-primary/60",
+                      )}
+                    >
+                      <TableCell className="px-1.5">
+                        {String(o.item_image_url || "").trim() ? (
+                          <ResolvableMediaThumb
+                            idKey={`mall-ord-t-${o.id}`}
+                            url={o.item_image_url}
+                            frameClassName="h-10 w-10 shrink-0 rounded-md"
+                            imgClassName="border object-cover"
+                          />
+                        ) : (
+                          <div className="grid h-10 w-10 place-items-center rounded-md border bg-muted/40 text-[10px] text-muted-foreground">
+                            —
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium max-w-[200px] truncate px-1.5" title={o.item_title}>
+                        {o.item_title}
+                      </TableCell>
+                      <TableCell className="font-mono text-[11px] whitespace-nowrap px-1.5">
+                        {displayStr(o.member_phone, "—")}
+                      </TableCell>
+                      <TableCell className="font-mono text-[11px] whitespace-nowrap px-1.5">
+                        {displayStr(o.member_code, "—")}
+                      </TableCell>
+                      <TableCell className="text-center px-1.5">{o.quantity}</TableCell>
+                      <TableCell className="text-center px-1.5">{o.points_used}</TableCell>
+                      <TableCell className="px-1.5">{statusBadge(o)}</TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap px-1.5">
+                        {formatBeijingTime(o.created_at)}
+                      </TableCell>
+                      <TableCell
+                        className="text-muted-foreground whitespace-nowrap max-w-[140px] truncate px-1.5"
+                        title={o.handler_name || ""}
+                      >
+                        {displayStr(o.handler_name, "—")}
+                      </TableCell>
+                      <TableCell className="text-right px-1.5 sticky right-0 z-10 bg-background shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.15)]">
+                        {o.status === "pending" ? (
+                          <div className="flex justify-end gap-1 flex-wrap">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-[10px] px-2"
+                              disabled={processingId === o.id}
+                              onClick={() => setConfirmRejectId(o.id)}
+                            >
+                              {t("驳回", "Reject")}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="h-7 text-[10px] px-2"
+                              disabled={processingId === o.id}
+                              onClick={() => setConfirmCompleteId(o.id)}
+                            >
+                              {t("完成", "Complete")}
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </StickyScrollTableContainer>
+          </div>
+          <OrderPagination
+            currentPage={safePage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+            jumpToPage={jumpToPage}
+            onJumpToPageChange={setJumpToPage}
+            onJumpToPage={handleJumpToPage}
+            t={t}
+          />
+        </>
       )}
 
       <AlertDialog open={!!confirmCompleteId} onOpenChange={(open) => !open && setConfirmCompleteId(null)}>

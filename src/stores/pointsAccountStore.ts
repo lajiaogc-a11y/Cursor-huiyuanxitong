@@ -3,10 +3,7 @@
 import { logOperation } from './auditLogStore';
 import { apiGet, apiPost, apiPatch } from '@/api/client';
 import { notifyDataMutation } from '@/services/system/dataRefreshManager';
-
-function _t(zh: string, en: string): string {
-  return (typeof localStorage !== 'undefined' && localStorage.getItem('appLanguage') === 'en') ? en : zh;
-}
+import { pickBilingual } from '@/lib/appLocale';
 
 export interface PointsAccount {
   member_code: string;
@@ -161,7 +158,7 @@ export async function redeemPoints(
         newCycleId: null,
         resetTime: null,
         error_code: "INSUFFICIENT_POINTS",
-        message: _t("当前积分不足", "Insufficient points"),
+        message: pickBilingual("当前积分不足", "Insufficient points"),
       };
     }
 
@@ -175,7 +172,7 @@ export async function redeemPoints(
         newCycleId: null,
         resetTime: null,
         error_code: "MEMBER_NOT_FOUND",
-        message: _t("未找到会员，无法更新积分账户", "Member not found"),
+        message: pickBilingual("未找到会员，无法更新积分账户", "Member not found"),
       };
     }
 
@@ -236,7 +233,7 @@ export async function redeemPoints(
       codeOut || member.id,
       { oldCycleId },
       account,
-      _t(`会员${codeOut || member.id}兑换积分${currentPoints}，积分清零，周期从${oldCycleId}更新为${newCycleId}`, `Member ${codeOut || member.id} redeemed ${currentPoints} points, points reset, cycle updated from ${oldCycleId} to ${newCycleId}`)
+      pickBilingual(`会员${codeOut || member.id}兑换积分${currentPoints}，积分清零，周期从${oldCycleId}更新为${newCycleId}`, `Member ${codeOut || member.id} redeemed ${currentPoints} points, points reset, cycle updated from ${oldCycleId} to ${newCycleId}`)
     );
 
     notifyDataMutation({ table: 'points_accounts', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
@@ -259,7 +256,7 @@ export async function redeemPoints(
       newCycleId: null,
       resetTime: null,
       error_code: "SYSTEM_ERROR",
-      message: _t("系统错误", "System error"),
+      message: pickBilingual("系统错误", "System error"),
     };
   }
 }

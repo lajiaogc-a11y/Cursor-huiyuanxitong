@@ -27,7 +27,7 @@ import { Search, RefreshCw, Filter, Upload, Download } from "lucide-react";
 import TableImportButton from "@/components/TableImportButton";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
 import { useExportConfirm } from "@/hooks/useExportConfirm";
-import { exportTableToCSV } from "@/services/dataExportImportService";
+import { exportTableToXLSX } from "@/services/dataExportImportService";
 import { toast } from "sonner";
 import { showServiceErrorToast } from "@/services/serviceErrorToast";
 import { TimeRangeType, DateRange, getTimeRangeDates, ALL_TIME_DATE_RANGE } from "@/lib/dateFilter";
@@ -42,6 +42,7 @@ import { useTenantView } from "@/contexts/TenantViewContext";
 import { getActiveEmployees, getEmployees, Employee } from "@/stores/employeeStore";
 import { useModulePermissions, useFieldPermissions } from "@/hooks/useFieldPermissions";
 import { isUserTyping, trackRender } from "@/lib/performanceUtils";
+import { cn } from "@/lib/utils";
 import { useAuditWorkflow } from "@/hooks/useAuditWorkflow";
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
 import {
@@ -254,6 +255,8 @@ export default function OrderManagement() {
   const [activeTab, setActiveTab] = useState("normal");
   const [mallOrdersRefreshNonce, setMallOrdersRefreshNonce] = useState(0);
   const [mallHighlightId, setMallHighlightId] = useState<string | null>(null);
+  /** 商城订单状态筛选（与列表 API / 客户端搜索配合） */
+  const [mallStatusFilter, setMallStatusFilter] = useState<"all" | "pending" | "completed" | "rejected">("all");
   const exportConfirm = useExportConfirm();
 
   // 检查当前用户是否为总管理员
@@ -1333,16 +1336,21 @@ export default function OrderManagement() {
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      exportConfirm.requestExport(() =>
-                        exportTableToCSV("orders", false, {
+                      exportConfirm.requestExport(async () => {
+                        const r = await exportTableToXLSX("orders", false, {
                           tenantId: effectiveTenantId ?? undefined,
                           useMyTenantRpc: !!(
                             effectiveTenantId &&
                             currentEmployee?.tenant_id &&
                             effectiveTenantId === currentEmployee.tenant_id
                           ),
-                        }),
-                      )
+                        });
+                        if (r.success) {
+                          toast.success(t("已导出 Excel（.xlsx）", "Exported as Excel (.xlsx)"));
+                        } else if (r.error) {
+                          toast.error(r.error);
+                        }
+                      })
                     }
                   >
                     <Download className="h-4 w-4 sm:mr-1" />
@@ -1376,12 +1384,29 @@ export default function OrderManagement() {
             <div className={isMobile ? "relative min-w-0 flex-1" : "relative"}>
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder={t("搜索订单...", "Search orders...")}
+                placeholder={
+                  activeTab === "mall"
+                    ? t("商品、手机、会员编号…", "Item, phone, member code…")
+                    : t("搜索订单...", "Search orders...")
+                }
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className={isMobile ? "w-full pl-9" : "w-64 pl-9"}
               />
             </div>
+            {activeTab === "mall" ? (
+              <Select value={mallStatusFilter} onValueChange={(v) => setMallStatusFilter(v as typeof mallStatusFilter)}>
+                <SelectTrigger className={cn(isMobile ? "h-9 w-full min-w-0" : "h-9 w-[132px] shrink-0", "text-xs")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("全部状态", "All statuses")}</SelectItem>
+                  <SelectItem value="pending">{t("待处理", "Pending")}</SelectItem>
+                  <SelectItem value="completed">{t("已完成", "Completed")}</SelectItem>
+                  <SelectItem value="rejected">{t("已驳回", "Rejected")}</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : null}
             <Button
               variant={showAdvancedFilter ? "secondary" : "outline"}
               size="sm"
@@ -1399,6 +1424,15 @@ export default function OrderManagement() {
           </div>
         </div>
       </FilterBar>
+
+      {activeTab === "mall" && showAdvancedFilter ? (
+        <p className="text-xs text-muted-foreground px-1">
+          {t(
+            "日期、币种、卡商等高级筛选仅适用于赛地/奈拉与 USDT 订单；商城订单请使用上方「状态」与搜索框。",
+            "Date, currency, and vendor filters apply only to NGN/GHS and USDT orders. For mall orders, use status and search above.",
+          )}
+        </p>
+      ) : null}
 
       <SectionCard
         title={
@@ -1529,9 +1563,11 @@ export default function OrderManagement() {
               <OrderMallRedemptionsSection
                 tenantId={effectiveTenantId}
                 searchTerm={searchTerm}
+                statusFilter={mallStatusFilter}
                 isActive={activeTab === "mall"}
                 isMobile={isMobile}
                 refreshNonce={mallOrdersRefreshNonce}
+                highlightRedemptionId={mallHighlightId}
                 t={t}
               />
             </TabsContent>

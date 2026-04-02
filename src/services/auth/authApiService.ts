@@ -5,10 +5,7 @@
 import { apiGet, apiPost } from '@/api/client';
 import { ApiError } from '@/lib/apiClient';
 import { setAuthToken, clearAuthToken, clearMemberAccessToken } from '@/api/client';
-
-function _t(zh: string, en: string): string {
-  return (typeof localStorage !== 'undefined' && localStorage.getItem('appLanguage') === 'en') ? en : zh;
-}
+import { pickBilingual } from '@/lib/appLocale';
 
 export interface AuthUser {
   id: string;
@@ -42,7 +39,7 @@ export async function loginApi(
     if (deviceId?.trim()) body.device_id = deviceId.trim();
     const res = await apiPost<LoginResponse>('/api/auth/login', body);
     if (!res.success || !res.token || !res.user) {
-      return { success: false, message: (res as { error?: string }).error || _t('登录失败', 'Login failed') };
+      return { success: false, message: (res as { error?: string }).error || pickBilingual('登录失败', 'Login failed') };
     }
     clearMemberAccessToken();
     setAuthToken(res.token);
@@ -53,9 +50,9 @@ export async function loginApi(
     }
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes('ECONNREFUSED') || msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-      return { success: false, message: _t('无法连接后端服务，请先启动：cd server && npm run dev', 'Cannot connect to backend service. Please start it: cd server && npm run dev') };
+      return { success: false, message: pickBilingual('无法连接后端服务，请先启动：cd server && npm run dev', 'Cannot connect to backend service. Please start it: cd server && npm run dev') };
     }
-    return { success: false, message: msg || _t('登录失败', 'Login failed') };
+    return { success: false, message: msg || pickBilingual('登录失败', 'Login failed') };
   }
 }
 

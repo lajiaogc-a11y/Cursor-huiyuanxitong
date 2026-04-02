@@ -3,10 +3,7 @@
  * 基于近30天历史订单数据，检测当前提交订单是否存在异常
  */
 import { apiGet } from '@/api/client';
-
-function _t(zh: string, en: string): string {
-  return (typeof localStorage !== 'undefined' && localStorage.getItem('appLanguage') === 'en') ? en : zh;
-}
+import { pickBilingual } from '@/lib/appLocale';
 
 export interface AnomalyWarning {
   type: 'profit_rate' | 'exchange_rate' | 'amount' | 'negative_profit';
@@ -122,7 +119,7 @@ export async function detectOrderAnomalies(params: {
     if (params.profitRate < 0) {
       warnings.push({
         type: 'negative_profit',
-        message: _t(`利润率为负数 (${params.profitRate.toFixed(2)}%)，此订单将产生亏损`, `Negative profit rate (${params.profitRate.toFixed(2)}%), this order will result in a loss`),
+        message: pickBilingual(`利润率为负数 (${params.profitRate.toFixed(2)}%)，此订单将产生亏损`, `Negative profit rate (${params.profitRate.toFixed(2)}%), this order will result in a loss`),
         severity: 'danger',
         currentValue: params.profitRate,
       });
@@ -130,7 +127,7 @@ export async function detectOrderAnomalies(params: {
     if (params.profitRate > 50) {
       warnings.push({
         type: 'profit_rate',
-        message: _t(`利润率异常偏高 (${params.profitRate.toFixed(2)}%)，请确认数值是否正确`, `Abnormally high profit rate (${params.profitRate.toFixed(2)}%), please verify the value`),
+        message: pickBilingual(`利润率异常偏高 (${params.profitRate.toFixed(2)}%)，请确认数值是否正确`, `Abnormally high profit rate (${params.profitRate.toFixed(2)}%), please verify the value`),
         severity: 'danger',
         currentValue: params.profitRate,
       });
@@ -142,7 +139,7 @@ export async function detectOrderAnomalies(params: {
   if (params.profitRate < 0) {
     warnings.push({
       type: 'negative_profit',
-      message: _t(
+      message: pickBilingual(
         `利润率为负数 (${params.profitRate.toFixed(2)}%)，此订单将产生亏损。历史平均利润率: ${stats.avgProfitRate.toFixed(2)}%`,
         `Negative profit rate (${params.profitRate.toFixed(2)}%), this order will result in a loss. Historical avg: ${stats.avgProfitRate.toFixed(2)}%`
       ),
@@ -153,7 +150,7 @@ export async function detectOrderAnomalies(params: {
   } else if (stats.stdProfitRate > 0 && Math.abs(params.profitRate - stats.avgProfitRate) > 3 * stats.stdProfitRate) {
     warnings.push({
       type: 'profit_rate',
-      message: _t(
+      message: pickBilingual(
         `利润率 (${params.profitRate.toFixed(2)}%) 偏离历史均值 (${stats.avgProfitRate.toFixed(2)}%) 超过3个标准差`,
         `Profit rate (${params.profitRate.toFixed(2)}%) deviates from historical avg (${stats.avgProfitRate.toFixed(2)}%) by more than 3 std deviations`
       ),
@@ -164,7 +161,7 @@ export async function detectOrderAnomalies(params: {
   } else if (params.profitRate > 50) {
     warnings.push({
       type: 'profit_rate',
-      message: _t(
+      message: pickBilingual(
         `利润率异常偏高 (${params.profitRate.toFixed(2)}%)，历史平均: ${stats.avgProfitRate.toFixed(2)}%`,
         `Abnormally high profit rate (${params.profitRate.toFixed(2)}%), historical avg: ${stats.avgProfitRate.toFixed(2)}%`
       ),
@@ -181,7 +178,7 @@ export async function detectOrderAnomalies(params: {
     if (rateDeviation > 0.15) { // 偏离超过15%
       warnings.push({
         type: 'exchange_rate',
-        message: _t(
+        message: pickBilingual(
           `${params.currency} 汇率 (${params.foreignRate.toFixed(2)}) 偏离近期均值 (${avgRate.toFixed(2)}) 超过15%`,
           `${params.currency} rate (${params.foreignRate.toFixed(2)}) deviates from recent avg (${avgRate.toFixed(2)}) by more than 15%`
         ),
@@ -198,7 +195,7 @@ export async function detectOrderAnomalies(params: {
     if (Math.abs(amountDeviation) > 4) { // 超过4个标准差
       warnings.push({
         type: 'amount',
-        message: _t(
+        message: pickBilingual(
           `订单金额 (¥${params.cardWorth.toFixed(0)}) 显著偏离历史均值 (¥${stats.avgCardWorth.toFixed(0)})`,
           `Order amount (¥${params.cardWorth.toFixed(0)}) significantly deviates from historical avg (¥${stats.avgCardWorth.toFixed(0)})`
         ),

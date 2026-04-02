@@ -29,10 +29,16 @@ import {
 import { CompanyManagement, NotFound, PlatformSettingsPage, PlatformTenantView } from "@/routes/lazyPages";
 import MemberPortalNotFound from "@/pages/member/MemberPortalNotFound";
 import { CrossPortalHardRedirect } from "@/components/CrossPortalHardRedirect";
+import { ScrollToTop } from "@/components/ScrollToTop";
+import { OfflineBanner } from "@/components/OfflineBanner";
+import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 const App = () => (
   <div className="app-root-shell">
   <Providers>
     <Sonner />
+    <ScrollToTop />
+    <OfflineBanner />
+    <PwaInstallPrompt />
     <UpdatePrompt />
     <SpaNavigationBridge />
     <SpaLayoutStability />

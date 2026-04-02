@@ -10,10 +10,7 @@
 
 import { apiPost } from '@/api/client';
 import JSZip from 'jszip';
-
-function _t(zh: string, en: string): string {
-  return (typeof localStorage !== 'undefined' && localStorage.getItem('appLanguage') === 'en') ? en : zh;
-}
+import { pickBilingual } from '@/lib/appLocale';
 import {
   TABLE_SCHEMAS,
   DATABASE_FUNCTIONS,
@@ -228,14 +225,14 @@ export async function exportFullDatabase(
     
     // 1. 导出 Schema
     if (includeSchema) {
-      onProgress?.({ phase: 'schema', current: 1, total: 1, message: _t('正在导出表结构...', 'Exporting table schema...') });
+      onProgress?.({ phase: 'schema', current: 1, total: 1, message: pickBilingual('正在导出表结构...', 'Exporting table schema...') });
       const schemaSQL = generateFullSchemaSQL();
       zip.file('01_schema.sql', schemaSQL);
     }
     
     // 2. 导出 Functions
     if (includeFunctions) {
-      onProgress?.({ phase: 'functions', current: 1, total: 1, message: _t('正在导出数据库函数...', 'Exporting database functions...') });
+      onProgress?.({ phase: 'functions', current: 1, total: 1, message: pickBilingual('正在导出数据库函数...', 'Exporting database functions...') });
       zip.file('02_functions.sql', DATABASE_FUNCTIONS);
     }
     
@@ -264,7 +261,7 @@ export async function exportFullDatabase(
           currentTable: tableName,
           current: i + 1,
           total: tablesToExport.length,
-          message: _t(`正在导出表 ${tableName}...`, `Exporting table ${tableName}...`),
+          message: pickBilingual(`正在导出表 ${tableName}...`, `Exporting table ${tableName}...`),
         });
         
         try {
@@ -316,7 +313,7 @@ export async function exportFullDatabase(
     }
     
     // 6. 添加校验报告
-    onProgress?.({ phase: 'verification', current: 1, total: 1, message: _t('正在生成校验报告...', 'Generating verification report...') });
+    onProgress?.({ phase: 'verification', current: 1, total: 1, message: pickBilingual('正在生成校验报告...', 'Generating verification report...') });
     zip.file('VERIFICATION_REPORT.json', JSON.stringify(verificationReport, null, 2));
     
     // 7. 添加导入指南
@@ -331,7 +328,7 @@ export async function exportFullDatabase(
     zip.file('config.json', JSON.stringify(config, null, 2));
     
     // 9. 打包并下载
-    onProgress?.({ phase: 'packaging', current: 1, total: 1, message: _t('正在打包文件...', 'Packaging files...') });
+    onProgress?.({ phase: 'packaging', current: 1, total: 1, message: pickBilingual('正在打包文件...', 'Packaging files...') });
     
     const blob = await zip.generateAsync({ type: 'blob' });
     const filename = `database_migration_${timestamp}.zip`;
@@ -348,7 +345,7 @@ export async function exportFullDatabase(
     return { success: true, filename, verificationReport };
   } catch (error) {
     console.error('Migration export error:', error);
-    return { success: false, error: error instanceof Error ? error.message : _t('导出失败', 'Export failed') };
+    return { success: false, error: error instanceof Error ? error.message : pickBilingual('导出失败', 'Export failed') };
   }
 }
 

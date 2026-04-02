@@ -40,7 +40,7 @@ import {
   downloadImportTemplate,
   type TableConfig,
 } from '@/services/dataExportImportService';
-import { parseCSV } from '@/services/export/utils';
+import { parseCSV, readCsvFileAsUtf8Text } from '@/services/export/utils';
 
 interface TableImportButtonProps {
   tableName: string;
@@ -125,19 +125,21 @@ export default function TableImportButton({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
-      const { headers, rows } = parseCSV(content);
-      if (headers.length === 0) {
-        toast.error(t('文件为空', 'File is empty'));
-        return;
+    void (async () => {
+      try {
+        const content = await readCsvFileAsUtf8Text(file);
+        const { headers, rows } = parseCSV(content);
+        if (headers.length === 0) {
+          toast.error(t('文件为空', 'File is empty'));
+          return;
+        }
+        const validation = validateImportData(tableName, headers, isEnglish);
+        setImportPreview({ headers, rowCount: rows.length, validation });
+        setShowImportDialog(true);
+      } catch {
+        toast.error(t('无法读取 CSV，请使用 UTF-8 编码', 'Could not read CSV; use UTF-8 encoding'));
       }
-      const validation = validateImportData(tableName, headers, isEnglish);
-      setImportPreview({ headers, rowCount: rows.length, validation });
-      setShowImportDialog(true);
-    };
-    reader.readAsText(file);
+    })();
 
     event.target.value = '';
   };
@@ -174,7 +176,7 @@ export default function TableImportButton({
             )
           : await importTableFromCSV(
               tableName,
-              await importFile.text(),
+              await readCsvFileAsUtf8Text(importFile),
               isEnglish,
               importMode,
               employee?.id ?? null,
@@ -209,7 +211,7 @@ export default function TableImportButton({
   };
 
   const handleDownloadTemplate = async () => {
-    const result = await downloadImportTemplate(tableName, isEnglish, 'csv');
+    const result = await downloadImportTemplate(tableName, isEnglish, "xlsx");
     if (result.success) {
       toast.success(t('模板下载成功', 'Template downloaded'));
     } else if (result.error) {
@@ -310,8 +312,8 @@ export default function TableImportButton({
                     {importPreview.validation.usedHeuristic && (
                       <p className="text-xs text-amber-700 dark:text-amber-400">
                         {t(
-                          '未识别到标准表头，已按列顺序猜测字段；建议点击「下载模板」或导出为 UTF-8 CSV 后重试。',
-                          'Headers were not recognized; columns were guessed by position. Prefer “Download template” or UTF-8 CSV.',
+                          '未识别到标准表头，已按列顺序猜测字段；建议点击「下载模板」（Excel）或使用 UTF-8 CSV 后重试。',
+                          'Headers were not recognized; columns were guessed by position. Prefer “Download template” (Excel) or UTF-8 CSV.',
                         )}
                       </p>
                     )}

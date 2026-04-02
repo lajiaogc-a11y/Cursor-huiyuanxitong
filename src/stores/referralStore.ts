@@ -3,15 +3,12 @@
 
 import { apiGet, apiPost, apiDelete } from '@/api/client';
 import { logOperation } from './auditLogStore';
+import { pickBilingual } from '@/lib/appLocale';
 
 function unwrapSingle<T>(data: unknown): T | null {
   if (data == null) return null;
   if (Array.isArray(data)) return (data[0] as T) ?? null;
   return data as T;
-}
-
-function _t(zh: string, en: string): string {
-  return (typeof localStorage !== 'undefined' && localStorage.getItem('appLanguage') === 'en') ? en : zh;
 }
 
 // ============= Types =============
@@ -57,7 +54,7 @@ export async function initializeReferralCache(): Promise<void> {
       refereePhone: r.referee_phone,
       refereeMemberCode: r.referee_member_code,
       createdAt: r.created_at,
-      source: r.source || _t('转介绍', 'Referral'),
+      source: r.source || pickBilingual('转介绍', 'Referral'),
     }));
     
     cacheInitialized = true;
@@ -81,7 +78,7 @@ async function refreshCache(): Promise<void> {
       refereePhone: r.referee_phone,
       refereeMemberCode: r.referee_member_code,
       createdAt: r.created_at,
-      source: r.source || _t('转介绍', 'Referral'),
+      source: r.source || pickBilingual('转介绍', 'Referral'),
     }));
   } catch (error) {
     console.error('[ReferralStore] Failed to refresh cache:', error);
@@ -114,7 +111,7 @@ export async function submitReferral(
       return {
         success: false,
         error_code: 'REFEREE_ALREADY_MEMBER',
-        message: _t('该电话号码已是会员，无法被推荐', 'This phone number is already a member and cannot be referred'),
+        message: pickBilingual('该电话号码已是会员，无法被推荐', 'This phone number is already a member and cannot be referred'),
       };
     }
     
@@ -127,7 +124,7 @@ export async function submitReferral(
       return {
         success: false,
         error_code: 'REFERRER_NOT_FOUND',
-        message: _t('介绍人不存在', 'Referrer not found'),
+        message: pickBilingual('介绍人不存在', 'Referrer not found'),
       };
     }
     
@@ -140,7 +137,7 @@ export async function submitReferral(
       return {
         success: false,
         error_code: 'ALREADY_REFERRED',
-        message: _t('该电话号码已被其他人推荐', 'This phone number has already been referred by someone else'),
+        message: pickBilingual('该电话号码已被其他人推荐', 'This phone number has already been referred by someone else'),
       };
     }
     
@@ -153,7 +150,7 @@ export async function submitReferral(
       return {
         success: false,
         error_code: 'CIRCULAR_REFERRAL',
-        message: _t('不允许循环推荐：该用户已经是您的介绍人', 'Circular referral not allowed: this user is already your referrer'),
+        message: pickBilingual('不允许循环推荐：该用户已经是您的介绍人', 'Circular referral not allowed: this user is already your referrer'),
       };
     }
     
@@ -162,7 +159,7 @@ export async function submitReferral(
       return {
         success: false,
         error_code: 'NO_CREATOR',
-        message: _t('无法确定操作员身份，请重新登录后重试', 'Cannot determine operator identity, please re-login and try again'),
+        message: pickBilingual('无法确定操作员身份，请重新登录后重试', 'Cannot determine operator identity, please re-login and try again'),
       };
     }
     const newMemberCode = `M${Date.now().toString().slice(-8)}`;
@@ -184,7 +181,7 @@ export async function submitReferral(
       referrer_member_code: referrer.member_code,
       referee_phone: refereePhone,
       referee_member_code: newMemberCode,
-      source: _t('转介绍', 'Referral'),
+      source: pickBilingual('转介绍', 'Referral'),
     };
     if (referrer.id) insertData.referrer_id = referrer.id;
     if (newMember.id) insertData.referee_id = newMember.id;
@@ -203,7 +200,7 @@ export async function submitReferral(
       refereePhone,
       refereeMemberCode: newMemberCode,
       createdAt: String(newRelation.created_at ?? ''),
-      source: _t('转介绍', 'Referral'),
+      source: pickBilingual('转介绍', 'Referral'),
     };
     
     logOperation(
@@ -212,7 +209,7 @@ export async function submitReferral(
       relation.id,
       null,
       { relation, member: newMember },
-      _t(`介绍人 ${referrerPhone} 推荐新会员 ${refereePhone}`, `Referrer ${referrerPhone} referred new member ${refereePhone}`)
+      pickBilingual(`介绍人 ${referrerPhone} 推荐新会员 ${refereePhone}`, `Referrer ${referrerPhone} referred new member ${refereePhone}`)
     );
 
     void import('@/services/system/dataRefreshManager').then(({ notifyDataMutation, broadcastMembersListStale }) => {
@@ -222,7 +219,7 @@ export async function submitReferral(
     
     return {
       success: true,
-      message: _t('推荐关系提交成功', 'Referral submitted successfully'),
+      message: pickBilingual('推荐关系提交成功', 'Referral submitted successfully'),
       data: {
         relation,
         newMember,
@@ -233,7 +230,7 @@ export async function submitReferral(
     return {
       success: false,
       error_code: 'SYSTEM_ERROR',
-      message: _t('系统错误，请稍后重试', 'System error, please try again later'),
+      message: pickBilingual('系统错误，请稍后重试', 'System error, please try again later'),
     };
   }
 }
@@ -284,7 +281,7 @@ export async function removeReferralByReferee(refereePhone: string): Promise<boo
       relation.id,
       relation,
       null,
-      _t(`删除推荐关系：${refereePhone}`, `Delete referral: ${refereePhone}`)
+      pickBilingual(`删除推荐关系：${refereePhone}`, `Delete referral: ${refereePhone}`)
     );
     
     return true;

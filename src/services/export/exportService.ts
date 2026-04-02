@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 import { apiGet } from '@/api/client';
 import { getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getMyTenantMembersFull, getTenantOrdersFull, getTenantUsdtOrdersFull, getTenantMembersFull } from '@/services/tenantService';
 import { EXPORTABLE_TABLES } from './tableConfig';
-import { escapeCSVField, formatDateForFilename } from './utils';
+import { createUtf8CsvBlob, escapeCSVField, formatDateForFilename } from './utils';
 import { formatBeijingTime } from '@/lib/beijingTime';
 import type { ExportFormat } from './types';
 import { listEmployeesApi } from '@/api/employees';
@@ -225,9 +225,10 @@ export async function exportTable(
       );
 
       const BOM = '\uFEFF';
-      const csvContent = BOM + [csvHeaders.join(','), ...rows.map(row => row.join(','))].join('\n');
+      const lines = [csvHeaders.join(','), ...rows.map((row) => row.join(','))];
+      const csvContent = BOM + lines.join('\r\n');
 
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = createUtf8CsvBlob(csvContent);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       const filename = `${displayName}_${formatDateForFilename()}.csv`;
@@ -285,7 +286,7 @@ export async function exportAllTables(
         );
 
         const BOM = '\uFEFF';
-        const csvContent = BOM + [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+        const csvContent = BOM + [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n');
 
         const displayName = isEnglish ? tableConfig.displayNameEn : tableConfig.displayName;
         csvFiles.push({
@@ -300,7 +301,7 @@ export async function exportAllTables(
     }
 
     if (csvFiles.length === 1) {
-      const blob = new Blob([csvFiles[0].content], { type: 'text/csv;charset=utf-8;' });
+      const blob = createUtf8CsvBlob(csvFiles[0].content);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -311,7 +312,7 @@ export async function exportAllTables(
       URL.revokeObjectURL(url);
     } else {
       for (const file of csvFiles) {
-        const blob = new Blob([file.content], { type: 'text/csv;charset=utf-8;' });
+        const blob = createUtf8CsvBlob(file.content);
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;

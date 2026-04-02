@@ -8,7 +8,6 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-// TODO: unused - verify before delete (no importers in repo; ts-prune)
 export function PwaInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
@@ -35,8 +34,13 @@ export function PwaInstallPrompt() {
 
   return (
     <div className="fixed bottom-[calc(1rem+4rem+env(safe-area-inset-bottom,0px))] sm:bottom-4 right-4 z-50 bg-card border border-border rounded-lg shadow-lg p-4 max-w-xs animate-in slide-in-from-bottom-4">
-      <button onClick={() => setDismissed(true)} className="absolute top-2 right-2 text-muted-foreground hover:text-foreground">
-        <X className="h-4 w-4" />
+      <button
+        type="button"
+        onClick={() => setDismissed(true)}
+        className="absolute top-2 right-2 text-muted-foreground hover:text-foreground rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={t("关闭", "Close")}
+      >
+        <X className="h-4 w-4" aria-hidden />
       </button>
       <div className="flex items-start gap-3 pr-4">
         <Download className="h-5 w-5 text-primary mt-0.5 shrink-0" />

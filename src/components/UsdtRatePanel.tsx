@@ -11,6 +11,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { loadSharedData, saveSharedData } from '@/services/finance/sharedDataService';
 import { fetchUsdtRatesViaApi } from '@/services/finance/marketRatesService';
 import { formatBeijingTimeOnly } from '@/lib/beijingTime';
+import { pickBilingual } from '@/lib/appLocale';
 
 // Types
 export interface UsdtLiveRates {
@@ -66,7 +67,7 @@ const DEFAULT_RATES: UsdtLiveRates = {
 // ============================================================================
 
 function _tGlobal(zh: string, en: string): string {
-  return (localStorage.getItem('appLanguage') === 'en') ? en : zh;
+  return pickBilingual(zh, en);
 }
 
 let _rates: UsdtLiveRates = { ...DEFAULT_RATES };

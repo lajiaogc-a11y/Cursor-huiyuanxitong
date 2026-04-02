@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -499,6 +500,8 @@ const TABS = [
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
+const MEMBER_PORTAL_TAB_KEY_SET = new Set<string>(TABS.map((x) => x.key));
+
 // ─── 分区标题组件 ──────────────────────────────────────────────────────────────
 function SectionTitle({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
@@ -569,6 +572,8 @@ function SwitchRow({
 // ─── 主页面 ───────────────────────────────────────────────────────────────────
 export default function MemberPortalSettingsPage() {
   const { t, language } = useLanguage();
+  const navigate = useNavigate();
+  const { tabKey: tabKeyParam } = useParams<{ tabKey: string }>();
   const { employee } = useAuth();
   const { viewingTenantId } = useTenantView() || {};
   const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
@@ -579,6 +584,23 @@ export default function MemberPortalSettingsPage() {
   const canEdit           = canSubmitApproval;
 
   const [activeTab, setActiveTab]       = useState<TabKey>("login");
+
+  const goToPortalTab = useCallback(
+    (key: TabKey) => {
+      setActiveTab(key);
+      navigate(`/staff/member-portal/${key}`, { replace: true });
+    },
+    [navigate],
+  );
+
+  useEffect(() => {
+    if (!tabKeyParam) return;
+    if (!MEMBER_PORTAL_TAB_KEY_SET.has(tabKeyParam)) {
+      navigate("/staff/member-portal/login", { replace: true });
+      return;
+    }
+    setActiveTab(tabKeyParam as TabKey);
+  }, [tabKeyParam, navigate]);
   const [settings, setSettings]         = useState<MemberPortalSettings>(DEFAULT_SETTINGS);
   const [badgesText, setBadgesText]     = useState(DEFAULT_SETTINGS.login_badges.join("\n"));
   const [banners, setBanners]           = useState<BannerItem[]>([]);
@@ -1662,7 +1684,7 @@ export default function MemberPortalSettingsPage() {
           {TABS.map(({ key, label, labelEn, icon: Icon }) => (
             <button
               key={key}
-              onClick={() => setActiveTab(key)}
+              onClick={() => goToPortalTab(key)}
               className={cn(
                 "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
                 activeTab === key

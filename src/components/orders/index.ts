@@ -6,4 +6,4 @@ export { OrderEditDialog } from "./OrderEditDialog";
 export { OrderUsdtEditDialog } from "./OrderUsdtEditDialog";
 export { OrderTable } from "./OrderTable";
 export { OrderUsdtTable } from "./OrderUsdtTable";
-export { OrderMallRedemptionsSection } from "./OrderMallRedemptionsSection";
+export { OrderMallRedemptionsSection, type MallOrderStatusFilter } from "./OrderMallRedemptionsSection";

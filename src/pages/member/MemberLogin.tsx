@@ -192,6 +192,8 @@ type BannerLayer =
 /** 自定义轮播图 404 / 跨域失败时回退（避免 handleImgError 把 img 隐藏成「纯黑块」） */
 const LOGIN_CAROUSEL_IMAGE_FALLBACK =
   "linear-gradient(155deg, hsl(219 40% 12%) 0%, hsl(216 50% 8%) 55%, hsl(219 35% 16%) 100%)";
+const LOGIN_CAROUSEL_IMAGE_FALLBACK_LIGHT =
+  "linear-gradient(155deg, hsl(214 52% 98%) 0%, hsl(214 48% 96%) 55%, hsl(214 42% 93%) 100%)";
 
 /** premium-ui-boost LoginPage 输入框底纹 */
 const puInputShell: React.CSSProperties = {
@@ -377,13 +379,18 @@ export default function MemberLogin() {
       .filter((x): x is NonNullable<typeof x> => x != null);
     if (custom.length > 0) return custom;
 
+    const light = theme === "light";
     const builtin: LoginHeroSlide[] = [
       {
         kind: "builtin",
         id: "trust",
         icon: ShieldCheck,
-        bg: "linear-gradient(155deg, hsl(219 40% 12%) 0%, hsl(216 50% 8%) 55%, hsl(219 35% 14%) 100%)",
-        glow: "radial-gradient(ellipse 80% 60% at 70% 20%, hsl(var(--pu-gold) / 0.12) 0%, transparent 55%)",
+        bg: light
+          ? "linear-gradient(155deg, hsl(214 54% 99%) 0%, hsl(214 50% 97%) 55%, hsl(214 45% 94%) 100%)"
+          : "linear-gradient(155deg, hsl(219 40% 12%) 0%, hsl(216 50% 8%) 55%, hsl(219 35% 14%) 100%)",
+        glow: light
+          ? "radial-gradient(ellipse 80% 60% at 70% 20%, hsl(var(--pu-gold) / 0.22) 0%, transparent 55%)"
+          : "radial-gradient(ellipse 80% 60% at 70% 20%, hsl(var(--pu-gold) / 0.12) 0%, transparent 55%)",
         title: t("VIP 信赖之选", "Trusted by VIP members"),
         body: t("安全、快速、可靠的会员访问体验。", "Secure, fast, and reliable access."),
       },
@@ -391,8 +398,12 @@ export default function MemberLogin() {
         kind: "builtin",
         id: "earn",
         icon: Star,
-        bg: "linear-gradient(165deg, hsl(219 38% 11%) 0%, hsl(216 50% 7%) 100%)",
-        glow: "radial-gradient(circle at 20% 80%, hsl(var(--pu-gold) / 0.1) 0%, transparent 50%)",
+        bg: light
+          ? "linear-gradient(165deg, hsl(214 52% 98%) 0%, hsl(214 48% 96%) 100%)"
+          : "linear-gradient(165deg, hsl(219 38% 11%) 0%, hsl(216 50% 7%) 100%)",
+        glow: light
+          ? "radial-gradient(circle at 20% 80%, hsl(var(--pu-gold) / 0.18) 0%, transparent 50%)"
+          : "radial-gradient(circle at 20% 80%, hsl(var(--pu-gold) / 0.1) 0%, transparent 50%)",
         title: t("转·赚·兑", "Spin. Earn. Redeem."),
         body: t("把活跃变成积分与礼遇。", "Turn your activity into rewards."),
       },
@@ -400,8 +411,12 @@ export default function MemberLogin() {
         kind: "builtin",
         id: "mall",
         icon: Gift,
-        bg: "linear-gradient(168deg, hsl(218 35% 10%) 0%, hsl(219 40% 13%) 100%)",
-        glow: "radial-gradient(ellipse 70% 50% at 50% 0%, hsl(var(--pu-gold) / 0.08) 0%, transparent 60%)",
+        bg: light
+          ? "linear-gradient(168deg, hsl(214 50% 99%) 0%, hsl(214 46% 96%) 100%)"
+          : "linear-gradient(168deg, hsl(218 35% 10%) 0%, hsl(219 40% 13%) 100%)",
+        glow: light
+          ? "radial-gradient(ellipse 70% 50% at 50% 0%, hsl(var(--pu-gold) / 0.16) 0%, transparent 60%)"
+          : "radial-gradient(ellipse 70% 50% at 50% 0%, hsl(var(--pu-gold) / 0.08) 0%, transparent 60%)",
         title: t("解锁尊享礼遇", "Unlock premium rewards"),
         body: t("积分兑换精选礼品与专属权益。", "Redeem points for exclusive gifts."),
       },
@@ -409,16 +424,25 @@ export default function MemberLogin() {
         kind: "builtin",
         id: "invite",
         icon: Users,
-        bg: "linear-gradient(155deg, hsl(216 50% 7%) 0%, hsl(219 36% 12%) 100%)",
-        glow: "radial-gradient(circle at 85% 60%, hsl(252 100% 68% / 0.08) 0%, transparent 45%)",
+        bg: light
+          ? "linear-gradient(155deg, hsl(214 48% 98%) 0%, hsl(252 38% 96%) 100%)"
+          : "linear-gradient(155deg, hsl(216 50% 7%) 0%, hsl(219 36% 12%) 100%)",
+        glow: light
+          ? "radial-gradient(circle at 85% 60%, hsl(252 80% 58% / 0.12) 0%, transparent 45%)"
+          : "radial-gradient(circle at 85% 60%, hsl(252 100% 68% / 0.08) 0%, transparent 45%)",
         title: t("邀请好友，共享收益", "Invite friends and earn more"),
         body: t("一起成长，点亮更多奖励。", "Grow your rewards together."),
       },
     ];
     return builtin;
-  }, [displaySettings.login_carousel_slides, t]);
+  }, [displaySettings.login_carousel_slides, t, theme]);
 
   const bannerLayers = useMemo((): BannerLayer[] => {
+    const imgFallback = theme === "light" ? LOGIN_CAROUSEL_IMAGE_FALLBACK_LIGHT : LOGIN_CAROUSEL_IMAGE_FALLBACK;
+    const imgFallbackGlow =
+      theme === "light"
+        ? "radial-gradient(ellipse 80% 55% at 70% 25%, hsl(var(--pu-gold) / 0.2) 0%, transparent 55%)"
+        : "radial-gradient(ellipse 80% 55% at 70% 25%, hsl(var(--pu-gold) / 0.14) 0%, transparent 55%)";
     return slides.map((s) => {
       if (s.kind === "custom") {
         const src = (s.image_url || "").trim() ? resolveMemberMediaUrl(s.image_url) : "";
@@ -426,14 +450,23 @@ export default function MemberLogin() {
         return {
           kind: "gradient",
           id: s.id,
-          background: LOGIN_CAROUSEL_IMAGE_FALLBACK,
-          glow:
-            "radial-gradient(ellipse 80% 55% at 70% 25%, hsl(var(--pu-gold) / 0.14) 0%, transparent 55%)",
+          background: imgFallback,
+          glow: imgFallbackGlow,
         };
       }
       return { kind: "gradient", id: s.id, background: s.bg, glow: s.glow };
     });
-  }, [slides]);
+  }, [slides, theme]);
+
+  const loginBannerBottomScrimStyle = useMemo(
+    () => ({
+      background:
+        theme === "light"
+          ? "linear-gradient(to top, hsl(214 50% 97% / 0.94) 0%, hsl(214 54% 98% / 0.48) 45%, transparent 100%)"
+          : "linear-gradient(to top, hsl(216 50% 5% / 0.92) 0%, hsl(216 50% 8% / 0.45) 45%, transparent 100%)",
+    }),
+    [theme],
+  );
 
   const loginCarouselSig = useMemo(
     () => JSON.stringify(displaySettings.login_carousel_slides ?? []),
@@ -714,9 +747,7 @@ export default function MemberLogin() {
                         "absolute inset-x-0 bottom-0 px-4 pt-14",
                         bannerLayers.length > 1 ? "pb-14" : "pb-10",
                       )}
-                      style={{
-                        background: "linear-gradient(to top, hsl(216 50% 5% / 0.92) 0%, hsl(216 50% 8% / 0.45) 45%, transparent 100%)",
-                      }}
+                      style={loginBannerBottomScrimStyle}
                     >
                       {showBuiltin && IconComp ? (
                         <>
@@ -756,8 +787,8 @@ export default function MemberLogin() {
                         "member-login-carousel-dot shrink-0 rounded-full transition-all duration-300 ease-out motion-reduce:transition-none",
                         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(var(--pu-gold)/0.6)]",
                         i === bannerIdx
-                          ? "h-2 w-[22px] bg-[#1a2d4a] shadow-sm ring-1 ring-black/10 dark:bg-[#1e3a5c]"
-                          : "h-2 w-2 bg-white/35 hover:bg-white/50 dark:bg-white/30",
+                          ? "h-2 w-[22px] bg-slate-500/85 shadow-sm ring-1 ring-slate-600/20 dark:bg-[#1e3a5c] dark:ring-black/10"
+                          : "h-2 w-2 bg-slate-900/25 hover:bg-slate-900/38 dark:bg-white/30 dark:hover:bg-white/50",
                       )}
                       aria-label={`${t("幻灯", "Slide")} ${i + 1}`}
                     />

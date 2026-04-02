@@ -26,7 +26,6 @@ import { safeNumber, safeToFixed } from "@/lib/safeCalc";
 import { trackRender } from "@/lib/performanceUtils";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, CartesianGrid, BarChart, Bar, Area, AreaChart } from "recharts";
-import { printContent } from "@/lib/printUtils";
 import { DashboardSummary } from "@/components/DashboardSummary";
 import { DashboardQuickStartCard } from "@/components/DashboardQuickStartCard";
 import { toast } from "sonner";

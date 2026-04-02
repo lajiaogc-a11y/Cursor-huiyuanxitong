@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { WifiOff } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-// TODO: unused - verify before delete (no importers in repo; ts-prune)
 export function OfflineBanner() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const { t } = useLanguage();

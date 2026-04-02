@@ -30,7 +30,7 @@ import { Search, RefreshCw, Gift, List, Users, Activity, Download, Edit, Trash2,
 import TableImportButton from "@/components/TableImportButton";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
 import { useExportConfirm } from "@/hooks/useExportConfirm";
-import { exportTableToCSV } from "@/services/dataExportImportService";
+import { exportTableToXLSX } from "@/services/dataExportImportService";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -753,7 +753,13 @@ const [editFormData, setEditFormData] = useState({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => exportConfirm.requestExport(() => exportTableToCSV('members', false))}
+                      onClick={() =>
+                        exportConfirm.requestExport(async () => {
+                          const r = await exportTableToXLSX("members", false);
+                          if (r.success) toast.success(t("已导出 Excel（.xlsx）", "Exported as Excel (.xlsx)"));
+                          else if (r.error) toast.error(r.error);
+                        })
+                      }
                     >
                       <Download className="h-4 w-4" />
                       {!isMobile && <span className="ml-1">{t("导出", "Export")}</span>}

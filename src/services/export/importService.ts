@@ -6,7 +6,7 @@ import { apiPost } from '@/api/client';
 import { fetchTableCountExact } from '@/lib/tableProxyCount';
 import * as XLSX from 'xlsx';
 import { EXPORTABLE_TABLES } from './tableConfig';
-import { parseCSV, escapeCSVField } from './utils';
+import { parseCSV, escapeCSVField, createUtf8CsvBlob } from './utils';
 import { validateImportData } from './validation';
 import { batchImportMembers } from './memberImportService';
 import { batchImportOrders } from './orderImportService';
@@ -477,7 +477,7 @@ export async function downloadImportTemplate(
       const csvHeaders = headers.map(h => escapeCSVField(h));
       const BOM = '\uFEFF';
       const csvContent = BOM + csvHeaders.join(',');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = createUtf8CsvBlob(csvContent);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;

@@ -1,6 +1,6 @@
 /**
  * 数据导入导出组件
- * 支持表级别的 CSV 导入导出和全平台数据备份
+ * 支持表级别 Excel 导出、CSV 导入及全平台数据备份
  * 支持完整数据库迁移导出（SQL/JSON 格式）
  */
 
@@ -66,7 +66,7 @@ import { useTenantView } from '@/contexts/TenantViewContext';
 import { useFieldPermissions } from '@/hooks/useFieldPermissions';
 import {
   EXPORTABLE_TABLES,
-  exportTableToCSV,
+  exportTableToXLSX,
   importTableFromCSVWithProgress,
   validateImportData,
   getTableRecordCount,
@@ -85,6 +85,7 @@ import {
 } from '@/services/databaseDumpMysqlService';
 import { ExportConfirmDialog } from '@/components/ExportConfirmDialog';
 import { useExportConfirm } from '@/hooks/useExportConfirm';
+import { parseCSV, readCsvFileAsUtf8Text } from '@/services/export/utils';
 
 interface TableStats {
   tableName: string;
@@ -201,7 +202,7 @@ export default function DataExportImportTab() {
   // 导出单个表
   const handleExportTable = async (tableName: string) => {
     setExportingTable(tableName);
-    const result = await exportTableToCSV(tableName, isEnglish);
+    const result = await exportTableToXLSX(tableName, isEnglish);
     setExportingTable(null);
     
     if (result.success) {
@@ -236,7 +237,7 @@ export default function DataExportImportTab() {
         tableName: isEnglish ? table.displayNameEn : table.displayName 
       });
       
-      const result = await exportTableToCSV(table.tableName, isEnglish);
+      const result = await exportTableToXLSX(table.tableName, isEnglish);
       if (result.success) {
         successCount++;
       } else {
@@ -250,10 +251,12 @@ export default function DataExportImportTab() {
     setIsExportingAll(false);
     setExportAllProgress({ current: 0, total: 0, tableName: '' });
     
-    toast.success(t(
-      `全平台导出完成: 成功 ${successCount} 个表，失败 ${errorCount} 个`,
-      `Full export completed: ${successCount} succeeded, ${errorCount} failed`
-    ));
+    toast.success(
+      t(
+        `全平台导出完成（Excel）: 成功 ${successCount} 个表，失败 ${errorCount} 个`,
+        `Excel export finished: ${successCount} succeeded, ${errorCount} failed`,
+      ),
+    );
   };
 
   // 处理文件选择
@@ -267,30 +270,20 @@ export default function DataExportImportTab() {
     }
     
     setImportFile(file);
-    
-    // 读取文件内容进行预览和验证
-    const content = await file.text();
-    const lines = content.split(/\r?\n/).filter(line => line.trim());
-    
-    if (lines.length === 0) {
+
+    const content = await readCsvFileAsUtf8Text(file);
+    const { headers, rows } = parseCSV(content);
+
+    if (headers.length === 0) {
       toast.error(t('文件为空', 'File is empty'));
       return;
     }
-    
-    // 移除 BOM
-    let headerLine = lines[0];
-    if (headerLine.charCodeAt(0) === 0xFEFF) {
-      headerLine = headerLine.substring(1);
-    }
-    
-    const headers = headerLine.split(',').map(h => h.replace(/^"|"$/g, '').trim());
-    
-    // 如果已选择表，进行验证
+
     if (importTable) {
       const validation = validateImportData(importTable, headers, isEnglish);
-      setImportPreview({ headers, rowCount: lines.length - 1, validation });
+      setImportPreview({ headers, rowCount: rows.length, validation });
     } else {
-      setImportPreview({ headers, rowCount: lines.length - 1, validation: null });
+      setImportPreview({ headers, rowCount: rows.length, validation: null });
     }
     
     setShowImportDialog(true);
@@ -333,8 +326,8 @@ export default function DataExportImportTab() {
         return;
       }
 
-      const content = await importFile.text();
-      
+      const content = await readCsvFileAsUtf8Text(importFile);
+
       // 使用带进度回调的导入函数
       const result = await importTableFromCSVWithProgress(
         importTable, 
@@ -543,7 +536,7 @@ export default function DataExportImportTab() {
               <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
               <div className="flex-1">
                 <p className="font-medium text-blue-900">
-                  {t('正在导出全平台数据...', 'Exporting all platform data...')}
+                  {t('正在导出全平台 Excel…', 'Exporting all tables as Excel…')}
                 </p>
                 <p className="text-sm text-blue-700">
                   {t(
@@ -610,8 +603,8 @@ export default function DataExportImportTab() {
           </CardTitle>
           <CardDescription>
             {t(
-              '支持 CSV 格式的数据导入和导出，可用于数据备份、迁移和系统切换。导出的数据为原始存储值，不进行任何计算或转换。',
-              'Support CSV format data import and export for backup, migration, and system switching. Exported data is raw stored values without any calculation or transformation.'
+              '导出为 Excel（.xlsx），中文与格式在表格软件中直接可用；导入仍支持 CSV。可用于备份、迁移与系统切换。导出为原始存储值。',
+              'Export uses Excel (.xlsx) for correct display in spreadsheets; import still accepts CSV. For backup and migration. Exported values are raw stored fields.'
             )}
           </CardDescription>
         </CardHeader>
@@ -856,8 +849,8 @@ export default function DataExportImportTab() {
           </span>
         }
         description={t(
-          '选择要导出的表，每个表将生成一个单独的 CSV 文件。导出的数据可用于数据库迁移或备份。',
-          'Select tables to export. Each table will generate a separate CSV file. Exported data can be used for database migration or backup.'
+          '选择要导出的表，每个表将生成一个单独的 Excel（.xlsx）文件。可用于迁移或备份。',
+          'Select tables to export. Each table becomes one Excel (.xlsx) file for migration or backup.'
         )}
         sheetMaxWidth="2xl"
       >

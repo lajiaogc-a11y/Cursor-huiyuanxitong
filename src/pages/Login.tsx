@@ -254,11 +254,20 @@ export default function Login() {
                 void handleLogin(e);
               }}
               className="space-y-4"
+              aria-busy={loading}
+              noValidate
             >
               {error && (
-                <Alert variant="destructive" className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300">
-                  <ErrorIcon className="h-4 w-4 shrink-0" />
-                  <AlertDescription className="ml-2 text-sm">{error.message}</AlertDescription>
+                <Alert
+                  variant="destructive"
+                  role="alert"
+                  aria-live="assertive"
+                  className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"
+                >
+                  <ErrorIcon className="h-4 w-4 shrink-0" aria-hidden />
+                  <AlertDescription id="staff-login-error" className="ml-2 text-sm">
+                    {error.message}
+                  </AlertDescription>
                 </Alert>
               )}
 
@@ -278,6 +287,8 @@ export default function Login() {
                     style={{ height: 44 }}
                     autoComplete="username"
                     disabled={loading}
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "staff-login-error" : undefined}
                   />
                 </div>
               </div>
@@ -298,14 +309,17 @@ export default function Login() {
                     style={{ height: 44 }}
                     autoComplete="current-password"
                     disabled={loading}
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "staff-login-error" : undefined}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded text-[#94a3b8] hover:text-[#64748B] hover:bg-[#f1f5f9] dark:hover:bg-slate-600/50 dark:hover:text-slate-300 transition-colors"
                     tabIndex={-1}
+                    aria-label={showPassword ? t("隐藏密码", "Hide password") : t("显示密码", "Show password")}
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
                   </button>
                 </div>
               </div>
@@ -331,8 +345,7 @@ export default function Login() {
               )}
 
               <Button
-                type="button"
-                onClick={() => void handleLogin({ preventDefault: () => {} } as React.FormEvent)}
+                type="submit"
                 className="w-full h-11 font-medium rounded-lg text-white hover:opacity-95 transition-opacity"
                 style={{ height: 44, backgroundColor: '#2563EB' }}
                 disabled={loading || (deviceWlEnabled && (deviceFpLoading || !deviceVisitorId))}

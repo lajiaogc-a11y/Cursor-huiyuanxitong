@@ -4,10 +4,7 @@
 import { loadSharedData, saveSharedData, saveSharedDataSync } from '@/services/finance/sharedDataService';
 import { EXTERNAL_API } from '@/config/externalApis';
 import { logOperation } from './auditLogStore';
-
-function _t(zh: string, en: string): string {
-  return (typeof localStorage !== 'undefined' && localStorage.getItem('appLanguage') === 'en') ? en : zh;
-}
+import { pickBilingual } from '@/lib/appLocale';
 
 export type PointsMode = 'auto' | 'manual';
 
@@ -110,7 +107,7 @@ export function savePointsSettings(settings: PointsSettings): PointsSettings {
     'points_settings',
     beforeData,
     settings,
-    _t('修改积分设置', 'Update points settings')
+    pickBilingual('修改积分设置', 'Update points settings')
   );
   
   return settings;
@@ -313,7 +310,7 @@ export async function updateAutoRates(): Promise<{ settings: PointsSettings; has
     'points_settings_auto',
     beforeData,
     newSettings,
-    rates.hasChange ? _t('自动更新积分汇率（检测到汇率波动）', 'Auto-update points rate (rate change detected)') : _t('自动更新积分汇率（汇率无变化）', 'Auto-update points rate (no rate change)')
+    rates.hasChange ? pickBilingual('自动更新积分汇率（检测到汇率波动）', 'Auto-update points rate (rate change detected)') : pickBilingual('自动更新积分汇率（汇率无变化）', 'Auto-update points rate (no rate change)')
   );
   
   return { settings: newSettings, hasChange: rates.hasChange };
@@ -388,7 +385,7 @@ export async function savePointsSettingsAsync(settings: PointsSettings): Promise
       'points_settings',
       beforeData,
       settings,
-      _t('修改积分设置', 'Update points settings')
+      pickBilingual('修改积分设置', 'Update points settings')
     );
   }
   

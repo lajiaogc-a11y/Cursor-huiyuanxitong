@@ -126,6 +126,9 @@ export function Header() {
   const [saving, setSaving] = useState(false);
 
   const getPageTitle = () => {
+    if (location.pathname.startsWith("/staff/member-portal")) {
+      return t("会员系统", "Member Portal");
+    }
     const tabTitles = TAB_PAGE_TITLES[location.pathname];
     const tab = searchParams.get("tab") || "";
     const defaultTab: Record<string, string> = {

@@ -108,34 +108,34 @@ html.member-html.dark {
 }
 
 /*
- * premium-ui-boost-main Financial Light — Premium Clean（.light）
+ * premium-ui-boost-main Financial Light — 与 src/../premium-ui-boost-main/src/index.css `.light` 同源数值
  * 租户主色仍由 .member-portal-wrap / 登录根节点内联 --pu-gold* 覆盖
  */
 html.member-html:not(.dark) {
   color-scheme: light;
-  --pu-background: 220 20% 97%;
+  --pu-background: 214 54% 97%;
   --pu-foreground: 222 47% 11%;
-  --pu-m-bg-1: 220 20% 97%;
-  --pu-m-bg-2: 220 18% 95%;
-  --pu-m-bg-3: 220 16% 92%;
+  --pu-m-bg-1: 214 54% 97%;
+  --pu-m-bg-2: 214 60% 96%;
+  --pu-m-bg-3: 214 45% 93%;
   --pu-m-surface: 0 0% 100%;
-  --pu-m-surface-border: 220 16% 82%;
+  --pu-m-surface-border: 214 38% 85%;
   --pu-m-text: 222 47% 11%;
-  --pu-m-text-dim: 215 15% 46%;
+  --pu-m-text-dim: 215 19% 45%;
   --pu-gold: 217 91% 53%;
-  --pu-gold-soft: 217 80% 48%;
+  --pu-gold-soft: 217 80% 62%;
   --pu-gold-deep: 217 95% 42%;
   --pu-primary: var(--pu-gold);
   --pu-primary-foreground: 0 0% 100%;
-  --pu-emerald: 160 55% 38%;
-  --pu-emerald-soft: 160 55% 32%;
-  --pu-rose: 0 60% 48%;
-  --pu-rose-soft: 0 58% 42%;
-  --pu-silver: 215 15% 46%;
-  --pu-silver-soft: 215 12% 56%;
-  --pu-violet: 246 80% 60%;
-  --pu-violet-soft: 246 70% 52%;
-  --background: 220 20% 97%;
+  --pu-emerald: 160 50% 36%;
+  --pu-emerald-soft: 160 45% 30%;
+  --pu-rose: 0 55% 50%;
+  --pu-rose-soft: 0 50% 42%;
+  --pu-silver: 215 19% 45%;
+  --pu-silver-soft: 215 14% 55%;
+  --pu-violet: 246 93% 67%;
+  --pu-violet-soft: 246 80% 58%;
+  --background: 214 54% 97%;
   --foreground: 222 47% 11%;
   --card: 0 0% 100%;
   --card-foreground: 222 47% 11%;
@@ -143,25 +143,25 @@ html.member-html:not(.dark) {
   --popover-foreground: 222 47% 11%;
   --primary: 217 91% 53%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 220 20% 93%;
-  --secondary-foreground: 215 25% 30%;
-  --muted: 220 16% 90%;
-  --muted-foreground: 215 15% 46%;
-  --accent: 246 80% 60%;
+  --secondary: 214 60% 96%;
+  --secondary-foreground: 215 19% 35%;
+  --muted: 214 50% 94%;
+  --muted-foreground: 215 19% 45%;
+  --accent: 246 93% 67%;
   --accent-foreground: 0 0% 100%;
-  --destructive: 0 70% 50%;
+  --destructive: 0 65% 52%;
   --destructive-foreground: 0 0% 100%;
-  --border: 220 18% 85%;
-  --input: 220 18% 85%;
+  --border: 214 38% 89%;
+  --input: 214 38% 89%;
   --ring: 217 91% 53%;
   --radius: 0.875rem;
   --sidebar-background: 0 0% 100%;
   --sidebar-foreground: 222 40% 15%;
   --sidebar-primary: 217 91% 53%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 220 18% 94%;
+  --sidebar-accent: 214 50% 94%;
   --sidebar-accent-foreground: 222 35% 20%;
-  --sidebar-border: 220 18% 85%;
+  --sidebar-border: 214 38% 89%;
   --sidebar-ring: 217 91% 53%;
   --gold: var(--pu-gold);
   --gold-soft: var(--pu-gold-soft);
@@ -177,6 +177,22 @@ html.member-html:not(.dark) {
   --m-surface-border: var(--pu-m-surface-border);
   --m-text: var(--pu-m-text);
   --m-text-dim: var(--pu-m-text-dim);
+
+  /*
+   * 浅色专用：氛围渐变 / 纹理 / 光晕强度（登录、邀请、主画布共用同一套令牌）
+   * 深色不动画效与结构；仅 :not(.dark) 引用下列变量。
+   */
+  --m-light-ambient-radial-gold: 0.065;
+  --m-light-ambient-radial-emerald: 0.048;
+  --m-light-ambient-dots-opacity: 0.028;
+  --m-light-ambient-dot-color-a: 0.34;
+  --m-light-ambient-line-alpha: 0.032;
+  --m-light-hero-sheet-top: 0.96;
+  --m-light-hero-sheet-bottom: 0.86;
+  --m-light-orb-gold-mult: 0.55;
+  --m-light-orb-emerald-mult: 0.58;
+  --m-light-points-hero-glow: 0.09;
+  --m-light-points-hero-noise: 0.2;
 }
 
 html.member-html .font-mono,
@@ -260,12 +276,13 @@ html.member-html:not(.dark) .member-portal-wrap {
   --m-theme:      hsl(var(--pu-gold));
   --m-theme-dark: hsl(var(--pu-gold-deep));
 
-  --m-page-bg:    #f4f6fb;
-  --m-deep:       #eef1f7;
-  --m-dark:       #eceff5;
+  /* 与 premium-ui `.light` 会员底层次一致（214 系），仅换色值 */
+  --m-page-bg:    hsl(214 54% 97%);
+  --m-deep:       hsl(214 52% 96%);
+  --m-dark:       hsl(214 48% 94%);
   --m-surface:    #ffffff;
-  --m-card-dark:  #f8fafc;
-  --m-float:      #f1f5f9;
+  --m-card-dark:  hsl(214 45% 98%);
+  --m-float:      hsl(214 50% 96%);
   --m-border-dark: hsl(var(--pu-m-surface-border) / 0.5);
 
   --m-gold:       hsl(var(--pu-gold));
@@ -274,18 +291,18 @@ html.member-html:not(.dark) .member-portal-wrap {
   --m-gold-glow:  hsl(var(--pu-gold) / 0.14);
   --m-gold-muted: hsl(var(--pu-gold) / 0.08);
 
-  --m-bg:         #f4f6fb;
+  --m-bg:         hsl(214 54% 97%);
   --m-card:       #ffffff;
   --m-border:     hsl(var(--pu-m-surface-border) / 0.55);
 
-  --m-text:       #0f172a;
-  --m-text-2:     #334155;
-  --m-text-3:     #64748b;
-  --m-text-weak:  #64748b;
+  --m-text:       hsl(222 47% 11%);
+  --m-text-2:     hsl(215 19% 35%);
+  --m-text-3:     hsl(215 19% 45%);
+  --m-text-weak:  hsl(215 19% 45%);
   --m-text-inv:   hsl(var(--pu-m-text));
   --m-text-inv-2: hsl(var(--pu-m-text-dim) / 0.92);
   --m-text-inv-3: hsl(var(--pu-m-text-dim) / 0.55);
-  --m-text-dim:   #64748b;
+  --m-text-dim:   hsl(215 19% 45%);
 
   --m-surface-border: hsl(var(--pu-m-surface-border) / 0.55);
 
@@ -295,10 +312,10 @@ html.member-html:not(.dark) .member-portal-wrap {
   --m-red:        #dc2626;
   --m-whatsapp:   #25d366;
 
-  --m-shadow-xs:  0 1px 3px rgba(15, 23, 42, 0.05);
-  --m-shadow-sm:  0 2px 8px rgba(15, 23, 42, 0.06);
-  --m-shadow-md:  0 4px 20px rgba(15, 23, 42, 0.07);
-  --m-shadow-lg:  0 8px 36px rgba(15, 23, 42, 0.08);
+  --m-shadow-xs:  0 1px 3px hsl(222 47% 11% / 0.05);
+  --m-shadow-sm:  0 2px 8px hsl(222 47% 11% / 0.06);
+  --m-shadow-md:  0 4px 20px hsl(222 47% 11% / 0.07);
+  --m-shadow-lg:  0 8px 36px hsl(222 47% 11% / 0.08);
   --m-shadow-gold: 0 0 24px hsl(var(--pu-gold) / 0.1);
 
   --m-radius-sm:  10px;
@@ -307,7 +324,7 @@ html.member-html:not(.dark) .member-portal-wrap {
   --m-radius-xl:  22px;
 
   --ring: var(--pu-gold);
-  --ring-offset-background: 220 20% 97%;
+  --ring-offset-background: 214 54% 97%;
 
   background: var(--m-bg);
   color: var(--m-text);
@@ -425,27 +442,54 @@ html.member-html:not(.dark) .member-portal-wrap textarea:-webkit-autofill:focus 
 /* 浅色：画布与 Hero 仅调色（对齐 premium-ui-boost Financial Light） */
 html.member-html:not(.dark) .member-premium-canvas::before {
   background:
-    radial-gradient(ellipse 130% 90% at 0% -15%, hsl(var(--pu-gold) / 0.1) 0%, transparent 52%),
-    radial-gradient(ellipse 100% 70% at 100% 0%, hsl(var(--pu-emerald) / 0.08) 0%, transparent 48%),
+    radial-gradient(
+      ellipse 130% 90% at 0% -15%,
+      hsl(var(--pu-gold) / var(--m-light-ambient-radial-gold)) 0%,
+      transparent 52%
+    ),
+    radial-gradient(
+      ellipse 100% 70% at 100% 0%,
+      hsl(var(--pu-emerald) / var(--m-light-ambient-radial-emerald)) 0%,
+      transparent 48%
+    ),
     linear-gradient(180deg, var(--m-dark) 0%, var(--m-page-bg) 38%, var(--m-page-bg) 100%);
 }
 html.member-html:not(.dark) .member-premium-canvas::after {
-  opacity: 0.04;
+  opacity: var(--m-light-ambient-dots-opacity);
   background-image:
-    radial-gradient(circle, hsl(var(--pu-m-surface-border) / 0.5) 1px, transparent 1px),
+    radial-gradient(
+      circle,
+      hsl(var(--pu-m-surface-border) / var(--m-light-ambient-dot-color-a)) 1px,
+      transparent 1px
+    ),
     repeating-linear-gradient(
       -18deg,
       transparent,
       transparent 2px,
-      hsl(var(--pu-m-text) / 0.045) 2px,
-      hsl(var(--pu-m-text) / 0.045) 3px
+      hsl(var(--pu-m-text) / var(--m-light-ambient-line-alpha)) 2px,
+      hsl(var(--pu-m-text) / var(--m-light-ambient-line-alpha)) 3px
     );
 }
 html.member-html:not(.dark) .member-hero {
-  background: linear-gradient(168deg, rgba(248, 250, 252, 0.97) 0%, rgba(241, 245, 249, 0.9) 100%);
+  /* 与 premium-ui `.light .m-page-bg` 同色相（214），保留原透明度令牌 */
+  background: linear-gradient(
+    168deg,
+    hsl(214 54% 99% / var(--m-light-hero-sheet-top)) 0%,
+    hsl(214 45% 96% / var(--m-light-hero-sheet-bottom)) 100%
+  );
+}
+
+/* 登录 / 邀请页：MemberPageAmbientOrbs 光晕再收一档（不改 DOM 结构，仅透明度） */
+html.member-html:not(.dark) .member-ambient-orbs > div:nth-child(1) {
+  opacity: var(--m-light-orb-gold-mult);
+}
+html.member-html:not(.dark) .member-ambient-orbs > div:nth-child(2) {
+  opacity: var(--m-light-orb-emerald-mult);
 }
 html.member-html:not(.dark) .member-card {
-  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.06);
+  background: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(214 48% 98%) 100%);
+  border-color: hsl(var(--pu-m-surface-border) / 0.55);
+  box-shadow: 0 8px 32px hsl(222 47% 11% / 0.06);
 }
 
 .member-content-rail {
@@ -2016,6 +2060,10 @@ html.member-html:not(.dark) .member-login-form-surface {
   line-height: 1.4;
   color: var(--m-text-weak);
 }
+html.member-html:not(.dark) .member-login-capability {
+  background: hsl(var(--pu-m-surface) / 0.78);
+  border-color: hsl(var(--pu-m-surface-border) / 0.5);
+}
 
 /* ── 会员内页：顶栏（仪表盘感）── */
 .member-page-header-premium {
@@ -2027,6 +2075,11 @@ html.member-html:not(.dark) .member-login-form-surface {
   background: hsl(var(--pu-m-bg-1) / 0.88);
   backdrop-filter: blur(18px) saturate(1.2);
   -webkit-backdrop-filter: blur(18px) saturate(1.2);
+}
+html.member-html:not(.dark) .member-page-header-premium {
+  background: hsl(var(--pu-m-bg-1) / 0.94);
+  border-bottom-color: hsl(var(--pu-m-surface-border) / 0.45);
+  box-shadow: 0 1px 0 hsl(214 38% 89% / 0.4);
 }
 
 /* ── 抽奖：状态微卡 + 转盘外框 ── */
@@ -2074,6 +2127,10 @@ html.member-html:not(.dark) .member-login-form-surface {
   color: hsl(var(--pu-m-text-dim));
   line-height: 1.2;
 }
+html.member-html:not(.dark) .member-status-micro {
+  background: hsl(var(--pu-m-surface) / 0.88);
+  border-color: hsl(var(--pu-m-surface-border) / 0.45);
+}
 .member-spin-wheel-frame {
   border-radius: 20px;
   border: 1px solid hsl(var(--pu-gold) / 0.14);
@@ -2083,12 +2140,80 @@ html.member-html:not(.dark) .member-login-form-surface {
     0 16px 48px rgba(0, 0, 0, 0.38);
   padding: 14px;
 }
+html.member-html:not(.dark) .member-spin-wheel-frame {
+  background: linear-gradient(160deg, hsl(0 0% 100% / 0.94) 0%, hsl(214 50% 97% / 0.9) 100%);
+  box-shadow:
+    0 0 0 1px hsl(var(--pu-m-surface-border) / 0.28) inset,
+    0 12px 36px hsl(222 47% 11% / 0.08);
+}
 
 /* ── 积分商城顶栏 ── */
 .member-points-hero {
   background: linear-gradient(180deg, hsl(var(--pu-m-bg-2) / 0.96) 0%, hsl(var(--pu-m-bg-1) / 0.99) 100%);
   border-bottom: 1px solid hsl(var(--pu-m-surface-border) / 0.32);
   padding: 12px 16px 12px;
+}
+html.member-html:not(.dark) .member-points-hero {
+  background: linear-gradient(180deg, hsl(0 0% 100% / 0.96) 0%, hsl(214 54% 97% / 0.99) 100%);
+  border-bottom-color: hsl(var(--pu-m-surface-border) / 0.45);
+}
+
+/*
+ * 浅色：默认底栏 + 客服浮层 + 商城切换条（参考 premium-ui `.light .light-nav` / 浅色玻璃；不改尺寸与 DOM）
+ */
+html.member-html:not(.dark) .member-bottom-nav {
+  background: hsl(214 54% 97% / 0.92);
+  border-top: 1px solid hsl(214 38% 85% / 0.55);
+  box-shadow:
+    0 -1px 12px -4px rgb(0 0 0 / 0.06),
+    inset 0 1px 0 hsl(var(--pu-gold) / 0.1);
+}
+html.member-html:not(.dark) .member-bottom-nav__link:active {
+  background: hsl(var(--pu-m-surface) / 0.72);
+}
+
+html.member-html:not(.dark) .member-cs-panel {
+  background: linear-gradient(175deg, hsl(0 0% 100% / 0.98) 0%, hsl(214 54% 98% / 0.99) 100%);
+  border-color: hsl(var(--pu-m-surface-border) / 0.52);
+  box-shadow:
+    0 16px 44px hsl(222 47% 11% / 0.11),
+    0 0 0 1px hsl(var(--pu-m-surface-border) / 0.18) inset;
+}
+html.member-html:not(.dark) .member-cs-fab--open {
+  background: linear-gradient(165deg, hsl(0 0% 100% / 0.97) 0%, hsl(214 48% 96% / 0.99) 100%);
+  color: hsl(var(--pu-gold));
+  box-shadow:
+    0 8px 24px hsl(222 47% 11% / 0.09),
+    0 0 0 1px hsl(var(--pu-gold) / 0.2) inset;
+}
+html.member-html:not(.dark) .member-cs-dismiss {
+  background: hsl(0 0% 100% / 0.96);
+  border-color: hsl(var(--pu-m-surface-border) / 0.48);
+  color: hsl(var(--pu-m-text-dim));
+}
+html.member-html:not(.dark) .member-cs-agent {
+  background: hsl(var(--pu-m-surface) / 0.94);
+  border-color: hsl(var(--pu-m-surface-border) / 0.42);
+}
+html.member-html:not(.dark) .member-cs-agent:active {
+  background: hsl(var(--pu-gold) / 0.06);
+  border-color: hsl(var(--pu-gold) / 0.22);
+}
+html.member-html:not(.dark) .member-cs-agent.member-cs-agent--trade-row:active {
+  transform: none;
+  background: hsl(var(--pu-m-surface) / 0.82);
+  border-color: hsl(var(--pu-m-surface-border) / 0.52);
+}
+html.member-html:not(.dark) .member-cs-panel::-webkit-scrollbar-track {
+  background: hsl(214 40% 93% / 0.95);
+}
+html.member-html:not(.dark) .member-cs-panel::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, hsl(var(--pu-gold) / 0.38), hsl(var(--pu-gold) / 0.2));
+}
+
+html.member-html:not(.dark) .member-mall-view-toggle {
+  background: hsl(var(--pu-m-surface) / 0.88);
+  border-color: hsl(var(--pu-m-surface-border) / 0.45);
 }
 
 /* ── 积分页 · 资产感顶栏（渐变 + 金晕 + 微粒） ── */
@@ -4981,21 +5106,21 @@ html.member-html .m-glass-nav,
 html.member-html:not(.dark) .m-glass-nav,
 html.member-html:not(.dark) .member-portal-wrap .m-glass-nav,
 html.member-html:not(.dark) .member-login-premium-root .m-glass-nav {
-  background: hsl(0 0% 100% / 0.92);
-  border-top: 1px solid hsl(var(--pu-m-surface-border) / 0.45);
+  /* premium-ui-boost `.light .light-nav` */
+  background: hsl(214 54% 97% / 0.88);
+  border-top: 1px solid hsl(214 38% 85% / 0.6);
+  box-shadow: 0 -1px 12px -4px rgb(0 0 0 / 0.06);
 }
 
 /* premium-ui-boost-main `.light .m-glass` — 实底 + 轻模糊 + 柔和投影（不改尺寸与圆角） */
 html.member-html:not(.dark) .m-glass,
 html.member-html:not(.dark) .member-portal-wrap .m-glass,
 html.member-html:not(.dark) .member-login-premium-root .m-glass {
-  background: hsl(var(--pu-m-surface) / 0.98);
-  backdrop-filter: blur(8px) saturate(1.05);
-  -webkit-backdrop-filter: blur(8px) saturate(1.05);
-  border-color: hsl(var(--pu-m-surface-border) / 0.6);
-  box-shadow:
-    0 1px 3px -1px rgb(0 0 0 / 0.06),
-    0 2px 8px -2px rgb(0 0 0 / 0.04);
+  background: hsl(var(--pu-m-surface) / 0.9);
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  border-color: hsl(var(--pu-m-surface-border) / 0.55);
+  box-shadow: 0 2px 12px -4px rgb(0 0 0 / 0.06);
 }
 
 html.member-html:not(.dark) .m-glass-strong,
@@ -5506,13 +5631,23 @@ html.member-html:not(.dark) .member-login-premium-root {
 
 html.member-html:not(.dark) .member-portal-wrap .member-points-hero-v2 {
   background: hsl(0 0% 100% / 0.95);
-  border-color: hsl(220 18% 88%) !important;
+  border-color: hsl(214 38% 89%) !important;
   box-shadow:
     0 1px 4px -1px rgb(0 0 0 / 0.06),
     0 4px 16px -6px rgb(0 0 0 / 0.05),
-    0 0 0 1px hsl(220 18% 92%) inset;
+    0 0 0 1px hsl(214 50% 94%) inset;
   backdrop-filter: blur(10px) saturate(1.05);
   -webkit-backdrop-filter: blur(10px) saturate(1.05);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-points-hero-v2::before {
+  background: radial-gradient(
+    ellipse at center,
+    hsl(var(--pu-gold) / var(--m-light-points-hero-glow)) 0%,
+    transparent 62%
+  );
+}
+html.member-html:not(.dark) .member-portal-wrap .member-points-hero-v2::after {
+  opacity: var(--m-light-points-hero-noise);
 }
 
 /* Settings — remove flat hero paint; card uses financial glass */
@@ -5533,7 +5668,7 @@ html.member-html:not(.dark) .member-portal-wrap .member-points-hero-v2 {
 
 html.member-html:not(.dark) .member-portal-wrap .member-settings-account-card {
   background: hsl(0 0% 100% / 0.96);
-  border-color: hsl(220 18% 88%) !important;
+  border-color: hsl(214 38% 89%) !important;
   box-shadow:
     0 1px 4px -1px rgb(0 0 0 / 0.06),
     0 3px 12px -4px rgb(0 0 0 / 0.04);
@@ -5568,9 +5703,9 @@ html.member-html:not(.dark) .member-portal-wrap .member-product-card {
   background: linear-gradient(
     165deg,
     hsl(0 0% 100% / 0.98) 0%,
-    hsl(220 20% 98% / 0.95) 100%
+    hsl(214 54% 98% / 0.95) 100%
   );
-  border-color: hsl(220 18% 88%) !important;
+  border-color: hsl(214 38% 89%) !important;
   box-shadow:
     0 1px 3px -1px rgb(0 0 0 / 0.05),
     0 2px 8px -3px rgb(0 0 0 / 0.04);
@@ -5612,11 +5747,11 @@ html.member-html .member-portal-notfound-card,
 }
 
 html.member-html:not(.dark) .member-portal-notfound-card {
-  border-color: hsl(220 18% 88%) !important;
-  background: linear-gradient(168deg, hsl(0 0% 100% / 0.98) 0%, hsl(220 20% 98% / 0.99) 100%) !important;
+  border-color: hsl(214 38% 89%) !important;
+  background: linear-gradient(168deg, hsl(0 0% 100% / 0.98) 0%, hsl(214 54% 98% / 0.99) 100%) !important;
   box-shadow:
     0 8px 32px -8px rgb(0 0 0 / 0.08),
-    0 0 0 1px hsl(220 18% 92%) inset !important;
+    0 0 0 1px hsl(214 50% 94%) inset !important;
 }
 html.member-html .member-portal-notfound-cta,
 .member-portal-wrap .member-portal-notfound-cta {
@@ -5657,11 +5792,11 @@ html.member-html:not(.dark) .member-premium-canvas.pu-boost-skin::before {
 /* premium-ui-boost `.light .light-nav` — 底栏毛玻璃与顶边高光 */
 html.member-html:not(.dark) .member-bottom-nav--pu-boost {
   background: hsl(0 0% 100% / 0.92) !important;
-  border-top-color: hsl(220 18% 88%) !important;
+  border-top-color: hsl(214 38% 89%) !important;
   backdrop-filter: blur(20px) saturate(1.3) !important;
   -webkit-backdrop-filter: blur(20px) saturate(1.3) !important;
   box-shadow:
-    0 -1px 0 0 hsl(220 18% 92%),
+    0 -1px 0 0 hsl(214 50% 94%),
     0 -2px 8px -2px rgb(0 0 0 / 0.06),
     0 -4px 20px -6px rgb(0 0 0 / 0.04) !important;
 }
@@ -5714,7 +5849,7 @@ html.member-html:not(.dark) .member-bottom-nav--pu-boost a[aria-current="page"] 
 }
 
 html.member-html:not(.dark) .member-portal-wrap .member-invite-rank__item {
-  border-color: hsl(220 18% 88%);
+  border-color: hsl(214 38% 89%);
   background: hsl(0 0% 100% / 0.9);
   box-shadow: 0 1px 2px -1px rgb(0 0 0 / 0.04);
 }
@@ -5741,8 +5876,8 @@ html.member-html:not(.dark) .member-portal-wrap .member-invite-rank__item--gold 
 }
 
 html.member-html:not(.dark) .member-spin-sim-feed {
-  border-color: hsl(220 18% 88%);
-  background: linear-gradient(90deg, hsl(0 0% 100% / 0.95), hsl(220 20% 97% / 0.98));
+  border-color: hsl(214 38% 89%);
+  background: linear-gradient(90deg, hsl(0 0% 100% / 0.95), hsl(214 54% 97% / 0.98));
   box-shadow: 0 1px 3px -1px rgb(0 0 0 / 0.05);
 }
 .member-spin-sim-feed__track {
@@ -5803,7 +5938,7 @@ html.member-html:not(.dark) .member-spin-sim-feed {
 /* 设置页「我的订单」条目 — 对应参考 .light .order-card */
 html.member-html:not(.dark) .member-portal-wrap .member-order-card {
   background: hsl(0 0% 100% / 0.94);
-  border-color: hsl(220 18% 88%);
+  border-color: hsl(214 38% 89%);
   box-shadow:
     0 1px 3px -1px rgb(0 0 0 / 0.05),
     0 2px 10px -4px rgb(0 0 0 / 0.04);
@@ -5811,7 +5946,7 @@ html.member-html:not(.dark) .member-portal-wrap .member-order-card {
 
 /* 订单页独立列表：与商城卡一致的白底轻影（.m-glass 浅色已在全局，此处略提高订单行可读性） */
 html.member-html:not(.dark) .member-portal-wrap .member-orders-list-collapse .m-glass.rounded-\[1\.25rem\] {
-  border-color: hsl(220 18% 88%) !important;
+  border-color: hsl(214 38% 89%) !important;
   box-shadow:
     0 1px 3px -1px rgb(0 0 0 / 0.05),
     0 3px 14px -6px rgb(0 0 0 / 0.05) !important;
@@ -5819,16 +5954,564 @@ html.member-html:not(.dark) .member-portal-wrap .member-orders-list-collapse .m-
 
 /* 积分商城空态 */
 html.member-html:not(.dark) .member-portal-wrap .member-mall-empty {
-  background: linear-gradient(165deg, hsl(0 0% 100% / 0.98) 0%, hsl(220 20% 98% / 0.96) 100%);
-  border-color: hsl(220 18% 88%);
+  background: linear-gradient(165deg, hsl(0 0% 100% / 0.98) 0%, hsl(214 54% 98% / 0.96) 100%);
+  border-color: hsl(214 38% 89%);
   box-shadow:
     0 1px 4px -1px rgb(0 0 0 / 0.06),
     0 4px 18px -8px rgb(0 0 0 / 0.05);
 }
 
+/* 积分商城 — 列表行（与空态 / 商品卡同系浅色玻璃） */
+html.member-html:not(.dark) .member-portal-wrap .member-mall-list-row {
+  background: linear-gradient(165deg, hsl(0 0% 100% / 0.97) 0%, hsl(214 54% 98% / 0.93) 100%);
+  border-color: hsl(214 38% 89%);
+  box-shadow:
+    0 1px 3px -1px rgb(0 0 0 / 0.05),
+    0 4px 16px -8px rgb(0 0 0 / 0.05);
+}
+@media (hover: hover) {
+  html.member-html:not(.dark) .member-portal-wrap .member-mall-list-row:hover {
+    border-color: hsl(var(--pu-gold) / 0.22);
+    box-shadow:
+      0 2px 8px -2px rgb(0 0 0 / 0.06),
+      0 8px 24px -10px rgb(0 0 0 / 0.06);
+  }
+}
+
+/* 设置 — 积分流水卡（与订单卡一致） */
+html.member-html:not(.dark) .member-portal-wrap .member-ledger-card {
+  background: hsl(0 0% 100% / 0.94);
+  border-color: hsl(214 38% 89%);
+  box-shadow:
+    0 1px 3px -1px rgb(0 0 0 / 0.05),
+    0 2px 10px -4px rgb(0 0 0 / 0.04);
+}
+
+/* 设置页 — 可点击行按下反馈（避免沿用深色半透明底） */
+html.member-html:not(.dark) .member-portal-wrap .member-settings-trigger:active {
+  background: hsl(214 50% 95% / 0.95);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-settings-item:active {
+  background: hsl(214 50% 95% / 0.88);
+}
+
+/* 首页公告弹窗 — 浅色遮罩 + 白底玻璃（标题/正文仍用 --pu-m-text* token） */
+html.member-html:not(.dark) .member-announcement-overlay {
+  background: rgba(15, 23, 42, 0.38) !important;
+  backdrop-filter: blur(10px) saturate(1.1) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(1.1) !important;
+}
+html.member-html:not(.dark) .member-announcement-modal {
+  background: linear-gradient(175deg, hsl(0 0% 100% / 0.99) 0%, hsl(214 54% 97% / 0.98) 100%);
+  border-color: hsl(214 38% 88%);
+  box-shadow:
+    0 0 0 1px hsl(214 40% 94% / 0.9) inset,
+    0 0 56px -20px hsl(var(--pu-gold) / 0.14),
+    0 20px 44px -12px rgb(0 0 0 / 0.1),
+    0 0 1px rgb(0 0 0 / 0.06);
+}
+html.member-html:not(.dark) .member-announcement-modal__body {
+  scrollbar-color: hsl(214 32% 72%) hsl(214 40% 96%);
+}
+html.member-html:not(.dark) .member-announcement-modal__body::-webkit-scrollbar-thumb {
+  background: hsl(214 32% 68% / 0.45);
+}
+html.member-html:not(.dark) .member-announcement-modal__content-card {
+  background: linear-gradient(135deg, hsl(214 52% 97% / 0.98) 0%, hsl(0 0% 100% / 0.92) 100%);
+  border-color: hsl(214 38% 90%);
+}
+
+/* 积分流水 / 兑换记录 — vault 顶区（深色 rgba 投影 → 浅灰） */
+html.member-html:not(.dark) .member-portal-wrap .member-history-panel--vault {
+  background: linear-gradient(180deg, hsl(214 52% 98% / 0.96) 0%, hsl(0 0% 100% / 0.99) 28%);
+  border-color: hsl(214 38% 89%);
+  box-shadow:
+    0 1px 3px -1px rgb(0 0 0 / 0.05),
+    0 6px 22px -8px rgb(0 0 0 / 0.05);
+}
+
+/* 兑换确认抽屉 — 商品预览 + 结算条 */
+html.member-html:not(.dark) .member-portal-wrap .member-redeem-vault__product {
+  background: linear-gradient(165deg, hsl(0 0% 100% / 0.99) 0%, hsl(214 54% 98% / 0.94) 100%);
+  border-color: hsl(214 38% 89%);
+  box-shadow:
+    0 0 0 1px hsl(var(--pu-gold) / 0.1) inset,
+    0 4px 20px -6px rgb(0 0 0 / 0.06);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-redeem-vault__settlement {
+  background: hsl(214 52% 98% / 0.97);
+  border-color: hsl(214 38% 90%);
+  box-shadow: 0 0 0 1px hsl(var(--pu-gold) / 0.08) inset;
+}
+
+/* 抽奖结果卡 */
+html.member-html:not(.dark) .member-portal-wrap .member-prize-result {
+  border-color: hsl(var(--pu-gold) / 0.22);
+  box-shadow:
+    0 2px 10px -4px rgb(0 0 0 / 0.06),
+    0 12px 36px -12px rgb(0 0 0 / 0.07);
+}
+
+/* 积分商城货架卡 — 按下态（覆盖深色 rgba） */
+html.member-html:not(.dark) .member-portal-wrap .member-product-card:active {
+  box-shadow:
+    0 2px 8px -2px rgb(0 0 0 / 0.06),
+    0 4px 16px -6px rgb(0 0 0 / 0.05);
+  border-color: hsl(var(--pu-gold) / 0.28);
+}
+
+/* 设置页安全提示 — 浅色底略提亮，字色用 deep gold 保证对比 */
+html.member-html:not(.dark) .member-portal-wrap .member-security-banner {
+  background: hsl(var(--pu-gold) / 0.1);
+  border-color: hsl(var(--pu-gold) / 0.22);
+  color: hsl(var(--pu-gold-deep));
+}
+html.member-html:not(.dark) .member-portal-wrap .member-security-banner svg {
+  color: hsl(var(--pu-gold));
+}
+
+/* 会员抽屉（订单/详情 Sheet）— 浅色侧栏 / 底栏影与关闭钮 */
+html.member-html:not(.dark) .member-drawer-detail {
+  box-shadow:
+    -12px 0 40px rgb(15 23 42 / 0.08),
+    inset 0 0 0 1px hsl(214 38% 90% / 0.75);
+}
+@media (max-width: 767px) {
+  html.member-html:not(.dark) .member-drawer-detail.rounded-t-2xl {
+    box-shadow:
+      0 -12px 40px rgb(15 23 42 / 0.08),
+      inset 0 1px 0 hsl(214 38% 92% / 0.95);
+  }
+}
+html.member-html:not(.dark) .member-drawer-detail > button:has(> span.sr-only) {
+  background: hsl(0 0% 100% / 0.94) !important;
+  border-color: hsl(214 38% 88%);
+  color: hsl(var(--pu-m-text) / 0.72);
+}
+html.member-html:not(.dark) .member-drawer-detail > button:has(> span.sr-only):hover {
+  background: hsl(214 52% 98% / 0.98) !important;
+  border-color: hsl(var(--pu-gold) / 0.3);
+  color: hsl(var(--pu-gold-deep));
+}
+
+/* 登录落地 — 能力徽章格（深色 rgba 投影 → 浅灰 + 白玻璃） */
+html.member-html:not(.dark) .member-login-premium-root .member-login-badge-tile {
+  border-color: hsl(var(--pu-gold) / 0.22);
+  background: linear-gradient(
+    165deg,
+    hsl(0 0% 100% / 0.96) 0%,
+    hsl(214 54% 98% / 0.92) 48%,
+    hsl(214 50% 97% / 0.94) 100%
+  );
+  box-shadow:
+    0 2px 10px -4px rgb(0 0 0 / 0.06),
+    0 8px 28px -10px rgb(0 0 0 / 0.06),
+    0 0 0 1px hsl(var(--pu-gold) / 0.08),
+    inset 0 1px 0 hsl(0 0% 100% / 0.88);
+}
+html.member-html:not(.dark) .member-login-premium-root .member-login-badge-tile:active {
+  box-shadow:
+    0 2px 8px -4px hsl(var(--pu-gold) / 0.14),
+    inset 0 1px 0 hsl(214 45% 96% / 0.95);
+}
+
+/* 邀请页顶栏 — 浅色青冰渐变（结构/排版不变，仅 surface） */
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero {
+  border-color: rgba(6, 182, 212, 0.22);
+  background: linear-gradient(
+    168deg,
+    hsl(187 62% 97%) 0%,
+    hsl(199 70% 96%) 40%,
+    hsl(214 54% 97%) 100%
+  );
+  box-shadow:
+    0 8px 28px -8px rgb(14 116 144 / 0.12),
+    0 0 0 1px hsl(187 42% 91% / 0.65) inset;
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero::before {
+  background: radial-gradient(ellipse at center, rgba(6, 182, 212, 0.16) 0%, transparent 58%);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero::after {
+  opacity: 0.5;
+  background-image:
+    linear-gradient(115deg, transparent 40%, rgba(56, 189, 248, 0.07) 50%, transparent 60%),
+    radial-gradient(1px 1px at 18% 22%, rgba(6, 182, 212, 0.22) 50%, transparent 52%),
+    radial-gradient(1px 1px at 64% 58%, rgba(14, 165, 233, 0.18) 50%, transparent 52%);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero__stats {
+  border-color: rgba(6, 182, 212, 0.22);
+  background: linear-gradient(165deg, hsl(0 0% 100% / 0.9) 0%, hsl(187 45% 98% / 0.94) 100%);
+  box-shadow: 0 0 0 1px hsl(214 38% 91% / 0.85) inset;
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero__stat-label {
+  color: hsl(193 28% 40% / 0.88);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero__stat-mega {
+  background: linear-gradient(180deg, #0e7490 0%, #0891b2 46%, #06b6d4 100%);
+  filter: drop-shadow(0 1px 10px rgba(6, 182, 212, 0.14));
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero__stat-unit {
+  color: hsl(193 32% 36% / 0.92);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero__stat-today {
+  text-shadow:
+    0 0 16px hsl(var(--pu-emerald) / 0.1),
+    0 1px 0 hsl(214 40% 99% / 0.95);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero__btn--ghost {
+  border-color: hsl(214 38% 86%);
+  background: hsl(0 0% 100% / 0.78);
+  color: hsl(var(--pu-m-text) / 0.9);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero__btn--ghost:hover {
+  background: hsl(187 48% 96% / 0.98);
+  border-color: rgba(6, 182, 212, 0.32);
+  color: hsl(193 42% 28%);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero__footnote-link {
+  color: hsl(193 72% 32%);
+  text-decoration-color: rgba(6, 182, 212, 0.42);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero__footnote-link:hover {
+  color: hsl(194 78% 27%);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero__shortcuts {
+  border-top-color: rgba(6, 182, 212, 0.2);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero__chip {
+  border-color: rgba(6, 182, 212, 0.24);
+  background: hsl(187 52% 97% / 0.95);
+  color: hsl(193 38% 30% / 0.94);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero__chip:hover {
+  border-color: rgba(6, 182, 212, 0.38);
+  background: hsl(187 55% 94% / 0.98);
+  color: hsl(194 48% 24%);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero__frozen {
+  border-color: rgba(217, 119, 6, 0.3);
+  background: hsl(38 90% 96% / 0.98);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero__frozen-icon {
+  color: hsl(32 92% 42%);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-hero__frozen-text {
+  color: hsl(28 45% 28%);
+}
+
+/* 首页每日任务面板 — 白玻璃 + 轻影（覆盖 rgba 重投影） */
+html.member-html:not(.dark) .member-portal-wrap .member-daily-earnings {
+  background: hsl(0 0% 100% / 0.93);
+  border-color: hsl(214 38% 89%);
+  box-shadow:
+    0 1px 4px -1px rgb(0 0 0 / 0.05),
+    0 8px 28px -8px rgb(0 0 0 / 0.06),
+    0 0 0 1px hsl(var(--pu-gold) / 0.07);
+  backdrop-filter: blur(12px) saturate(1.12);
+  -webkit-backdrop-filter: blur(12px) saturate(1.12);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-daily-earnings .m-earnings-bar {
+  background: hsl(214 38% 91% / 0.95);
+}
+
+/* 积分商城 · premium-ui 方卡 / 列表（深色投影与图底黑条 → 白玻璃 + 白底积分条，适配浅色正文色） */
+html.member-html:not(.dark) .member-portal-wrap .member-pu-product-card {
+  background: hsl(0 0% 100% / 0.96);
+  border-color: hsl(214 38% 89%);
+  box-shadow:
+    0 2px 8px -2px rgb(0 0 0 / 0.06),
+    0 10px 32px -12px rgb(0 0 0 / 0.07),
+    0 0 0 1px hsl(var(--pu-gold) / 0.08) inset;
+}
+@media (hover: hover) {
+  html.member-html:not(.dark) .member-portal-wrap .member-pu-product-card:hover {
+    border-color: hsl(214 36% 86%);
+    box-shadow:
+      0 4px 14px -4px rgb(0 0 0 / 0.07),
+      0 14px 40px -14px rgb(0 0 0 / 0.08),
+      0 0 0 1px hsl(var(--pu-gold) / 0.12) inset;
+  }
+}
+html.member-html:not(.dark) .member-portal-wrap .member-pu-product-card__media-wrap::after {
+  background: linear-gradient(180deg, hsl(0 0% 100% / 0.38) 0%, transparent 38%);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-pu-product-card__points-strip {
+  background: linear-gradient(
+    to top,
+    hsl(0 0% 100% / 0.95) 0%,
+    hsl(214 54% 99% / 0.58) 52%,
+    transparent 100%
+  );
+}
+html.member-html:not(.dark) .member-portal-wrap .member-pu-product-card__points-value {
+  color: hsl(var(--pu-m-text));
+  text-shadow: 0 1px 1px hsl(0 0% 100% / 0.85);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-pu-product-card__badge--soldout {
+  background: hsl(215 14% 42% / 0.9);
+  color: hsl(0 0% 100%);
+  border-color: hsl(214 18% 72% / 0.45);
+}
+
+html.member-html:not(.dark) .member-portal-wrap .member-pu-product-list-row {
+  background: hsl(0 0% 100% / 0.95);
+  border-color: hsl(214 38% 89%);
+  box-shadow:
+    0 1px 4px -1px rgb(0 0 0 / 0.05),
+    0 8px 26px -10px rgb(0 0 0 / 0.06),
+    0 0 0 1px hsl(var(--pu-gold) / 0.07) inset;
+}
+@media (hover: hover) {
+  html.member-html:not(.dark) .member-portal-wrap .member-pu-product-list-row:hover {
+    border-color: hsl(var(--pu-gold) / 0.24);
+    box-shadow:
+      0 2px 10px -4px rgb(0 0 0 / 0.06),
+      0 12px 36px -12px rgb(0 0 0 / 0.07),
+      0 0 0 1px hsl(var(--pu-gold) / 0.1) inset;
+  }
+}
+html.member-html:not(.dark) .member-portal-wrap .member-pu-product-list-row__thumb::after {
+  background: linear-gradient(180deg, hsl(0 0% 100% / 0.42) 0%, transparent 40%);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-pu-product-list-row__points-strip {
+  background: linear-gradient(
+    to top,
+    hsl(0 0% 100% / 0.96) 0%,
+    hsl(214 55% 99% / 0.52) 65%,
+    transparent 100%
+  );
+}
+html.member-html:not(.dark) .member-portal-wrap .member-pu-product-list-row__points {
+  color: hsl(var(--pu-m-text));
+  text-shadow: 0 1px 1px hsl(0 0% 100% / 0.85);
+}
+
+/* 礼遇商城旧式方图卡 — 顶部渐变遮罩 */
+html.member-html:not(.dark) .member-portal-wrap .member-mall-card-media::after {
+  background: linear-gradient(180deg, hsl(0 0% 100% / 0.48) 0%, transparent 100%);
+}
+
+/* 邀请页主工具卡 */
+html.member-html:not(.dark) .member-portal-wrap .member-invite-tool-card {
+  background: linear-gradient(165deg, hsl(0 0% 100% / 0.99) 0%, hsl(214 54% 98% / 0.96) 100%);
+  border-color: hsl(214 38% 89%);
+  box-shadow:
+    0 2px 10px -4px rgb(0 0 0 / 0.06),
+    0 10px 36px -12px rgb(0 0 0 / 0.07),
+    0 0 0 1px hsl(var(--pu-gold) / 0.08) inset;
+}
+
+/* 首页资产 mega 卡 + 四宫格分割线 */
+html.member-html:not(.dark) .member-portal-wrap .member-asset-mega {
+  background: hsl(0 0% 100% / 0.93);
+  border-color: hsl(214 38% 89%);
+  box-shadow:
+    0 2px 8px -2px rgb(0 0 0 / 0.05),
+    0 12px 40px -12px rgb(0 0 0 / 0.08),
+    0 0 0 1px hsl(var(--pu-gold) / 0.11) inset,
+    inset 0 -2px 0 hsl(var(--pu-gold) / 0.18);
+  backdrop-filter: blur(14px) saturate(1.12);
+  -webkit-backdrop-filter: blur(14px) saturate(1.12);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-asset-mega:hover {
+  box-shadow:
+    0 4px 14px -4px rgb(0 0 0 / 0.06),
+    0 16px 48px -14px rgb(0 0 0 / 0.09),
+    0 0 0 1px hsl(var(--pu-gold) / 0.14) inset,
+    inset 0 -2px 0 hsl(var(--pu-gold) / 0.22);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-asset-mega::after {
+  background:
+    linear-gradient(90deg, hsl(214 42% 97% / 0.65) 0%, transparent 10%, transparent 90%, hsl(214 42% 97% / 0.55) 100%),
+    radial-gradient(ellipse 80% 55% at 50% -20%, hsl(var(--pu-gold) / 0.15) 0%, transparent 55%),
+    radial-gradient(circle at 100% 0%, hsl(var(--pu-gold) / 0.09) 0%, transparent 45%);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-asset-mega__chip {
+  background: hsl(214 52% 97% / 0.98);
+  border-color: hsl(214 38% 90%);
+  color: hsl(var(--pu-m-text-2));
+}
+html.member-html:not(.dark) .member-portal-wrap .member-asset-mega__grid {
+  background: hsl(214 38% 90% / 0.9);
+  border-top-color: hsl(214 38% 90%);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-asset-mega__cell {
+  background: hsl(0 0% 100% / 0.82);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-asset-mega__cell--tap:active {
+  background: hsl(var(--pu-gold) / 0.1);
+}
+
+/* 首页 2×2 操作宫格 + 主按钮格 */
+html.member-html:not(.dark) .member-portal-wrap .member-action-tile {
+  background: hsl(0 0% 100% / 0.91);
+  border-color: hsl(214 38% 89%);
+  box-shadow:
+    0 2px 8px -2px rgb(0 0 0 / 0.05),
+    0 6px 22px -8px rgb(0 0 0 / 0.06),
+    0 0 0 1px hsl(var(--pu-gold) / 0.06) inset;
+}
+html.member-html:not(.dark) .member-portal-wrap .member-action-tile:hover {
+  border-color: hsl(var(--pu-gold) / 0.28);
+  box-shadow:
+    0 4px 14px -4px rgb(0 0 0 / 0.06),
+    0 10px 30px -10px rgb(0 0 0 / 0.07),
+    0 0 14px hsl(var(--pu-gold) / 0.08);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-action-tile__icon {
+  box-shadow:
+    0 0 0 1px hsl(214 40% 93% / 0.9) inset,
+    0 4px 12px -4px rgb(0 0 0 / 0.07);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-action-tile--primary {
+  border-color: hsl(var(--pu-gold) / 0.34);
+  background: linear-gradient(
+    168deg,
+    hsl(var(--pu-gold) / 0.13) 0%,
+    hsl(var(--pu-gold) / 0.05) 40%,
+    hsl(0 0% 100% / 0.96) 100%
+  );
+  box-shadow:
+    0 4px 18px -6px hsl(var(--pu-gold) / 0.16),
+    0 0 0 1px hsl(var(--pu-gold) / 0.11) inset,
+    0 1px 3px rgb(0 0 0 / 0.04);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-action-tile--primary .member-action-tile__icon {
+  background: linear-gradient(160deg, hsl(var(--pu-gold) / 0.22) 0%, hsl(var(--pu-gold) / 0.08) 100%);
+  border-color: hsl(var(--pu-gold) / 0.26);
+  box-shadow:
+    0 0 0 1px hsl(var(--pu-gold) / 0.12) inset,
+    0 4px 14px -4px hsl(var(--pu-gold) / 0.14);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-action-tile--primary .member-action-tile__sub {
+  color: hsl(var(--pu-m-text-dim));
+}
+
+/* 功能岛 */
+html.member-html:not(.dark) .member-portal-wrap .member-island-card {
+  background: hsl(0 0% 100% / 0.9);
+  border-color: hsl(214 38% 89%);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-island-card__icon {
+  background: hsl(214 52% 97% / 0.98);
+  box-shadow: 0 2px 10px -2px rgb(0 0 0 / 0.06);
+}
+
+/* 积分页 · 本机头像设置区（卡片 / 预览圈 / 角标 — 原 rgba 重影） */
+html.member-html:not(.dark) .member-portal-wrap .member-points-account-settings__card,
+html.member-html:not(.dark) .member-login-premium-root .member-points-account-settings__card {
+  background: linear-gradient(165deg, hsl(0 0% 100% / 0.99) 0%, hsl(214 54% 98% / 0.96) 100%);
+  border-color: hsl(214 38% 89%);
+  box-shadow:
+    0 1px 4px -1px rgb(0 0 0 / 0.05),
+    0 8px 26px -10px rgb(0 0 0 / 0.06);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-points-account-settings__preview,
+html.member-html:not(.dark) .member-login-premium-root .member-points-account-settings__preview {
+  box-shadow:
+    0 0 0 2px hsl(var(--pu-gold) / 0.3),
+    0 6px 20px -6px rgb(0 0 0 / 0.08);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-points-account-settings__preview:hover:not(:disabled),
+html.member-html:not(.dark) .member-login-premium-root .member-points-account-settings__preview:hover:not(:disabled) {
+  box-shadow:
+    0 0 0 2px hsl(var(--pu-gold-soft) / 0.4),
+    0 8px 24px -6px hsl(var(--pu-gold) / 0.16);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-points-account-settings__preview-badge,
+html.member-html:not(.dark) .member-login-premium-root .member-points-account-settings__preview-badge {
+  box-shadow: 0 2px 8px -2px rgb(0 0 0 / 0.09);
+  border-color: hsl(0 0% 100% / 0.96);
+}
+
+/* 首页增长提示条 */
+html.member-html:not(.dark) .member-portal-wrap .member-growth-card {
+  background: hsl(0 0% 100% / 0.78);
+  border-color: hsl(214 38% 90%);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-growth-card:active {
+  background: hsl(var(--pu-gold) / 0.09);
+  border-color: hsl(var(--pu-gold) / 0.22);
+}
+
+/* 积分环形进度 — 浅色轨道 */
+html.member-html:not(.dark) .member-portal-wrap .m-points-ring-bg {
+  stroke: hsl(214 36% 86% / 0.98);
+}
+
+/* m-premium-card 默认态（hover 在上方已有 :not(.dark) 规则） */
+html.member-html:not(.dark) .member-portal-wrap .m-premium-card {
+  background: linear-gradient(135deg, hsl(0 0% 100% / 0.98) 0%, hsl(214 54% 99% / 0.93) 100%);
+  border-color: hsl(214 38% 89%);
+  box-shadow:
+    0 1px 3px -1px rgb(0 0 0 / 0.04),
+    0 2px 12px -4px rgb(0 0 0 / 0.05);
+}
+
+/* 首页问候条 — 会员编号在浅色底上加深金，避免发灰 */
+html.member-html:not(.dark) .member-portal-wrap .member-home-greet__code {
+  color: hsl(var(--pu-gold-deep) / 0.9);
+}
+
+/* 页脚信任文案（原 #b0b0b0 在浅色页上过浅） */
+html.member-html:not(.dark) .member-portal-wrap .m-trust-footer p {
+  color: hsl(var(--pu-m-text-dim));
+}
+
+/* 积分 / 设置 — 内联头像卡（原 hsl(0 0% 0% / 0.35) 投影） */
+html.member-html:not(.dark) .member-portal-wrap .member-points-account-settings--inline .member-points-account-settings__card,
+html.member-html:not(.dark) .member-login-premium-root .member-points-account-settings--inline .member-points-account-settings__card {
+  border-color: hsl(var(--pu-gold) / 0.24);
+  background: linear-gradient(
+    165deg,
+    hsl(0 0% 100% / 0.97) 0%,
+    hsl(214 54% 98% / 0.95) 52%,
+    hsl(var(--pu-gold) / 0.07) 100%
+  );
+  box-shadow:
+    0 1px 4px -1px rgb(0 0 0 / 0.05),
+    0 8px 26px -10px rgb(0 0 0 / 0.06),
+    0 4px 16px -8px hsl(var(--pu-gold) / 0.12);
+}
+
+/* 删除头像 ghost 按钮 hover（#fecaca 仅适配深底；浅色改用 rose token） */
+html.member-html:not(.dark) .member-portal-wrap .member-points-account-settings__btn--ghost:hover:not(:disabled),
+html.member-html:not(.dark) .member-login-premium-root .member-points-account-settings__btn--ghost:hover:not(:disabled) {
+  background: hsl(var(--pu-rose) / 0.08);
+  border-color: hsl(var(--pu-rose) / 0.3);
+  color: hsl(var(--pu-rose-soft));
+}
+
+/* 积分顶栏 —「今日」数字字影 */
+html.member-html:not(.dark) .member-portal-wrap .member-points-today-value {
+  text-shadow:
+    0 0 18px hsl(var(--pu-emerald) / 0.1),
+    0 1px 0 hsl(0 0% 100% / 0.88);
+}
+
+/* 积分顶栏 — 可用积分大字渐变（浅色底加深字色对比） */
+html.member-html:not(.dark) .member-portal-wrap .member-points-balance-mega {
+  background: linear-gradient(
+    180deg,
+    hsl(222 47% 20%) 0%,
+    hsl(var(--pu-gold-deep)) 46%,
+    hsl(var(--pu-gold)) 100%
+  );
+  filter: drop-shadow(0 1px 6px hsl(var(--pu-gold) / 0.11));
+}
+
+/* 积分顶栏 — 次要操作按钮 */
+html.member-html:not(.dark) .member-portal-wrap .member-points-actions .member-points-btn-secondary {
+  background: hsl(0 0% 100% / 0.85);
+  border-color: hsl(214 38% 88%);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-points-actions .member-points-btn-secondary:hover {
+  background: hsl(214 50% 97% / 0.98);
+}
+
 /* 消息通知 — MemberNotifications 列表行（m-glass + cursor-pointer + px-4 py-4 唯一组合） */
 html.member-html:not(.dark) .member-portal-wrap .m-page-bg .m-glass.cursor-pointer.overflow-hidden.px-4.py-4 {
-  border-color: hsl(220 18% 88%) !important;
+  border-color: hsl(214 38% 89%) !important;
   box-shadow:
     0 1px 3px -1px rgb(0 0 0 / 0.06),
     0 2px 12px -4px rgb(0 0 0 / 0.05) !important;
@@ -5837,7 +6520,7 @@ html.member-html:not(.dark) .member-portal-wrap .m-page-bg .m-glass.cursor-point
 /* 登录 — 表单卡片（参考 .light .login-card；用 :has 挂钩，不增 TSX） */
 html.member-html:not(.dark) .member-login-premium-root div:has(> form.space-y-5) {
   background: hsl(0 0% 100% / 0.94) !important;
-  border: 1px solid hsl(220 18% 88%) !important;
+  border: 1px solid hsl(214 38% 89%) !important;
   box-shadow:
     0 1px 4px -1px rgb(0 0 0 / 0.06),
     0 4px 18px -8px rgb(0 0 0 / 0.05) !important;
@@ -5867,7 +6550,7 @@ html.member-html:not(.dark)
 /* 登录 — 落地页次要按钮（白底描边） */
 html.member-html:not(.dark) .member-login-premium-root .space-y-3.px-5 > button.rounded-2xl.py-4[style*="hsl(var(--pu-m-surface)"] {
   background: hsl(0 0% 100% / 0.88) !important;
-  border-color: hsl(220 18% 88%) !important;
+  border-color: hsl(214 38% 89%) !important;
   box-shadow: 0 1px 3px -1px rgb(0 0 0 / 0.05) !important;
 }
 
@@ -5875,7 +6558,7 @@ html.member-html:not(.dark) .member-login-premium-root .space-y-3.px-5 > button.
 html.member-html:not(.dark) .member-login-premium-root .member-login-carousel-dot[aria-selected="true"] {
   background: hsl(var(--pu-gold)) !important;
   box-shadow:
-    0 0 0 1px hsl(220 18% 82%),
+    0 0 0 1px hsl(214 40% 90%),
     0 1px 3px rgb(0 0 0 / 0.07) !important;
 }
 
@@ -5909,4 +6592,263 @@ html.member-html:not(.dark) .member-portal-wrap [class*="shadow-[0_8px_28px_-12p
 /* 首次设密 — Logo 盒 shadow-[0_8px_28px_hsl(var(--pu-gold)/0.28)] */
 html.member-html:not(.dark) .member-login-premium-root [class*="shadow-[0_8px_28px_hsl(var(--pu-gold)/0.28)]"] {
   box-shadow: 0 6px 20px -8px hsl(var(--pu-gold) / 0.2) !important;
+}
+
+/* Radix 下拉 / Select（常挂到 body）：浅色轨道用 214 淡灰，避免深色条叠在浅底上 */
+html.member-html:not(.dark) [data-radix-menu-content] {
+  scrollbar-color: hsl(var(--pu-gold) / 0.35) hsl(214 32% 94% / 0.92);
+}
+html.member-html:not(.dark) [data-radix-menu-content]::-webkit-scrollbar-track {
+  background: hsl(214 32% 94% / 0.88);
+}
+html.member-html:not(.dark) [data-radix-select-viewport] {
+  scrollbar-color: hsl(var(--pu-gold) / 0.35) hsl(214 32% 94% / 0.92) !important;
+}
+html.member-html:not(.dark) [data-radix-select-viewport]::-webkit-scrollbar-track {
+  background: hsl(214 32% 94% / 0.88);
+}
+
+/* 下拉刷新顶区：浅色顶缘偏白，与页面背景衔接 */
+html.member-html:not(.dark) .member-portal-wrap .member-ptr-indicator {
+  background: linear-gradient(180deg, hsl(0 0% 100% / 0.72) 0%, transparent 100%);
+}
+
+/* 注册/邀请条款勾选：浅色白底 + 清晰描边 */
+html.member-html:not(.dark) .member-portal-wrap .member-legal-consent-checkbox,
+html.member-html:not(.dark) .member-login-premium-root .member-legal-consent-checkbox {
+  border-color: hsl(214 38% 88%);
+  background-color: hsl(0 0% 100% / 0.82);
+}
+
+/* 首页 2x2 数据卡顶线：浅色略提亮金线 */
+html.member-html:not(.dark) .member-portal-wrap .m-data-card::before {
+  background: linear-gradient(90deg, transparent, hsl(var(--pu-gold) / 0.22), transparent);
+}
+
+/* 引导页主按钮：与浅色 .btn-glow 家族对齐（末步略加深仍保持柔和） */
+html.member-html:not(.dark) .member-portal-wrap .member-onboarding-cta.btn-glow,
+html.member-html:not(.dark) .member-login-premium-root .member-onboarding-cta.btn-glow {
+  box-shadow: 0 4px 16px -4px hsl(var(--pu-gold) / 0.3);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-onboarding-cta--final.btn-glow,
+html.member-html:not(.dark) .member-login-premium-root .member-onboarding-cta--final.btn-glow {
+  box-shadow: 0 5px 18px -5px hsl(var(--pu-gold-deep) / 0.28);
+}
+
+/* 首页横幅 / 转盘 / 仪表 — Tailwind 任意 box-shadow 在浅色下柔化（参考 Financial Light，不改 DOM） */
+html.member-html:not(.dark) .member-portal-wrap [class*="shadow-[0_22px_56px_-14px_rgba(0,0,0,0.55)]"] {
+  box-shadow:
+    0 12px 36px -12px rgb(15 23 42 / 0.1),
+    0 4px 16px -8px rgb(15 23 42 / 0.06) !important;
+}
+html.member-html:not(.dark) .member-portal-wrap [class*="shadow-[0_12px_40px_rgba(0,0,0,0.2)]"] {
+  box-shadow:
+    0 2px 10px -4px rgb(0 0 0 / 0.06),
+    0 10px 28px -10px rgb(0 0 0 / 0.07) !important;
+}
+html.member-html:not(.dark) .member-portal-wrap [class*="shadow-[0_4px_14px_hsl(var(--pu-gold)/0.3)]"] {
+  box-shadow: 0 3px 12px -4px hsl(var(--pu-gold) / 0.2) !important;
+}
+html.member-html:not(.dark) .member-portal-wrap [class*="shadow-[0_4px_14px_-4px_hsl(var(--pu-emerald)/0.45)]"] {
+  box-shadow: 0 3px 14px -4px hsl(var(--pu-emerald) / 0.28) !important;
+}
+html.member-html:not(.dark) .member-portal-wrap [class*="shadow-[0_6px_18px_-4px_hsl(var(--pu-emerald)/0.4)]"] {
+  box-shadow: 0 4px 16px -4px hsl(var(--pu-emerald) / 0.24) !important;
+}
+html.member-html:not(.dark) .member-portal-wrap [class*="shadow-[0_0_24px_-4px_hsl(var(--pu-emerald)/0.4)]"] {
+  box-shadow: 0 0 20px -6px hsl(var(--pu-emerald) / 0.22) !important;
+}
+html.member-html:not(.dark) .member-portal-wrap [class*="shadow-[0_0_18px_-4px_hsl(var(--pu-gold)/0.28)]"] {
+  box-shadow: 0 0 16px -6px hsl(var(--pu-gold) / 0.18) !important;
+}
+html.member-html:not(.dark) .member-portal-wrap [class*="shadow-[0_0_16px_hsl(12_85%_60%/0.1)]"] {
+  box-shadow: 0 0 14px -4px hsl(12 85% 60% / 0.08) !important;
+}
+html.member-html:not(.dark) .member-portal-wrap [class*="shadow-[0_0_12px_hsl(var(--pu-gold)/0.4)]"] {
+  box-shadow: 0 0 10px hsl(var(--pu-gold) / 0.22) !important;
+}
+html.member-html:not(.dark) .member-portal-wrap [class*="shadow-[0_0_12px_2px_hsl(var(--pu-gold)/0.5)]"] {
+  box-shadow: 0 0 10px 1px hsl(var(--pu-gold) / 0.28) !important;
+}
+
+/* Sheet 挂到 body：抽奖结果等抽屉内同上 Tailwind shadow（无 .member-portal-wrap 祖先） */
+html.member-html:not(.dark) .member-drawer-detail [class*="shadow-[0_4px_14px_hsl(var(--pu-gold)/0.3)]"] {
+  box-shadow: 0 3px 12px -4px hsl(var(--pu-gold) / 0.2) !important;
+}
+
+/* 横幅标题等 drop-shadow：仅在不拒绝动效时覆盖，避免压过 motion-reduce:drop-shadow-none */
+@media (prefers-reduced-motion: no-preference) {
+  html.member-html:not(.dark) .member-portal-wrap [class*="drop-shadow-[0_2px_14px_rgba(0,0,0,0.55)]"] {
+    filter: drop-shadow(0 2px 8px rgb(15 23 42 / 0.12));
+  }
+  html.member-html:not(.dark) .member-portal-wrap [class*="drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)]"] {
+    filter: drop-shadow(0 2px 6px rgb(15 23 42 / 0.1));
+  }
+  html.member-html:not(.dark) .member-portal-wrap [class*="drop-shadow-[0_1px_10px_rgba(0,0,0,0.45)]"] {
+    filter: drop-shadow(0 1px 5px rgb(15 23 42 / 0.09));
+  }
+  html.member-html:not(.dark) .member-portal-wrap [class*="drop-shadow-[0_1px_8px_rgba(0,0,0,0.35)]"] {
+    filter: drop-shadow(0 1px 4px rgb(15 23 42 / 0.08));
+  }
+  html.member-html:not(.dark) .member-portal-wrap [class*="drop-shadow-[0_0_10px_hsl(var(--pu-gold)/0.6)]"] {
+    filter: drop-shadow(0 0 8px hsl(var(--pu-gold) / 0.25));
+  }
+  /* 转盘分区字母等白字：深色晕 → 浅靛轻晕 */
+  html.member-html:not(.dark) .member-portal-wrap [class*="drop-shadow-[0_1px_2px_rgb(0_0_0_/_0.25)]"] {
+    filter: drop-shadow(0 1px 2px rgb(15 23 42 / 0.14));
+  }
+}
+
+/* 会员 DrawerDetail 遮罩：#070B14/78 → 浅色半透明靛（匹配 Tailwind 类名片段，避免误伤实心 #070B14 块） */
+html.member-html:not(.dark) [class*="#070B14]/78"] {
+  background-color: hsl(222 47% 11% / 0.38) !important;
+}
+
+/* AlertDialog 遮罩（会员通知删除等：类名含 2099 与 bg-black/80，避免 attribute 内未转义 ] 截断） */
+html.member-html:not(.dark) [class*="2099"][class*="bg-black/80"] {
+  background-color: rgb(15 23 42 / 0.42) !important;
+}
+
+/* 会员门户内表格 sticky「操作」列：左侧擦痕阴影柔化（片段匹配，避免 class*= 内 ] 截断） */
+html.member-html:not(.dark) .member-portal-wrap [class*="-4px_0_8px_-4px_rgba(0,0,0,0.15)"] {
+  box-shadow: -4px 0 12px -4px rgb(15 23 42 / 0.06) !important;
+}
+html.member-html:not(.dark) .member-portal-wrap [class*="-4px_0_8px_-4px_rgba(0,0,0,0.08)"] {
+  box-shadow: -4px 0 10px -4px rgb(15 23 42 / 0.04) !important;
+}
+
+/* Sheet 默认遮罩（z-[2000] + bg-black/80，无 #070B14 定制时；AlertDialog 用 2099 已单独处理） */
+html.member-html:not(.dark) [class*="2000"][class*="bg-black/80"] {
+  background-color: rgb(15 23 42 / 0.4) !important;
+}
+
+/* 全页加载骨架：浅色画布与 premium 页底一致 */
+html.member-html:not(.dark) .member-page-skeleton {
+  background: linear-gradient(
+    175deg,
+    hsl(var(--pu-m-bg-1)) 0%,
+    hsl(var(--pu-m-bg-2)) 50%,
+    hsl(var(--pu-m-bg-3)) 100%
+  );
+}
+html.member-html:not(.dark) .member-page-skeleton::before {
+  background: radial-gradient(ellipse 130% 90% at 0% -15%, hsl(var(--pu-gold) / 0.09) 0%, transparent 52%);
+}
+
+/* 浅色下 shimmer 条略提亮，避免贴在白底上发灰脏 */
+html.member-html:not(.dark) .member-skeleton {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--pu-m-text) / 0.04) 25%,
+    hsl(var(--pu-m-text) / 0.075) 50%,
+    hsl(var(--pu-m-text) / 0.04) 75%
+  );
+  background-size: 200% 100%;
+}
+html.member-html:not(.dark) .member-skeleton--dark {
+  background: linear-gradient(
+    90deg,
+    hsl(214 22% 90%) 25%,
+    hsl(214 20% 94%) 50%,
+    hsl(214 22% 90%) 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* 启动页 Splash：浅色 Financial 渐变底 + 正文色标题（覆盖组件内联 background / text-shadow） */
+html.member-html:not(.dark) .member-splash-screen {
+  background: linear-gradient(
+    175deg,
+    hsl(var(--pu-m-bg-1)) 0%,
+    hsl(var(--pu-m-bg-2)) 50%,
+    hsl(var(--pu-m-bg-3)) 100%
+  ) !important;
+}
+html.member-html:not(.dark) .member-splash-screen h1.text-white {
+  color: hsl(var(--pu-m-text)) !important;
+  text-shadow: 0 1px 2px hsl(214 40% 98% / 0.95) !important;
+}
+html.member-html:not(.dark) .member-splash-screen .border-white\/10 {
+  border-color: hsl(var(--pu-m-surface-border) / 0.55) !important;
+}
+/* 进度条底轨（仅窄条容器，避免匹配其它 white/ 工具类） */
+html.member-html:not(.dark) .member-splash-screen .h-1\.5.rounded-full[class*="min(200px"] {
+  background-color: hsl(var(--pu-m-text) / 0.08) !important;
+}
+html.member-html:not(.dark) .member-splash-screen .bg-white\/\[0\.06\] {
+  background-color: hsl(0 0% 100% / 0.72) !important;
+}
+html.member-html:not(.dark) .member-splash-screen .hover\:bg-white\/\[0\.1\]:hover {
+  background-color: hsl(214 54% 97% / 0.95) !important;
+}
+html.member-html:not(.dark) .member-splash-screen .text-white\/55 {
+  color: hsl(var(--pu-m-text-dim)) !important;
+}
+html.member-html:not(.dark) .member-splash-screen .hover\:text-white\/85:hover {
+  color: hsl(var(--pu-m-text)) !important;
+}
+html.member-html:not(.dark) .member-splash-screen .focus-visible\:ring-white\/25:focus-visible {
+  --tw-ring-color: hsl(var(--pu-gold) / 0.35);
+}
+
+/* 首页配置横幅：有图时的左缘压暗渐变 — 浅色用低对比靛灰，避免整卡发乌 */
+html.member-html:not(.dark) .member-portal-wrap .member-hero-banner [class*="linear-gradient(to_right,rgba(0,0,0"] {
+  background-image: linear-gradient(
+    to right,
+    rgb(15 23 42 / 0.16) 0%,
+    rgb(15 23 42 / 0.05) 42%,
+    transparent 68%
+  ) !important;
+}
+@media (min-width: 640px) {
+  html.member-html:not(.dark) .member-portal-wrap .member-hero-banner [class*="linear-gradient(to_right,rgba(0,0,0"] {
+    background-image: linear-gradient(
+      to right,
+      rgb(15 23 42 / 0.12) 0%,
+      rgb(15 23 42 / 0.035) 40%,
+      transparent 65%
+    ) !important;
+  }
+}
+
+/* 无图渐变卡：轻遮罩 + 内联径向暗角 — 浅色改为淡靛，保留层次不糊死 */
+html.member-html:not(.dark) .member-portal-wrap .member-hero-banner .bg-black\/15 {
+  background-color: rgb(15 23 42 / 0.05) !important;
+}
+html.member-html:not(.dark) .member-portal-wrap .member-hero-banner div[style*="rgba(0,0,0,0.22)"] {
+  background: radial-gradient(ellipse 120% 90% at 0% 50%, rgb(15 23 42 / 0.08), transparent 55%) !important;
+}
+
+/* 横幅主按钮：内联 boxShadow 含重黑层 — 浅色改为金晕 + 浅靛底影（主题色底仍由内联控制） */
+html.member-html:not(.dark) .member-portal-wrap .member-hero-banner button[style*="10px 28px"] {
+  box-shadow:
+    0 10px 28px -6px hsl(var(--pu-gold) / 0.22),
+    0 3px 12px rgb(15 23 42 / 0.08) !important;
+}
+
+/* 设置页头像（已上传图时内联 rgba(0,0,0,0.2) 底）— 浅色淡灰底，不压暗整卡 */
+html.member-html:not(.dark) .member-portal-wrap .shadow-pu-glow-gold[style*="rgba(0,0,0,0.2)"] {
+  background-color: hsl(var(--pu-m-text) / 0.06) !important;
+  box-shadow: none !important;
+}
+
+/* 首页四宫格（积分/抽奖/邀请/钱包）：内联 boxShadow 用 surface-border，浅色偏硬 — 统一浅靛柔影 */
+html.member-html:not(.dark) .member-portal-wrap div[style*="0 6px 20px -6px hsl(var(--pu-m-surface-border)"] {
+  box-shadow: 0 5px 18px -8px rgb(15 23 42 / 0.08) !important;
+}
+
+/* Radix Popover / Tooltip / Select / Dropdown 主层：挂到 body，浅色柔影 + 214 描边 */
+html.member-html:not(.dark) .bg-popover.shadow-md {
+  box-shadow:
+    0 2px 8px -2px rgb(15 23 42 / 0.06),
+    0 8px 24px -8px rgb(15 23 42 / 0.07) !important;
+  border-color: hsl(var(--pu-m-surface-border) / 0.55) !important;
+}
+
+/* Dropdown 子菜单 / NavigationMenu 视口等 shadow-lg：略加深一层，仍避免 Tailwind 默认重黑 */
+html.member-html:not(.dark) .bg-popover.shadow-lg {
+  box-shadow:
+    0 4px 14px -4px rgb(15 23 42 / 0.07),
+    0 14px 40px -14px rgb(15 23 42 / 0.09) !important;
+  border-color: hsl(var(--pu-m-surface-border) / 0.55) !important;
 }

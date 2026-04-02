@@ -149,7 +149,7 @@ export default function ReportManagement() {
   // Performance tracking
   trackRender('ReportManagement');
   
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { employee } = useAuth();
   const queryClient = useQueryClient();
   const exportConfirm = useExportConfirm();
@@ -1148,7 +1148,10 @@ export default function ReportManagement() {
         break;
     }
     
-    printTable(headers, rows, title);
+    printTable(headers, rows, title, {
+      popupBlockedMessage: t("请允许弹出窗口以进行打印", "Please allow popups for printing"),
+      locale: language,
+    });
   };
 
   // 排序状态

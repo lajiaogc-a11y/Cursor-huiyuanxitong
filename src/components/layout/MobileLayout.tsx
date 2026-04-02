@@ -160,11 +160,12 @@ export function MobileLayout({ children }: MobileLayoutProps) {
     "/staff/merchants": "cards",
     "/staff/settings": "fee",
   };
-  const effectiveTab = tab || defaultTab[location.pathname] || "";
-  const tabTitles = tabPageTitles[location.pathname];
+  const pathForTitle = location.pathname.startsWith("/staff/member-portal") ? "/staff/member-portal" : location.pathname;
+  const effectiveTab = tab || defaultTab[pathForTitle] || "";
+  const tabTitles = tabPageTitles[pathForTitle];
   const pageTitle = (tabTitles && effectiveTab && tabTitles[effectiveTab])
     ? tabTitles[effectiveTab]
-    : (pageTitles[location.pathname] || { zh: "GC会员系统", en: "GC Member System" });
+    : (pageTitles[pathForTitle] || { zh: "GC会员系统", en: "GC Member System" });
   const isPrimary = primaryPaths.has(location.pathname);
 
   return (

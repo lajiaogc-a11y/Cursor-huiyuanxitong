@@ -477,7 +477,7 @@ export default function MemberRegisterRedirect() {
                     onCheckedChange={(c) => setAgreeLegal(c === true)}
                     className={cn(
                       "member-legal-consent-checkbox mt-0.5 h-[18px] w-[18px] shrink-0 rounded-[6px] border shadow-none",
-                      "focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=checked]:text-[#0B0E14]",
+                      "focus-visible:ring-0 focus-visible:ring-offset-0",
                     )}
                     style={{ ["--member-legal-check" as string]: themeColor }}
                   />

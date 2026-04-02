@@ -14,6 +14,7 @@ import {
   Download,
   CheckCircle,
 } from "lucide-react";
+import { saveInvitePosterPngBlob } from "@/lib/memberInvitePosterSave";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
@@ -195,11 +196,17 @@ export default function MemberInvite() {
       ctx.fillStyle = "hsla(213, 20%, 60%, 0.38)";
       ctx.font = "500 14px system-ui, sans-serif";
       ctx.fillText(`— ${company} —`, W / 2, H - 48);
-      const link = document.createElement("a");
-      link.download = "invite-poster.png";
-      link.href = canvas.toDataURL("image/png");
-      link.click();
-      toast.success(t("邀请海报已保存", "Poster saved"));
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            toast.error(t("无法生成图片", "Could not create image"));
+            return;
+          }
+          void saveInvitePosterPngBlob(blob, "invite-poster.png", t);
+        },
+        "image/png",
+        0.95,
+      );
     };
     img.onerror = () => toast.error(t("无法生成图片", "Could not create image"));
     img.src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgData)))}`;

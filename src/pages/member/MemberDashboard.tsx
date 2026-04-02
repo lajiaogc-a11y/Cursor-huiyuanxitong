@@ -54,30 +54,47 @@ import {
   subscribeMemberInboxUnreadCount,
 } from "@/lib/memberInboxUnreadStore";
 
-/** 与 premium-ui-boost 一致：后台未配 home_banners 时的本地三轮播（文案 i18n） */
-function useFallbackHomeBannerSlides(t: (zh: string, en: string) => string) {
+/** 与 premium-ui-boost 一致：后台未配 home_banners 时的本地三轮播（文案 i18n；浅色仅换渐变，布局不变） */
+function useFallbackHomeBannerSlides(t: (zh: string, en: string) => string, theme: "light" | "dark") {
   return useMemo(
-    () => [
-      {
-        title: t("春季积分狂欢", "Spring points festival"),
-        desc: t("消费满 500 积分翻倍，限时 3 天", "Spend 500 pts — double points, 3 days only"),
-        gradient: "linear-gradient(135deg, hsl(219 40% 14%), hsl(216 50% 8%))",
-        accent: "--pu-gold" as const,
-      },
-      {
-        title: t("邀请好友赢大奖", "Invite friends — win big"),
-        desc: t("每邀请 1 人即得 10 次免费抽奖", "Each invite earns 10 free lucky draws"),
-        gradient: "linear-gradient(135deg, hsl(252 35% 14%), hsl(216 50% 8%))",
-        accent: "--pu-violet" as const,
-      },
-      {
-        title: t("新品上架通知", "New arrivals"),
-        desc: t("限量版商品已上线积分商城", "Limited items are live in the points mall"),
-        gradient: "linear-gradient(135deg, hsl(219 50% 16%), hsl(216 50% 8%))",
-        accent: "--pu-gold-deep" as const,
-      },
-    ],
-    [t],
+    () => {
+      const dark = [
+        {
+          title: t("春季积分狂欢", "Spring points festival"),
+          desc: t("消费满 500 积分翻倍，限时 3 天", "Spend 500 pts — double points, 3 days only"),
+          gradient: "linear-gradient(135deg, hsl(219 40% 14%), hsl(216 50% 8%))",
+          accent: "--pu-gold" as const,
+        },
+        {
+          title: t("邀请好友赢大奖", "Invite friends — win big"),
+          desc: t("每邀请 1 人即得 10 次免费抽奖", "Each invite earns 10 free lucky draws"),
+          gradient: "linear-gradient(135deg, hsl(252 35% 14%), hsl(216 50% 8%))",
+          accent: "--pu-violet" as const,
+        },
+        {
+          title: t("新品上架通知", "New arrivals"),
+          desc: t("限量版商品已上线积分商城", "Limited items are live in the points mall"),
+          gradient: "linear-gradient(135deg, hsl(219 50% 16%), hsl(216 50% 8%))",
+          accent: "--pu-gold-deep" as const,
+        },
+      ];
+      if (theme !== "light") return dark;
+      return [
+        {
+          ...dark[0],
+          gradient: "linear-gradient(135deg, hsl(214 54% 97%), hsl(214 48% 94%))",
+        },
+        {
+          ...dark[1],
+          gradient: "linear-gradient(135deg, hsl(252 40% 97%), hsl(214 50% 95%))",
+        },
+        {
+          ...dark[2],
+          gradient: "linear-gradient(135deg, hsl(214 52% 96%), hsl(214 45% 93%))",
+        },
+      ];
+    },
+    [t, theme],
   );
 }
 
@@ -130,7 +147,7 @@ export default function MemberDashboard() {
   const { settings: ps } = useMemberPortalSettings(member?.id);
   const showMemberInbox = !!ps.enable_member_inbox;
   const [popupOpen, setPopupOpen] = useState(false);
-  const fallbackBannerSlides = useFallbackHomeBannerSlides(t);
+  const fallbackBannerSlides = useFallbackHomeBannerSlides(t, theme);
   const [fallbackBannerIdx, setFallbackBannerIdx] = useState(0);
   const [fallbackBannerSliding, setFallbackBannerSliding] = useState(false);
   const [todayEarned, setTodayEarned] = useState(0);

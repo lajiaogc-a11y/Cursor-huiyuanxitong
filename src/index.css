@@ -19,6 +19,20 @@
 }
 
 /**
+ * 系统级「减少动态效果」：缩短动画/过渡，避免眩晕；不依赖各组件单独加 motion-reduce。
+ */
+@media (prefers-reduced-motion: reduce) {
+  .app-root-shell *,
+  .app-root-shell *::before,
+  .app-root-shell *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/**
  * Radix Sheet / Dialog 关闭按钮：全局避让安全区（刘海、圆角屏、横条 home），
  * 避免底部 Sheet 或窄屏上按钮顶到视口外无法点击。
  */

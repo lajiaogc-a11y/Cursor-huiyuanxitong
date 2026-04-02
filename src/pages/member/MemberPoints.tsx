@@ -19,7 +19,11 @@ import {
   type PointsMallItem,
   type PointsMallCategory,
 } from "@/services/memberPortal/memberPointsPortalService";
-import type { RedeemPointsMallItemResult } from "@/services/members/memberPointsMallRpcService";
+import {
+  listMemberPointsMallRedemptionsForPortal,
+  type MemberPortalRedemptionRpcRow,
+  type RedeemPointsMallItemResult,
+} from "@/services/members/memberPointsMallRpcService";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
@@ -169,6 +173,60 @@ function fmtLedgerPts(n: number) {
   return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
+function mallRedemptionStatusLabel(status: string, t: (zh: string, en: string) => string): string {
+  const s = String(status || "").toLowerCase().trim();
+  if (s === "pending") return t("待审核", "Pending");
+  if (s === "completed" || s === "complete") return t("已完成", "Completed");
+  if (s === "rejected" || s === "reject") return t("已驳回", "Rejected");
+  return status?.trim() ? status : "—";
+}
+
+/** 单条商城兑换记录（redemptions 表，非 points_ledger consumption 筛选） */
+function MemberMallRedemptionHistoryRow({
+  row,
+  t,
+}: {
+  row: MemberPortalRedemptionRpcRow;
+  t: (zh: string, en: string) => string;
+}) {
+  const pts = -Math.abs(Number(row.points_used ?? 0));
+  const dur = 520;
+  const animPts = useMemberAnimatedCount(pts, { enabled: true, durationMs: dur });
+  const qty = Math.max(1, Math.floor(Number(row.quantity ?? 1)));
+  const title =
+    qty > 1
+      ? `${String(row.prize_name || "—").trim()} ×${qty}`
+      : String(row.prize_name || "—").trim();
+  const created =
+    typeof row.created_at === "string"
+      ? row.created_at
+      : row.created_at != null
+        ? String(row.created_at)
+        : "";
+  const statusText = mallRedemptionStatusLabel(String(row.status || ""), t);
+
+  return (
+    <div className="member-activity-feed__row">
+      <div className="member-activity-feed__dot member-activity-feed__dot--debit" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <p className="m-0 min-w-0 flex-1 text-sm font-semibold text-[hsl(var(--pu-m-text)/0.95)]">{title}</p>
+          <span className="shrink-0 rounded-full border border-[hsl(var(--pu-m-surface-border)/0.35)] bg-[hsl(var(--pu-m-surface)/0.25)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[hsl(var(--pu-m-text-dim)/0.85)]">
+            {statusText}
+          </span>
+        </div>
+        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[hsl(var(--pu-m-text-dim)/0.72)]">
+          <span>{formatMemberLocalTime(created)}</span>
+        </p>
+        <p className="mt-0.5 text-[15px] font-extrabold tabular-nums tracking-tight text-pu-rose-soft">
+          {fmtLedgerPts(animPts)}{" "}
+          <span className="text-xs font-bold text-[hsl(var(--pu-m-text-dim)/0.75)]">{t("积分", "pts")}</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /** 单条流水：数字缓动（每行独立组件以满足 Hooks） */
 function MemberPointsRecentLedgerRow({
   row,
@@ -232,7 +290,7 @@ function MemberPointsRecentLedgerRow({
   );
 }
 
-/** 积分商城页内「兑换历史」：consumption 类流水，最近 N 条 */
+/** 积分商城页内「兑换历史」：redemptions 商城单（member_list_points_mall_redemptions），与 ledger consumption 筛选互斥 */
 function MemberRedemptionHistoryFeed({
   memberId,
   refreshKey = 0,
@@ -244,7 +302,7 @@ function MemberRedemptionHistoryFeed({
   pullRefreshSignal?: number;
   t: (zh: string, en: string) => string;
 }) {
-  const [rows, setRows] = useState<MemberPointsLedgerRow[]>([]);
+  const [rows, setRows] = useState<MemberPortalRedemptionRpcRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const [retryTick, setRetryTick] = useState(0);
@@ -255,9 +313,9 @@ function MemberRedemptionHistoryFeed({
     setFetchError(false);
     void (async () => {
       try {
-        const r = await getMemberPointsLedgerRpc(memberId, "consumption", REDEMPTION_HISTORY_LIMIT, 0);
+        const items = await listMemberPointsMallRedemptionsForPortal(memberId, REDEMPTION_HISTORY_LIMIT);
         if (cancelled) return;
-        setRows(r.success ? r.rows : []);
+        setRows(Array.isArray(items) ? items : []);
       } catch {
         if (!cancelled) {
           setRows([]);
@@ -277,9 +335,9 @@ function MemberRedemptionHistoryFeed({
     let cancelled = false;
     void (async () => {
       try {
-        const r = await getMemberPointsLedgerRpc(memberId, "consumption", REDEMPTION_HISTORY_LIMIT, 0);
+        const items = await listMemberPointsMallRedemptionsForPortal(memberId, REDEMPTION_HISTORY_LIMIT);
         if (cancelled) return;
-        setRows(r.success ? r.rows : []);
+        setRows(Array.isArray(items) ? items : []);
         setFetchError(false);
       } catch {
         if (!cancelled) setFetchError(true);
@@ -342,7 +400,7 @@ function MemberRedemptionHistoryFeed({
   return (
     <div className="member-activity-feed member-history-panel space-y-0 rounded-2xl border border-[hsl(var(--pu-m-surface-border)/0.22)] bg-[hsl(var(--pu-m-surface)/0.18)] px-1 py-2">
       {rows.map((row) => (
-        <MemberPointsRecentLedgerRow key={row.id} row={row} t={t} />
+        <MemberMallRedemptionHistoryRow key={row.id} row={row} t={t} />
       ))}
     </div>
   );
@@ -871,8 +929,8 @@ export default function MemberPoints() {
             </div>
             <p className="mb-4 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.78)]">
               {t(
-                `最近 ${REDEMPTION_HISTORY_LIMIT} 条积分兑换流水（商城扣减等）`,
-                `Latest ${REDEMPTION_HISTORY_LIMIT} redemption ledger entries (mall deductions, etc.)`,
+                `最近 ${REDEMPTION_HISTORY_LIMIT} 条积分商城兑换记录（含待审核、已完成、已驳回）`,
+                `Latest ${REDEMPTION_HISTORY_LIMIT} points mall redemptions (pending, completed, or rejected).`,
               )}
             </p>
             <MemberRedemptionHistoryFeed

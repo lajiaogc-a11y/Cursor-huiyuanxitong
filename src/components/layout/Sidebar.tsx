@@ -39,6 +39,7 @@ import { StaffChromeLogo } from "@/components/layout/StaffChromeLogo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigationVisibility } from "@/hooks/useNavigationVisibility";
 import { prefetchStaffMemberPortalPage, STAFF_MEMBER_PORTAL_PATH } from "@/lib/prefetchStaffMemberPortalPage";
+import { ROUTES } from "@/routes/constants";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { canonicalStaffMembersNavPath } from "@/lib/staffMembersNav";
 
@@ -246,6 +247,7 @@ export function Sidebar() {
     const isActive =
       (item.navKey === "members" && memberNavCanonical != null) ||
       location.pathname === item.path ||
+      (item.path === ROUTES.STAFF.MEMBER_PORTAL && location.pathname.startsWith(`${ROUTES.STAFF.MEMBER_PORTAL}/`)) ||
       (hasChildren && item.children?.some((c) => fullPath === c.path));
     const isChildActive =
       hasChildren &&

@@ -3,10 +3,7 @@
 
 import { logOperation } from './auditLogStore';
 import { loadSharedData, saveSharedData, clearSharedCacheKey } from '@/services/finance/sharedDataService';
-
-function _t(zh: string, en: string): string {
-  return (typeof localStorage !== 'undefined' && localStorage.getItem('appLanguage') === 'en') ? en : zh;
-}
+import { pickBilingual } from '@/lib/appLocale';
 import { createLedgerEntry, createAdjustmentEntry, softDeleteLedgerEntry, setInitialBalanceLedger, reverseAllEntriesForSource, reverseInitialBalanceEntry, getLedgerBalance as _getLedgerBalance, reconcileAndCorrect as _reconcileAndCorrect } from '@/services/finance/ledgerTransactionService';
 import { notifyDataMutation } from '@/services/system/dataRefreshManager';
 import { formatBeijingTime } from '@/lib/beijingTime';
@@ -228,7 +225,7 @@ export async function setInitialBalance(vendorName: string, amount: number, curr
       postResetAdjustment: settlement.postResetAdjustment ?? 0,
       withdrawals: [...settlement.withdrawals],
     },
-    description: _t(`设置初始余额: ${amount}`, `Set initial balance: ${amount}`),
+    description: pickBilingual(`设置初始余额: ${amount}`, `Set initial balance: ${amount}`),
     operatorId: currentOperatorId,
   });
   
@@ -246,7 +243,7 @@ export async function setInitialBalance(vendorName: string, amount: number, curr
   settlement.withdrawals = [];
   
   await saveCardMerchantSettlements(settlements);
-  logOperation('merchant_settlement', 'update', vendorName, beforeData, settlement, _t(`设置卡商初始余额: ${vendorName} = ${amount}`, `Set card vendor initial balance: ${vendorName} = ${amount}`));
+  logOperation('merchant_settlement', 'update', vendorName, beforeData, settlement, pickBilingual(`设置卡商初始余额: ${vendorName} = ${amount}`, `Set card vendor initial balance: ${vendorName} = ${amount}`));
   
   const batchId = `batch_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
   await setInitialBalanceLedger({
@@ -302,13 +299,13 @@ export async function addWithdrawal(
     previousState: {
       withdrawals: [...settlements[settlementIndex].withdrawals],
     },
-    description: _t(`录入提款: ${withdrawalAmountUsdt} USDT × ${usdtRate} = ${record.settlementTotal}`, `Withdrawal: ${withdrawalAmountUsdt} USDT × ${usdtRate} = ${record.settlementTotal}`),
+    description: pickBilingual(`录入提款: ${withdrawalAmountUsdt} USDT × ${usdtRate} = ${record.settlementTotal}`, `Withdrawal: ${withdrawalAmountUsdt} USDT × ${usdtRate} = ${record.settlementTotal}`),
     operatorId: currentOperatorId,
   });
   settlements[settlementIndex].withdrawals.push(record);
   
   await saveCardMerchantSettlements(settlements);
-  logOperation('merchant_settlement', 'create', record.id, null, record, _t(`录入卡商提款: ${vendorName} - ${record.settlementTotal}`, `Card vendor withdrawal: ${vendorName} - ${record.settlementTotal}`));
+  logOperation('merchant_settlement', 'create', record.id, null, record, pickBilingual(`录入卡商提款: ${vendorName} - ${record.settlementTotal}`, `Card vendor withdrawal: ${vendorName} - ${record.settlementTotal}`));
   
   const changeAmount = -record.settlementTotal;
   await createLedgerEntry({
@@ -317,7 +314,7 @@ export async function addWithdrawal(
     sourceType: 'withdrawal',
     sourceId: `wd_${record.id}`,
     amount: changeAmount,
-    note: _t(`提款: ${withdrawalAmountUsdt} USDT × ${usdtRate} = ¥${record.settlementTotal}`, `Withdrawal: ${withdrawalAmountUsdt} USDT × ${usdtRate} = ¥${record.settlementTotal}`),
+    note: pickBilingual(`提款: ${withdrawalAmountUsdt} USDT × ${usdtRate} = ¥${record.settlementTotal}`, `Withdrawal: ${withdrawalAmountUsdt} USDT × ${usdtRate} = ¥${record.settlementTotal}`),
     operatorId: currentOperatorId || undefined,
     operatorName: currentOperatorName || undefined,
   });
@@ -330,21 +327,21 @@ export async function undoLastAction(vendorName: string, currentBalance?: number
   const settlements = getCardMerchantSettlements();
   const settlementIndex = settlements.findIndex(s => s.vendorName === vendorName);
   
-  if (settlementIndex === -1) return { success: false, error: _t('未找到结算数据', 'Settlement data not found') };
+  if (settlementIndex === -1) return { success: false, error: pickBilingual('未找到结算数据', 'Settlement data not found') };
   
   const settlement = settlements[settlementIndex];
-  if (settlement.history.length === 0) return { success: false, error: _t('没有可撤回的操作', 'No actions to undo') };
+  if (settlement.history.length === 0) return { success: false, error: pickBilingual('没有可撤回的操作', 'No actions to undo') };
   
   const lastAction = settlement.history[settlement.history.length - 1];
   
   // Issue 3: Undo button only for initial balance
   if (lastAction.action !== 'initial_balance') {
-    return { success: false, error: _t('撤回功能仅支持初始余额操作', 'Undo only supports initial balance operations') };
+    return { success: false, error: pickBilingual('撤回功能仅支持初始余额操作', 'Undo only supports initial balance operations') };
   }
   
   // Issue 2: Ownership check - only allow undoing own data
   if (operatorId && lastAction.operatorId && lastAction.operatorId !== operatorId) {
-    return { success: false, error: _t('最新数据不是你录入的，无法撤回', 'The latest data was not entered by you and cannot be undone') };
+    return { success: false, error: pickBilingual('最新数据不是你录入的，无法撤回', 'The latest data was not entered by you and cannot be undone') };
   }
   
   // Pop after checks pass
@@ -369,12 +366,12 @@ export async function undoLastAction(vendorName: string, currentBalance?: number
   
   logOperation('merchant_settlement', 'update', vendorName, 
     beforeState, settlement, 
-    _t(`撤回卡商操作: ${vendorName} - ${lastAction.description}`, `Undo card vendor action: ${vendorName} - ${lastAction.description}`));
+    pickBilingual(`撤回卡商操作: ${vendorName} - ${lastAction.description}`, `Undo card vendor action: ${vendorName} - ${lastAction.description}`));
   
   await reverseInitialBalanceEntry({
     accountType: 'card_vendor',
     accountId: vendorName,
-    note: _t(`撤销卡商初始余额: ${lastAction.description}`, `Reverse card vendor initial balance: ${lastAction.description}`),
+    note: pickBilingual(`撤销卡商初始余额: ${lastAction.description}`, `Reverse card vendor initial balance: ${lastAction.description}`),
     operatorId: currentOperatorId || undefined,
     operatorName: currentOperatorName || undefined,
   });
@@ -462,7 +459,7 @@ export async function setProviderInitialBalance(providerName: string, amount: nu
       postResetAdjustment: settlement.postResetAdjustment ?? 0,
       recharges: [...settlement.recharges],
     },
-    description: _t(`设置初始余额: ${amount}`, `Set initial balance: ${amount}`),
+    description: pickBilingual(`设置初始余额: ${amount}`, `Set initial balance: ${amount}`),
     operatorId: currentOperatorId,
   });
   
@@ -481,7 +478,7 @@ export async function setProviderInitialBalance(providerName: string, amount: nu
   settlement.recharges = [];
   
   await savePaymentProviderSettlements(settlements);
-  logOperation('merchant_settlement', 'update', providerName, beforeData, settlement, _t(`设置代付商家初始余额: ${providerName} = ${amount}`, `Set payment provider initial balance: ${providerName} = ${amount}`));
+  logOperation('merchant_settlement', 'update', providerName, beforeData, settlement, pickBilingual(`设置代付商家初始余额: ${providerName} = ${amount}`, `Set payment provider initial balance: ${providerName} = ${amount}`));
   
   const batchId = `batch_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
   await setInitialBalanceLedger({
@@ -537,16 +534,16 @@ export async function addRecharge(
     previousState: {
       recharges: [...settlements[settlementIndex].recharges],
     },
-    description: _t(`录入充值: ${rechargeAmountUsdt} USDT × ${usdtRate} = ${record.settlementTotal}`, `Recharge: ${rechargeAmountUsdt} USDT × ${usdtRate} = ${record.settlementTotal}`),
+    description: pickBilingual(`录入充值: ${rechargeAmountUsdt} USDT × ${usdtRate} = ${record.settlementTotal}`, `Recharge: ${rechargeAmountUsdt} USDT × ${usdtRate} = ${record.settlementTotal}`),
     operatorId: currentOperatorId,
   });
   settlements[settlementIndex].recharges.push(record);
   
   await savePaymentProviderSettlements(settlements);
-  logOperation('merchant_settlement', 'create', record.id, null, record, _t(`录入代付商家充值: ${providerName} - ${record.settlementTotal}`, `Payment provider recharge: ${providerName} - ${record.settlementTotal}`));
+  logOperation('merchant_settlement', 'create', record.id, null, record, pickBilingual(`录入代付商家充值: ${providerName} - ${record.settlementTotal}`, `Payment provider recharge: ${providerName} - ${record.settlementTotal}`));
   
   const changeAmount = record.settlementTotal;
-  const rechargeNote = remark || _t(`充值: ${rechargeAmountUsdt} USDT × ${usdtRate} = ¥${record.settlementTotal}`, `Recharge: ${rechargeAmountUsdt} USDT × ${usdtRate} = ¥${record.settlementTotal}`);
+  const rechargeNote = remark || pickBilingual(`充值: ${rechargeAmountUsdt} USDT × ${usdtRate} = ¥${record.settlementTotal}`, `Recharge: ${rechargeAmountUsdt} USDT × ${usdtRate} = ¥${record.settlementTotal}`);
   await createLedgerEntry({
     accountType: 'payment_provider',
     accountId: providerName,
@@ -566,21 +563,21 @@ export async function undoProviderLastAction(providerName: string, currentBalanc
   const settlements = getPaymentProviderSettlements();
   const settlementIndex = settlements.findIndex(s => s.providerName === providerName);
   
-  if (settlementIndex === -1) return { success: false, error: _t('未找到结算数据', 'Settlement data not found') };
+  if (settlementIndex === -1) return { success: false, error: pickBilingual('未找到结算数据', 'Settlement data not found') };
   
   const settlement = settlements[settlementIndex];
-  if (settlement.history.length === 0) return { success: false, error: _t('没有可撤回的操作', 'No actions to undo') };
+  if (settlement.history.length === 0) return { success: false, error: pickBilingual('没有可撤回的操作', 'No actions to undo') };
   
   const lastAction = settlement.history[settlement.history.length - 1];
   
   // Issue 3: Undo button only for initial balance
   if (lastAction.action !== 'initial_balance') {
-    return { success: false, error: _t('撤回功能仅支持初始余额操作', 'Undo only supports initial balance operations') };
+    return { success: false, error: pickBilingual('撤回功能仅支持初始余额操作', 'Undo only supports initial balance operations') };
   }
   
   // Issue 2: Ownership check - only allow undoing own data
   if (operatorId && lastAction.operatorId && lastAction.operatorId !== operatorId) {
-    return { success: false, error: _t('最新数据不是你录入的，无法撤回', 'The latest data was not entered by you and cannot be undone') };
+    return { success: false, error: pickBilingual('最新数据不是你录入的，无法撤回', 'The latest data was not entered by you and cannot be undone') };
   }
   
   // Pop after checks pass
@@ -605,12 +602,12 @@ export async function undoProviderLastAction(providerName: string, currentBalanc
   
   logOperation('merchant_settlement', 'update', providerName, 
     beforeState, settlement, 
-    _t(`撤回代付商家操作: ${providerName} - ${lastAction.description}`, `Undo payment provider action: ${providerName} - ${lastAction.description}`));
+    pickBilingual(`撤回代付商家操作: ${providerName} - ${lastAction.description}`, `Undo payment provider action: ${providerName} - ${lastAction.description}`));
   
   await reverseInitialBalanceEntry({
     accountType: 'payment_provider',
     accountId: providerName,
-    note: _t(`撤销代付商家初始余额: ${lastAction.description}`, `Reverse payment provider initial balance: ${lastAction.description}`),
+    note: pickBilingual(`撤销代付商家初始余额: ${lastAction.description}`, `Reverse payment provider initial balance: ${lastAction.description}`),
     operatorId: currentOperatorId || undefined,
     operatorName: currentOperatorName || undefined,
   });
@@ -685,7 +682,7 @@ export async function updateWithdrawal(
     previousState: {
       withdrawals: JSON.parse(JSON.stringify(settlement.withdrawals)),
     },
-    description: _t(`修改提款记录: ${withdrawalId}`, `Edit withdrawal: ${withdrawalId}`),
+    description: pickBilingual(`修改提款记录: ${withdrawalId}`, `Edit withdrawal: ${withdrawalId}`),
   });
   
   const withdrawal = settlement.withdrawals[withdrawalIndex];
@@ -702,7 +699,7 @@ export async function updateWithdrawal(
   const newAmount = withdrawal.settlementTotal;
   
   await saveCardMerchantSettlements(settlements);
-  logOperation('merchant_settlement', 'update', withdrawalId, beforeData, JSON.parse(JSON.stringify(withdrawal)), _t(`修改卡商提款: ${vendorName}`, `Edit card vendor withdrawal: ${vendorName}`));
+  logOperation('merchant_settlement', 'update', withdrawalId, beforeData, JSON.parse(JSON.stringify(withdrawal)), pickBilingual(`修改卡商提款: ${vendorName}`, `Edit card vendor withdrawal: ${vendorName}`));
   
   const delta = oldAmount - newAmount;
   if (Math.abs(delta) > 0.01) {
@@ -712,7 +709,7 @@ export async function updateWithdrawal(
       orderId: withdrawalId,
       sourcePrefix: 'wd_',
       adjPrefix: 'wadj_',
-      note: _t(`修改提款(撤旧): ¥${oldAmount.toFixed(2)} → ¥${newAmount.toFixed(2)}`, `Edit withdrawal (reverse old): ¥${oldAmount.toFixed(2)} → ¥${newAmount.toFixed(2)}`),
+      note: pickBilingual(`修改提款(撤旧): ¥${oldAmount.toFixed(2)} → ¥${newAmount.toFixed(2)}`, `Edit withdrawal (reverse old): ¥${oldAmount.toFixed(2)} → ¥${newAmount.toFixed(2)}`),
       operatorId: currentOperatorId || undefined,
       operatorName: currentOperatorName || undefined,
     });
@@ -722,7 +719,7 @@ export async function updateWithdrawal(
       sourceType: 'withdrawal',
       sourceId: `wd_${withdrawalId}`,
       amount: -newAmount,
-      note: _t(
+      note: pickBilingual(
         `提款(修改后): ${withdrawal.withdrawalAmountUsdt} USDT × ${withdrawal.usdtRate} = ¥${newAmount.toFixed(2)}`,
         `Withdrawal (edited): ${withdrawal.withdrawalAmountUsdt} USDT × ${withdrawal.usdtRate} = ¥${newAmount.toFixed(2)}`
       ),
@@ -763,13 +760,13 @@ export async function deleteWithdrawal(
     previousState: {
       withdrawals: JSON.parse(JSON.stringify(settlement.withdrawals)),
     },
-    description: _t(`删除提款记录: ${withdrawalId}`, `Delete withdrawal: ${withdrawalId}`),
+    description: pickBilingual(`删除提款记录: ${withdrawalId}`, `Delete withdrawal: ${withdrawalId}`),
   });
   
   settlement.withdrawals.splice(withdrawalIndex, 1);
   
   await saveCardMerchantSettlements(settlements);
-  logOperation('merchant_settlement', 'delete', withdrawalId, beforeData, null, _t(`删除卡商提款: ${vendorName}`, `Delete card vendor withdrawal: ${vendorName}`));
+  logOperation('merchant_settlement', 'delete', withdrawalId, beforeData, null, pickBilingual(`删除卡商提款: ${vendorName}`, `Delete card vendor withdrawal: ${vendorName}`));
   
   // Reverse ALL ledger entries: original withdrawal + any adjustments
   const reversalResult = await reverseAllEntriesForSource({
@@ -778,7 +775,7 @@ export async function deleteWithdrawal(
     orderId: withdrawalId,
     sourcePrefix: 'wd_',
     adjPrefix: 'wadj_',
-    note: _t(`删除提款记录: ¥${deletedAmount}`, `Delete withdrawal: ¥${deletedAmount}`),
+    note: pickBilingual(`删除提款记录: ¥${deletedAmount}`, `Delete withdrawal: ¥${deletedAmount}`),
     operatorId: currentOperatorId || undefined,
     operatorName: currentOperatorName || undefined,
   });
@@ -790,7 +787,7 @@ export async function deleteWithdrawal(
       sourceId: `wd_${withdrawalId}`,
       accountType: 'card_vendor',
       accountId: vendorName,
-      note: _t(`删除提款记录(fallback): ¥${deletedAmount}`, `Delete withdrawal (fallback): ¥${deletedAmount}`),
+      note: pickBilingual(`删除提款记录(fallback): ¥${deletedAmount}`, `Delete withdrawal (fallback): ¥${deletedAmount}`),
       operatorId: currentOperatorId || undefined,
       operatorName: currentOperatorName || undefined,
     });
@@ -838,7 +835,7 @@ export async function updateRecharge(
     previousState: {
       recharges: JSON.parse(JSON.stringify(settlement.recharges)),
     },
-    description: _t(`修改充值记录: ${rechargeId}`, `Edit recharge: ${rechargeId}`),
+    description: pickBilingual(`修改充值记录: ${rechargeId}`, `Edit recharge: ${rechargeId}`),
   });
   
   const recharge = settlement.recharges[rechargeIndex];
@@ -855,7 +852,7 @@ export async function updateRecharge(
   const newAmount = recharge.settlementTotal;
   
   await savePaymentProviderSettlements(settlements);
-  logOperation('merchant_settlement', 'update', rechargeId, beforeData, JSON.parse(JSON.stringify(recharge)), _t(`修改代付商家充值: ${providerName}`, `Edit payment provider recharge: ${providerName}`));
+  logOperation('merchant_settlement', 'update', rechargeId, beforeData, JSON.parse(JSON.stringify(recharge)), pickBilingual(`修改代付商家充值: ${providerName}`, `Edit payment provider recharge: ${providerName}`));
   
   const delta = newAmount - oldAmount;
   if (Math.abs(delta) > 0.01) {
@@ -865,7 +862,7 @@ export async function updateRecharge(
       orderId: rechargeId,
       sourcePrefix: 'rc_',
       adjPrefix: 'radj_',
-      note: _t(`修改充值(撤旧): ¥${oldAmount.toFixed(2)} → ¥${newAmount.toFixed(2)}`, `Edit recharge (reverse old): ¥${oldAmount.toFixed(2)} → ¥${newAmount.toFixed(2)}`),
+      note: pickBilingual(`修改充值(撤旧): ¥${oldAmount.toFixed(2)} → ¥${newAmount.toFixed(2)}`, `Edit recharge (reverse old): ¥${oldAmount.toFixed(2)} → ¥${newAmount.toFixed(2)}`),
       operatorId: currentOperatorId || undefined,
       operatorName: currentOperatorName || undefined,
     });
@@ -875,7 +872,7 @@ export async function updateRecharge(
       sourceType: 'recharge',
       sourceId: `rc_${rechargeId}`,
       amount: newAmount,
-      note: _t(
+      note: pickBilingual(
         `充值(修改后): ${recharge.rechargeAmountUsdt} USDT × ${recharge.usdtRate} = ¥${newAmount.toFixed(2)}`,
         `Recharge (edited): ${recharge.rechargeAmountUsdt} USDT × ${recharge.usdtRate} = ¥${newAmount.toFixed(2)}`
       ),
@@ -916,13 +913,13 @@ export async function deleteRecharge(
     previousState: {
       recharges: JSON.parse(JSON.stringify(settlement.recharges)),
     },
-    description: _t(`删除充值记录: ${rechargeId}`, `Delete recharge: ${rechargeId}`),
+    description: pickBilingual(`删除充值记录: ${rechargeId}`, `Delete recharge: ${rechargeId}`),
   });
   
   settlement.recharges.splice(rechargeIndex, 1);
   
   await savePaymentProviderSettlements(settlements);
-  logOperation('merchant_settlement', 'delete', rechargeId, beforeData, null, _t(`删除代付商家充值: ${providerName}`, `Delete payment provider recharge: ${providerName}`));
+  logOperation('merchant_settlement', 'delete', rechargeId, beforeData, null, pickBilingual(`删除代付商家充值: ${providerName}`, `Delete payment provider recharge: ${providerName}`));
   
   // Reverse ALL ledger entries: original recharge + any adjustments
   const reversalResult = await reverseAllEntriesForSource({
@@ -931,7 +928,7 @@ export async function deleteRecharge(
     orderId: rechargeId,
     sourcePrefix: 'rc_',
     adjPrefix: 'radj_',
-    note: _t(`删除充值记录: ¥${deletedAmount}`, `Delete recharge: ¥${deletedAmount}`),
+    note: pickBilingual(`删除充值记录: ¥${deletedAmount}`, `Delete recharge: ¥${deletedAmount}`),
     operatorId: currentOperatorId || undefined,
     operatorName: currentOperatorName || undefined,
   });
@@ -943,7 +940,7 @@ export async function deleteRecharge(
       sourceId: `rc_${rechargeId}`,
       accountType: 'payment_provider',
       accountId: providerName,
-      note: _t(`删除充值记录(fallback): ¥${deletedAmount}`, `Delete recharge (fallback): ¥${deletedAmount}`),
+      note: pickBilingual(`删除充值记录(fallback): ¥${deletedAmount}`, `Delete recharge (fallback): ¥${deletedAmount}`),
       operatorId: currentOperatorId || undefined,
       operatorName: currentOperatorName || undefined,
     });
@@ -1046,7 +1043,7 @@ export async function addPostResetAdjustment(
       sourceType: 'post_reset_adjustment' as any,
       sourceId: `pra_${merchantName}_${Date.now()}`,
       amount: delta,
-      note: _t(`重置后调整: ${delta > 0 ? '+' : ''}¥${delta.toFixed(2)}`, `Post-reset adjustment: ${delta > 0 ? '+' : ''}¥${delta.toFixed(2)}`),
+      note: pickBilingual(`重置后调整: ${delta > 0 ? '+' : ''}¥${delta.toFixed(2)}`, `Post-reset adjustment: ${delta > 0 ? '+' : ''}¥${delta.toFixed(2)}`),
       operatorId: currentOperatorId || undefined,
       operatorName: currentOperatorName || undefined,
     });
