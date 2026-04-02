@@ -49,10 +49,8 @@ export function UpdatePrompt() {
     const checkVersion = async () => {
       if (disposed || detectedRef.current) return;
       try {
-        const res = await fetch(`/version.json?t=${Date.now()}`, { cache: "no-store" });
-        if (!res.ok) return;
-        const data = (await res.json()) as { buildTime?: string };
-        const remoteBuild = String(data.buildTime || "").trim();
+        const remoteBuild = await fetchRemoteFrontendBuildTime();
+        if (remoteBuild === undefined) return;
         if (!remoteBuild || remoteBuild === DEV_BUILD_PLACEHOLDER) return;
         if (remoteBuild !== __BUILD_TIME__) {
           if (!disposed && !detectedRef.current) {
@@ -105,61 +103,92 @@ export function UpdatePrompt() {
       }}
       variant={memberSurface ? "member" : "staff"}
       title={
-        <span className="flex items-center gap-2">
-          <RefreshCw
+        <span className="flex items-center gap-3 pr-2">
+          <span
             className={cn(
-              "h-5 w-5 shrink-0",
-              memberSurface ? "text-[hsl(var(--pu-gold-soft))]" : "text-primary",
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+              memberSurface
+                ? "bg-[hsl(var(--pu-gold)/0.18)] ring-1 ring-[hsl(var(--pu-gold)/0.35)]"
+                : "bg-primary/10 ring-1 ring-primary/15",
             )}
-          />
-          {t("发现新版本", "New Version Available")}
+          >
+            <RefreshCw
+              className={cn(
+                "h-5 w-5",
+                memberSurface ? "text-[hsl(var(--pu-gold-soft))]" : "text-primary",
+              )}
+              aria-hidden
+            />
+          </span>
+          <span className="min-w-0 text-left leading-snug">
+            {t("发现新版本", "New Version Available")}
+          </span>
         </span>
       }
       description={t(
-        "系统已发布新版本，请点击下方按钮自动刷新到最新版本。",
-        "A new version has been released. Click the button below to refresh to the latest version.",
+        "已发布新的前端构建，刷新即可加载最新功能与修复。",
+        "A new frontend build is available. Refresh to load the latest fixes and features.",
       )}
-      sheetMaxWidth="xl"
+      sheetMaxWidth="md"
       sheetContentProps={{ onPointerDownOutside: (e) => e.preventDefault() }}
     >
-      {latestBuild ? (
-        <p
-          className={cn(
-            "mb-4 text-xs",
-            memberSurface ? "text-[#94A3B8]" : "text-muted-foreground",
-          )}
-        >
-          {t("最新构建时间", "Latest build")}: {latestBuild}
-        </p>
-      ) : null}
-      <div
-        className={cn(
-          "mt-auto flex flex-wrap gap-2 border-t pt-4",
-          memberSurface ? "border-white/[0.08]" : "border-border",
-        )}
-      >
-        <Button
-          variant="outline"
-          onClick={handleCancel}
-          className={
-            memberSurface
-              ? "border-white/15 bg-white/[0.05] text-[#E2E8F0] hover:bg-white/[0.09] hover:text-white"
-              : undefined
-          }
-        >
-          {t("稍后", "Later")}
-        </Button>
-        <Button
-          onClick={handleRefresh}
-          className={
-            memberSurface
-              ? "border-0 bg-[linear-gradient(to_bottom_right,hsl(var(--pu-gold-soft)),hsl(var(--pu-gold)),hsl(var(--pu-gold-deep)))] font-semibold text-[hsl(var(--pu-primary-foreground))] shadow-[0_8px_24px_hsl(var(--pu-gold)/0.28)] hover:opacity-95"
-              : undefined
-          }
-        >
-          <RefreshCw className="mr-2 h-4 w-4" />
-          {t("立即更新", "Update Now")}
-        </Button>
+      <div className="flex flex-col gap-5">
+        {latestBuild ? (
+          <div
+            className={cn(
+              "rounded-xl border px-4 py-3.5",
+              memberSurface
+                ? "border-white/[0.12] bg-white/[0.04]"
+                : "border-border/80 bg-muted/50 shadow-sm",
+            )}
+          >
+            <p
+              className={cn(
+                "text-[11px] font-semibold uppercase tracking-wider",
+                memberSurface ? "text-[#94A3B8]" : "text-muted-foreground",
+              )}
+            >
+              {t("线上构建时间", "Published build")}
+            </p>
+            <p
+              className={cn(
+                "mt-1.5 font-mono text-sm font-medium tabular-nums tracking-tight",
+                memberSurface ? "text-[#E2E8F0]" : "text-foreground",
+              )}
+            >
+              {latestBuild}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:items-center sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleCancel}
+            className={cn(
+              "h-10 w-full shrink-0 sm:w-auto sm:min-w-[7.5rem]",
+              memberSurface
+                ? "border-white/25 bg-white/[0.06] text-[#E2E8F0] hover:bg-white/[0.12] hover:text-white"
+                : "border-input bg-background text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground",
+            )}
+          >
+            {t("稍后", "Later")}
+          </Button>
+          <Button
+            type="button"
+            onClick={handleRefresh}
+            className={cn(
+              "h-10 w-full gap-2 sm:w-auto sm:min-w-[9.5rem]",
+              memberSurface
+                ? "border-0 bg-[linear-gradient(to_bottom_right,hsl(var(--pu-gold-soft)),hsl(var(--pu-gold)),hsl(var(--pu-gold-deep)))] font-semibold text-[hsl(var(--pu-primary-foreground))] shadow-[0_8px_24px_hsl(var(--pu-gold)/0.28)] hover:opacity-95"
+                : "font-semibold shadow-md",
+            )}
+          >
+            <RefreshCw className="h-4 w-4 shrink-0" />
+            {t("立即更新", "Update Now")}
+          </Button>
+        </div>
       </div>
     </DrawerDetail>
   );

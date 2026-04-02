@@ -3,8 +3,11 @@
 # Usage:
 #   .\scripts\deploy-full.ps1 "commit message"
 #   .\scripts\deploy-full.ps1 -SkipMigrate              # 跳过数据库迁移（纯前端修复时使用）
+#   .\scripts\deploy-full.ps1 -ServerDistScpRecursive   # Step 4 强制递归 scp，不用 tar 单包（调试用）
 #   npm run deploy:full
 #   npm run deploy:full:msg -- "commit message"
+#
+# Step 4 默认：本地 tar.gz 单文件上传 + 远端解压，减轻多文件 scp 断连；SCP 带重试与 SSH keepalive。
 #
 # MySQL schema: 通过 runAllMigrations (npm run migrate:all) 自动执行，
 # 所有补丁已整合到 server/src/startup/migrateSchemaPatches.ts。
@@ -12,7 +15,8 @@
 
 param(
     [string]$Message = "Update: $(Get-Date -Format 'yyyy-MM-dd HH:mm')",
-    [switch]$SkipMigrate
+    [switch]$SkipMigrate,
+    [switch]$ServerDistScpRecursive
 )
 
 $ErrorActionPreference = "Stop"
@@ -55,6 +59,64 @@ function Get-DeploySshIdentityArg {
     }
     return @()
 }
+
+# Helpers must be defined before first use (PS 5.1-safe: keep comment on its own line).
+function Get-SshAliveOptions {
+    param([int]$ConnectTimeout = 120)
+    return @(
+        "-o", "BatchMode=yes",
+        "-o", ("ConnectTimeout={0}" -f $ConnectTimeout),
+        "-o", "ServerAliveInterval=30",
+        "-o", "ServerAliveCountMax=12",
+        "-o", "TCPKeepAlive=yes"
+    )
+}
+
+function Invoke-ScpWithRetry {
+    param(
+        [string[]]$ArgumentList,
+        [int]$MaxAttempts = 4,
+        [int]$DelaySeconds = 8,
+        [string]$Label = "SCP"
+    )
+    for ($a = 1; $a -le $MaxAttempts; $a++) {
+        & scp @ArgumentList
+        if ($LASTEXITCODE -eq 0) { return $true }
+        Write-Host "$Label failed (attempt $a/$MaxAttempts, exit $LASTEXITCODE)." -ForegroundColor Yellow
+        if ($a -lt $MaxAttempts) {
+            Write-Host "  Retrying in $DelaySeconds s..." -ForegroundColor DarkGray
+            Start-Sleep -Seconds $DelaySeconds
+        }
+    }
+    return $false
+}
+
+function Build-ScpArgs {
+    param(
+        [string[]]$Tail,
+        [int]$ConnectTimeout = 120
+    )
+    $list = New-Object System.Collections.ArrayList
+    foreach ($t in $script:sshIdent) { [void]$list.Add($t) }
+    foreach ($t in (Get-SshAliveOptions -ConnectTimeout $ConnectTimeout)) { [void]$list.Add($t) }
+    foreach ($t in $Tail) { [void]$list.Add($t) }
+    ,$list.ToArray()
+}
+
+function Build-SshArgs {
+    param(
+        [Parameter(Mandatory = $true)][string]$SshTarget,
+        [Parameter(Mandatory = $true)][string]$RemoteCommand,
+        [int]$ConnectTimeout = 120
+    )
+    $list = New-Object System.Collections.ArrayList
+    foreach ($t in $script:sshIdent) { [void]$list.Add($t) }
+    foreach ($t in (Get-SshAliveOptions -ConnectTimeout $ConnectTimeout)) { [void]$list.Add($t) }
+    [void]$list.Add($SshTarget)
+    [void]$list.Add($RemoteCommand)
+    ,$list.ToArray()
+}
+
 $sshIdent = Get-DeploySshIdentityArg
 if ($sshIdent.Count -gt 0) {
     Write-Host "SSH identity: $($sshIdent[1])" -ForegroundColor DarkGray
@@ -116,7 +178,7 @@ $cwd = [System.IO.Directory]::GetCurrentDirectory()
 $distPath = [System.IO.Path]::Combine($cwd, "dist")
 Write-Host "Ensuring remote dist exists + uploading frontend (assets first, index.html last) ..." -ForegroundColor DarkGray
 Write-Host "  local dist: $distPath" -ForegroundColor DarkGray
-& ssh @sshIdent -o BatchMode=yes -o ConnectTimeout=15 $sshTarget "mkdir -p ${remoteDir}/dist"
+& ssh @(Build-SshArgs -SshTarget $sshTarget -RemoteCommand "mkdir -p ${remoteDir}/dist" -ConnectTimeout 45)
 if ($LASTEXITCODE -ne 0) {
     Write-Host "SSH mkdir failed." -ForegroundColor Red
     exit 1
@@ -124,9 +186,9 @@ if ($LASTEXITCODE -ne 0) {
 
 if (Test-Path (Join-Path $distPath "assets")) {
     Write-Host "  [1/3] dist/assets -> remote ..." -ForegroundColor DarkGray
-    & scp @sshIdent -o BatchMode=yes -o ConnectTimeout=120 -r (Join-Path $distPath "assets") "${sshTarget}:${remoteDir}/dist/"
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "SCP dist/assets failed (exit $LASTEXITCODE)." -ForegroundColor Red
+    $scpAssets = @(Build-ScpArgs -Tail @("-r", (Join-Path $distPath "assets"), "${sshTarget}:${remoteDir}/dist/") -ConnectTimeout 240)
+    if (-not (Invoke-ScpWithRetry -ArgumentList $scpAssets -Label "SCP dist/assets")) {
+        Write-Host "SCP dist/assets failed after retries." -ForegroundColor Red
         exit 1
     }
 } else {
@@ -139,9 +201,9 @@ Get-ChildItem -LiteralPath $distPath -File -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -cne "index.html" } |
     Sort-Object Name |
     ForEach-Object {
-        & scp @sshIdent -o BatchMode=yes -o ConnectTimeout=90 $_.FullName "${sshTarget}:${remoteDir}/dist/"
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "SCP failed: $($_.Name) (exit $LASTEXITCODE)." -ForegroundColor Red
+        $scpOne = @(Build-ScpArgs -Tail @($_.FullName, "${sshTarget}:${remoteDir}/dist/") -ConnectTimeout 180)
+        if (-not (Invoke-ScpWithRetry -ArgumentList $scpOne -Label "SCP $($_.Name)")) {
+            Write-Host "SCP failed: $($_.Name)." -ForegroundColor Red
             exit 1
         }
     }
@@ -152,29 +214,86 @@ if (-not (Test-Path -LiteralPath $indexLocal)) {
     exit 1
 }
 Write-Host "  [3/3] index.html ..." -ForegroundColor DarkGray
-& scp @sshIdent -o BatchMode=yes -o ConnectTimeout=60 $indexLocal "${sshTarget}:${remoteDir}/dist/"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "SCP index.html failed (exit $LASTEXITCODE)." -ForegroundColor Red
+$scpIndex = @(Build-ScpArgs -Tail @($indexLocal, "${sshTarget}:${remoteDir}/dist/") -ConnectTimeout 90)
+if (-not (Invoke-ScpWithRetry -ArgumentList $scpIndex -Label "SCP index.html")) {
+    Write-Host "SCP index.html failed after retries." -ForegroundColor Red
     exit 1
 }
 
 Write-Host "Frontend upload OK." -ForegroundColor Green
-& ssh @sshIdent -o BatchMode=yes -o ConnectTimeout=10 $sshTarget "chmod -R o+rX $remoteDir/dist/" 2>$null
+& ssh @(Build-SshArgs -SshTarget $sshTarget -RemoteCommand "chmod -R o+rX $remoteDir/dist/" -ConnectTimeout 30) 2>$null
 
 # Step 4: Upload server build + PM2 restart
 Write-Host "`n=== Step 4: Upload server + PM2 restart ===" -ForegroundColor Cyan
 Write-Host "SSH: $sshTarget  |  dir: $remoteDir" -ForegroundColor DarkGray
 
-Write-Host "Uploading server/dist/ ..." -ForegroundColor DarkGray
-& scp @sshIdent -o BatchMode=yes -o ConnectTimeout=15 -r server/dist/* "${sshTarget}:${remoteDir}/server/dist/"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Server dist upload failed." -ForegroundColor Red
+$serverDistLocal = Join-Path $projectRoot "server\dist"
+if (-not (Test-Path -LiteralPath $serverDistLocal -PathType Container)) {
+    Write-Host "server/dist missing — server build (Step 2) did not produce output." -ForegroundColor Red
     exit 1
 }
 
+$localTar = $null
+$usedTarUpload = $false
+if (-not $ServerDistScpRecursive) {
+    $localTar = Join-Path $env:TEMP ("gc-server-dist-{0}.tar.gz" -f [Guid]::NewGuid().ToString("N"))
+    Write-Host "Packing server/dist -> single archive (fewer SSH round-trips) ..." -ForegroundColor DarkGray
+    & tar -czf $localTar -C $serverDistLocal .
+    if ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $localTar -PathType Leaf) -and ((Get-Item -LiteralPath $localTar).Length -gt 0)) {
+        $usedTarUpload = $true
+    } else {
+        Write-Host "tar failed or empty archive; will use recursive SCP." -ForegroundColor Yellow
+        Remove-Item -LiteralPath $localTar -Force -ErrorAction SilentlyContinue
+        $localTar = $null
+    }
+}
+
+try {
+    if ($usedTarUpload -and $localTar) {
+        $remoteTarName = "gc-server-dist-{0}.tar.gz" -f [Guid]::NewGuid().ToString("N")
+        $remoteTar = "/tmp/$remoteTarName"
+        Write-Host "Uploading server archive -> $remoteTar ..." -ForegroundColor DarkGray
+        $scpTar = @(Build-ScpArgs -Tail @($localTar, "${sshTarget}:$remoteTar") -ConnectTimeout 300)
+        if (-not (Invoke-ScpWithRetry -ArgumentList $scpTar -MaxAttempts 5 -DelaySeconds 10 -Label "SCP server dist tarball")) {
+            Write-Host "Server tarball upload failed." -ForegroundColor Red
+            exit 1
+        }
+        $rd = $remoteDir.TrimEnd("/").Replace('"', '\"')
+        $extractCmd = "set -e; mkdir -p `"$rd/server/dist`" && tar -xzf `"$remoteTar`" -C `"$rd/server/dist`" && rm -f `"$remoteTar`""
+        Write-Host "Extracting archive on server ..." -ForegroundColor DarkGray
+        & ssh @(Build-SshArgs -SshTarget $sshTarget -RemoteCommand $extractCmd -ConnectTimeout 120)
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Remote tar extract failed." -ForegroundColor Red
+            exit 1
+        }
+    } else {
+        Write-Host "Uploading server/dist/* (recursive SCP, with retries) ..." -ForegroundColor DarkGray
+        & ssh @(Build-SshArgs -SshTarget $sshTarget -RemoteCommand "mkdir -p ${remoteDir}/server/dist" -ConnectTimeout 45)
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "SSH mkdir server/dist failed." -ForegroundColor Red
+            exit 1
+        }
+        # 传整个 dist 目录到远端 .../server/，得到 .../server/dist/（避免 Windows 下 * 通配与 scp 行为不一致）
+        $distDirForScp = Join-Path $projectRoot "server\dist"
+        $scpSrv = @(Build-ScpArgs -Tail @("-r", $distDirForScp, "${sshTarget}:${remoteDir}/server/") -ConnectTimeout 300)
+        if (-not (Invoke-ScpWithRetry -ArgumentList $scpSrv -MaxAttempts 5 -DelaySeconds 10 -Label "SCP server/dist")) {
+            Write-Host "Server dist upload failed." -ForegroundColor Red
+            exit 1
+        }
+    }
+} finally {
+    if ($localTar -and (Test-Path -LiteralPath $localTar)) {
+        Remove-Item -LiteralPath $localTar -Force -ErrorAction SilentlyContinue
+    }
+}
+
 Write-Host "Uploading server/package.json + package-lock.json ..." -ForegroundColor DarkGray
-& scp @sshIdent -o BatchMode=yes -o ConnectTimeout=15 server/package.json server/package-lock.json "${sshTarget}:${remoteDir}/server/"
-if ($LASTEXITCODE -ne 0) {
+$scpPkg = @(Build-ScpArgs -Tail @(
+        (Join-Path $projectRoot "server\package.json"),
+        (Join-Path $projectRoot "server\package-lock.json"),
+        "${sshTarget}:${remoteDir}/server/"
+    ) -ConnectTimeout 120)
+if (-not (Invoke-ScpWithRetry -ArgumentList $scpPkg -Label "SCP server package manifests")) {
     Write-Host "Server package.json upload failed." -ForegroundColor Red
     exit 1
 }
@@ -213,7 +332,7 @@ try {
     [System.IO.File]::WriteAllBytes($tmpSh, $encUtf8.GetBytes($remoteBash))
     $sshArgs = [System.Collections.ArrayList]@()
     foreach ($t in $sshIdent) { [void]$sshArgs.Add($t) }
-    [void]$sshArgs.AddRange(@("-o", "BatchMode=yes", "-o", "ConnectTimeout=600", $sshTarget, "bash", "-s", "--"))
+    [void]$sshArgs.AddRange(@("-o", "BatchMode=yes", "-o", "ConnectTimeout=600", "-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=12", "-o", "TCPKeepAlive=yes", $sshTarget, "bash", "-s", "--"))
     # 必须重定向 stdout/stderr 到文件并读出，否则缓冲区满会死锁
     $remoteProc = Start-Process -FilePath "ssh" -ArgumentList $sshArgs.ToArray() -RedirectStandardInput $tmpSh -RedirectStandardOutput $tmpOut -RedirectStandardError $tmpErr -Wait -NoNewWindow -PassThru
     if (Test-Path -LiteralPath $tmpOut) {
