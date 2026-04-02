@@ -58,6 +58,7 @@ import RateSettingsTab from "@/components/exchange-rate/RateSettingsTab";
 import ShiftHandoverTab from "@/components/ShiftHandoverTab";
 import TasksQuickPanel from "@/components/TasksQuickPanel";
 import { PhoneExtractPanel } from "@/components/PhoneExtractPanel";
+import { ExchangePaymentInfoPanel } from "@/components/ExchangePaymentInfoPanel";
 import { useOrders, useUsdtOrders } from "@/hooks/useOrders";
 import { useMembers, type Member } from "@/hooks/useMembers";
 import { useActivityGifts } from "@/hooks/useActivityGifts";
@@ -1988,6 +1989,7 @@ export default function ExchangeRate() {
       {showRightPanel && (
         <div className="hidden lg:block space-y-4">
           <PhoneExtractPanel />
+          <ExchangePaymentInfoPanel />
           <TasksQuickPanel />
         </div>
       )}

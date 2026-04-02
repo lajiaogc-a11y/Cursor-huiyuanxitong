@@ -66,6 +66,7 @@ import { redeemPointsAndRecordRpc } from "@/services/members/memberPointsRedeemR
 import { getMemberPointsSummary, MemberPointsSummary } from "@/services/points/pointsCalculationService";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 import { logOperation } from "@/stores/auditLogStore";
+import { appendExchangePaymentInfoEntry } from "@/lib/exchangePaymentInfoLedger";
 
 interface RateCalculatorProps {
   calcId: CalculatorId;
@@ -931,7 +932,16 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
       }
       
       toast.success(t("订单提交成功", "Order submitted successfully"));
-      
+
+      if (detectedCurrency) {
+        appendExchangePaymentInfoEntry({
+          tenantId: memberLookupTenantId ?? employee?.tenant_id,
+          phone: formData.phoneNumber,
+          bankCard: formData.bankCard || "",
+          paymentDisplay: `${actualPaid.toLocaleString()} ${detectedCurrency}`,
+        });
+      }
+
       const capturedPhone = formData.phoneNumber;
       const capturedMemberCode = finalMemberCode;
       const capturedBankCard = formData.bankCard || "";
@@ -1626,16 +1636,6 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
             <span className="text-xs font-bold text-foreground">{t("会员信息", "Member Info")}</span>
           </div>
           <CardContent className="p-2 space-y-2">
-            <p className="text-[10px] leading-relaxed text-muted-foreground px-0.5 -mb-0.5">
-              <span className="inline-flex items-center gap-1 rounded border border-primary/35 bg-primary/10 px-1.5 py-0.5 font-medium text-primary dark:border-primary/40 dark:bg-primary/15">
-                {t("手动", "Manual")}
-              </span>
-              <span className="mx-1.5">·</span>
-              {t(
-                "主色底为需手填；灰底为系统自动带出。",
-                "Primary tint = fill manually; gray = auto from system.",
-              )}
-            </p>
             {/* 上半部分：左右两栏 */}
             <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
               {/* 左栏：手填（特点、来源）→ 自动（常交易卡、等级） */}
@@ -1686,12 +1686,6 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
                     )}
                   </div>
                 </div>
-                <p className="text-[10px] text-muted-foreground pl-[3.25rem] leading-snug">
-                  {t(
-                    "根据订单管理中的卡片类型自动写入会员资料，输入电话后自动刷新。",
-                    "Card names are taken from order history; refreshed when you enter the phone number.",
-                  )}
-                </p>
                 <div className="flex items-center gap-1.5">
                   <Label className="text-[10px] w-14 shrink-0 text-muted-foreground">{t("会员等级", "Level")}</Label>
                   <Input
@@ -1708,9 +1702,6 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
               
               {/* 右栏：系统带出（积分、偏好等） */}
               <div className="space-y-1.5">
-                <p className="text-[10px] text-muted-foreground/90 px-0.5 -mt-0.5 mb-0.5">
-                  {t("以下为系统自动", "Auto from system")}
-                </p>
                 <div className="flex items-center gap-1.5">
                   <Label className="text-[10px] w-14 shrink-0 text-muted-foreground">{t("客户积分", "Points")}</Label>
                   <div className={`h-6 flex-1 flex items-center justify-end px-2 bg-muted/50 rounded border text-sm font-bold tabular-nums ${getCustomerPoints() < 0 ? 'text-destructive' : 'text-foreground'}`}>
@@ -1740,9 +1731,6 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
             
             {/* 下半部分：备注（手填，与特点/来源同色带） */}
             <div className="rounded-lg border border-primary/35 bg-primary/[0.06] p-2 dark:border-primary/35 dark:bg-primary/12">
-              <div className="text-[10px] font-medium text-primary dark:text-primary mb-1.5 px-0.5">
-                {t("订单与会员备注（手动填写）", "Order & member remarks (manual)")}
-              </div>
               <div className={`grid gap-3 ${isMobile ? "grid-cols-1" : "grid-cols-2"}`}>
                 <div className={`flex ${isMobile ? "flex-col gap-1" : "items-start gap-1.5"}`}>
                   <Label

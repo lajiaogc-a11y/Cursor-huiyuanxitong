@@ -193,6 +193,26 @@ export interface PointsMallRedemptionOrder {
   handler_name?: string | null;
 }
 
+/** 服务端/驱动偶发把手机号等以 number 返回，统一成 string | null 避免前端 .trim 崩溃 */
+function normalizeNullableString(v: unknown): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s.length > 0 ? s : null;
+}
+
+function normalizePointsMallRedemptionOrder(row: PointsMallRedemptionOrder): PointsMallRedemptionOrder {
+  return {
+    ...row,
+    member_phone: normalizeNullableString(row.member_phone),
+    member_code: normalizeNullableString(row.member_code),
+    handler_name: normalizeNullableString(row.handler_name),
+    item_title: String(row.item_title ?? "").trim(),
+    item_image_url: normalizeNullableString(row.item_image_url),
+    quantity: Number(row.quantity) || 0,
+    points_used: Number(row.points_used) || 0,
+  };
+}
+
 export async function listMyPointsMallRedemptionOrders(
   status?: string,
   limit = 50,
@@ -205,7 +225,8 @@ export async function listMyPointsMallRedemptionOrders(
   });
   const r = (data || {}) as { success?: boolean; error?: string; items?: PointsMallRedemptionOrder[] };
   if (!r.success) throw new Error(r.error || "Load redemption orders failed");
-  return (r.items || []) as PointsMallRedemptionOrder[];
+  const items = (r.items || []) as PointsMallRedemptionOrder[];
+  return items.map(normalizePointsMallRedemptionOrder);
 }
 
 export async function processMyPointsMallRedemptionOrder(

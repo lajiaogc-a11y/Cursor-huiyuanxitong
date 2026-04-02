@@ -78,20 +78,57 @@ const formDataCache: Record<CalculatorId, CalculatorFormData> = {
 };
 
 let cacheInitialized = false;
+/** 合并并发 initCalculatorCache()，避免双次 load 后写覆盖造成「先旧后新」闪烁 */
+let initCalculatorCachePromise: Promise<void> | null = null;
+
+/**
+ * 持久化数据 hydrate 后叠加上当前内存会话：用户在异步 load 完成前点的快捷面值/汇率必须保留，
+ * 不能用磁盘旧值整表覆盖（否则大输入框会先闪回旧数再被点选纠正）。
+ */
+function overlaySessionOntoHydratedForm(
+  fromDb: CalculatorFormData,
+  session: CalculatorFormData,
+): CalculatorFormData {
+  const out: CalculatorFormData = { ...fromDb };
+  (Object.keys(fromDb) as (keyof CalculatorFormData)[]).forEach((k) => {
+    const s = session[k];
+    if (Array.isArray(s)) {
+      if (s.length > 0) (out as Record<string, unknown>)[k] = s;
+      return;
+    }
+    if (typeof s === 'string' && s.length > 0) {
+      (out as Record<string, unknown>)[k] = s;
+    }
+  });
+  return out;
+}
 
 // 异步初始化缓存
 export async function initCalculatorCache(): Promise<void> {
   if (cacheInitialized) return;
-  
-  const promises = Object.entries(CALC_STORAGE_KEYS).map(async ([calcId, key]) => {
-    const data = await loadSharedData<CalculatorFormData>(key as any);
-    if (data) {
-      formDataCache[calcId as CalculatorId] = { ...createEmptyForm(), ...data };
-    }
-  });
-  
-  await Promise.all(promises);
-  cacheInitialized = true;
+  if (initCalculatorCachePromise) {
+    await initCalculatorCachePromise;
+    return;
+  }
+
+  initCalculatorCachePromise = (async () => {
+    const promises = Object.entries(CALC_STORAGE_KEYS).map(async ([calcId, key]) => {
+      const id = calcId as CalculatorId;
+      const data = await loadSharedData<CalculatorFormData>(key as any);
+      const fromDb = data ? { ...createEmptyForm(), ...data } : createEmptyForm();
+      const session = formDataCache[id];
+      formDataCache[id] = overlaySessionOntoHydratedForm(fromDb, session);
+    });
+
+    await Promise.all(promises);
+    cacheInitialized = true;
+  })();
+
+  try {
+    await initCalculatorCachePromise;
+  } finally {
+    initCalculatorCachePromise = null;
+  }
 }
 
 // 获取指定计算器的表单数据
@@ -122,11 +159,16 @@ export function useCalculatorForm(calcId: CalculatorId) {
   const calcIdRef = useRef(calcId);
   calcIdRef.current = calcId;
   
-  // 初始化时从数据库加载
+  // 初始化时从数据库加载（与 init 并发时已在 overlaySessionOntoHydratedForm 保留会话内已填字段）
   useEffect(() => {
-    initCalculatorCache().then(() => {
+    let cancelled = false;
+    void initCalculatorCache().then(() => {
+      if (cancelled) return;
       setFormData(getCalculatorFormData(calcId));
     });
+    return () => {
+      cancelled = true;
+    };
   }, [calcId]);
   
   // 更新单个字段 - 优化：标记输入活动状态

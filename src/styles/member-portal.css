@@ -4972,6 +4972,96 @@ html.member-html:not(.dark) .member-login-premium-root .m-glass-nav {
   border-top: 1px solid hsl(var(--pu-m-surface-border) / 0.45);
 }
 
+/* premium-ui-boost-main `.light .m-glass` — 实底 + 轻模糊 + 柔和投影（不改尺寸与圆角） */
+html.member-html:not(.dark) .m-glass,
+html.member-html:not(.dark) .member-portal-wrap .m-glass,
+html.member-html:not(.dark) .member-login-premium-root .m-glass {
+  background: hsl(var(--pu-m-surface) / 0.98);
+  backdrop-filter: blur(8px) saturate(1.05);
+  -webkit-backdrop-filter: blur(8px) saturate(1.05);
+  border-color: hsl(var(--pu-m-surface-border) / 0.6);
+  box-shadow:
+    0 1px 3px -1px rgb(0 0 0 / 0.06),
+    0 2px 8px -2px rgb(0 0 0 / 0.04);
+}
+
+html.member-html:not(.dark) .m-glass-strong,
+html.member-html:not(.dark) .member-portal-wrap .m-glass-strong,
+html.member-html:not(.dark) .member-login-premium-root .m-glass-strong {
+  background: hsl(0 0% 100% / 0.97);
+  backdrop-filter: blur(12px) saturate(1.08);
+  -webkit-backdrop-filter: blur(12px) saturate(1.08);
+  border-color: hsl(var(--pu-m-surface-border) / 0.62);
+  box-shadow:
+    0 1px 4px -1px rgb(0 0 0 / 0.07),
+    0 4px 14px -4px rgb(0 0 0 / 0.05);
+}
+
+html.member-html:not(.dark) .m-premium-card:hover {
+  box-shadow: 0 6px 24px -6px rgb(15 23 42 / 0.1);
+}
+
+html.member-html:not(.dark) .pattern-dots,
+html.member-html:not(.dark) .member-portal-wrap .pattern-dots,
+html.member-html:not(.dark) .member-login-premium-root .pattern-dots {
+  background-image: radial-gradient(circle, hsl(var(--pu-m-surface-border) / 0.45) 1px, transparent 1px);
+}
+
+html.member-html:not(.dark) .gold-shimmer {
+  background: linear-gradient(
+    110deg,
+    transparent 0%,
+    hsl(var(--pu-gold) / 0.05) 40%,
+    hsl(var(--pu-gold) / 0.1) 50%,
+    hsl(var(--pu-gold) / 0.05) 60%,
+    transparent 100%
+  );
+}
+
+html.member-html:not(.dark) .btn-glow,
+html.member-html:not(.dark) .member-portal-wrap .btn-glow,
+html.member-html:not(.dark) .member-login-premium-root .btn-glow {
+  color: hsl(0 0% 100%);
+  box-shadow: 0 4px 16px -4px hsl(var(--pu-gold) / 0.3);
+}
+html.member-html:not(.dark) .btn-glow:hover,
+html.member-html:not(.dark) .member-portal-wrap .btn-glow:hover,
+html.member-html:not(.dark) .member-login-premium-root .btn-glow:hover {
+  box-shadow: 0 8px 24px -6px hsl(var(--pu-gold) / 0.38);
+}
+
+html.member-html:not(.dark) .btn-mint,
+html.member-html:not(.dark) .member-portal-wrap .btn-mint,
+html.member-html:not(.dark) .member-login-premium-root .btn-mint {
+  color: hsl(0 0% 100%);
+}
+
+html.member-html:not(.dark) .btn-spin,
+html.member-html:not(.dark) .member-portal-wrap .btn-spin,
+html.member-html:not(.dark) .member-login-premium-root .btn-spin {
+  color: hsl(0 0% 100%);
+  box-shadow:
+    0 0 20px -4px hsl(var(--pu-gold) / 0.35),
+    0 0 40px -8px hsl(var(--pu-gold-deep) / 0.2),
+    inset 0 1px 0 hsl(219 100% 90% / 0.25);
+}
+html.member-html:not(.dark) .btn-spin:hover,
+html.member-html:not(.dark) .member-portal-wrap .btn-spin:hover,
+html.member-html:not(.dark) .member-login-premium-root .btn-spin:hover {
+  box-shadow:
+    0 0 28px -4px hsl(var(--pu-gold) / 0.42),
+    0 0 52px -8px hsl(var(--pu-gold-deep) / 0.28),
+    inset 0 1px 0 hsl(219 100% 90% / 0.3);
+}
+
+html.member-html:not(.dark) .m-nav-active-glow::after {
+  box-shadow: 0 0 8px 1px hsl(var(--pu-gold) / 0.35);
+}
+
+html.member-html:not(.dark) .m-gold-glow {
+  box-shadow: 0 0 20px hsl(var(--pu-gold) / 0.12), 0 0 48px hsl(var(--pu-gold) / 0.05);
+}
+
 html.member-html .m-page-bg {
   background: linear-gradient(
     175deg,
@@ -5269,18 +5359,17 @@ html.member-html .safe-area-bottom,
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   premium-ui-boost-main — financial dark HSL tokens (member shell + login)
-   Source: premium-ui-boost-main/src/index.css :root .dark
+   premium-ui-boost — 深色令牌仅作用于 dark，避免浅色下覆盖 html 的 Financial Light
    ═══════════════════════════════════════════════════════════════════════════ */
-.member-portal-wrap,
-.member-login-premium-root {
+html.member-html.dark .member-portal-wrap,
+html.member-html.dark .member-login-premium-root {
   --pu-background: 216 50% 8%;
   --pu-foreground: 210 40% 98%;
   --pu-card: 219 40% 14%;
   --pu-secondary: 218 33% 18%;
   --pu-secondary-foreground: 213 20% 77%;
   --pu-muted-foreground: 213 20% 60%;
-  /* 与 html.member-html / premium-ui-boost 金融蓝一致（勿再用 43° 金覆盖租户主色链） */
+  /* 与 html.member-html.dark 金融蓝一致（勿再用 43° 金覆盖租户主色链） */
   --pu-gold: 219 100% 65%;
   --pu-gold-soft: 219 90% 75%;
   --pu-gold-deep: 219 95% 52%;
@@ -5301,14 +5390,36 @@ html.member-html .safe-area-bottom,
   --pu-violet-soft: 252 85% 78%;
   --pu-silver: 213 20% 60%;
   --pu-silver-soft: 213 15% 72%;
-  /* premium-ui-boost arbitrary hsl(var(--m-*)) compatibility */
   --m-text: var(--pu-m-text);
   --m-text-dim: var(--pu-m-text-dim);
   --m-surface: var(--pu-m-surface);
   --m-surface-border: var(--pu-m-surface-border);
   --m-glow-gold: var(--pu-gold);
   --m-glow-emerald: var(--pu-emerald);
-  /* boost TSX 内联 hsl(var(--emerald)) / hsl(var(--rose)) */
+  --emerald: var(--pu-emerald);
+  --emerald-soft: var(--pu-emerald-soft);
+  --rose: var(--pu-rose);
+  --rose-soft: var(--pu-rose-soft);
+}
+
+/* 浅色壳层：与参考 `.light` 成员色板一致 + 别名（登录页无 portal-wrap 时仍可用） */
+html.member-html:not(.dark) .member-portal-wrap,
+html.member-html:not(.dark) .member-login-premium-root {
+  --pu-gold: 217 91% 53%;
+  --pu-gold-soft: 217 80% 48%;
+  --pu-gold-deep: 217 95% 42%;
+  --pu-primary: var(--pu-gold);
+  --pu-primary-foreground: 0 0% 100%;
+  --pu-emerald: 160 55% 38%;
+  --pu-emerald-soft: 160 55% 32%;
+  --pu-rose: 0 60% 48%;
+  --pu-rose-soft: 0 58% 42%;
+  --pu-violet: 246 80% 60%;
+  --pu-violet-soft: 246 70% 52%;
+  --pu-silver: 215 15% 46%;
+  --pu-silver-soft: 215 12% 56%;
+  --m-glow-gold: var(--pu-gold);
+  --m-glow-emerald: var(--pu-emerald);
   --emerald: var(--pu-emerald);
   --emerald-soft: var(--pu-emerald-soft);
   --rose: var(--pu-rose);
@@ -5342,6 +5453,17 @@ html.member-html .safe-area-bottom,
   opacity: 0.32;
 }
 
+html.member-html:not(.dark) .member-portal-wrap .member-points-hero-v2 {
+  background: hsl(0 0% 100% / 0.95);
+  border-color: hsl(220 18% 88%) !important;
+  box-shadow:
+    0 1px 4px -1px rgb(0 0 0 / 0.06),
+    0 4px 16px -6px rgb(0 0 0 / 0.05),
+    0 0 0 1px hsl(220 18% 92%) inset;
+  backdrop-filter: blur(10px) saturate(1.05);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+}
+
 /* Settings — remove flat hero paint; card uses financial glass */
 .member-portal-wrap .member-hero.member-settings-hero {
   background: transparent !important;
@@ -5356,6 +5478,16 @@ html.member-html .safe-area-bottom,
 .member-portal-wrap .member-settings-account-layout__avatar {
   border-color: hsl(var(--pu-gold) / 0.35);
   box-shadow: 0 4px 20px hsl(var(--pu-gold) / 0.2);
+}
+
+html.member-html:not(.dark) .member-portal-wrap .member-settings-account-card {
+  background: hsl(0 0% 100% / 0.96);
+  border-color: hsl(220 18% 88%) !important;
+  box-shadow:
+    0 1px 4px -1px rgb(0 0 0 / 0.06),
+    0 3px 12px -4px rgb(0 0 0 / 0.04);
+  backdrop-filter: blur(10px) saturate(1.05);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
 }
 
 /* Points mall — shelves & tabs (premium-ui-boost, no TSX churn) */
@@ -5380,6 +5512,27 @@ html.member-html .safe-area-bottom,
     box-shadow: 0 12px 36px rgba(0, 0, 0, 0.32), 0 0 0 1px hsl(var(--pu-gold) / 0.07);
   }
 }
+
+html.member-html:not(.dark) .member-portal-wrap .member-product-card {
+  background: linear-gradient(
+    165deg,
+    hsl(0 0% 100% / 0.98) 0%,
+    hsl(220 20% 98% / 0.95) 100%
+  );
+  border-color: hsl(220 18% 88%) !important;
+  box-shadow:
+    0 1px 3px -1px rgb(0 0 0 / 0.05),
+    0 2px 8px -3px rgb(0 0 0 / 0.04);
+}
+@media (hover: hover) {
+  html.member-html:not(.dark) .member-portal-wrap .member-product-card:hover {
+    border-color: hsl(var(--pu-gold) / 0.35);
+    box-shadow:
+      0 4px 14px -4px rgb(0 0 0 / 0.08),
+      0 0 0 1px hsl(var(--pu-gold) / 0.12);
+  }
+}
+
 .member-portal-wrap .member-mall-category-tabs__btn--active {
   color: hsl(var(--pu-gold-soft));
   border-color: hsl(var(--pu-gold) / 0.4);
@@ -5406,6 +5559,14 @@ html.member-html .member-portal-notfound-card,
     0 24px 64px rgba(0, 0, 0, 0.45),
     inset 0 1px 0 hsl(var(--pu-gold) / 0.1) !important;
 }
+
+html.member-html:not(.dark) .member-portal-notfound-card {
+  border-color: hsl(220 18% 88%) !important;
+  background: linear-gradient(168deg, hsl(0 0% 100% / 0.98) 0%, hsl(220 20% 98% / 0.99) 100%) !important;
+  box-shadow:
+    0 8px 32px -8px rgb(0 0 0 / 0.08),
+    0 0 0 1px hsl(220 18% 92%) inset !important;
+}
 html.member-html .member-portal-notfound-cta,
 .member-portal-wrap .member-portal-notfound-cta {
   background: linear-gradient(135deg, hsl(var(--pu-gold)), hsl(var(--pu-gold-deep))) !important;
@@ -5421,6 +5582,14 @@ html.member-html .member-portal-notfound-cta,
     linear-gradient(175deg, hsl(var(--pu-m-bg-1)) 0%, hsl(var(--pu-m-bg-2)) 40%, hsl(var(--pu-m-bg-3)) 100%);
 }
 
+/* 浅色：与参考 `.light .m-page-bg` 一致，中点为 50% */
+html.member-html:not(.dark) .member-premium-canvas.pu-boost-skin::before {
+  background:
+    radial-gradient(ellipse 130% 90% at 0% -15%, hsl(var(--pu-gold) / 0.09) 0%, transparent 52%),
+    radial-gradient(ellipse 100% 70% at 100% 0%, hsl(var(--pu-emerald) / 0.07) 0%, transparent 48%),
+    linear-gradient(175deg, hsl(var(--pu-m-bg-1)) 0%, hsl(var(--pu-m-bg-2)) 50%, hsl(var(--pu-m-bg-3)) 100%);
+}
+
 /* Bottom nav — active pill glow (premium-ui-boost MemberBottomNav) */
 @keyframes member-nav-glow-pu {
   0%, 100% { opacity: 0.7; transform: translateX(-50%) scaleX(1); }
@@ -5432,6 +5601,26 @@ html.member-html .member-portal-notfound-cta,
   border-top-color: hsl(var(--pu-m-surface-border) / 0.4) !important;
   backdrop-filter: blur(24px) saturate(1.2);
   -webkit-backdrop-filter: blur(24px) saturate(1.2);
+}
+
+/* premium-ui-boost `.light .light-nav` — 底栏毛玻璃与顶边高光 */
+html.member-html:not(.dark) .member-bottom-nav--pu-boost {
+  background: hsl(0 0% 100% / 0.92) !important;
+  border-top-color: hsl(220 18% 88%) !important;
+  backdrop-filter: blur(20px) saturate(1.3) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.3) !important;
+  box-shadow:
+    0 -1px 0 0 hsl(220 18% 92%),
+    0 -2px 8px -2px rgb(0 0 0 / 0.06),
+    0 -4px 20px -6px rgb(0 0 0 / 0.04) !important;
+}
+
+html.member-html:not(.dark) .member-bottom-nav--pu-boost a:focus-visible {
+  --tw-ring-offset-color: hsl(var(--pu-m-bg-1)) !important;
+}
+
+html.member-html:not(.dark) .member-bottom-nav--pu-boost a[aria-current="page"] > span:first-child {
+  box-shadow: 0 0 8px 1px hsl(var(--pu-gold) / 0.35) !important;
 }
 
 /* 避免 elite-member-shell 再铺一层旧渐变，盖住 premium-ui-boost 画布 */
@@ -5473,6 +5662,17 @@ html.member-html .member-portal-notfound-cta,
   background: linear-gradient(135deg, hsl(25 50% 42% / 0.1), hsl(var(--pu-m-surface) / 0.38));
 }
 
+html.member-html:not(.dark) .member-portal-wrap .member-invite-rank__item {
+  border-color: hsl(220 18% 88%);
+  background: hsl(0 0% 100% / 0.9);
+  box-shadow: 0 1px 2px -1px rgb(0 0 0 / 0.04);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-invite-rank__item--gold {
+  border-color: hsl(var(--pu-gold) / 0.35);
+  background: linear-gradient(135deg, hsl(var(--pu-gold) / 0.08), hsl(0 0% 100% / 0.95));
+  box-shadow: 0 2px 10px -3px hsl(var(--pu-gold) / 0.15);
+}
+
 /* 幸运抽奖 · 假人中奖滚动条（MemberSpin） */
 @keyframes member-spin-sim-feed-marquee {
   0% {
@@ -5487,6 +5687,12 @@ html.member-html .member-portal-notfound-cta,
   border-radius: 12px;
   border: 1px solid hsl(var(--pu-gold) / 0.22);
   background: linear-gradient(90deg, hsl(var(--pu-m-surface) / 0.55), hsl(var(--pu-m-bg-2) / 0.75));
+}
+
+html.member-html:not(.dark) .member-spin-sim-feed {
+  border-color: hsl(220 18% 88%);
+  background: linear-gradient(90deg, hsl(0 0% 100% / 0.95), hsl(220 20% 97% / 0.98));
+  box-shadow: 0 1px 3px -1px rgb(0 0 0 / 0.05);
 }
 .member-spin-sim-feed__track {
   display: flex;

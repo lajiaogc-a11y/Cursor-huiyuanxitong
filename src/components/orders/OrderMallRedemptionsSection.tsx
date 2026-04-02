@@ -39,6 +39,13 @@ function formatBeijingTime(iso: string): string {
   }
 }
 
+/** 接口可能返回 number（如 BIGINT 手机号）；禁止直接 .trim() */
+function displayStr(v: unknown, empty: string): string {
+  if (v == null) return empty;
+  const s = String(v).trim();
+  return s.length > 0 ? s : empty;
+}
+
 export interface OrderMallRedemptionsSectionProps {
   tenantId: string | null;
   searchTerm: string;
@@ -95,7 +102,7 @@ export function OrderMallRedemptionsSection({
         o.handler_name,
         o.id,
       ]
-        .filter(Boolean)
+        .map((x) => (x == null ? "" : String(x)))
         .join(" ")
         .toLowerCase();
       return hay.includes(q);
@@ -168,13 +175,13 @@ export function OrderMallRedemptionsSection({
                   <div className="font-medium truncate">{o.item_title}</div>
                   <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
                     <div>
-                      {t("电话", "Phone")}: {o.member_phone?.trim() || "—"}
+                      {t("电话", "Phone")}: {displayStr(o.member_phone, "—")}
                     </div>
                     <div>
-                      {t("会员编号", "Member code")}: {o.member_code?.trim() || "—"}
+                      {t("会员编号", "Member code")}: {displayStr(o.member_code, "—")}
                     </div>
                     <div>
-                      {t("经手人", "Handler")}: {o.handler_name?.trim() || "—"}
+                      {t("经手人", "Handler")}: {displayStr(o.handler_name, "—")}
                     </div>
                   </div>
                 </div>
@@ -261,10 +268,10 @@ export function OrderMallRedemptionsSection({
                     {o.item_title}
                   </TableCell>
                   <TableCell className="font-mono text-[11px] whitespace-nowrap">
-                    {o.member_phone?.trim() || "—"}
+                    {displayStr(o.member_phone, "—")}
                   </TableCell>
                   <TableCell className="font-mono text-[11px] whitespace-nowrap">
-                    {o.member_code?.trim() || "—"}
+                    {displayStr(o.member_code, "—")}
                   </TableCell>
                   <TableCell>{o.quantity}</TableCell>
                   <TableCell>{o.points_used}</TableCell>
@@ -283,7 +290,7 @@ export function OrderMallRedemptionsSection({
                     {formatBeijingTime(o.created_at)}
                   </TableCell>
                   <TableCell className="text-muted-foreground whitespace-nowrap max-w-[140px] truncate" title={o.handler_name || ""}>
-                    {o.handler_name?.trim() || "—"}
+                    {displayStr(o.handler_name, "—")}
                   </TableCell>
                   <TableCell className="text-right">
                     {o.status === "pending" ? (
