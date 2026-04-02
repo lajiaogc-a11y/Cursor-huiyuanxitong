@@ -429,20 +429,33 @@ export async function upsertMyMemberPortalSettings(settings: MemberPortalSetting
   if (!r.success) throw new Error(r.error || "Save settings failed");
 }
 
+/** 合并同一 memberId 的并发请求（多组件各调 useMemberPortalSettings 时切 Tab 只打一条） */
+const memberPortalSettingsByMemberInflight = new Map<string, Promise<MemberPortalSettingsPayload>>();
+
 export async function getMemberPortalSettingsByMember(memberId: string): Promise<MemberPortalSettingsPayload> {
-  try {
-    const r = await apiGet<{ success: boolean; tenant_id?: string; tenant_name?: string; settings?: any; error?: string }>(
-      `/api/member-portal-settings/by-member/${encodeURIComponent(memberId)}`
-    );
-    if (!r.success) throw new Error(r.error || "Load portal settings failed");
-    return {
-      tenant_id: r.tenant_id ?? null,
-      tenant_name: r.tenant_name || "",
-      settings: normalizeSettings(r.settings),
-    };
-  } catch (e: unknown) {
-    throw new Error((e instanceof Error ? e.message : String(e)) || "Load portal settings failed");
-  }
+  const existing = memberPortalSettingsByMemberInflight.get(memberId);
+  if (existing) return existing;
+
+  const p = (async (): Promise<MemberPortalSettingsPayload> => {
+    try {
+      const r = await apiGet<{ success: boolean; tenant_id?: string; tenant_name?: string; settings?: any; error?: string }>(
+        `/api/member-portal-settings/by-member/${encodeURIComponent(memberId)}`
+      );
+      if (!r.success) throw new Error(r.error || "Load portal settings failed");
+      return {
+        tenant_id: r.tenant_id ?? null,
+        tenant_name: r.tenant_name || "",
+        settings: normalizeSettings(r.settings),
+      };
+    } catch (e: unknown) {
+      throw new Error((e instanceof Error ? e.message : String(e)) || "Load portal settings failed");
+    } finally {
+      memberPortalSettingsByMemberInflight.delete(memberId);
+    }
+  })();
+
+  memberPortalSettingsByMemberInflight.set(memberId, p);
+  return p;
 }
 
 export async function getMemberPortalSettingsByInviteCode(code: string): Promise<MemberPortalSettingsPayload | null> {

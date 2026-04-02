@@ -45,14 +45,15 @@ export function useMemberPortalSettings(memberId: string | undefined) {
     setLoading(true);
   }, [memberId]);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true;
     if (!memberId) {
       setState({ tenantId: null, tenantName: "", settings: DEFAULT_SETTINGS });
       return;
     }
     if (refreshInFlight.current) return;
     refreshInFlight.current = true;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const data = await getMemberPortalSettingsByMember(memberId);
       const newSettings = data.settings;
@@ -65,13 +66,14 @@ export function useMemberPortalSettings(memberId: string | undefined) {
     } catch {
       // Keep current settings on error instead of resetting to defaults
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
       refreshInFlight.current = false;
     }
   }, [memberId]);
 
+  /** 下拉刷新已有 PTR 指示器；静默拉门户设置，避免全页骨架与 Tab 切回时「重新加载」观感 */
   useMemberPullRefreshSignal(() => {
-    void refresh();
+    void refresh({ silent: true });
   });
 
   useEffect(() => {
@@ -84,16 +86,16 @@ export function useMemberPortalSettings(memberId: string | undefined) {
     /** 后台标签页不跑定时刷新，减少无效请求（与会员订单轮询策略一致） */
     const pollTick = () => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-      void refresh();
+      void refresh({ silent: true });
     };
 
     const timer = setInterval(pollTick, 30_000);
 
     const onFocus = () => {
-      if (typeof document !== "undefined" && document.visibilityState === "visible") void refresh();
+      if (typeof document !== "undefined" && document.visibilityState === "visible") void refresh({ silent: true });
     };
     const onVisible = () => {
-      if (document.visibilityState === "visible") void refresh();
+      if (document.visibilityState === "visible") void refresh({ silent: true });
     };
 
     window.addEventListener("focus", onFocus);
