@@ -1301,7 +1301,6 @@ export default function OrderManagement() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t("订单管理", "Orders")}
         description={t(
           "查看与处理赛地/奈拉、USDT 与积分商城兑换订单，支持筛选、导入导出与列显示设置。",
           "View and manage NGN/GHS, USDT, and points-mall redemption orders with filters, import/export, and column visibility.",

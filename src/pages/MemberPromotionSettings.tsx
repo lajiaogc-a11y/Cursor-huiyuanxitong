@@ -162,15 +162,12 @@ export default function MemberPromotionSettingsPage({ embedded = false }: Member
       }
     >
       {!embedded && (
-        <div>
-          <h1 className="text-xl font-semibold">{t('会员等级', 'Member levels')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t(
-              '按累计积分自动匹配等级；保存后将按新规则全量重算本租户会员的 current_level。',
-              'Levels match lifetime total points; saving recalculates all members in this tenant.',
-            )}
-          </p>
-        </div>
+        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+          {t(
+            '按累计积分自动匹配等级；保存后将按新规则全量重算本租户会员的 current_level。',
+            'Levels match lifetime total points; saving recalculates all members in this tenant.',
+          )}
+        </p>
       )}
       {embedded && (
         <p className="text-sm text-muted-foreground">

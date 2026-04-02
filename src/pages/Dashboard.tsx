@@ -269,7 +269,6 @@ export default function Dashboard() {
     <div className="elite-staff-shell elite-soft-scroll rounded-2xl border border-border/50 p-4 shadow-soft md:p-6">
       <div className="space-y-5">
       <ElitePageHeader
-        title={t("数据统计", "Statistics")}
         description={t("会员、订单与利润趋势汇总", "Summary of members, orders, and profit trends.")}
       />
       <DashboardQuickStartCard />

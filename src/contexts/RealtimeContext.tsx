@@ -8,6 +8,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useMemo,
   type ReactNode,
 } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -69,18 +70,17 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     triggerRefresh(eventType);
   }, []);
 
-  return (
-    <RealtimeContext.Provider
-      value={{
-        status,
-        subscribe,
-        subscribeAll,
-        refresh,
-      }}
-    >
-      {children}
-    </RealtimeContext.Provider>
+  const realtimeValue = useMemo(
+    () => ({
+      status,
+      subscribe,
+      subscribeAll,
+      refresh,
+    }),
+    [status, subscribe, subscribeAll, refresh],
   );
+
+  return <RealtimeContext.Provider value={realtimeValue}>{children}</RealtimeContext.Provider>;
 }
 
 export function useRealtimeContext() {

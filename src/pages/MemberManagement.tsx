@@ -288,7 +288,6 @@ export default function MemberManagement() {
   return (
     <div className="h-full flex flex-col gap-4">
       <PageHeader
-        title={t("members.title")}
         description={t("搜索、编辑与导出会员；移动端为卡片列表。", "Search, edit, and export members; mobile uses cards.")}
         actions={
           !isMobile ? (

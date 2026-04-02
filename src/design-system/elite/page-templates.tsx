@@ -32,7 +32,7 @@ export function EliteStaffPageTemplate({
 }) {
   return (
     <div className="space-y-6">
-      <ElitePageHeader title={title} description={description} actions={action} />
+      <ElitePageHeader title={title} description={description} actions={action} showTitle />
       {kpis ? <EliteKPIGrid items={kpis} /> : null}
       {filter ? <EliteFilterBar>{filter}</EliteFilterBar> : null}
       {children}

@@ -7,6 +7,7 @@ import { useNavigationVisibility } from "@/hooks/useNavigationVisibility";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/common";
+import { SystemSettingsVersionCard } from "@/components/SystemSettingsVersionCard";
 
 const FeeSettingsTab = lazy(() => import("@/components/FeeSettingsTab"));
 const ExchangeRateSettingsTab = lazy(() => import("@/components/ExchangeRateSettingsTab"));
@@ -132,12 +133,12 @@ export default function SystemSettings() {
   return (
     <div className="flex h-full flex-col gap-4">
       <PageHeader
-        title={t("系统设置", "System settings")}
         description={t(
           "租户级业务参数与数据配置：费率、汇率、币种、积分、活动、客户来源、数据管理与权限等；移动端可用下方标签切换。",
           "Tenant-level business and data settings—fees, FX, currencies, points, activities, sources, data management, and permissions; use the tabs below on mobile.",
         )}
       />
+      {!isMobile && <SystemSettingsVersionCard />}
       {isMobile && (
         <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
           {visibleTabs.map((key) => (

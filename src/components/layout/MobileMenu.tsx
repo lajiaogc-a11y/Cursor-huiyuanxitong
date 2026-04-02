@@ -121,16 +121,11 @@ function isMenuPathActive(itemPath: string, pathname: string, search: string): b
   return true;
 }
 
-const platformMenuGroups: MenuGroup[] = [
-  {
-    titleZh: "平台管理",
-    titleEn: "Platform",
-    items: [
-      { icon: Building2, labelZh: "租户管理", labelEn: "Tenant Management", path: "/staff/admin/tenants" },
-      { icon: Users, labelZh: "租户数据查看", labelEn: "View Tenant Data", path: "/staff/admin/tenant-view" },
-      { icon: Settings, labelZh: "平台设置", labelEn: "Platform Settings", path: "/staff/admin/settings" },
-    ],
-  },
+/** 平台总管理员专用：放在抽屉最底部（语言/主题/退出之上），不与业务菜单混排滚动 */
+const platformBottomNavItems: MobileMenuItem[] = [
+  { icon: Building2, labelZh: "租户管理", labelEn: "Tenant Management", path: "/staff/admin/tenants" },
+  { icon: Users, labelZh: "租户数据查看", labelEn: "View Tenant Data", path: "/staff/admin/tenant-view" },
+  { icon: Settings, labelZh: "平台设置", labelEn: "Platform Settings", path: "/staff/admin/settings" },
 ];
 
 export function MobileMenu({ open, onClose }: MobileMenuProps) {
@@ -155,9 +150,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
   };
 
   const menuGroups = useMemo(() => {
-    const raw = employee?.is_platform_super_admin
-      ? [...tenantMenuGroups, ...platformMenuGroups]
-      : tenantMenuGroups;
+    const raw = tenantMenuGroups;
     if (!employee?.is_platform_super_admin) {
       return raw
         .map((g) => ({
@@ -203,7 +196,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
           </div>
         </SheetHeader>
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           <div className="py-2">
             {menuGroups.map((group, groupIdx) => (
               <div key={group.titleEn}>
@@ -256,6 +249,41 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
             ))}
           </div>
         </ScrollArea>
+
+        {employee?.is_platform_super_admin ? (
+          <div className="shrink-0 border-t border-border bg-background">
+            <div className="px-4 pt-2 pb-1">
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                {t("平台管理", "Platform")}
+              </span>
+            </div>
+            {platformBottomNavItems.map((item) => {
+              const Icon = item.icon;
+              const label = t(item.labelZh, item.labelEn);
+              const isActive = isMenuPathActive(item.path, location.pathname, location.search);
+              return (
+                <button
+                  key={item.path}
+                  type="button"
+                  onClick={() => handleNavigate(item.path)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors",
+                    isActive ? "bg-primary/8 text-primary" : "active:bg-muted/50"
+                  )}
+                >
+                  <Icon
+                    className={cn(
+                      "h-[18px] w-[18px] shrink-0",
+                      isActive ? "text-primary" : "text-muted-foreground"
+                    )}
+                  />
+                  <span className={cn("flex-1 text-sm", isActive ? "font-semibold" : "font-normal")}>{label}</span>
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
 
         <div className="shrink-0 p-3 pt-2 border-t border-border bg-background space-y-2 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
           <div className="flex gap-2">

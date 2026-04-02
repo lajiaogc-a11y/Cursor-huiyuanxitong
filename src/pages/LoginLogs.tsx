@@ -166,7 +166,6 @@ export default function LoginLogs() {
       )}
 
       <PageHeader
-        title={t("登录日志", "Login Logs")}
         description={t(
           "查看员工登录成功与失败记录、IP 与浏览器信息；数据为服务端分页。",
           "View staff login success/failure, IP, and browser info; data is server-paginated.",

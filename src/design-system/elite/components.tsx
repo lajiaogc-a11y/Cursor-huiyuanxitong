@@ -182,19 +182,36 @@ export function ElitePageHeader({
   title,
   description,
   actions,
+  showTitle = false,
 }: {
-  title: string;
+  title?: string;
   description?: string;
   actions?: ReactNode;
+  /** 员工后台顶栏已显示页面标题；默认不在正文重复大标题，仅保留说明与操作区 */
+  showTitle?: boolean;
 }) {
+  const showHeading = Boolean(showTitle && title?.trim());
+  const hasLeft =
+    showHeading || Boolean(description?.trim());
   return (
     <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-[var(--elite-staff-text,#0f172a)]">{title}</h1>
-        {description && (
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--elite-staff-muted,#64748b)]">{description}</p>
-        )}
-      </div>
+      {hasLeft ? (
+        <div>
+          {showHeading ? (
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--elite-staff-text,#0f172a)]">{title}</h1>
+          ) : null}
+          {description ? (
+            <p
+              className={cn(
+                "max-w-3xl text-sm leading-6 text-[var(--elite-staff-muted,#64748b)]",
+                showHeading ? "mt-2" : "",
+              )}
+            >
+              {description}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       {actions}
     </div>
   );

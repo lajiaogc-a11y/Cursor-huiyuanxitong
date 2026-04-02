@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 
 type LayoutMode = 'fullWidth' | 'centered';
 
@@ -30,35 +30,45 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const setLayoutMode = (mode: LayoutMode) => {
+  const setLayoutMode = useCallback((mode: LayoutMode) => {
     setLayoutModeState(mode);
     localStorage.setItem('appLayoutMode', mode);
-  };
+  }, []);
 
-  const toggleLayoutMode = () => {
-    setLayoutMode(layoutMode === 'fullWidth' ? 'centered' : 'fullWidth');
-  };
+  const toggleLayoutMode = useCallback(() => {
+    setLayoutModeState((prev) => {
+      const next = prev === 'fullWidth' ? 'centered' : 'fullWidth';
+      localStorage.setItem('appLayoutMode', next);
+      return next;
+    });
+  }, []);
 
-  const toggleTabletSidebar = () => {
-    setTabletSidebarOpen(prev => !prev);
-  };
+  const toggleTabletSidebar = useCallback(() => {
+    setTabletSidebarOpen((prev) => !prev);
+  }, []);
 
-  return (
-    <LayoutContext.Provider
-      value={{
-        layoutMode,
-        setLayoutMode,
-        toggleLayoutMode,
-        tabletSidebarOpen,
-        setTabletSidebarOpen,
-        toggleTabletSidebar,
-        navScrollTop,
-        setNavScrollTop,
-      }}
-    >
-      {children}
-    </LayoutContext.Provider>
+  const layoutValue = useMemo(
+    () => ({
+      layoutMode,
+      setLayoutMode,
+      toggleLayoutMode,
+      tabletSidebarOpen,
+      setTabletSidebarOpen,
+      toggleTabletSidebar,
+      navScrollTop,
+      setNavScrollTop,
+    }),
+    [
+      layoutMode,
+      setLayoutMode,
+      toggleLayoutMode,
+      tabletSidebarOpen,
+      toggleTabletSidebar,
+      navScrollTop,
+    ],
   );
+
+  return <LayoutContext.Provider value={layoutValue}>{children}</LayoutContext.Provider>;
 }
 
 export function useLayout() {

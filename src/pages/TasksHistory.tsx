@@ -90,9 +90,8 @@ export default function TasksHistory() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{t("维护历史", "Maintenance History")}</h1>
-        <p className="text-muted-foreground text-sm mt-1">
+      <div className="max-w-3xl">
+        <p className="text-sm leading-6 text-muted-foreground">
           {t("查看任务完成进度，支持按员工、日期筛选，显示已完成/未完成及分配员工统计", "View task progress")}
         </p>
       </div>

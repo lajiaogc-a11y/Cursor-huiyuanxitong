@@ -18,7 +18,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { DrawerDetail } from '@/components/shell/DrawerDetail';
-import { Plus, Send, Loader2, UserPlus, RefreshCw, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Send, Loader2, UserPlus, RefreshCw, Pencil, Trash2, CircleHelp } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -369,6 +375,87 @@ export default function ShiftHandoverTab() {
     await refreshBalancesOnly();
     toast.success(t('数据已刷新', 'Data refreshed'));
   };
+
+  /** 将「系统余额为 0」且手填仍为空的卡商/代付行一键写入 0，便于通过交班校验 */
+  const handleOneClickFillZeroBalances = () => {
+    const vendorNames: string[] = [];
+    const providerNames: string[] = [];
+    for (const v of vendorBalances) {
+      if (v.balance === 0 && !isFilledBalanceInput(v.inputValue)) vendorNames.push(v.vendorName);
+    }
+    for (const p of providerBalances) {
+      if (p.balance === 0 && !isFilledBalanceInput(p.inputValue)) providerNames.push(p.providerName);
+    }
+    for (const name of vendorNames) setVendorInput(name, '0');
+    for (const name of providerNames) setProviderInput(name, '0');
+    if (vendorNames.length > 0) {
+      setVendorBalances((prev) =>
+        prev.map((v) =>
+          v.balance === 0 && !isFilledBalanceInput(v.inputValue) ? { ...v, inputValue: '0' } : v,
+        ),
+      );
+    }
+    if (providerNames.length > 0) {
+      setProviderBalances((prev) =>
+        prev.map((p) =>
+          p.balance === 0 && !isFilledBalanceInput(p.inputValue) ? { ...p, inputValue: '0' } : p,
+        ),
+      );
+    }
+    const n = vendorNames.length + providerNames.length;
+    if (n > 0) {
+      setValidationErrors((prev) => {
+        const nextV = new Set(prev.vendors);
+        const nextP = new Set(prev.providers);
+        vendorNames.forEach((name) => nextV.delete(name));
+        providerNames.forEach((name) => nextP.delete(name));
+        return { ...prev, vendors: nextV, providers: nextP };
+      });
+      toast.success(
+        t(`已一键填入 ${n} 处余额为 0 的商家`, `Filled ${n} zero-balance merchant row(s)`),
+      );
+    } else {
+      toast.message(
+        t(
+          '没有可填入项：仅处理「系统显示余额为 0」且手填仍为空的卡商/代付商家。',
+          'Nothing to fill: only rows with system balance 0 and an empty handover input.',
+        ),
+      );
+    }
+  };
+
+  const oneClickFillTooltip = t(
+    '一键填入余额是0的商家余额',
+    'One-click fill 0 for card merchants and payment providers whose system balance is 0.',
+  );
+
+  const renderOneClickFillButton = () => (
+    <div className="inline-flex h-8 items-stretch overflow-hidden rounded-md border border-input bg-background text-sm font-medium shadow-sm ring-offset-background hover:bg-accent/40">
+      <button
+        type="button"
+        className="px-2.5 outline-none transition-colors hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={handleOneClickFillZeroBalances}
+      >
+        {t('一键填入', 'One-click fill')}
+      </button>
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex h-full items-center border-l border-input px-1.5 text-muted-foreground outline-none transition-colors hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={oneClickFillTooltip}
+            >
+              <CircleHelp className="h-3.5 w-3.5 shrink-0" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-[280px] text-xs">
+            {oneClickFillTooltip}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div>
+  );
   
   // 更新卡商输入值（同时持久化）
   const handleVendorInputChange = (vendorName: string, value: string) => {
@@ -600,14 +687,18 @@ export default function ShiftHandoverTab() {
             <Pencil className="h-3.5 w-3.5" />
           </Button>
           {isMobile && (
-            <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-1 h-8 ml-auto">
-              <RefreshCw className="h-3 w-3" />
-              {t('刷新', 'Refresh')}
-            </Button>
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+              {renderOneClickFillButton()}
+              <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-1 h-8">
+                <RefreshCw className="h-3 w-3" />
+                {t('刷新', 'Refresh')}
+              </Button>
+            </div>
           )}
         </div>
         {!isMobile && (
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {renderOneClickFillButton()}
             <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-1 h-8">
               <RefreshCw className="h-3 w-3" />
               {t('刷新', 'Refresh')}

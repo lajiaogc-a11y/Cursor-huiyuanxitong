@@ -163,9 +163,8 @@ export default function TasksSettings() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{t("维护设置", "Maintenance Settings")}</h1>
-        <p className="text-muted-foreground text-sm mt-1">
+      <div className="max-w-3xl">
+        <p className="text-sm leading-6 text-muted-foreground">
           {t("生成未交易会员名单并分配给员工", "Generate and assign customer list")}
         </p>
       </div>

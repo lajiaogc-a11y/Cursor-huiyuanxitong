@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -724,6 +724,34 @@ export default function MemberPortalSettingsPage() {
     );
   };
 
+  const applySettingsSnapshotRef = useRef(applySettingsSnapshot);
+  applySettingsSnapshotRef.current = applySettingsSnapshot;
+
+  /** 同一会话内再次进入「会员系统」：用缓存完整还原 UI，避免先全屏 loading；数据仍由下方 effect 后台刷新 */
+  useLayoutEffect(() => {
+    const cached = getMemberPortalStaffSessionSnapshot(workingDraftKey);
+    if (cached) {
+      setTenantName(cached.tenantName);
+      setLastPublishedSnapshot(cached.lastPublishedSnapshot);
+      if (cached.lastPublishedMallCatalogFingerprint) {
+        setLastPublishedMallCatalogFingerprint(cached.lastPublishedMallCatalogFingerprint);
+      }
+      if (cached.lastPublishedLotteryFingerprint) {
+        setLastPublishedLotteryFingerprint(cached.lastPublishedLotteryFingerprint);
+      }
+      applySettingsSnapshotRef.current(cached.initialSnapshot);
+      setHasDraft(cached.hasDraft);
+      setLotteryPrizes(cached.lotteryPrizes.map((x) => ({ ...x })));
+      setLotterySettings({ ...cached.lotterySettings });
+      setMallItems(cached.mallItems.map((x) => ({ ...x })));
+      setMallCategories((cached.mallCategories ?? []).map((x) => ({ ...x })));
+      setVersions(cached.versions.map((x) => ({ ...x })));
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+  }, [workingDraftKey, tenantId]);
+
   // ── 版本列表 ──────────────────────────────────────────────────────────────
   const refreshVersions = async () => {
     setLoadingVersions(true);
@@ -788,22 +816,9 @@ export default function MemberPortalSettingsPage() {
     setConfirmForceRefreshOpen(true);
   };
 
-  // ── 初始加载 ──────────────────────────────────────────────────────────────
+  // ── 初始加载（后台对齐服务端；有会话缓存时由 useLayoutEffect 已秒开界面）────────────────
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    const cached = getMemberPortalStaffSessionSnapshot(workingDraftKey);
-    // sessionStorage 缓存不得恢复设置草稿/已发布基线：他机发布后数据会陈旧；F5 仍保留 sessionStorage。
-    if (cached) {
-      setLotteryPrizes(cached.lotteryPrizes);
-      setLotterySettings(cached.lotterySettings);
-      setMallItems(cached.mallItems);
-      setMallCategories(cached.mallCategories ?? []);
-      setVersions(cached.versions);
-      if (cached.lastPublishedLotteryFingerprint) {
-        setLastPublishedLotteryFingerprint(cached.lastPublishedLotteryFingerprint);
-      }
-    }
 
     const run = async () => {
       try {

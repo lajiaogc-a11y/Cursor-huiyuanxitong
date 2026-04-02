@@ -1,8 +1,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 import { VitePWA } from "vite-plugin-pwa";
+
+const appRoot = path.dirname(fileURLToPath(import.meta.url));
+const appPackage = JSON.parse(readFileSync(path.join(appRoot, "package.json"), "utf-8")) as { version: string };
 
 // https://vitejs.dev/config/
 // VITE_BUILD_TARGET: web(默认) | electron | capacitor
@@ -44,6 +49,7 @@ export default defineConfig(({ mode }) => {
   base: useRelativeBase ? './' : '/',
   define: {
     __BUILD_TIME__: JSON.stringify(buildTime),
+    __APP_VERSION__: JSON.stringify(appPackage.version),
   },
   build: {
     rollupOptions: {

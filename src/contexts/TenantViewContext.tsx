@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { preloadTenantEmployeesIntoCache } from "@/hooks/useEmployees";
 import { useAuth } from "@/contexts/AuthContext";
@@ -137,20 +137,27 @@ export function TenantViewProvider({ children }: { children: ReactNode }) {
     navigate("/staff/admin/tenants", { replace: true });
   }, [navigate, employee?.is_platform_super_admin, employee?.tenant_id]);
 
-  return (
-    <TenantViewContext.Provider
-      value={{
-        viewingTenantId,
-        viewingTenantName,
-        viewingTenantCode,
-        enterTenant,
-        exitTenant,
-        isViewingTenant: !!viewingTenantId,
-      }}
-    >
-      {children}
-    </TenantViewContext.Provider>
+  const isViewingTenant = !!viewingTenantId;
+  const tenantViewValue = useMemo(
+    () => ({
+      viewingTenantId,
+      viewingTenantName,
+      viewingTenantCode,
+      enterTenant,
+      exitTenant,
+      isViewingTenant,
+    }),
+    [
+      viewingTenantId,
+      viewingTenantName,
+      viewingTenantCode,
+      enterTenant,
+      exitTenant,
+      isViewingTenant,
+    ],
   );
+
+  return <TenantViewContext.Provider value={tenantViewValue}>{children}</TenantViewContext.Provider>;
 }
 
 export function useTenantView() {

@@ -175,9 +175,8 @@ export default function TasksPosters() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{t("发动态（海报库）", "Posters")}</h1>
-          <p className="text-muted-foreground text-sm mt-1">
+        <div className="max-w-3xl">
+          <p className="text-sm leading-6 text-muted-foreground">
             {t("从汇率页面导入海报，分配给员工发布", "Import posters from rates page and assign")}
           </p>
         </div>

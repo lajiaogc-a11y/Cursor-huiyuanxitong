@@ -19,9 +19,8 @@ export default function TasksPhoneExtract() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{t("提取设置", "Extract Settings")}</h1>
-          <p className="text-muted-foreground text-sm mt-1">
+        <div className="max-w-3xl">
+          <p className="text-sm leading-6 text-muted-foreground">
             {t("批量导入号码、配置提取参数。提取功能请在汇率计算页面右侧使用。", "Bulk import numbers, configure settings. Use extraction on Exchange Rate page.")}
           </p>
         </div>

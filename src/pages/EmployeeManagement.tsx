@@ -547,7 +547,6 @@ export default function EmployeeManagement() {
     <TooltipProvider delayDuration={200}>
     <div className="flex h-full flex-col gap-4">
       <PageHeader
-        title={t("employees.title")}
         description={t(
           "管理员工账号、角色与可见性；支持重置密码与姓名变更记录。",
           "Manage staff accounts, roles, and visibility; reset passwords and view name history.",

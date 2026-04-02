@@ -878,7 +878,6 @@ export default function OperationLogs() {
         <TabsContent value="logs" className="mt-0 flex flex-1 flex-col gap-4">
           <div className="shrink-0 space-y-3">
             <PageHeader
-              title={t("操作日志", "Operation logs")}
               description={t(
                 "审计追踪：按时间与模块筛选，可导出；管理员可查看详情并恢复部分变更。",
                 "Audit trail: filter by time and module, export; admins can open details and restore some changes.",
@@ -1184,7 +1183,6 @@ export default function OperationLogs() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 flex-wrap">
               <Shield className="h-5 w-5 text-primary" />
-              <h1 className="text-lg font-semibold text-foreground">{t("操作日志", "Operation Logs")}</h1>
               <Badge variant="outline" className="text-xs gap-1">
                 <Lock className="h-3 w-3" />
                 {t("只读", "Read-only")}

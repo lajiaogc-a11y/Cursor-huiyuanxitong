@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, ReactNode } from 'react';
 import type { AppRole } from '@/stores/employeeStore';
 import { preloadSharedData, ensureDefaultSharedData, setSharedDataTenantId } from '@/services/finance/sharedDataService';
 
@@ -195,6 +195,28 @@ function writeEmployeeCache(emp: EmployeeInfo | null) {
       sessionStorage.removeItem(EMPLOYEE_CACHE_KEY);
     }
   } catch { /* ignore */ }
+}
+
+/** 权限轮询结果与内存一致时跳过 setState，避免整树无意义重渲染 */
+function sameRolePermissions(a: RolePermissionRecord[], b: RolePermissionRecord[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (
+      x.id !== y.id ||
+      x.role !== y.role ||
+      x.module_name !== y.module_name ||
+      x.field_name !== y.field_name ||
+      x.can_view !== y.can_view ||
+      x.can_edit !== y.can_edit ||
+      x.can_delete !== y.can_delete
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -439,13 +461,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // 加载权限数据 - 通过 API 获取
+  // 加载权限数据 - 通过 API 获取（与上次一致时不 setState，减轻员工端整树重绘）
   const loadPermissions = useCallback(async () => {
     try {
       const data = await getRolePermissions();
-      setPermissions((data || []) as RolePermissionRecord[]);
+      const next = (data || []) as RolePermissionRecord[];
+      setPermissions((prev) => (sameRolePermissions(prev, next) ? prev : next));
       setPermissionsLoaded(true);
-      // Permissions loaded
     } catch (error) {
       console.error('[AuthContext] Failed to load permissions:', error);
       setPermissionsLoaded(true);
@@ -576,11 +598,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [syncUserData, setAndCacheEmployee]);
 
-  // 加载权限并轮询更新（替代 Realtime 订阅）
+  // 加载权限并轮询更新（替代 Realtime 订阅）；后台标签页不轮询，减少卡顿与无效渲染
   useEffect(() => {
     if (!employee) return;
     loadPermissions();
-    const interval = setInterval(loadPermissions, 60 * 1000);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      void loadPermissions();
+    }, 60 * 1000);
     return () => clearInterval(interval);
   }, [employee, loadPermissions]);
 
@@ -602,7 +627,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       stopIpValidationInterval();
     };
   }, [session, employee, loading, performIpValidation, startIpValidationInterval, stopIpValidationInterval]);
-  const signIn = async (
+
+  const signIn = useCallback(async (
     username: string,
     password: string,
     deviceId?: string | null
@@ -704,9 +730,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return { success: false, message: error?.message || _t('登录失败', 'Login failed') };
     }
-  };
+  }, [syncUserData, setAndCacheEmployee]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     // 1. 停止 IP 校验定时器
     stopIpValidationInterval();
     
@@ -743,48 +769,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
 
     // Sign out complete, all caches cleared
-  };
+  }, [stopIpValidationInterval]);
 
-  const updateEmployeeLocal = (patch: Partial<EmployeeInfo>) => {
+  const updateEmployeeLocal = useCallback((patch: Partial<EmployeeInfo>) => {
     setEmployee((prev) => {
       const next = prev ? { ...prev, ...patch } : prev;
       writeEmployeeCache(next);
       return next;
     });
-  };
+  }, []);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        employee,
-        userType,
-        profileMemberId,
-        profileEmployeeId,
-        permissions,
-        loading,
-        permissionsLoaded,
-        dataSynced,
-        authStep,
-        signIn,
-        signOut,
-        updateEmployeeLocal,
-        refreshEmployee,
-        refreshPermissions: loadPermissions,
-        isAuthenticated: !!session && !!employee,
-        isEmployeeAuthenticated: !!session && userType === 'employee' && !!employee,
-        isMemberAuthenticated: !!session && userType === 'member',
-        isAdmin:
-          employee?.role === 'admin' ||
-          employee?.is_super_admin === true ||
-          employee?.is_platform_super_admin === true,
-        isManager: employee?.role === 'admin' || employee?.role === 'manager',
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const isAuthenticated = !!session && !!employee;
+  const isEmployeeAuthenticated = !!session && userType === 'employee' && !!employee;
+  const isMemberAuthenticated = !!session && userType === 'member';
+  const isAdmin =
+    employee?.role === 'admin' ||
+    employee?.is_super_admin === true ||
+    employee?.is_platform_super_admin === true;
+  const isManager = employee?.role === 'admin' || employee?.role === 'manager';
+
+  const authContextValue = useMemo(
+    () => ({
+      user,
+      session,
+      employee,
+      userType,
+      profileMemberId,
+      profileEmployeeId,
+      permissions,
+      loading,
+      permissionsLoaded,
+      dataSynced,
+      authStep,
+      signIn,
+      signOut,
+      updateEmployeeLocal,
+      refreshEmployee,
+      refreshPermissions: loadPermissions,
+      isAuthenticated,
+      isEmployeeAuthenticated,
+      isMemberAuthenticated,
+      isAdmin,
+      isManager,
+    }),
+    [
+      user,
+      session,
+      employee,
+      userType,
+      profileMemberId,
+      profileEmployeeId,
+      permissions,
+      loading,
+      permissionsLoaded,
+      dataSynced,
+      authStep,
+      signIn,
+      signOut,
+      updateEmployeeLocal,
+      refreshEmployee,
+      loadPermissions,
+      isAuthenticated,
+      isEmployeeAuthenticated,
+      isMemberAuthenticated,
+      isAdmin,
+      isManager,
+    ],
   );
+
+  return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

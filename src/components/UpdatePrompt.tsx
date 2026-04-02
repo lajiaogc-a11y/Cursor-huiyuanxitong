@@ -10,10 +10,10 @@ import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { showMemberPortal } from "@/routes/siteMode";
+import { DEV_BUILD_PLACEHOLDER, fetchRemoteFrontendBuildTime, hardReloadWebFrontend } from "@/lib/frontendVersion";
 import { RefreshCw } from "lucide-react";
 
 const VERSION_POLL_INTERVAL_MS = 3 * 60 * 1000;
-const DEV_BUILD_PLACEHOLDER = "dev-build";
 
 function memberUpdateSurface(pathname: string) {
   return pathname.startsWith("/member") || pathname.startsWith("/invite") || (pathname === "/" && showMemberPortal);
@@ -89,22 +89,7 @@ export function UpdatePrompt() {
       return;
     }
 
-    try {
-      if ("serviceWorker" in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((r) => r.unregister()));
-      }
-      if ("caches" in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map((k) => caches.delete(k)));
-      }
-    } catch {
-      // ignore
-    }
-
-    const url = new URL(window.location.href);
-    url.searchParams.set("__v", Date.now().toString());
-    window.location.replace(url.toString());
+    await hardReloadWebFrontend();
   };
 
   const handleCancel = () => {

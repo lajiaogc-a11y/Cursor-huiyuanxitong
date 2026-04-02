@@ -6852,3 +6852,42 @@ html.member-html:not(.dark) .bg-popover.shadow-lg {
     0 14px 40px -14px rgb(15 23 42 / 0.09) !important;
   border-color: hsl(var(--pu-m-surface-border) / 0.55) !important;
 }
+
+/* Menubar SubContent：仅有 border + bg-popover、无 shadow-*，浅色补一层与 shadow-md 一致的柔影 */
+html.member-html:not(.dark) .bg-popover.min-w-\[8rem\].p-1:not(.shadow-md):not(.shadow-lg) {
+  box-shadow:
+    0 2px 8px -2px rgb(15 23 42 / 0.06),
+    0 8px 24px -8px rgb(15 23 42 / 0.07) !important;
+  border-color: hsl(var(--pu-m-surface-border) / 0.55) !important;
+}
+
+/* Sheet 抽屉主体（fixed z-[2001] + shadow-lg；center 变体为 shadow-none 不匹配） */
+html.member-html:not(.dark) [class*="z-[2001]"][class*="shadow-lg"] {
+  box-shadow:
+    0 4px 14px -4px rgb(15 23 42 / 0.07),
+    0 14px 40px -14px rgb(15 23 42 / 0.09) !important;
+}
+
+/* AlertDialog 内容（fixed z-[2100] + shadow-lg，会员端确认框） */
+html.member-html:not(.dark) [class*="z-[2100]"][class*="shadow-lg"] {
+  box-shadow:
+    0 6px 20px -6px rgb(15 23 42 / 0.08),
+    0 18px 44px -14px rgb(15 23 42 / 0.1) !important;
+  border-color: hsl(var(--pu-m-surface-border) / 0.55) !important;
+}
+
+/* Recharts / Chart 工具提示（text-xs + shadow-xl + bg-background） */
+html.member-html:not(.dark) .bg-background.text-xs.shadow-xl[class*="rounded-lg"] {
+  box-shadow:
+    0 6px 18px -6px rgb(15 23 42 / 0.08),
+    0 16px 40px -12px rgb(15 23 42 / 0.09) !important;
+  border-color: hsl(var(--pu-m-surface-border) / 0.5) !important;
+}
+
+/* 会员登录轮播指示点：浅色不用 slate-900 点，改为正文色透明（与 Financial Light 一致） */
+html.member-html:not(.dark) button.member-login-carousel-dot[class*="bg-slate-900/25"] {
+  background-color: hsl(var(--pu-m-text) / 0.14) !important;
+}
+html.member-html:not(.dark) button.member-login-carousel-dot[class*="hover:bg-slate-900/38"]:hover {
+  background-color: hsl(var(--pu-m-text) / 0.22) !important;
+}
