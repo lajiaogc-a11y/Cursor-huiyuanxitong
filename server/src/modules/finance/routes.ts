@@ -14,6 +14,9 @@ router.post('/soft-delete', authMiddleware, (req, res, next) => ctrl.postLedgerS
 router.post('/initial-balance', authMiddleware, (req, res, next) => ctrl.postLedgerInitialBalance(req as AuthenticatedRequest, res).catch(next));
 router.post('/reverse-initial-balance', authMiddleware, (req, res, next) => ctrl.postReverseInitialBalance(req as AuthenticatedRequest, res).catch(next));
 router.post('/reverse-all', authMiddleware, (req, res, next) => ctrl.postReverseAll(req as AuthenticatedRequest, res).catch(next));
+router.post('/recalculate-running-balances', authMiddleware, (req, res, next) =>
+  ctrl.postLedgerRecalculateRunningBalances(req as AuthenticatedRequest, res).catch(next),
+);
 router.delete('/', authMiddleware, (req, res, next) => ctrl.deleteLedgerAccount(req as AuthenticatedRequest, res).catch(next));
 
 export default router;

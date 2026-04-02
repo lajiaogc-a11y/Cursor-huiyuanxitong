@@ -10,6 +10,10 @@ export function ledgerActivityTypeLabel(
   if (raw === "reversal") return t("冲正", "Recovery");
   if (raw === "redemption" || raw.startsWith("redeem")) return t("兑换扣减", "Redemption");
   if (raw === "adjustment") return t("人工调整", "Adjustment");
+  if (raw === "freeze") return t("积分冻结", "Points frozen");
+  if (raw === "redeem_confirmed") return t("兑换确认", "Redemption confirmed");
+  if (raw === "redeem_rejected") return t("兑换退回", "Redemption refund");
+  if (raw === "mall_redemption") return t("会员商城兑换", "Mall redemption");
   if (!raw || raw === "unknown") return t("积分变动", "Points change");
-  return raw.charAt(0).toUpperCase() + raw.slice(1);
+  return t("其它类型", "Other");
 }

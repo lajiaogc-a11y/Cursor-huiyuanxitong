@@ -212,7 +212,22 @@ export async function postReverseAll(req: AuthenticatedRequest, res: Response) {
      AND ${matchClause}`,
     [...args, ...matchArgs]
   );
+  await ledger.recalculateLedgerRunningBalancesForAccount(account_type, account_id, tenant_id);
   res.json({ success: true, data: null });
+}
+
+/** 按时间链重算 before_balance / balance_after（修复历史脏数据或供运维一次性校正） */
+export async function postLedgerRecalculateRunningBalances(req: AuthenticatedRequest, res: Response) {
+  if (!requireEmployee(req, res)) return;
+  const b = req.body as Record<string, unknown>;
+  const account_type = String(b.account_type || '');
+  const account_id = String(b.account_id || '');
+  if (!account_type || !account_id) {
+    res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'account_type and account_id required' } });
+    return;
+  }
+  await ledger.recalculateLedgerRunningBalancesForAccount(account_type, account_id, req.user?.tenant_id ?? null);
+  res.json({ success: true, data: true });
 }
 
 export async function deleteLedgerAccount(req: AuthenticatedRequest, res: Response) {

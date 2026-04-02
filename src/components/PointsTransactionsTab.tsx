@@ -76,6 +76,10 @@ const POINTS_TYPE_CONFIG: Record<string, { label: string; labelEn: string; color
   'REFERRAL_REVERSAL': { label: '推荐积分冲正', labelEn: 'Referral Rev.', color: 'bg-red-100 text-red-800 border-red-200', variant: 'outline' },
   'ORDER_RESTORE': { label: '消费积分恢复', labelEn: 'Consumption Restore', color: 'bg-blue-100 text-blue-800 border-blue-200', variant: 'default' },
   'REFERRAL_RESTORE': { label: '推荐积分恢复', labelEn: 'Referral Restore', color: 'bg-green-100 text-green-800 border-green-200', variant: 'secondary' },
+  'freeze': { label: '积分冻结', labelEn: 'Points frozen', color: 'bg-slate-100 text-slate-800 border-slate-200', variant: 'outline' },
+  'redeem_confirmed': { label: '兑换确认', labelEn: 'Redemption confirmed', color: 'bg-orange-50 text-orange-800 border-orange-200', variant: 'outline' },
+  'redeem_rejected': { label: '兑换退回', labelEn: 'Redemption refund', color: 'bg-emerald-50 text-emerald-900 border-emerald-200', variant: 'outline' },
+  'mall_redemption': { label: '会员商城兑换', labelEn: 'Mall redemption', color: 'bg-orange-100 text-orange-800 border-orange-200', variant: 'default' },
 };
 
 interface PointsTransactionsTabProps {
@@ -224,9 +228,38 @@ export default function PointsTransactionsTab({
     return formatBeijingTime(dateStr);
   };
 
-  const getTypeConfig = useCallback((type: string | null | undefined) => {
-    const safeType = type || 'unknown';
-    return POINTS_TYPE_CONFIG[safeType] || { label: safeType, labelEn: safeType, color: 'bg-gray-100 text-gray-800', variant: 'outline' as const };
+  const getTypeConfig = useCallback((type: string | null | undefined, referenceType?: string | null) => {
+    const raw = type || "unknown";
+    const safeType = raw.toLowerCase();
+    const ref = String(referenceType || "").toLowerCase();
+    if (safeType === "freeze") {
+      if (ref === "mall_redemption_freeze") {
+        return {
+          label: "商城兑换冻结",
+          labelEn: "Mall redemption freeze",
+          color: "bg-slate-100 text-slate-800 border-slate-200",
+          variant: "outline" as const,
+        };
+      }
+      if (ref === "point_order_freeze") {
+        return {
+          label: "兑换单冻结",
+          labelEn: "Point order freeze",
+          color: "bg-slate-100 text-slate-800 border-slate-200",
+          variant: "outline" as const,
+        };
+      }
+      return POINTS_TYPE_CONFIG.freeze;
+    }
+    return (
+      POINTS_TYPE_CONFIG[raw] ||
+      POINTS_TYPE_CONFIG[safeType] || {
+        label: "其它类型",
+        labelEn: raw === "unknown" ? "Unknown" : raw,
+        color: "bg-gray-100 text-gray-800",
+        variant: "outline" as const,
+      }
+    );
   }, []);
 
   const handleRefresh = useCallback(() => {
@@ -247,7 +280,12 @@ export default function PointsTransactionsTab({
       { key: 'usd_amount', label: '兑换USD', labelEn: 'USD Amount', formatter: (v) => v ? formatNumberForExport(v) : '' },
       { key: 'points_rate', label: '积分倍率', labelEn: 'Points Rate' },
       { key: 'points_earned', label: '获得积分', labelEn: 'Points Earned' },
-      { key: 'transaction_type', label: '类型', labelEn: 'Type', formatter: (v) => getTypeConfig(v).label },
+      {
+        key: "transaction_type",
+        label: "类型",
+        labelEn: "Type",
+        formatter: (v, row) => getTypeConfig(v, row?.reference_type).label,
+      },
       { key: 'status', label: '状态', labelEn: 'Status', formatter: (v) => v === 'issued' ? '已发放' : v === 'reversed' ? '已回收' : v },
     ], '积分流水明细', false);
     toast.success(t("导出成功", "Export successful"));
@@ -427,7 +465,7 @@ export default function PointsTransactionsTab({
                   <MobileEmptyState message={t("暂无积分流水记录", "No points ledger entries")} />
                 ) : (
                   paginatedLedger.map((entry) => {
-                    const typeConfig = getTypeConfig(entry.transaction_type);
+                    const typeConfig = getTypeConfig(entry.transaction_type, entry.reference_type);
                     const showFx = showOrderFxColumns(entry.transaction_type);
                     const noteText = formatPointsLedgerDescription(entry.description);
                     return (
@@ -527,7 +565,7 @@ export default function PointsTransactionsTab({
                   </TableRow>
                 ) : (
                   paginatedLedger.map((entry) => {
-                    const typeConfig = getTypeConfig(entry.transaction_type);
+                    const typeConfig = getTypeConfig(entry.transaction_type, entry.reference_type);
                     const showFx = showOrderFxColumns(entry.transaction_type);
                     const noteText = formatPointsLedgerDescription(entry.description);
                     return (

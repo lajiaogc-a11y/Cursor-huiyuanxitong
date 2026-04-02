@@ -5739,3 +5739,119 @@ html.member-html:not(.dark) .member-spin-sim-feed {
     animation: none;
   }
 }
+
+/* =============================================================================
+ * 浅色（等同参考 .light）：订单 / 通知 / 登录 / 首页横幅等 — 深色投影改为浅灰柔和
+ * 仅追加样式，不改布局；作用域 html.member-html:not(.dark)
+ * ============================================================================= */
+
+/* 设置页「我的订单」条目 — 对应参考 .light .order-card */
+html.member-html:not(.dark) .member-portal-wrap .member-order-card {
+  background: hsl(0 0% 100% / 0.94);
+  border-color: hsl(220 18% 88%);
+  box-shadow:
+    0 1px 3px -1px rgb(0 0 0 / 0.05),
+    0 2px 10px -4px rgb(0 0 0 / 0.04);
+}
+
+/* 订单页独立列表：与商城卡一致的白底轻影（.m-glass 浅色已在全局，此处略提高订单行可读性） */
+html.member-html:not(.dark) .member-portal-wrap .member-orders-list-collapse .m-glass.rounded-\[1\.25rem\] {
+  border-color: hsl(220 18% 88%) !important;
+  box-shadow:
+    0 1px 3px -1px rgb(0 0 0 / 0.05),
+    0 3px 14px -6px rgb(0 0 0 / 0.05) !important;
+}
+
+/* 积分商城空态 */
+html.member-html:not(.dark) .member-portal-wrap .member-mall-empty {
+  background: linear-gradient(165deg, hsl(0 0% 100% / 0.98) 0%, hsl(220 20% 98% / 0.96) 100%);
+  border-color: hsl(220 18% 88%);
+  box-shadow:
+    0 1px 4px -1px rgb(0 0 0 / 0.06),
+    0 4px 18px -8px rgb(0 0 0 / 0.05);
+}
+
+/* 消息通知 — MemberNotifications 列表行（m-glass + cursor-pointer + px-4 py-4 唯一组合） */
+html.member-html:not(.dark) .member-portal-wrap .m-page-bg .m-glass.cursor-pointer.overflow-hidden.px-4.py-4 {
+  border-color: hsl(220 18% 88%) !important;
+  box-shadow:
+    0 1px 3px -1px rgb(0 0 0 / 0.06),
+    0 2px 12px -4px rgb(0 0 0 / 0.05) !important;
+}
+
+/* 登录 — 表单卡片（参考 .light .login-card；用 :has 挂钩，不增 TSX） */
+html.member-html:not(.dark) .member-login-premium-root div:has(> form.space-y-5) {
+  background: hsl(0 0% 100% / 0.94) !important;
+  border: 1px solid hsl(220 18% 88%) !important;
+  box-shadow:
+    0 1px 4px -1px rgb(0 0 0 / 0.06),
+    0 4px 18px -8px rgb(0 0 0 / 0.05) !important;
+  backdrop-filter: blur(10px) saturate(1.05);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+}
+
+/* 登录 — 顶栏品牌 Logo 盒（shadow-md + 内联金色光晕） */
+html.member-html:not(.dark) .member-login-premium-root .relative.flex.shrink-0.overflow-hidden.rounded-xl.border.shadow-md {
+  box-shadow:
+    0 2px 10px -3px hsl(var(--pu-gold) / 0.2),
+    0 1px 3px -1px rgb(0 0 0 / 0.05) !important;
+}
+
+/* 登录全屏 — Logo 外圈 halo（内联 boxShadow 过重） */
+html.member-html:not(.dark) .member-login-premium-root .member-login-viewport .mb-6.flex.flex-col.items-center > .mb-3 {
+  box-shadow: 0 4px 16px -8px hsl(var(--pu-gold) / 0.18) !important;
+}
+
+/* 登录 — 金底主按钮（落地页「登录」+ 表单提交，内联 gradient + boxShadow） */
+html.member-html:not(.dark)
+  .member-login-premium-root
+  button.flex.w-full.items-center.justify-center.gap-2.rounded-2xl.py-4[style*="linear-gradient"] {
+  box-shadow: 0 4px 16px -6px hsl(var(--pu-gold) / 0.26) !important;
+}
+
+/* 登录 — 落地页次要按钮（白底描边） */
+html.member-html:not(.dark) .member-login-premium-root .space-y-3.px-5 > button.rounded-2xl.py-4[style*="hsl(var(--pu-m-surface)"] {
+  background: hsl(0 0% 100% / 0.88) !important;
+  border-color: hsl(220 18% 88%) !important;
+  box-shadow: 0 1px 3px -1px rgb(0 0 0 / 0.05) !important;
+}
+
+/* 登录轮播 — 当前指示条（深色条改主题金 + 浅影） */
+html.member-html:not(.dark) .member-login-premium-root .member-login-carousel-dot[aria-selected="true"] {
+  background: hsl(var(--pu-gold)) !important;
+  box-shadow:
+    0 0 0 1px hsl(220 18% 82%),
+    0 1px 3px rgb(0 0 0 / 0.07) !important;
+}
+
+/* 首页 — 配置横幅容器（Tailwind 任意 shadow 深色） */
+html.member-html:not(.dark) .member-portal-wrap [class*="shadow-[0_12px_40px_-12px_rgba(0,0,0,0.35)]"] {
+  box-shadow:
+    0 2px 8px -2px rgb(0 0 0 / 0.06),
+    0 10px 32px -12px rgb(0 0 0 / 0.07) !important;
+}
+
+/* 邀请落地 / 注册中转 — 顶区深色 shadow-[0_8px_28px_rgba(0,0,0,0.3)] */
+html.member-html:not(.dark) .member-login-premium-root [class*="shadow-[0_8px_28px_rgba(0,0,0,0.3)]"],
+html.member-html:not(.dark) .member-portal-wrap [class*="shadow-[0_8px_28px_rgba(0,0,0,0.3)]"] {
+  box-shadow:
+    0 2px 10px -4px rgb(0 0 0 / 0.07),
+    0 8px 24px -10px rgb(0 0 0 / 0.06) !important;
+}
+
+/* 邀请落地 — 金色按钮 shadow-[0_8px_28px_hsl(var(--pu-gold)/0.3)] */
+html.member-html:not(.dark) .member-login-premium-root [class*="shadow-[0_8px_28px_hsl(var(--pu-gold)/0.3)]"] {
+  box-shadow: 0 6px 22px -8px hsl(var(--pu-gold) / 0.22) !important;
+}
+
+/* 会员邀请页 — 统计卡 shadow-[0_8px_28px_-12px_hsl(var(--pu-gold)/0.22)] */
+html.member-html:not(.dark) .member-portal-wrap [class*="shadow-[0_8px_28px_-12px_hsl(var(--pu-gold)/0.22)]"] {
+  box-shadow:
+    0 2px 10px -4px rgb(0 0 0 / 0.06),
+    0 8px 22px -10px hsl(var(--pu-gold) / 0.12) !important;
+}
+
+/* 首次设密 — Logo 盒 shadow-[0_8px_28px_hsl(var(--pu-gold)/0.28)] */
+html.member-html:not(.dark) .member-login-premium-root [class*="shadow-[0_8px_28px_hsl(var(--pu-gold)/0.28)]"] {
+  box-shadow: 0 6px 20px -8px hsl(var(--pu-gold) / 0.2) !important;
+}

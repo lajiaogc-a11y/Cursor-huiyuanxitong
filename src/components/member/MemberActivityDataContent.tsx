@@ -74,6 +74,7 @@ import { TablePageSkeleton } from "@/components/skeletons/TablePageSkeleton";
 import { generateEnglishCopyText, refreshCopySettings } from "@/components/CopySettingsTab";
 import { getMemberPointsSummary } from "@/services/points/pointsCalculationService";
 import { formatBeijingTime, formatBeijingDate, getNowBeijingISO } from "@/lib/beijingTime";
+import { pointsLedgerTransactionLabel } from "@/lib/pointsLedgerTypeLabel";
 
 // 类型定义
 interface Member {
@@ -1832,20 +1833,12 @@ export default function MemberActivityDataContent() {
                               txn === 'mall_redemption' ||
                               ty.startsWith('redeem_') ||
                               refTy === 'mall_redemption';
-                            const typeLabel =
-                              txn === 'consumption'
-                                ? t('消费奖励', 'Consumption Reward')
-                                : txn === 'referral_1'
-                                  ? t('推荐奖励1', 'Referral Reward 1')
-                                  : txn === 'referral_2'
-                                    ? t('推荐奖励2', 'Referral Reward 2')
-                                    : txn === 'lottery'
-                                      ? t('抽奖积分', 'Lottery points')
-                                      : txn === 'mall_redemption' || refTy === 'mall_redemption'
-                                        ? t('会员商城兑换', 'Points mall redeem')
-                                        : isRedemptionType
-                                          ? t('积分兑换', 'Points Redemption')
-                                          : txn || t('未知', 'Unknown');
+                            const typeLabel = pointsLedgerTransactionLabel(
+                              entry.transaction_type,
+                              entry.type,
+                              (entry as { reference_type?: string | null }).reference_type,
+                              t,
+                            );
 
                             const isRedemption = isRedemptionType;
                             const isMallRedemption =

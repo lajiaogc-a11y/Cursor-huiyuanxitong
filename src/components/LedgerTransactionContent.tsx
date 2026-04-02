@@ -37,6 +37,7 @@ import {
   getLedgerTransactions,
   reconcileAccount,
   createCorrectionEntry,
+  recalculateLedgerRunningBalances,
   LedgerTransaction,
   AccountType,
   SourceType,
@@ -189,6 +190,8 @@ export default function LedgerTransactionContent({
   const handleReconcile = async () => {
     setIsReconciling(true);
     try {
+      await recalculateLedgerRunningBalances({ accountType, accountId: accountName });
+      await loadTransactions();
       const result = await reconcileAccount(accountType, accountName);
       setReconcileResult(result);
       if (result && result.discrepancy < 0.01) {

@@ -256,6 +256,24 @@ export async function getLedgerBalance(
   }
 }
 
+/** 服务端按时间链重算 before_balance / balance_after（与 SUM(amount) 对齐） */
+export async function recalculateLedgerRunningBalances(params: {
+  accountType: AccountType;
+  accountId: string;
+}): Promise<boolean> {
+  try {
+    await apiPost<{ success?: boolean }>('/api/finance/ledger/recalculate-running-balances', {
+      account_type: params.accountType,
+      account_id: params.accountId,
+    });
+    notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
+    return true;
+  } catch (error) {
+    console.error('[LedgerService] recalculateLedgerRunningBalances failed:', error);
+    return false;
+  }
+}
+
 /**
  * 真对账：将 ledger SUM 与 derived 公式余额比较
  */

@@ -146,6 +146,48 @@ async function getActiveBalanceOnConn(conn: PoolConnection, accountType: string,
   return Number(arr[0]?.v ?? 0);
 }
 
+/**
+ * 按 created_at、id 升序重算该账户所有「有效」分录的 before_balance / balance_after。
+ * 有效余额仍以 SUM(amount) 为准；本函数保证每条 active 行的快照与链式累计一致（修改/撤销中间记录后必须调用）。
+ */
+export async function recalculateLedgerRunningBalancesForAccount(
+  accountType: string,
+  accountId: string,
+  tenantId?: string | null,
+  conn?: PoolConnection,
+): Promise<void> {
+  const run = async (c: PoolConnection) => {
+    const tenant = tenantId ? 'AND (tenant_id IS NULL OR tenant_id = ?)' : '';
+    const args: unknown[] = [accountType, accountId];
+    if (tenantId) args.push(tenantId);
+    const [rows] = await c.query(
+      `SELECT id, amount FROM ledger_transactions
+       WHERE account_type = ? AND account_id = ? ${tenant}
+       AND (is_active = 1 OR is_active IS NULL)
+       ORDER BY created_at ASC, id ASC`,
+      args,
+    );
+    const list = rows as Array<{ id: string; amount: number | string | null }>;
+    let running = 0;
+    for (const r of list) {
+      const amt = Number(r.amount ?? 0);
+      const before = running;
+      const after = running + amt;
+      await c.query(
+        `UPDATE ledger_transactions SET before_balance = ?, balance_after = ? WHERE id = ?`,
+        [before, after, r.id],
+      );
+      running = after;
+    }
+  };
+
+  if (conn) {
+    await run(conn);
+    return;
+  }
+  await withTransaction(run);
+}
+
 /** 事务内创建分录 */
 async function createLedgerEntryOnConn(conn: PoolConnection, input: {
   account_type: string;
@@ -197,29 +239,23 @@ export async function createLedgerEntry(input: {
   batch_id?: string | null;
   tenant_id?: string | null;
 }): Promise<unknown> {
-  const before = await getLatestActiveAfterBalance(input.account_type, input.account_id, input.tenant_id);
-  const amt = Number(input.amount);
-  const after = before + amt;
-  const id = genId();
-  const now = toMySqlDatetime(new Date());
+  let newId = '';
+  await withTransaction(async (conn) => {
+    const created = await createLedgerEntryOnConn(conn, input);
+    newId = String(created.id ?? '');
+    await recalculateLedgerRunningBalancesForAccount(
+      input.account_type,
+      input.account_id,
+      input.tenant_id,
+      conn,
+    );
+  });
 
-  await execute(
-    `INSERT INTO ledger_transactions (
-      id, tenant_id, account_type, account_id, source_type, source_id,
-      amount, before_balance, balance_after, is_active, reversal_of, batch_id, note, description,
-      operator_id, operator_name, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id, input.tenant_id ?? null, input.account_type, input.account_id,
-      input.source_type, input.source_id ?? null, amt, before, after,
-      input.reversal_of ?? null, input.batch_id ?? null,
-      input.note ?? null, input.note ?? null,
-      input.operator_id ?? null, input.operator_name ?? null, now,
-    ]
-  );
-
-  const row = await queryOne<Record<string, unknown>>('SELECT * FROM ledger_transactions WHERE id = ?', [id]);
-  return row ? mapToApi(row) : mapToApi({ id, account_type: input.account_type, account_id: input.account_id, source_type: input.source_type, source_id: input.source_id, amount: amt, before_balance: before, after_balance: after, is_active: 1, reversal_of: input.reversal_of, batch_id: input.batch_id, note: input.note, operator_id: input.operator_id, operator_name: input.operator_name, created_at: now });
+  const row = newId ? await queryOne<Record<string, unknown>>('SELECT * FROM ledger_transactions WHERE id = ?', [newId]) : null;
+  if (!row) {
+    throw new Error(`ledger row missing after insert/recalc: ${newId || '(no id)'}`);
+  }
+  return mapToApi(row);
 }
 
 /**
@@ -315,6 +351,11 @@ export async function softDeleteLedgerEntry(input: {
   if (!target) return null;
 
   await execute(`UPDATE ledger_transactions SET is_active = 0 WHERE id = ?`, [target.id]);
+  await recalculateLedgerRunningBalancesForAccount(
+    input.account_type,
+    input.account_id,
+    input.tenant_id,
+  );
   return mapToApi({ ...target, is_active: 0 });
 }
 
@@ -364,7 +405,16 @@ export async function setInitialBalanceLedger(input: {
       tenant_id: input.tenant_id,
     });
 
-    return mapToApi({ ...entry, batch_id: batchId });
+    await recalculateLedgerRunningBalancesForAccount(
+      input.account_type,
+      input.account_id,
+      input.tenant_id,
+      conn,
+    );
+
+    const [freshIb] = await conn.query('SELECT * FROM ledger_transactions WHERE id = ? LIMIT 1', [entry.id]);
+    const freshRow = (freshIb as Record<string, unknown>[])[0];
+    return mapToApi(freshRow ? { ...freshRow, batch_id: batchId } : { ...entry, batch_id: batchId });
   });
 }
 
@@ -433,6 +483,13 @@ export async function reverseInitialBalanceEntry(input: {
         [latestIb.id]
       );
     }
+
+    await recalculateLedgerRunningBalancesForAccount(
+      input.account_type,
+      input.account_id,
+      input.tenant_id,
+      conn,
+    );
 
     return mapToApi({ ...latestIb, is_active: 0 });
   });
