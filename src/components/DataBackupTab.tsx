@@ -243,6 +243,8 @@ export default function DataBackupTab() {
     }
   };
 
+  const handleCleanWebhook = () => setWebhookCleanOpen(true);
+
   // DR Drill: compare backup data against current DB (read-only, no overwrites)
   const handleDrDrill = async (backupId: string) => {
     setDrillRunning(true);

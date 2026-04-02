@@ -2138,10 +2138,10 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
           break;
         }
         const hash = await bcrypt.hash(rawPwd, 10);
-        // Never store plaintext passwords; initial_password column is cleared on reset
+        // initial_password 与新建会员 / 会员自助改密一致：供后台「复制密码」；哈希不可反推明文
         await execute(
-          'UPDATE members SET password_hash = ?, initial_password = NULL, must_change_password = 1 WHERE id = ?',
-          [hash, targetId],
+          'UPDATE members SET password_hash = ?, initial_password = ?, must_change_password = 1 WHERE id = ?',
+          [hash, rawPwd, targetId],
         );
         result = { success: true };
         break;

@@ -297,7 +297,7 @@ export default function MemberSpin() {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [member?.id]);
+  }, [member?.id, pullNonce]);
 
   useEffect(
     () => () => {
@@ -590,11 +590,11 @@ export default function MemberSpin() {
                   {[...simFeedDisplayItems, ...simFeedDisplayItems].map((it, i) => (
                     <span
                       key={`${it.id}-${i}`}
-                      className="member-home-ann-segment inline-flex shrink-0 items-center"
+                      className="inline-flex shrink-0 items-center"
                     >
                       {i > 0 ? (
                         <span
-                          className="member-home-ann-sep mx-3 inline-block h-3.5 w-px shrink-0 rounded-full bg-[hsl(var(--pu-m-text)/0.28)]"
+                          className="mx-3 inline-block h-3.5 w-px shrink-0 rounded-full bg-[hsl(var(--pu-m-text)/0.28)] opacity-85"
                           aria-hidden
                         />
                       ) : null}

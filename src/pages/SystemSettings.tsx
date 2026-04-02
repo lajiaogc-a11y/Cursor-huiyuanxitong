@@ -34,11 +34,13 @@ const SETTINGS_TAB_MAP: Record<string, string> = {
   source: "source", data: "data", copy: "copy", permission: "permission", api: "api",
   overview: "overview", "staff-invite": "staff-invite", "staff-login-ip": "staff-login-ip",
   "staff-devices": "staff-devices",
+  "version-update": "version-update",
 };
 
 const TAB_ORDER_BASE = [
   "fee", "exchange", "currency", "points", "member-levels", "activity",
   "activityType", "giftDistribution", "source", "data", "copy", "staff-devices",
+  "version-update",
 ];
 const ADMIN_TABS = ["permission", "api", "overview", "staff-invite", "staff-login-ip"];
 
@@ -124,6 +126,7 @@ export default function SystemSettings() {
     "staff-login-ip": t("登录IP限制", "Login IP allowlist"),
     "staff-devices": t("后台登录设备", "Staff login devices"),
     "member-levels": t("会员等级", "Member levels"),
+    "version-update": t("版本更新", "Version update"),
   };
 
   const visibleTabs = [...tabOrder, ...(isAdmin ? ADMIN_TABS : [])];
@@ -138,7 +141,6 @@ export default function SystemSettings() {
           "Tenant-level business and data settings—fees, FX, currencies, points, activities, sources, data management, and permissions; use the tabs below on mobile.",
         )}
       />
-      {!isMobile && <SystemSettingsVersionCard />}
       {isMobile && (
         <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
           {visibleTabs.map((key) => (
@@ -158,10 +160,12 @@ export default function SystemSettings() {
         </div>
       )}
       <div className={cn("rounded-xl border bg-card shadow-sm min-h-[400px]", isMobile ? "p-3" : "p-6")}>
-        {(activeTab === "member-levels" || ActiveComp) && (
+        {(activeTab === "member-levels" || activeTab === "version-update" || ActiveComp) && (
           <Suspense fallback={<TabFallback />}>
             {activeTab === "member-levels" ? (
               <MemberPromotionSettingsTab key={activeTab} embedded />
+            ) : activeTab === "version-update" ? (
+              <SystemSettingsVersionCard embedded />
             ) : (
               ActiveComp && <ActiveComp key={activeTab} />
             )}

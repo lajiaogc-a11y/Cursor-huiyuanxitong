@@ -117,6 +117,7 @@ const tabPageTitles: Record<string, Record<string, { zh: string; en: string }>> 
     "member-levels": { zh: "会员等级", en: "Member levels" },
     "staff-devices": { zh: "后台登录设备", en: "Staff login devices" },
     "staff-login-ip": { zh: "登录IP限制", en: "Login IP allowlist" },
+    "version-update": { zh: "版本更新", en: "Version update" },
   },
 };
 

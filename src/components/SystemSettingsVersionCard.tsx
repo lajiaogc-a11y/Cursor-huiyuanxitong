@@ -11,8 +11,13 @@ import {
   hardReloadWebFrontend,
 } from "@/lib/frontendVersion";
 
-/** PC 端系统设置：版本与更新（顶栏已有「系统设置」标题，此处为功能区块） */
-export function SystemSettingsVersionCard() {
+interface SystemSettingsVersionCardProps {
+  /** 嵌入系统设置 Tab 内容区时去掉与外层卡片重复的边框与底色 */
+  embedded?: boolean;
+}
+
+/** 系统设置「版本更新」：前端构建版本与检查更新 */
+export function SystemSettingsVersionCard({ embedded = false }: SystemSettingsVersionCardProps) {
   const { t } = useLanguage();
   const [checking, setChecking] = useState(false);
   const buildTarget = import.meta.env.VITE_BUILD_TARGET || "web";
@@ -68,12 +73,13 @@ export function SystemSettingsVersionCard() {
   return (
     <Card
       className={cn(
-        "overflow-hidden border shadow-sm",
-        "bg-card border-border",
-        "dark:border-[#30363D] dark:bg-[#1a1d23]",
+        "overflow-hidden",
+        embedded
+          ? "border-0 shadow-none bg-transparent dark:bg-transparent"
+          : "border shadow-sm bg-card border-border dark:border-[#30363D] dark:bg-[#1a1d23]",
       )}
     >
-      <CardHeader className="space-y-0 pb-3 pt-4 px-5">
+      <CardHeader className={cn("space-y-0 pb-3 px-5", embedded ? "pt-0" : "pt-4")}>
         <CardTitle className="flex items-center gap-2.5 text-base font-semibold text-foreground dark:text-white">
           <span
             className={cn(
@@ -84,7 +90,7 @@ export function SystemSettingsVersionCard() {
           >
             <RefreshCw className="h-4 w-4" />
           </span>
-          {t("版本与更新", "Version & updates")}
+          {t("版本更新", "Version update")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 px-5 pb-4 pt-0">
