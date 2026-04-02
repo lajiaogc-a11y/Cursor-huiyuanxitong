@@ -8,6 +8,7 @@ import { query, execute, withTransaction } from '../../database/index.js';
 import { config } from '../../config/index.js';
 import { ensureDefaultMemberLevelRulesRepository } from '../memberLevels/repository.js';
 import { incrementLotterySpinBalanceConn } from '../lottery/spinBalanceAccount.js';
+import { generateMemberCode } from '../../utils/memberCode.js';
 
 type ReferrerResolved = {
   tenantId: string;
@@ -272,8 +273,26 @@ export async function completeInviteRegister(params: {
 
       const bcrypt = await import('bcryptjs');
       const passwordHash = rawPassword ? await bcrypt.hash(rawPassword, 10) : null;
-      const newMemberCode =
-        'M' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
+      // 与后台录入、订单开单等统一为 7 位大写字母+数字（server/utils/memberCode）；旧逻辑为 `M`+时间戳 base36+随机段，偏长且易与「双 M」混淆
+      let newMemberCode = '';
+      for (let attempt = 0; attempt < 48; attempt++) {
+        const candidate = generateMemberCode();
+        const [codeRows] = await conn.query<RowDataPacket[]>(
+          `SELECT id FROM members WHERE member_code = ? LIMIT 1`,
+          [candidate],
+        );
+        if (codeRows.length === 0) {
+          newMemberCode = candidate;
+          break;
+        }
+      }
+      if (!newMemberCode) {
+        return {
+          ok: false,
+          error: 'INTERNAL_ERROR',
+          audit: { errorCode: 'MEMBER_CODE_COLLISION', tokenId: tokenRow.id, tenantId: tokenRow.tenant_id },
+        };
+      }
       const newToken = genMemberInviteToken();
       const newId = randomUUID();
       const nickname =

@@ -117,9 +117,10 @@ export async function setMemberPasswordRepository(
     return { success: false, error: 'PASSWORD_TOO_SHORT' };
   }
   const hash = await bcrypt.hash(newPassword, 10);
+  // 与新建会员时一致：initial_password 供后台「复制密码」展示；仅改 password_hash 会导致后台仍为旧随机串
   await execute(
-    'UPDATE members SET password_hash = ?, must_change_password = 0, member_portal_first_login_done = 1, updated_at = NOW() WHERE id = ?',
-    [hash, memberId],
+    'UPDATE members SET password_hash = ?, initial_password = ?, must_change_password = 0, member_portal_first_login_done = 1, updated_at = NOW() WHERE id = ?',
+    [hash, newPassword, memberId],
   );
   return { success: true };
 }
