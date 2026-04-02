@@ -21,6 +21,7 @@ import {
   subscribeExchangePaymentInfoLedger,
   markExchangePaymentInfoCopied,
   removeExchangePaymentInfoEntry,
+  normalizePaymentCopyPayload,
   type ExchangePaymentInfoEntry,
 } from "@/lib/exchangePaymentInfoLedger";
 
@@ -67,8 +68,12 @@ export function ExchangePaymentInfoPanel() {
   }, [effectiveTenantId]);
 
   const openCopyConfirm = useCallback((row: ExchangePaymentInfoEntry) => {
-    setPendingCopy({ id: row.id, text: row.copyPayload });
-  }, []);
+    if (row.hasBankCard === false) {
+      toast.error(t("用户没有银行卡信息", "User has no bank card on file"));
+      return;
+    }
+    setPendingCopy({ id: row.id, text: normalizePaymentCopyPayload(row.copyPayload) });
+  }, [t]);
 
   const handleConfirmCopy = useCallback(async () => {
     if (!pendingCopy || !effectiveTenantId) {
@@ -77,11 +82,12 @@ export function ExchangePaymentInfoPanel() {
     }
     const { id, text } = pendingCopy;
     setPendingCopy(null);
-    if (!text) {
+    const normalized = normalizePaymentCopyPayload(text);
+    if (!normalized) {
       toast.error(t("无可复制内容", "Nothing to copy"));
       return;
     }
-    const ok = await copyToClipboard(text);
+    const ok = await copyToClipboard(normalized);
     if (ok) {
       markExchangePaymentInfoCopied(effectiveTenantId, id);
       toast.success(t("已复制到剪贴板", "Copied to clipboard"));

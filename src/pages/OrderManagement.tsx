@@ -66,6 +66,18 @@ const isUuid = (str: string): boolean => {
   return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(str);
 };
 
+/** 订单编辑里 salesPerson 可能是员工 UUID，也可能是 nameResolver 解析后的姓名，统一解析为 employees.id */
+function resolveOrderSalesEmployeeId(
+  salesPersonField: string | undefined,
+  employees: { id: string; real_name: string }[],
+): string | null {
+  const s = String(salesPersonField ?? "").trim();
+  if (!s) return null;
+  if (isUuid(s)) return s;
+  const byName = employees.find((e) => e.real_name === s);
+  return byName?.id ?? null;
+}
+
 // 订单状态选项
 
 // 订单状态选项 - 移到组件内部使用 t() 函数
@@ -660,15 +672,18 @@ export default function OrderManagement() {
         remark: editingOrder.remark,
       };
       
-      // 只有当销售员是合法 UUID 时才写入（防止把姓名写入 uuid 字段）
-      if (isSuperAdmin && editingOrder.salesPerson && isUuid(editingOrder.salesPerson)) {
-        updates.sales_user_id = editingOrder.salesPerson;
-        updates.creator_id = editingOrder.salesPerson;
+      if (isSuperAdmin) {
+        const newSid = resolveOrderSalesEmployeeId(editingOrder.salesPerson, allEmployees);
+        const oldSid = resolveOrderSalesEmployeeId(originalOrder.salesPerson, allEmployees);
+        if (newSid && newSid !== oldSid) {
+          updates.sales_user_id = newSid;
+          updates.creator_id = newSid;
+        }
       }
-      
+
       return updates;
     };
-    
+
     // 检查是否需要提交审核
     // 管理员直接编辑，不需要审核
     if (isAdmin) {
@@ -1004,20 +1019,23 @@ export default function OrderManagement() {
         remark: editingUsdtOrder.remark,
       };
       
-      // 只有当销售员是合法 UUID 时才写入（防止把姓名写入 uuid 字段）
-      if (isSuperAdmin && editingUsdtOrder.salesPerson && isUuid(editingUsdtOrder.salesPerson)) {
-        updates.sales_user_id = editingUsdtOrder.salesPerson;
-        updates.creator_id = editingUsdtOrder.salesPerson;
+      if (isSuperAdmin) {
+        const newSid = resolveOrderSalesEmployeeId(editingUsdtOrder.salesPerson, allEmployees);
+        const oldSid = resolveOrderSalesEmployeeId(originalUsdtOrder.salesPerson, allEmployees);
+        if (newSid && newSid !== oldSid) {
+          updates.sales_user_id = newSid;
+          updates.creator_id = newSid;
+        }
       }
-      
+
       return updates;
     };
-    
+
     // 检查是否需要提交审核
     // 管理员直接编辑，不需要审核
     if (isAdmin) {
       const updates = buildUpdates();
-      
+
       try {
         await updateOrderUseCase(editingUsdtOrder.dbId, updates);
       } catch (error) {

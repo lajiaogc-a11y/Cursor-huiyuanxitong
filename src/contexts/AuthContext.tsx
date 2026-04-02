@@ -775,7 +775,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!session && !!employee,
         isEmployeeAuthenticated: !!session && userType === 'employee' && !!employee,
         isMemberAuthenticated: !!session && userType === 'member',
-        isAdmin: employee?.role === 'admin',
+        isAdmin:
+          employee?.role === 'admin' ||
+          employee?.is_super_admin === true ||
+          employee?.is_platform_super_admin === true,
         isManager: employee?.role === 'admin' || employee?.role === 'manager',
       }}
     >

@@ -4,6 +4,8 @@ export type ExchangePaymentInfoEntry = {
   phone: string;
   copyPayload: string;
   copied: boolean;
+  /** 提交时是否填写了银行卡；无则点击复制应提示 */
+  hasBankCard?: boolean;
 };
 
 const STORAGE_VERSION = 1;
@@ -28,21 +30,71 @@ export function formatExchangePaymentAmountForCopy(amount: number): string {
   return s;
 }
 
+/** 从展示字符串得到复制用金额片段（去千分位、去 NGN/GHS/USDT 后缀） */
+export function sanitizePaymentDisplayForCopy(display: string): string {
+  const s = String(display || "")
+    .trim()
+    .replace(/\s*(NGN|GHS|USDT)\s*$/i, "")
+    .replace(/,/g, "")
+    .trim();
+  const n = parseFloat(s);
+  if (!Number.isFinite(n)) return String(display || "").trim();
+  return formatExchangePaymentAmountForCopy(n);
+}
+
+const TRAILING_AMOUNT_CURRENCY = /([\d,]+(?:\.\d+)?)\s*(NGN|GHS|USDT)?\s*$/i;
+
+/**
+ * 将「账号 银行名 180,500 NGN」规范为「账号 银行名 180500」
+ */
+export function normalizePaymentCopyPayload(text: string): string {
+  const t = String(text || "")
+    .trim()
+    .replace(/\s+/g, " ");
+  if (!t) return t;
+  const m = t.match(TRAILING_AMOUNT_CURRENCY);
+  if (!m || m.index === undefined) return t;
+  const tail = m[0];
+  const prefix = t.slice(0, m.index).trim();
+  const n = parseFloat(m[1].replace(/,/g, ""));
+  if (!Number.isFinite(n)) return t;
+  const pay = formatExchangePaymentAmountForCopy(n);
+  return prefix ? `${prefix} ${pay}` : pay;
+}
+
+/** 整条复制内容是否仅为「金额±币种」（无银行卡段） */
+export function isPayloadAmountOnly(copyPayload: string): boolean {
+  const s = String(copyPayload || "").trim();
+  if (!s) return true;
+  return /^[\d,]+(?:\.\d+)?\s*(NGN|GHS|USDT)?\s*$/i.test(s);
+}
+
 function parseRows(raw: string | null): ExchangePaymentInfoEntry[] {
   if (!raw) return [];
   try {
     const data = JSON.parse(raw) as unknown;
     if (!Array.isArray(data)) return [];
-    return data.filter(
-      (x): x is ExchangePaymentInfoEntry =>
-        typeof x === "object" &&
-        x !== null &&
-        typeof (x as ExchangePaymentInfoEntry).id === "string" &&
-        typeof (x as ExchangePaymentInfoEntry).phone === "string" &&
-        typeof (x as ExchangePaymentInfoEntry).copyPayload === "string" &&
-        typeof (x as ExchangePaymentInfoEntry).copied === "boolean" &&
-        typeof (x as ExchangePaymentInfoEntry).createdAt === "number",
-    );
+    return data
+      .filter(
+        (x): x is ExchangePaymentInfoEntry =>
+          typeof x === "object" &&
+          x !== null &&
+          typeof (x as ExchangePaymentInfoEntry).id === "string" &&
+          typeof (x as ExchangePaymentInfoEntry).phone === "string" &&
+          typeof (x as ExchangePaymentInfoEntry).copyPayload === "string" &&
+          typeof (x as ExchangePaymentInfoEntry).copied === "boolean" &&
+          typeof (x as ExchangePaymentInfoEntry).createdAt === "number",
+      )
+      .map((raw) => {
+        const x = raw as ExchangePaymentInfoEntry;
+        const hasBankCard =
+          x.hasBankCard === true
+            ? true
+            : x.hasBankCard === false
+              ? false
+              : !isPayloadAmountOnly(x.copyPayload);
+        return { ...x, hasBankCard, copyPayload: normalizePaymentCopyPayload(x.copyPayload) };
+      });
   } catch {
     return [];
   }
@@ -90,7 +142,7 @@ export function appendExchangePaymentInfoEntry(params: {
   if (typeof window === "undefined") return;
   const tid = normalizeTenantId(params.tenantId);
   const card = (params.bankCard || "").trim();
-  const pay = (params.paymentDisplay || "").trim();
+  const pay = sanitizePaymentDisplayForCopy(params.paymentDisplay || "");
   const copyPayload = [card, pay].filter(Boolean).join(" ");
   const entry: ExchangePaymentInfoEntry = {
     id: `${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
@@ -98,6 +150,7 @@ export function appendExchangePaymentInfoEntry(params: {
     phone: (params.phone || "").trim(),
     copyPayload,
     copied: false,
+    hasBankCard: card.length > 0,
   };
   const prev = readRows(tid);
   const next = [entry, ...prev].slice(0, MAX_ROWS);
