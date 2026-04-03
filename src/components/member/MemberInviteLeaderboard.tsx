@@ -42,18 +42,23 @@ export function MemberInviteLeaderboard({
     let cancelled = false;
     setLoading(true);
     setErr(false);
-    void fetchInviteRankingTop5()
-      .then((r) => {
-        if (!cancelled) setRows(r);
-      })
-      .catch(() => {
-        if (!cancelled) setErr(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    const fetchData = () => {
+      void fetchInviteRankingTop5()
+        .then((r) => {
+          if (!cancelled) setRows(r);
+        })
+        .catch(() => {
+          if (!cancelled) setErr(true);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+    fetchData();
+    const timer = window.setInterval(fetchData, 60_000);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
   }, [retryTick, pullTick]);
 

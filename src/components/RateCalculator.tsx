@@ -1412,143 +1412,116 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
       )}
 
       {/* 第四行：支付信息(3/12，缩窄区块但保留 ch 列宽) + 会员信息(9/12) */}
-      <div className={`grid gap-2 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-12'}`}>
+      <div className={`grid gap-2 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-12 xl:items-start'}`}>
         <Card
           className={
             isMobile
               ? ""
-              : `xl:col-span-3 min-w-0 overflow-x-auto ${PAY_INFO_BLOCK_MIN_W}`
+              : `xl:col-span-3 h-fit min-w-0 self-start overflow-x-auto ${PAY_INFO_BLOCK_MIN_W}`
           }
         >
           <div className="bg-muted/50 px-3 py-1 border-b">
             <span className="text-xs font-bold text-foreground">{t("支付信息", "Payment Info")}</span>
           </div>
+          {/* 桌面端：单一 grid，表头与数据列共用同一套列宽，避免 1fr 各行独立计算导致错位 */}
           {!isMobile && (
-            <div
-              className={`${PAY_INFO_GRID_DESKTOP} border-b border-border/50 bg-muted/25 text-[10px] font-medium text-muted-foreground`}
-            >
-              <div className="px-2 py-1.5 border-r border-border/40">
+            <div className={`${PAY_INFO_GRID_DESKTOP} border-b border-border/50`}>
+              <div className="border-b border-r border-border/40 bg-muted/25 px-2 py-1.5 text-[10px] font-medium text-muted-foreground">
                 {t("支付金额", "Amount")}
               </div>
-              <div className="flex items-center justify-center border-r border-border/40 px-1 py-1.5 whitespace-nowrap">
+              <div className="flex items-center justify-center border-b border-r border-border/40 bg-muted/25 px-1 py-1.5 text-[10px] font-medium text-muted-foreground whitespace-nowrap">
                 {t("利润", "Profit")}
               </div>
-              <div className="flex items-center justify-center px-1 py-1.5 whitespace-nowrap">
+              <div className="flex items-center justify-center border-b border-border/40 bg-muted/25 px-1 py-1.5 text-[10px] font-medium text-muted-foreground whitespace-nowrap">
                 {t("利率", "Rate")}
               </div>
-            </div>
-          )}
-          <div className="divide-y divide-border/50">
-            {/* 支付奈拉行 */}
-            <div className={`${isMobile ? 'p-2.5 space-y-1.5' : `${PAY_INFO_GRID_DESKTOP} bg-orange-50/50 dark:bg-orange-950/20`}`}>
-              {isMobile ? (
-                <>
-                  <Label className="text-xs text-orange-700 dark:text-orange-400 font-medium">{t("支付", "Pay")} {CURRENCIES.NGN.name}</Label>
-                  <Input value={formData.payNaira} onChange={(e) => handlePayNairaChange(e.target.value)} onDoubleClick={() => handleDoubleClick('payNaira')} placeholder={t("输入奈拉金额", "Enter NGN amount")} className="h-10 text-center font-bold text-base bg-background border-orange-300/50 tabular-nums" />
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{t("利润", "Profit")}: <span className="font-bold text-success">{formData.payNaira ? profitCalculation.nairaProfitRMB : '0'}</span></span>
-                    <span className="text-muted-foreground">{t("利率", "Rate")}: <span className="font-bold text-orange-600 dark:text-orange-400">{formData.payNaira ? profitCalculation.nairaRate + '%' : '0%'}</span></span>
-                  </div>
-                </>
-              ) : (
-              <>
-              <div className="min-w-0 border-r border-orange-200/30 p-2">
-                <Label className="text-[10px] text-orange-700 dark:text-orange-400 font-medium block mb-1">{t("支付", "Pay")} {CURRENCIES.NGN.name}</Label>
+
+              <div className="min-w-0 border-b border-r border-orange-200/30 bg-orange-50/50 p-2 dark:bg-orange-950/20">
+                <Label className="mb-1 block text-[10px] font-medium text-orange-700 dark:text-orange-400">{t("支付", "Pay")} {CURRENCIES.NGN.name}</Label>
                 <Input value={formData.payNaira} onChange={(e) => handlePayNairaChange(e.target.value)} onDoubleClick={() => handleDoubleClick('payNaira')} placeholder={t("输入奈拉金额", "Enter NGN amount")} className={`${PAY_INPUT_DESKTOP_CLASS} border-orange-300/50`} />
               </div>
-              <div className="flex min-w-[7ch] flex-col items-center justify-center border-r border-orange-200/30 px-1 py-2">
+              <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center border-b border-r border-orange-200/30 bg-orange-50/50 px-1 py-2 dark:bg-orange-950/20">
                 <span className="text-sm font-bold tabular-nums whitespace-nowrap text-success">{formData.payNaira ? profitCalculation.nairaProfitRMB : '0'}</span>
               </div>
-              <div className="flex min-w-[7ch] flex-col items-center justify-center px-1 py-2">
+              <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center border-b border-orange-200/30 bg-orange-50/50 px-1 py-2 dark:bg-orange-950/20">
                 <span className="text-sm font-bold tabular-nums whitespace-nowrap text-orange-600 dark:text-orange-400">{formData.payNaira ? profitCalculation.nairaRate + '%' : '0%'}</span>
               </div>
-              </>
-              )}
-            </div>
-            {/* 支付赛地行 */}
-            <div className={`${isMobile ? 'p-2.5 space-y-1.5' : `${PAY_INFO_GRID_DESKTOP} bg-emerald-50/50 dark:bg-emerald-950/20`}`}>
-              {isMobile ? (
-                <>
-                  <Label className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">{t("支付", "Pay")} {CURRENCIES.GHS.name}</Label>
-                  <Input value={formData.payCedi} onChange={(e) => handlePayCediChange(e.target.value)} onDoubleClick={() => handleDoubleClick('payCedi')} placeholder={t("输入赛地金额", "Enter GHS amount")} className="h-10 text-center font-bold text-base bg-background border-emerald-300/50 tabular-nums" />
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{t("利润", "Profit")}: <span className="font-bold text-success">{formData.payCedi ? profitCalculation.cediProfitRMB : '0'}</span></span>
-                    <span className="text-muted-foreground">{t("利率", "Rate")}: <span className="font-bold text-emerald-600 dark:text-emerald-400">{formData.payCedi ? profitCalculation.cediRate + '%' : '0%'}</span></span>
-                  </div>
-                </>
-              ) : (
-              <>
-              <div className="min-w-0 border-r border-emerald-200/30 p-2">
-                <Label className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium block mb-1">{t("支付", "Pay")} {CURRENCIES.GHS.name}</Label>
+
+              <div className="min-w-0 border-b border-r border-emerald-200/30 bg-emerald-50/50 p-2 dark:bg-emerald-950/20">
+                <Label className="mb-1 block text-[10px] font-medium text-emerald-700 dark:text-emerald-400">{t("支付", "Pay")} {CURRENCIES.GHS.name}</Label>
                 <Input value={formData.payCedi} onChange={(e) => handlePayCediChange(e.target.value)} onDoubleClick={() => handleDoubleClick('payCedi')} placeholder={t("输入赛地金额", "Enter GHS amount")} className={`${PAY_INPUT_DESKTOP_CLASS} border-emerald-300/50`} />
               </div>
-              <div className="flex min-w-[7ch] flex-col items-center justify-center border-r border-emerald-200/30 px-1 py-2">
+              <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center border-b border-r border-emerald-200/30 bg-emerald-50/50 px-1 py-2 dark:bg-emerald-950/20">
                 <span className="text-sm font-bold tabular-nums whitespace-nowrap text-success">{formData.payCedi ? profitCalculation.cediProfitRMB : '0'}</span>
               </div>
-              <div className="flex min-w-[7ch] flex-col items-center justify-center px-1 py-2">
+              <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center border-b border-emerald-200/30 bg-emerald-50/50 px-1 py-2 dark:bg-emerald-950/20">
                 <span className="text-sm font-bold tabular-nums whitespace-nowrap text-emerald-600 dark:text-emerald-400">{formData.payCedi ? profitCalculation.cediRate + '%' : '0%'}</span>
               </div>
-              </>
-              )}
-            </div>
-            {/* 支付USDT行 */}
-            <div className={`${isMobile ? 'p-2.5 space-y-1.5' : `${PAY_INFO_GRID_DESKTOP} bg-blue-50/50 dark:bg-blue-950/20`}`}>
-              {isMobile ? (
-                <>
-                  <Label className="text-xs text-blue-700 dark:text-blue-400 font-medium">{t("支付", "Pay")} {CURRENCIES.USDT.name}</Label>
-                  <Input value={formData.payUsdt} onChange={(e) => handlePayUsdtChange(e.target.value)} onDoubleClick={() => handleDoubleClick('payUsdt')} placeholder={t("输入USDT金额", "Enter USDT")} className="h-10 text-center font-bold text-base bg-background border-blue-300/50 tabular-nums" />
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{t("利润(U)", "Profit")}: <span className="font-bold text-blue-600 dark:text-blue-400">{formData.payUsdt ? profitCalculation.usdtProfitU : '0'}</span></span>
-                    <span className="text-muted-foreground">{t("利率", "Rate")}: <span className="font-bold text-blue-600 dark:text-blue-400">{formData.payUsdt ? profitCalculation.usdtRate + '%' : '0%'}</span></span>
-                  </div>
-                </>
-              ) : (
-              <>
-              <div className="min-w-0 border-r border-blue-200/30 p-2">
-                <Label className="text-[10px] text-blue-700 dark:text-blue-400 font-medium block mb-1">{t("支付", "Pay")} {CURRENCIES.USDT.name}</Label>
+
+              <div className="min-w-0 border-b border-r border-blue-200/30 bg-blue-50/50 p-2 dark:bg-blue-950/20">
+                <Label className="mb-1 block text-[10px] font-medium text-blue-700 dark:text-blue-400">{t("支付", "Pay")} {CURRENCIES.USDT.name}</Label>
                 <Input value={formData.payUsdt} onChange={(e) => handlePayUsdtChange(e.target.value)} onDoubleClick={() => handleDoubleClick('payUsdt')} placeholder={t("双击清空", "Double-click to clear")} className={`${PAY_INPUT_DESKTOP_CLASS} border-blue-300/50`} />
               </div>
-              <div className="flex min-w-[7ch] flex-col items-center justify-center gap-0.5 border-r border-blue-200/30 px-1 py-2">
+              <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center gap-0.5 border-b border-r border-blue-200/30 bg-blue-50/50 px-1 py-2 dark:bg-blue-950/20">
                 <span className="text-[9px] leading-none text-muted-foreground">U</span>
                 <span className="text-sm font-bold tabular-nums whitespace-nowrap text-blue-600 dark:text-blue-400">{formData.payUsdt ? profitCalculation.usdtProfitU : '0'}</span>
               </div>
-              <div className="flex min-w-[7ch] flex-col items-center justify-center px-1 py-2">
+              <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center border-b border-blue-200/30 bg-blue-50/50 px-1 py-2 dark:bg-blue-950/20">
                 <span className="text-sm font-bold tabular-nums whitespace-nowrap text-blue-600 dark:text-blue-400">{formData.payUsdt ? profitCalculation.usdtRate + '%' : '0%'}</span>
               </div>
-              </>
-              )}
-            </div>
-            {/* 支付BTC行 */}
-            <div className={`${isMobile ? 'p-2.5 space-y-1.5' : `${PAY_INFO_GRID_DESKTOP} bg-purple-50/50 dark:bg-purple-950/20`}`}>
-              {isMobile ? (
-                <>
-                  <div className="flex items-center gap-1">
-                    <Label className="text-xs text-purple-700 dark:text-purple-400 font-medium">{t("支付BTC", "Pay BTC")}</Label>
-                    <Lock className="h-3 w-3 text-purple-400" />
-                  </div>
-                  <div className="h-10 flex min-w-[10ch] items-center justify-center font-bold text-base text-purple-700 dark:text-purple-300 bg-purple-100/50 dark:bg-purple-900/30 rounded border tabular-nums">{payBtc || '—'}</div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{t("利润(U)", "Profit")}: <span className="font-bold text-purple-600 dark:text-purple-400">{payBtc ? profitCalculation.btcProfitU : '0'}</span></span>
-                    <span className="text-muted-foreground">{t("利率", "Rate")}: <span className="font-bold text-purple-600 dark:text-purple-400">{payBtc ? profitCalculation.btcRate + '%' : '0%'}</span></span>
-                  </div>
-                </>
-              ) : (
-              <>
-              <div className="min-w-0 border-r border-purple-200/30 p-2">
-                <Label className="text-[10px] text-purple-700 dark:text-purple-400 font-medium flex items-center gap-1 mb-1">{t("支付BTC", "Pay BTC")} <Lock className="h-2.5 w-2.5" /></Label>
-                <div className={`flex h-8 min-w-[10ch] items-center justify-center rounded border bg-purple-100/50 px-1 text-sm font-bold tabular-nums tracking-normal text-purple-700 dark:bg-purple-900/30 dark:text-purple-300`}>{payBtc || '—'}</div>
+
+              <div className="min-w-0 border-r border-purple-200/30 bg-purple-50/50 p-2 dark:bg-purple-950/20">
+                <Label className="mb-1 flex items-center gap-1 text-[10px] font-medium text-purple-700 dark:text-purple-400">{t("支付BTC", "Pay BTC")} <Lock className="h-2.5 w-2.5" /></Label>
+                <div className="flex h-8 min-w-[10ch] items-center justify-center rounded border bg-purple-100/50 px-1 text-sm font-bold tabular-nums tracking-normal text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">{payBtc || '—'}</div>
               </div>
-              <div className="flex min-w-[7ch] flex-col items-center justify-center gap-0.5 border-r border-purple-200/30 px-1 py-2">
+              <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center gap-0.5 border-r border-purple-200/30 bg-purple-50/50 px-1 py-2 dark:bg-purple-950/20">
                 <span className="text-[9px] leading-none text-muted-foreground">U</span>
                 <span className="text-sm font-bold tabular-nums whitespace-nowrap text-purple-600 dark:text-purple-400">{payBtc ? profitCalculation.btcProfitU : '0'}</span>
               </div>
-              <div className="flex min-w-[7ch] flex-col items-center justify-center px-1 py-2">
+              <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center bg-purple-50/50 px-1 py-2 dark:bg-purple-950/20">
                 <span className="text-sm font-bold tabular-nums whitespace-nowrap text-purple-600 dark:text-purple-400">{payBtc ? profitCalculation.btcRate + '%' : '0%'}</span>
               </div>
-              </>
-              )}
+            </div>
+          )}
+          {isMobile && (
+          <div className="divide-y divide-border/50">
+            <div className="space-y-1.5 bg-orange-50/50 p-2.5 dark:bg-orange-950/20">
+              <Label className="text-xs font-medium text-orange-700 dark:text-orange-400">{t("支付", "Pay")} {CURRENCIES.NGN.name}</Label>
+              <Input value={formData.payNaira} onChange={(e) => handlePayNairaChange(e.target.value)} onDoubleClick={() => handleDoubleClick('payNaira')} placeholder={t("输入奈拉金额", "Enter NGN amount")} className="h-10 border-orange-300/50 bg-background text-center text-base font-bold tabular-nums" />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{t("利润", "Profit")}: <span className="font-bold text-success">{formData.payNaira ? profitCalculation.nairaProfitRMB : '0'}</span></span>
+                <span className="text-muted-foreground">{t("利率", "Rate")}: <span className="font-bold text-orange-600 dark:text-orange-400">{formData.payNaira ? profitCalculation.nairaRate + '%' : '0%'}</span></span>
+              </div>
+            </div>
+            <div className="space-y-1.5 bg-emerald-50/50 p-2.5 dark:bg-emerald-950/20">
+              <Label className="text-xs font-medium text-emerald-700 dark:text-emerald-400">{t("支付", "Pay")} {CURRENCIES.GHS.name}</Label>
+              <Input value={formData.payCedi} onChange={(e) => handlePayCediChange(e.target.value)} onDoubleClick={() => handleDoubleClick('payCedi')} placeholder={t("输入赛地金额", "Enter GHS amount")} className="h-10 border-emerald-300/50 bg-background text-center text-base font-bold tabular-nums" />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{t("利润", "Profit")}: <span className="font-bold text-success">{formData.payCedi ? profitCalculation.cediProfitRMB : '0'}</span></span>
+                <span className="text-muted-foreground">{t("利率", "Rate")}: <span className="font-bold text-emerald-600 dark:text-emerald-400">{formData.payCedi ? profitCalculation.cediRate + '%' : '0%'}</span></span>
+              </div>
+            </div>
+            <div className="space-y-1.5 bg-blue-50/50 p-2.5 dark:bg-blue-950/20">
+              <Label className="text-xs font-medium text-blue-700 dark:text-blue-400">{t("支付", "Pay")} {CURRENCIES.USDT.name}</Label>
+              <Input value={formData.payUsdt} onChange={(e) => handlePayUsdtChange(e.target.value)} onDoubleClick={() => handleDoubleClick('payUsdt')} placeholder={t("输入USDT金额", "Enter USDT")} className="h-10 border-blue-300/50 bg-background text-center text-base font-bold tabular-nums" />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{t("利润(U)", "Profit")}: <span className="font-bold text-blue-600 dark:text-blue-400">{formData.payUsdt ? profitCalculation.usdtProfitU : '0'}</span></span>
+                <span className="text-muted-foreground">{t("利率", "Rate")}: <span className="font-bold text-blue-600 dark:text-blue-400">{formData.payUsdt ? profitCalculation.usdtRate + '%' : '0%'}</span></span>
+              </div>
+            </div>
+            <div className="space-y-1.5 bg-purple-50/50 p-2.5 dark:bg-purple-950/20">
+              <div className="flex items-center gap-1">
+                <Label className="text-xs font-medium text-purple-700 dark:text-purple-400">{t("支付BTC", "Pay BTC")}</Label>
+                <Lock className="h-3 w-3 text-purple-400" />
+              </div>
+              <div className="flex h-10 min-w-[10ch] items-center justify-center rounded border bg-purple-100/50 text-base font-bold tabular-nums text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">{payBtc || '—'}</div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{t("利润(U)", "Profit")}: <span className="font-bold text-purple-600 dark:text-purple-400">{payBtc ? profitCalculation.btcProfitU : '0'}</span></span>
+                <span className="text-muted-foreground">{t("利率", "Rate")}: <span className="font-bold text-purple-600 dark:text-purple-400">{payBtc ? profitCalculation.btcRate + '%' : '0%'}</span></span>
+              </div>
             </div>
           </div>
+          )}
         </Card>
 
         {/* 右侧区域 - 8/12 (必填信息 + 会员信息) */}

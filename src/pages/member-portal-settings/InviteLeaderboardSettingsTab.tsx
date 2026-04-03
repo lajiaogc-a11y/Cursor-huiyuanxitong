@@ -51,6 +51,7 @@ function normalizeInviteGrowth(raw: InviteLeaderboardGrowthSettings | null): Inv
     growth_segment_ticks_done: Number(raw.growth_segment_ticks_done ?? 0),
     growth_ticks_min: raw.growth_ticks_min != null ? Number(raw.growth_ticks_min) : null,
     growth_ticks_max: raw.growth_ticks_max != null ? Number(raw.growth_ticks_max) : null,
+    growth_runs_per_user: Math.max(1, Math.min(10, Math.floor(Number(raw.growth_runs_per_user ?? 1)))),
   };
 }
 import { formatBeijingDate } from "@/lib/beijingTime";
@@ -135,6 +136,7 @@ export function InviteLeaderboardSettingsTab({
         growth_alloc_mode: growthDraft.growth_alloc_mode,
         growth_delta_min: growthDraft.growth_delta_min,
         growth_delta_max: growthDraft.growth_delta_max,
+        growth_runs_per_user: growthDraft.growth_runs_per_user ?? 1,
         ...(batchAuto
           ? { growth_ticks_use_auto: true }
           : {
@@ -463,13 +465,13 @@ export function InviteLeaderboardSettingsTab({
                   <label className="text-xs text-muted-foreground">{t("每轮增量下限（人）", "Delta min / row")}</label>
                   <Input
                     type="number"
-                    min={1}
+                    min={0}
                     max={100}
                     disabled={!canMutate || growthSaving}
                     value={growthDraft.growth_delta_min}
                     onChange={(e) =>
                       setGrowthDraft((d) =>
-                        d ? { ...d, growth_delta_min: Math.max(1, Math.floor(Number(e.target.value) || 1)) } : d,
+                        d ? { ...d, growth_delta_min: Math.max(0, Math.floor(Number(e.target.value) || 0)) } : d,
                       )
                     }
                   />
@@ -478,16 +480,37 @@ export function InviteLeaderboardSettingsTab({
                   <label className="text-xs text-muted-foreground">{t("每轮增量上限（人）", "Delta max / row")}</label>
                   <Input
                     type="number"
-                    min={1}
+                    min={0}
                     max={100}
                     disabled={!canMutate || growthSaving}
                     value={growthDraft.growth_delta_max}
                     onChange={(e) =>
                       setGrowthDraft((d) =>
-                        d ? { ...d, growth_delta_max: Math.max(1, Math.floor(Number(e.target.value) || 1)) } : d,
+                        d ? { ...d, growth_delta_max: Math.max(0, Math.floor(Number(e.target.value) || 0)) } : d,
                       )
                     }
                   />
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <label className="text-xs text-muted-foreground">{t("每周期每人最多执行次数", "Max runs per user per cycle")}</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={10}
+                    disabled={!canMutate || growthSaving}
+                    value={growthDraft.growth_runs_per_user ?? 1}
+                    onChange={(e) =>
+                      setGrowthDraft((d) =>
+                        d ? { ...d, growth_runs_per_user: Math.max(1, Math.min(10, Math.floor(Number(e.target.value) || 1))) } : d,
+                      )
+                    }
+                  />
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    {t(
+                      "每个周期内，每个假用户最多被分配到几个不同批次执行增长。设为 1 即每人每周期只增长一次（推荐）。",
+                      "Within each cycle, each synthetic user is assigned to at most this many batches. Set 1 for one growth per cycle (recommended).",
+                    )}
+                  </p>
                 </div>
               </div>
               <div className="text-xs text-muted-foreground space-y-1">

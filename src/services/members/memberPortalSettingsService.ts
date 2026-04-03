@@ -826,6 +826,33 @@ export type PortalLotteryPointsLedgerRow = {
   prize_name: string | null;
 };
 
+export type SpinCreditsLogRow = {
+  id: string;
+  member_id: string;
+  source: string | null;
+  amount: number | string;
+  created_at: string;
+  phone_number: string | null;
+  member_label: string | null;
+};
+
+export async function adminListSpinCreditsLog(options?: {
+  limit?: number;
+  offset?: number;
+  tenantId?: string | null;
+}): Promise<{ rows: SpinCreditsLogRow[]; total: number }> {
+  const limit = options?.limit ?? 50;
+  const offset = options?.offset ?? 0;
+  const q = new URLSearchParams();
+  q.set("limit", String(limit));
+  q.set("offset", String(offset));
+  if (options?.tenantId) q.set("tenant_id", options.tenantId);
+  const r = await apiGet<{ success: boolean; rows?: SpinCreditsLogRow[]; total?: number }>(
+    `/api/member-portal-settings/spin-credits-log?${q.toString()}`,
+  );
+  return { rows: r?.rows ?? [], total: r?.total ?? 0 };
+}
+
 export async function adminListLotteryPointsLedger(options?: {
   limit?: number;
   offset?: number;

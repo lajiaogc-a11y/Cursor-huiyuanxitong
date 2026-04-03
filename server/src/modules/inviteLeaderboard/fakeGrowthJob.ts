@@ -44,6 +44,7 @@ type SchedRow = {
   growth_delta_min: number;
   growth_delta_max: number;
   auto_growth_enabled: number;
+  growth_runs_per_user: number;
 };
 
 function readSchedRow(r: RowDataPacket | undefined): SchedRow | null {
@@ -69,6 +70,7 @@ function readSchedRow(r: RowDataPacket | undefined): SchedRow | null {
     growth_delta_min: Math.max(0, Number(row.growth_delta_min ?? 1)),
     growth_delta_max: Math.max(0, Number(row.growth_delta_max ?? 3)),
     auto_growth_enabled: Number(row.auto_growth_enabled ?? 1),
+    growth_runs_per_user: Math.max(1, Math.min(10, Math.floor(Number(row.growth_runs_per_user ?? 1)))),
   };
 }
 
@@ -96,7 +98,8 @@ async function runGrowthInTransaction(conn: PoolConnection): Promise<{
               growth_segment_hours, growth_alloc_mode, growth_segment_started_at,
               growth_segment_ticks_planned, growth_segment_ticks_done,
               growth_ticks_min, growth_ticks_max,
-              growth_delta_min, growth_delta_max, auto_growth_enabled
+              growth_delta_min, growth_delta_max, auto_growth_enabled,
+              growth_runs_per_user
        FROM invite_leaderboard_tenant_growth_schedule WHERE tenant_id = ? LIMIT 1`,
       [tenantId],
     );
@@ -199,6 +202,11 @@ async function runGrowthInTransaction(conn: PoolConnection): Promise<{
       }
     }
 
+    const runsPerUser = sched.growth_runs_per_user;
+    const expandedIds = runsPerUser <= 1
+      ? ids
+      : ids.flatMap((id) => Array.from({ length: runsPerUser }, () => id));
+
     let lastNext = nextStr ?? computeNextTickMysqlUtc({
       segStartMs: segStart,
       segEndMs: segEnd,
@@ -217,7 +225,7 @@ async function runGrowthInTransaction(conn: PoolConnection): Promise<{
       }
 
       const k = ticksDone;
-      const idsThis = inviteFakeUsersForGrowthTick(tenantId, segStart, k, ticksPlanned, ids);
+      const idsThis = inviteFakeUsersForGrowthTick(tenantId, segStart, k, ticksPlanned, expandedIds);
 
       for (const id of idsThis) {
         const delta =
@@ -227,7 +235,7 @@ async function runGrowthInTransaction(conn: PoolConnection): Promise<{
               ? 0
               : dMin >= dMax
                 ? dMax
-                : randomIntegerInclusive(Math.max(1, dMin), dMax);
+                : randomIntegerInclusive(lo, hi);
         await conn.query(
           `UPDATE invite_leaderboard_fake_users
            SET auto_increment_count = auto_increment_count + ?,

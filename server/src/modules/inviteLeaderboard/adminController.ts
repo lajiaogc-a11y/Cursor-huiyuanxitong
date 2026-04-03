@@ -305,6 +305,7 @@ function serializeGrowthSettings(d: InviteLeaderboardGrowthScheduleDto) {
     growth_delta_max: d.growth_delta_max,
     last_fake_growth_at: d.last_fake_growth_at,
     next_fake_growth_at: d.next_fake_growth_at,
+    growth_runs_per_user: d.growth_runs_per_user ?? 1,
   };
 }
 
@@ -352,6 +353,7 @@ export async function patchInviteLeaderboardGrowthSettingsController(
     growth_ticks_use_auto?: boolean;
     growth_ticks_min?: number | null;
     growth_ticks_max?: number | null;
+    growth_runs_per_user?: number;
   } = {};
   if (typeof body.auto_growth_enabled === 'boolean') patch.auto_growth_enabled = body.auto_growth_enabled;
   if (body.growth_segment_hours != null) patch.growth_segment_hours = Number(body.growth_segment_hours);
@@ -369,6 +371,7 @@ export async function patchInviteLeaderboardGrowthSettingsController(
     patch.growth_ticks_max =
       body.growth_ticks_max === null ? null : Number(body.growth_ticks_max);
   }
+  if (body.growth_runs_per_user != null) patch.growth_runs_per_user = Math.max(1, Math.min(10, Math.floor(Number(body.growth_runs_per_user))));
   if (Object.keys(patch).length === 0) {
     res.status(400).json({ success: false, error: 'empty body' });
     return;

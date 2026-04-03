@@ -181,6 +181,8 @@ interface MemberActivityRow {
   lotterySpinBalance: number;
   /** 消费次数：本人已完成订单，时间筛选 + 重置后 */
   orderCount: number;
+  /** 累积次数：member_activity.order_count（永久累积有效订单数，删除/取消会回滚） */
+  permanentOrderCount: number;
   remainingPoints: number;
   resetTime: string | null;
   referralCount: number;
@@ -294,6 +296,7 @@ export default function MemberActivityDataContent() {
     { key: 'memberName', label: t('会员名称', 'Member name') },
     { key: 'lotterySpinBalance', label: t('抽奖次数', 'Lottery draws') },
     { key: 'orderCount', label: t('消费次数', 'Consumption count') },
+    { key: 'permanentOrderCount', label: t('累积次数', 'Accumulated count') },
     { key: 'accumulatedProfit', label: t('累计利润', 'Total profit') },
     { key: 'permanentAccumulatedNgn', label: t('兑换奈拉', 'Redeem NGN') },
     { key: 'permanentAccumulatedGhs', label: t('兑换赛地', 'Redeem GHS') },
@@ -601,6 +604,7 @@ export default function MemberActivityDataContent() {
         accumulatedProfitUsdt: memberActivity?.accumulated_profit_usdt || 0,
         lotterySpinBalance: Math.max(0, Math.floor(Number(memberActivity?.lottery_spin_balance ?? 0))),
         orderCount: consumptionOrderCount,
+        permanentOrderCount: Math.max(0, Number(memberActivity?.order_count ?? 0)),
         remainingPoints,
         resetTime,
         referralCount,
@@ -1020,6 +1024,7 @@ export default function MemberActivityDataContent() {
         "会员名称",
         "抽奖次数",
         "消费次数",
+        "累积次数",
         "累计利润",
         "兑换奈拉",
         "兑换赛地",
@@ -1042,6 +1047,7 @@ export default function MemberActivityDataContent() {
           row.member.memberDisplayName ?? row.member.memberCode,
           row.lotterySpinBalance,
           row.orderCount,
+          row.permanentOrderCount,
           (() => {
             const parts: string[] = [];
             if (row.accumulatedProfit) parts.push(`CNY${row.accumulatedProfit.toFixed(2)}`);
@@ -1264,6 +1270,7 @@ export default function MemberActivityDataContent() {
                   <MobileCardRow label={t("会员名称", "Member name")} value={row.member.memberDisplayName ?? row.member.memberCode} />
                   <MobileCardRow label={t("抽奖次数", "Lottery draws")} value={String(row.lotterySpinBalance)} />
                   <MobileCardRow label={t("消费次数", "Consumption count")} value={row.orderCount} />
+                  <MobileCardRow label={t("累积次数", "Accumulated count")} value={row.permanentOrderCount} />
                   <MobileCardRow label={t("剩余积分", "Points")} value={<span className={`font-bold ${row.remainingPoints < 0 ? "text-destructive" : "text-primary"}`}>{row.remainingPoints}</span>} highlight />
                   <MobileCardRow label={t("累计利润", "Total profit")} value={(() => {
                     const parts: string[] = [];
@@ -1317,6 +1324,7 @@ export default function MemberActivityDataContent() {
                   {isVisible('memberName') && <SortableTableHead sortKey="member.memberDisplayName" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2 max-w-[140px]">{t("会员名称", "Member name")}</SortableTableHead>}
                   {isVisible('lotterySpinBalance') && <SortableTableHead sortKey="lotterySpinBalance" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("抽奖次数", "Lottery draws")}</SortableTableHead>}
                   {isVisible('orderCount') && <SortableTableHead sortKey="orderCount" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("消费次数", "Consumption count")}</SortableTableHead>}
+                  {isVisible('permanentOrderCount') && <SortableTableHead sortKey="permanentOrderCount" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("累积次数", "Accumulated count")}</SortableTableHead>}
                   {isVisible('accumulatedProfit') && <SortableTableHead sortKey="accumulatedProfit" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("累计利润", "Total profit")}</SortableTableHead>}
                   {isVisible('permanentAccumulatedNgn') && <SortableTableHead sortKey="exchangeNgn" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("兑换奈拉", "Redeem NGN")}</SortableTableHead>}
                   {isVisible('permanentAccumulatedGhs') && <SortableTableHead sortKey="exchangeGhs" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("兑换赛地", "Redeem GHS")}</SortableTableHead>}
@@ -1358,6 +1366,9 @@ export default function MemberActivityDataContent() {
                       </TableCell>}
                       {isVisible('orderCount') && <TableCell className="text-center font-medium text-blue-600 dark:text-blue-400">
                         {row.orderCount > 0 ? row.orderCount : "0"}
+                      </TableCell>}
+                      {isVisible('permanentOrderCount') && <TableCell className="text-center font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        {row.permanentOrderCount > 0 ? row.permanentOrderCount : "0"}
                       </TableCell>}
                       {isVisible('accumulatedProfit') && <TableCell className="text-center font-medium text-amber-600 dark:text-amber-400">
                         {(() => {

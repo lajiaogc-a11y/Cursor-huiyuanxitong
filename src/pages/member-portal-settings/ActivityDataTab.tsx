@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { LucideIcon } from "lucide-react";
-import { RefreshCw, CalendarClock, Dices, Star, Settings2 } from "lucide-react";
+import { RefreshCw, CalendarClock, Dices, Star, Settings2, Ticket } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -16,7 +16,7 @@ import {
   MobileCardHeader,
   MobileCardRow,
 } from "@/components/ui/mobile-data-card";
-import { adminListPortalCheckIns, type PortalCheckInLogRow } from "@/services/members/memberPortalSettingsService";
+import { adminListPortalCheckIns, adminListSpinCreditsLog, type PortalCheckInLogRow, type SpinCreditsLogRow } from "@/services/members/memberPortalSettingsService";
 import { adminGetLotteryLogs, type LotteryLog } from "@/services/lottery/lotteryService";
 import { cn } from "@/lib/utils";
 import {
@@ -28,6 +28,17 @@ import { AdminSpinHistoryTab } from "../member-portal/AdminSpinHistoryTab";
 import { formatBeijingTime } from "@/lib/beijingTime";
 const LOTTERY_ADMIN_LOGS_PAGE_SIZE = 50;
 const CHECKIN_ADMIN_PAGE_SIZE = 50;
+const SPIN_CREDITS_ADMIN_PAGE_SIZE = 50;
+
+function spinCreditSourceLabel(source: string | null, t: (zh: string, en: string) => string): string {
+  if (!source) return "—";
+  if (source === "share") return t("分享奖励", "Share reward");
+  if (source.startsWith("order_completed:")) return t("完成订单", "Order completed");
+  if (source === "referral") return t("邀请奖励", "Referral reward");
+  if (source === "invite_welcome") return t("注册欢迎", "Welcome bonus");
+  if (source === "check_in") return t("签到奖励", "Check-in reward");
+  return source;
+}
 
 function lotteryLogMemberLabel(log: LotteryLog): string {
   const n = log.nickname?.trim();
@@ -114,7 +125,7 @@ export function ActivityDataTab({ tenantId }: ActivityDataTabProps) {
   const { t } = useLanguage();
   const isMobile = useIsMobile();
 
-  const [activityDataSub, setActivityDataSub] = useState<"lottery" | "checkin">("lottery");
+  const [activityDataSub, setActivityDataSub] = useState<"lottery" | "checkin" | "spincredits">("lottery");
   const [lotteryLogs, setLotteryLogs] = useState<LotteryLog[]>([]);
   const [lotteryLogsTotal, setLotteryLogsTotal] = useState(0);
   const [lotteryLogsPage, setLotteryLogsPage] = useState(1);
@@ -123,6 +134,10 @@ export function ActivityDataTab({ tenantId }: ActivityDataTabProps) {
   const [checkInTotal, setCheckInTotal] = useState(0);
   const [checkInPage, setCheckInPage] = useState(1);
   const [checkInLoading, setCheckInLoading] = useState(false);
+  const [spinCreditsRows, setSpinCreditsRows] = useState<SpinCreditsLogRow[]>([]);
+  const [spinCreditsTotal, setSpinCreditsTotal] = useState(0);
+  const [spinCreditsPage, setSpinCreditsPage] = useState(1);
+  const [spinCreditsLoading, setSpinCreditsLoading] = useState(false);
 
   const loadLotteryLogsPage = useCallback(async (page: number) => {
     if (!tenantId) {
@@ -179,14 +194,44 @@ export function ActivityDataTab({ tenantId }: ActivityDataTabProps) {
     void loadCheckInsPage(1);
   }, [activityDataSub, loadCheckInsPage]);
 
+  const loadSpinCreditsPage = useCallback(async (page: number) => {
+    if (!tenantId) {
+      setSpinCreditsRows([]);
+      setSpinCreditsTotal(0);
+      return;
+    }
+    setSpinCreditsLoading(true);
+    try {
+      const offset = (page - 1) * SPIN_CREDITS_ADMIN_PAGE_SIZE;
+      const { rows, total } = await adminListSpinCreditsLog({
+        limit: SPIN_CREDITS_ADMIN_PAGE_SIZE,
+        offset,
+        tenantId,
+      });
+      setSpinCreditsRows(rows);
+      setSpinCreditsTotal(total);
+      setSpinCreditsPage(page);
+    } catch {
+      setSpinCreditsRows([]);
+      setSpinCreditsTotal(0);
+    } finally {
+      setSpinCreditsLoading(false);
+    }
+  }, [tenantId]);
+
+  useEffect(() => {
+    if (activityDataSub !== "spincredits") return;
+    void loadSpinCreditsPage(1);
+  }, [activityDataSub, loadSpinCreditsPage]);
+
   // ─── JSX ───
 
   return (
     <div className="space-y-6">
       <p className="text-xs text-muted-foreground -mb-1 border-l-2 border-primary/30 pl-2 leading-relaxed">
         {t(
-          "统计口径：本页为抽奖记录、签到流水。超过保留期的明细清理（抽奖/签到/抽奖类积分流水）已统一在「系统设置 → 数据管理 → 数据删除」中配置与执行。邀请榜假用户与抽奖假昵称池在「邀请与模拟」。",
-          "Lottery logs and check-ins on this page. Retention cleanup for old lottery/check-in/lottery-ledger rows is under System Settings → Data Management → Delete data. Invite fakes and ticker nicknames: Invite & simulation.",
+          "统计口径：本页为抽奖记录、签到流水、抽奖次数记录。超过保留期的明细清理（抽奖/签到/抽奖类积分流水/抽奖次数）已统一在「系统设置 → 数据管理 → 数据删除」中配置与执行。邀请榜假用户与抽奖假昵称池在「邀请与模拟」。",
+          "Lottery logs, check-ins and spin credits on this page. Retention cleanup for old lottery/check-in/lottery-ledger/spin-credit rows is under System Settings → Data Management → Delete data. Invite fakes and ticker nicknames: Invite & simulation.",
         )}
       </p>
 
@@ -231,6 +276,16 @@ export function ActivityDataTab({ tenantId }: ActivityDataTabProps) {
           >
             <Star className="h-3.5 w-3.5 shrink-0" />
             {t("签到数据", "Check-ins")}
+          </Button>
+          <Button
+            type="button"
+            variant={activityDataSub === "spincredits" ? "secondary" : "ghost"}
+            size="sm"
+            className="shrink-0 justify-start gap-1.5 lg:w-full"
+            onClick={() => setActivityDataSub("spincredits")}
+          >
+            <Ticket className="h-3.5 w-3.5 shrink-0" />
+            {t("抽奖次数记录", "Spin credits")}
           </Button>
         </nav>
 
@@ -438,6 +493,104 @@ export function ActivityDataTab({ tenantId }: ActivityDataTabProps) {
                   title={t("暂无签到记录", "No check-ins")}
                   hint={t("会员在任务中心签到后，流水会显示在此。", "Check-ins from the task center appear here.")}
                   icon={CalendarClock}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activityDataSub === "spincredits" && (
+        <div className="space-y-6">
+          <p className="text-xs text-muted-foreground -mb-2">
+            {t(
+              "记录会员通过分享、完成订单、邀请、签到等方式获得的抽奖次数。来源列标识获取途径，次数列为单次获得数量。",
+              "Records spin credits earned via sharing, order completion, invites, check-ins, etc. Source column identifies how credits were earned.",
+            )}
+          </p>
+          <Card>
+            <CardContent className="pt-5 space-y-4">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <SectionTitle>{t("抽奖次数记录", "Spin credit log")}</SectionTitle>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void loadSpinCreditsPage(spinCreditsPage)}
+                  disabled={spinCreditsLoading}
+                  className="gap-1.5"
+                >
+                  <RefreshCw className={cn("h-3.5 w-3.5", spinCreditsLoading && "animate-spin")} />
+                  {t("刷新本页", "Refresh page")}
+                </Button>
+              </div>
+              {spinCreditsRows.length > 0 ? (
+                <DataTableReloadingChrome
+                  loading={spinCreditsLoading}
+                  busyLabel={t("更新数据中…", "Updating data…")}
+                >
+                  {isMobile ? (
+                    <MobileCardList>
+                      {spinCreditsRows.map((row) => (
+                        <MobileCard key={row.id} compact>
+                          <MobileCardHeader>
+                            <span className="font-medium text-sm truncate">{row.member_label || row.member_id}</span>
+                            <Badge variant="outline" className="text-[10px] shrink-0">
+                              {spinCreditSourceLabel(row.source, t)}
+                            </Badge>
+                          </MobileCardHeader>
+                          <MobileCardRow label={t("电话号码", "Phone")} value={row.phone_number || "—"} mono />
+                          <MobileCardRow label={t("次数", "Credits")} value={row.amount} mono highlight />
+                          <MobileCardRow label={t("时间", "Time")} value={formatBeijingTime(row.created_at)} />
+                        </MobileCard>
+                      ))}
+                    </MobileCardList>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>{t("时间", "Time")}</TableHead>
+                            <TableHead>{t("电话号码", "Phone")}</TableHead>
+                            <TableHead>{t("会员", "Member")}</TableHead>
+                            <TableHead>{t("来源", "Source")}</TableHead>
+                            <TableHead>{t("次数", "Credits")}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {spinCreditsRows.map((row) => (
+                            <TableRow key={row.id}>
+                              <TableCell className="text-xs whitespace-nowrap">{formatBeijingTime(row.created_at)}</TableCell>
+                              <TableCell className="text-xs font-mono whitespace-nowrap">{row.phone_number || "—"}</TableCell>
+                              <TableCell className="text-xs">{row.member_label || row.member_id}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-[10px]">
+                                  {spinCreditSourceLabel(row.source, t)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-xs font-mono">{row.amount}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                  <PaginationBar
+                    page={spinCreditsPage}
+                    totalPages={Math.max(1, Math.ceil(spinCreditsTotal / SPIN_CREDITS_ADMIN_PAGE_SIZE))}
+                    total={spinCreditsTotal}
+                    pageSize={SPIN_CREDITS_ADMIN_PAGE_SIZE}
+                    onPageChange={(p) => void loadSpinCreditsPage(p)}
+                    t={t}
+                  />
+                </DataTableReloadingChrome>
+              ) : (
+                <AdminDataEmptyState
+                  loading={spinCreditsLoading}
+                  loadingLabel={t("加载中…", "Loading…")}
+                  title={t("暂无抽奖次数记录", "No spin credit records")}
+                  hint={t("会员通过分享、完成订单、邀请等获得抽奖次数后，记录会显示在此。", "Records appear after members earn spin credits via sharing, orders, invites, etc.")}
+                  icon={Ticket}
                 />
               )}
             </CardContent>

@@ -16,6 +16,7 @@ export interface ActivityDataRetentionSettings {
     lotteryLogs: number;
     checkIns: number;
     lotteryPointsLedger: number;
+    spinCredits: number;
   } | null;
 }
 
@@ -45,6 +46,7 @@ function parseStored(raw: unknown): ActivityDataRetentionSettings {
             checkIns: Number((o.lastSummary as Record<string, unknown>).checkIns) || 0,
             lotteryPointsLedger:
               Number((o.lastSummary as Record<string, unknown>).lotteryPointsLedger) || 0,
+            spinCredits: Number((o.lastSummary as Record<string, unknown>).spinCredits) || 0,
           }
         : null,
   };
@@ -75,7 +77,7 @@ export async function saveActivityDataRetentionSettingsRepository(
 async function persistAfterRun(
   tenantId: string,
   base: ActivityDataRetentionSettings,
-  summary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number },
+  summary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number; spinCredits: number },
 ): Promise<void> {
   const iso = new Date().toISOString();
   await upsertSharedDataRepository(tenantId, ACTIVITY_DATA_RETENTION_STORE_KEY, {
@@ -99,7 +101,7 @@ function cutoffDateStr(retentionDays: number): string {
 export async function purgeActivityDataByTenantRepository(
   tenantId: string,
   retentionDays: number,
-): Promise<{ lotteryLogs: number; checkIns: number; lotteryPointsLedger: number }> {
+): Promise<{ lotteryLogs: number; checkIns: number; lotteryPointsLedger: number; spinCredits: number }> {
   const days = clampRetentionDays(retentionDays);
   const cutoff = cutoffDateStr(days);
 
@@ -130,23 +132,32 @@ export async function purgeActivityDataByTenantRepository(
     [tenantId, cutoff],
   );
 
+  // 抽奖次数记录（spin_credits: share/order/referral/checkin 等来源的抽奖次数发放记录）
+  const r4 = await execute(
+    `DELETE sc FROM spin_credits sc
+     INNER JOIN members m ON m.id = sc.member_id
+     WHERE m.tenant_id <=> ? AND sc.created_at < ?`,
+    [tenantId, cutoff],
+  );
+
   return {
     lotteryPointsLedger: r1.affectedRows ?? 0,
     lotteryLogs: r2.affectedRows ?? 0,
     checkIns: r3.affectedRows ?? 0,
+    spinCredits: r4.affectedRows ?? 0,
   };
 }
 
 export async function runActivityDataRetentionForTenantRepository(tenantId: string): Promise<{
   ran: boolean;
-  summary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number };
+  summary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number; spinCredits: number };
   settings: ActivityDataRetentionSettings;
 }> {
   const settings = await getActivityDataRetentionSettingsRepository(tenantId);
   if (!settings.enabled || settings.retentionDays < 1) {
     return {
       ran: false,
-      summary: { lotteryLogs: 0, checkIns: 0, lotteryPointsLedger: 0 },
+      summary: { lotteryLogs: 0, checkIns: 0, lotteryPointsLedger: 0, spinCredits: 0 },
       settings,
     };
   }
@@ -158,13 +169,13 @@ export async function runActivityDataRetentionForTenantRepository(tenantId: stri
 
 /** 手动立即清理：按当前保留天数执行（与是否启用自动无关），并更新 lastRunAt */
 export async function runManualActivityDataPurgeRepository(tenantId: string): Promise<{
-  summary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number };
+  summary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number; spinCredits: number };
   settings: ActivityDataRetentionSettings;
 }> {
   const settings = await getActivityDataRetentionSettingsRepository(tenantId);
   if (settings.retentionDays < 1) {
     return {
-      summary: { lotteryLogs: 0, checkIns: 0, lotteryPointsLedger: 0 },
+      summary: { lotteryLogs: 0, checkIns: 0, lotteryPointsLedger: 0, spinCredits: 0 },
       settings,
     };
   }
@@ -172,6 +183,45 @@ export async function runManualActivityDataPurgeRepository(tenantId: string): Pr
   await persistAfterRun(tenantId, settings, summary);
   const updated = await getActivityDataRetentionSettingsRepository(tenantId);
   return { summary, settings: updated };
+}
+
+/**
+ * 删除租户全部活动数据（无日期截止限制），用于一键清空场景。
+ */
+export async function purgeAllActivityDataByTenantRepository(
+  tenantId: string,
+): Promise<{ lotteryLogs: number; checkIns: number; lotteryPointsLedger: number; spinCredits: number }> {
+  const r1 = await execute(
+    `DELETE pl FROM points_ledger pl
+     INNER JOIN members m ON m.id = pl.member_id
+     WHERE m.tenant_id <=> ?
+       AND (pl.type = 'lottery' OR pl.transaction_type = 'lottery')`,
+    [tenantId],
+  );
+  const r2 = await execute(
+    `DELETE l FROM lottery_logs l
+     LEFT JOIN members m ON m.id = l.member_id
+     WHERE l.tenant_id <=> ? OR (l.tenant_id IS NULL AND m.tenant_id <=> ?)`,
+    [tenantId, tenantId],
+  );
+  const r3 = await execute(
+    `DELETE c FROM check_ins c
+     INNER JOIN members m ON m.id = c.member_id
+     WHERE m.tenant_id <=> ?`,
+    [tenantId],
+  );
+  const r4 = await execute(
+    `DELETE sc FROM spin_credits sc
+     INNER JOIN members m ON m.id = sc.member_id
+     WHERE m.tenant_id <=> ?`,
+    [tenantId],
+  );
+  return {
+    lotteryPointsLedger: r1.affectedRows ?? 0,
+    lotteryLogs: r2.affectedRows ?? 0,
+    checkIns: r3.affectedRows ?? 0,
+    spinCredits: r4.affectedRows ?? 0,
+  };
 }
 
 export async function listTenantIdsWithActivityRetentionEnabledRepository(): Promise<string[]> {

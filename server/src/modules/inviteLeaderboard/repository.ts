@@ -192,6 +192,8 @@ export type InviteLeaderboardGrowthScheduleDto = {
   growth_delta_min: number;
   growth_delta_max: number;
   auto_growth_enabled: boolean;
+  /** 每个周期内每个假用户最多执行几次增长（默认 1） */
+  growth_runs_per_user: number;
 };
 
 export function randomIntegerInclusive(lo: number, hi: number): number {
@@ -235,6 +237,7 @@ function mapGrowthScheduleRow(row: Record<string, unknown>): InviteLeaderboardGr
     growth_delta_min: Math.max(0, Number(row.growth_delta_min ?? 1)),
     growth_delta_max: Math.max(0, Number(row.growth_delta_max ?? 3)),
     auto_growth_enabled: Number(row.auto_growth_enabled ?? 1) !== 0,
+    growth_runs_per_user: Math.max(1, Math.min(10, Math.floor(Number(row.growth_runs_per_user ?? 1)))),
   };
 }
 
@@ -255,6 +258,7 @@ export function defaultGrowthScheduleDto(tenantId: string): InviteLeaderboardGro
     growth_delta_min: INVITE_LEADERBOARD_DEFAULT_GROWTH.growth_delta_min,
     growth_delta_max: INVITE_LEADERBOARD_DEFAULT_GROWTH.growth_delta_max,
     auto_growth_enabled: INVITE_LEADERBOARD_DEFAULT_GROWTH.auto_growth_enabled,
+    growth_runs_per_user: 1,
   };
 }
 
@@ -515,7 +519,8 @@ export async function getTenantGrowthScheduleFull(
             growth_segment_ticks_planned, growth_segment_ticks_done,
             growth_ticks_min, growth_ticks_max,
             growth_interval_hours_min, growth_interval_hours_max,
-            growth_delta_min, growth_delta_max, auto_growth_enabled
+            growth_delta_min, growth_delta_max, auto_growth_enabled,
+            growth_runs_per_user
      FROM invite_leaderboard_tenant_growth_schedule WHERE tenant_id = ? LIMIT 1`,
     [tenantId],
   );
@@ -540,7 +545,6 @@ function clampGrowthIntervals(
   let diMin = Math.max(0, Math.min(100, Math.floor(dMin)));
   let diMax = Math.max(0, Math.min(100, Math.floor(dMax)));
   if (diMin > diMax) [diMin, diMax] = [diMax, diMin];
-  if (diMax >= 1) diMin = Math.max(1, diMin);
   return { hMin: hiMin, hMax: hiMax, dMin: diMin, dMax: diMax };
 }
 
@@ -561,6 +565,7 @@ export async function upsertInviteLeaderboardGrowthSettings(
     growth_ticks_use_auto: boolean;
     growth_ticks_min: number | null;
     growth_ticks_max: number | null;
+    growth_runs_per_user: number;
   }>,
 ): Promise<InviteLeaderboardGrowthScheduleDto> {
   const cur = (await getTenantGrowthScheduleFull(tenantId)) ?? defaultGrowthScheduleDto(tenantId);
@@ -602,6 +607,8 @@ export async function upsertInviteLeaderboardGrowthSettings(
     ticksMax = null;
   }
 
+  const runsPerUser = Math.max(1, Math.min(10, Math.floor(Number(patch.growth_runs_per_user ?? cur.growth_runs_per_user ?? 1))));
+
   const nowMs = Date.now();
   const { startMs, endMs } = utcSegmentBounds(nowMs, segH);
   const ticksPlanned = resolveTicksPlannedForSegment({
@@ -625,8 +632,8 @@ export async function upsertInviteLeaderboardGrowthSettings(
       growth_segment_hours, growth_alloc_mode, growth_segment_started_at,
       growth_segment_ticks_planned, growth_segment_ticks_done,
       growth_ticks_min, growth_ticks_max,
-      growth_interval_hours_min, growth_interval_hours_max, growth_delta_min, growth_delta_max, auto_growth_enabled, updated_at)
-     VALUES (?, NULL, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, NOW(3))
+      growth_interval_hours_min, growth_interval_hours_max, growth_delta_min, growth_delta_max, auto_growth_enabled, growth_runs_per_user, updated_at)
+     VALUES (?, NULL, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))
      ON DUPLICATE KEY UPDATE
        next_fake_growth_at = VALUES(next_fake_growth_at),
        growth_segment_hours = VALUES(growth_segment_hours),
@@ -641,6 +648,7 @@ export async function upsertInviteLeaderboardGrowthSettings(
        growth_delta_min = VALUES(growth_delta_min),
        growth_delta_max = VALUES(growth_delta_max),
        auto_growth_enabled = VALUES(auto_growth_enabled),
+       growth_runs_per_user = VALUES(growth_runs_per_user),
        updated_at = NOW(3)`,
     [
       tenantId,
@@ -656,6 +664,7 @@ export async function upsertInviteLeaderboardGrowthSettings(
       dMin,
       dMax,
       auto ? 1 : 0,
+      runsPerUser,
     ],
   );
   const after = await getTenantGrowthScheduleFull(tenantId);
@@ -674,6 +683,7 @@ export async function upsertInviteLeaderboardGrowthSettings(
       growth_delta_min: dMin,
       growth_delta_max: dMax,
       auto_growth_enabled: auto,
+      growth_runs_per_user: runsPerUser,
       next_fake_growth_at: nextAt,
     }
   );

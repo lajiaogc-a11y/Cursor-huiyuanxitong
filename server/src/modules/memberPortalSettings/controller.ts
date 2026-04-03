@@ -26,6 +26,7 @@ import {
   listLotteryPointsRowsForTenant,
   sumLotteryPointsPositiveForTenant,
 } from './lotteryPointsAdmin.js';
+import { countSpinCreditsForTenant, listSpinCreditsForTenant } from './spinCreditsAdmin.js';
 import { resolveTenantIdForActivityDataList } from './activityDataTenant.js';
 
 function errMessage(e: unknown, fallback: string): string {
@@ -447,6 +448,36 @@ export async function listLotteryPointsLedgerController(req: AuthenticatedReques
       total,
       stats: { total_lottery_points_earned: totalLotteryPointsEarned },
     });
+  } catch (e: unknown) {
+    res.status(500).json({ success: false, error: errMessage(e, 'Failed') });
+  }
+}
+
+/** 员工：本租户抽奖次数流水（活动数据） */
+export async function listSpinCreditsLogController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ success: false, error: 'UNAUTHORIZED' });
+    return;
+  }
+  if (req.user?.type === 'member') {
+    res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '员工接口' } });
+    return;
+  }
+  const resolved = resolveTenantIdForActivityDataList(req);
+  if (!resolved.ok) {
+    res.status(resolved.status).json(resolved.body);
+    return;
+  }
+  const { tenantId } = resolved;
+  const limit = Math.min(2000, Math.max(1, Number(req.query.limit) || 50));
+  const offset = Math.max(0, Number(req.query.offset) || 0);
+  try {
+    const [rows, total] = await Promise.all([
+      listSpinCreditsForTenant(tenantId, limit, offset),
+      countSpinCreditsForTenant(tenantId),
+    ]);
+    res.json({ success: true, rows, total });
   } catch (e: unknown) {
     res.status(500).json({ success: false, error: errMessage(e, 'Failed') });
   }

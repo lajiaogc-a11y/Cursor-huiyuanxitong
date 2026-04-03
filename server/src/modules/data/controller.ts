@@ -42,6 +42,7 @@ import {
   getActivityDataRetentionSettingsRepository,
   saveActivityDataRetentionSettingsRepository,
   runManualActivityDataPurgeRepository,
+  purgeAllActivityDataByTenantRepository,
 } from './activityDataRetentionRepository.js';
 import { repairKnowledgeFields } from './knowledgeRepair.js';
 import { evaluateCountryLogin, normalizeIpAccessControl } from '../../lib/ipAccessControlConfig.js';
@@ -1357,5 +1358,25 @@ export async function postActivityDataRetentionRunController(req: AuthenticatedR
   } catch (e) {
     console.error('[Data] postActivityDataRetentionRun error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to run cleanup' } });
+  }
+}
+
+export async function postActivityDataRetentionPurgeAllController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    if (!canManageActivityDataRetentionSettings(req)) {
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Permission denied' } });
+      return;
+    }
+    const queryTenantId = req.query.tenant_id as string | undefined;
+    const tenantId = resolveTenantId(req, queryTenantId);
+    if (!tenantId) {
+      res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'tenant required' } });
+      return;
+    }
+    const summary = await purgeAllActivityDataByTenantRepository(tenantId);
+    res.json({ success: true, summary });
+  } catch (e) {
+    console.error('[Data] postActivityDataRetentionPurgeAll error:', e);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to purge all activity data' } });
   }
 }

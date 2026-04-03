@@ -36,7 +36,7 @@ export default function MemberInvite() {
   const { member, refreshMember } = useMemberAuth();
   const { settings: portalSettings } = useMemberPortalSettings(member?.id);
   const { t } = useLanguage();
-  const { points, frozenPoints, refresh: refetchInvitePoints } = useMemberPoints(member?.id);
+  const { refresh: refetchInvitePoints } = useMemberPoints(member?.id);
   const [copied, setCopied] = useState(false);
   const [inviteToken, setInviteToken] = useState("");
   const [tokenLoading, setTokenLoading] = useState(true);
@@ -311,10 +311,8 @@ export default function MemberInvite() {
       </div>
 
       <MemberInviteHero
-        availablePoints={points}
-        frozenPoints={frozenPoints}
         invitedSuccessCount={member.invite_success_lifetime_count ?? 0}
-        lifetimeRewardPoints={member.lifetime_reward_points_earned ?? 0}
+        lifetimeRewardSpins={(member.invite_success_lifetime_count ?? 0) * inviteRewardSpins}
         statsLoading={!inviteStatsHydrated}
         t={t}
       />

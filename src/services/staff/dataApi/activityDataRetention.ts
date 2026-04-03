@@ -8,6 +8,7 @@ export interface ActivityDataRetentionSettings {
     lotteryLogs: number;
     checkIns: number;
     lotteryPointsLedger: number;
+    spinCredits: number;
   } | null;
 }
 
@@ -30,9 +31,16 @@ export async function putActivityDataRetentionApi(
 }
 
 export async function postActivityDataRetentionRunApi(tenantId?: string | null): Promise<{
-  summary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number };
+  summary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number; spinCredits: number };
   settings: ActivityDataRetentionSettings;
 }> {
   const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";
   return apiClient.post(`/api/data/activity-data-retention/run${q}`, {});
+}
+
+export async function postActivityDataRetentionPurgeAllApi(tenantId?: string | null): Promise<{
+  summary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number; spinCredits: number };
+}> {
+  const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";
+  return apiClient.post(`/api/data/activity-data-retention/purge-all${q}`, {});
 }

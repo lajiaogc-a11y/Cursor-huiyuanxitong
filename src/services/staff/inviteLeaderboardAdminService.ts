@@ -17,6 +17,8 @@ export type InviteLeaderboardGrowthSettings = {
   growth_delta_max: number;
   last_fake_growth_at: string | null;
   next_fake_growth_at: string | null;
+  /** 每周期每用户最多执行次数（默认 1） */
+  growth_runs_per_user?: number;
 };
 
 export type InviteLeaderboardGrowthSettingsPatch = Partial<
@@ -29,6 +31,7 @@ export type InviteLeaderboardGrowthSettingsPatch = Partial<
     | "growth_delta_max"
     | "growth_ticks_min"
     | "growth_ticks_max"
+    | "growth_runs_per_user"
   >
 > & { growth_ticks_use_auto?: boolean };
 

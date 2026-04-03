@@ -89,7 +89,6 @@ function spinWheelPrizeMainText(t: (z: string, e: string) => string, prize: Lott
   return prize.name?.trim() || t("谢谢参与", "Thanks for playing");
 }
 
-/** 九宫格奖品格描边档位（对齐设计稿 premium-ui-boost MemberSpin） */
 function prizeDisplayTier(p: LotteryPrize): "legendary" | "epic" | "rare" | "common" | "miss" {
   if (p.type === "none") return "miss";
   const raw = Number(p.probability);
@@ -99,6 +98,24 @@ function prizeDisplayTier(p: LotteryPrize): "legendary" | "epic" | "rare" | "com
   if (raw < 1) return "epic";
   if (raw < 15) return "rare";
   return "common";
+}
+
+function prizeTierIconColor(tier: ReturnType<typeof prizeDisplayTier>): string {
+  switch (tier) {
+    case "legendary": return "text-pu-gold-soft";
+    case "epic": return "text-pu-rose-soft";
+    case "rare": return "text-pu-emerald-soft";
+    default: return "text-[hsl(var(--pu-m-text-dim)/0.5)]";
+  }
+}
+
+function prizeTierBadgeBg(tier: ReturnType<typeof prizeDisplayTier>): string {
+  switch (tier) {
+    case "legendary": return "bg-pu-gold/20 ring-pu-gold/30";
+    case "epic": return "bg-pu-rose/15 ring-pu-rose/25";
+    case "rare": return "bg-pu-emerald/15 ring-pu-emerald/25";
+    default: return "bg-pu-gold/10 ring-pu-gold/15";
+  }
 }
 
 /**
@@ -111,7 +128,7 @@ function formatPrizeListDisplayProbability(p: LotteryPrize): string | null {
       ? Number(p.display_probability)
       : Number(p.probability);
   if (!Number.isFinite(pick)) return null;
-  return pick % 1 === 0 ? `${pick}%` : `${pick.toFixed(1).replace(/\.0$/, "")}%`;
+  return `${pick.toFixed(4)}%`;
 }
 
 /**
@@ -673,12 +690,12 @@ export default function MemberSpin() {
                     key={cellIdx}
                     className={cn(
                       SPIN_PRIZE_CELL_FRAME,
-                      "items-center justify-center transition-transform duration-150 motion-reduce:transition-none motion-safe:hover:scale-[1.02]",
+                      "items-center justify-center",
                     )}
-                    style={{ borderColor: "hsl(var(--pu-gold) / 0.15)" }}
+                    style={{ borderColor: "hsl(var(--pu-gold) / 0.10)" }}
                   >
-                    <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.06] to-pu-rose/[0.04]" />
-                    <span className="relative z-10 text-lg text-[hsl(var(--pu-m-text-dim)/0.25)]">✦</span>
+                    <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.03] to-transparent" />
+                    <Star className="relative z-10 h-4 w-4 text-[hsl(var(--pu-m-text-dim)/0.18)]" aria-hidden />
                   </div>
                 );
               }
@@ -686,22 +703,20 @@ export default function MemberSpin() {
               const isActive = activeIndex === prizeIdx;
               const isWinner = showResult && result?.id === prize.id && !spinning;
               const wheelMain = spinWheelPrizeMainText(t, prize);
+              const tier = prizeDisplayTier(prize);
 
-              /** 与框架根色一致：高亮统一金色光晕，不再按奖品类型分绿/金边框 */
               const highlightClass = isActive
                 ? "ring-2 ring-pu-gold scale-[1.04] shadow-pu-glow-gold"
                 : isWinner
                   ? "ring-2 ring-pu-gold scale-105 shadow-pu-glow-gold"
-                  : !isActive && !isWinner
-                    ? "motion-safe:hover:scale-[1.02]"
-                    : "";
+                  : "motion-safe:hover:scale-[1.02]";
 
               return (
                 <div
                   key={cellIdx}
                   className={cn(
                     SPIN_PRIZE_CELL_FRAME,
-                    "flex flex-col items-center justify-center gap-0.5 p-2 transition-all duration-150 motion-reduce:transition-none",
+                    "flex flex-col items-center justify-center gap-1 p-2 transition-all duration-150 motion-reduce:transition-none",
                     highlightClass,
                   )}
                   style={{ borderColor: "hsl(var(--pu-gold) / 0.15)" }}
@@ -713,14 +728,22 @@ export default function MemberSpin() {
                   {isWinner && (
                     <div className="pointer-events-none absolute inset-0 animate-pulse rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.18] to-pu-rose/[0.06] motion-reduce:animate-none" />
                   )}
-                  <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-pu-gold/15 ring-1 ring-inset ring-pu-gold/20">
-                    <Gift className="h-4 w-4 text-pu-gold-soft" strokeWidth={1.75} aria-hidden />
+                  <div className={cn(
+                    "relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset",
+                    prizeTierBadgeBg(tier),
+                  )}>
+                    {prize.type === "points" ? (
+                      <Star className={cn("h-3.5 w-3.5", prizeTierIconColor(tier))} strokeWidth={2} aria-hidden />
+                    ) : prize.type === "none" ? (
+                      <Sparkles className={cn("h-3.5 w-3.5", prizeTierIconColor(tier))} strokeWidth={2} aria-hidden />
+                    ) : (
+                      <Gift className={cn("h-3.5 w-3.5", prizeTierIconColor(tier))} strokeWidth={2} aria-hidden />
+                    )}
                   </div>
                   <span
                     className={cn(
-                      "relative z-10 line-clamp-3 w-full max-w-full break-words px-0.5 text-center font-bold leading-tight tabular-nums",
-                      prize.type === "points" ? "text-[12px]" : "text-[11px]",
-                      isActive ? "text-pu-gold-soft" : "text-[hsl(var(--pu-m-text)/0.92)]",
+                      "relative z-10 line-clamp-2 w-full max-w-full px-0.5 text-center text-[11px] font-bold leading-tight tabular-nums",
+                      isActive ? "text-pu-gold-soft" : "text-[hsl(var(--pu-m-text)/0.88)]",
                     )}
                   >
                     {wheelMain}

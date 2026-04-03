@@ -41,6 +41,7 @@ import {
   getPendingAuditCountController,
   patchActivityGiftController,
   deleteActivityGiftController,
+  postActivityDataRetentionPurgeAllController,
 } from './controller.js';
 
 import {
@@ -205,6 +206,7 @@ router.get('/activity-data', getActivityDataController);
 router.get('/activity-data-retention', getActivityDataRetentionController);
 router.put('/activity-data-retention', putActivityDataRetentionController);
 router.post('/activity-data-retention/run', postActivityDataRetentionRunController);
+router.post('/activity-data-retention/purge-all', postActivityDataRetentionPurgeAllController);
 router.patch('/activity-gifts/:id', patchActivityGiftController);
 router.delete('/activity-gifts/:id', deleteActivityGiftController);
 

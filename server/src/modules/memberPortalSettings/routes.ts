@@ -17,6 +17,7 @@ import {
   listSpinWheelPrizesByMemberController,
   listCheckInsController,
   listLotteryPointsLedgerController,
+  listSpinCreditsLogController,
   saveDraftController,
   getDraftController,
   publishDraftController,
@@ -65,6 +66,9 @@ router.get('/check-ins', authMiddleware, listCheckInsController);
 
 /** 抽奖获得积分流水（员工 JWT，按租户，支持 q 搜索） */
 router.get('/lottery-points-ledger', authMiddleware, listLotteryPointsLedgerController);
+
+/** 抽奖次数流水（员工 JWT，按租户） */
+router.get('/spin-credits-log', authMiddleware, listSpinCreditsLogController);
 
 /** 邀请排行榜 — 系统假用户（活动数据 → 邀请设置） */
 router.get('/invite-leaderboard/fake-users', authMiddleware, listInviteLeaderboardFakeUsersController);

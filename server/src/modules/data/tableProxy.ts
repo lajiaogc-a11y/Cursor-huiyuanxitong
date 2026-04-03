@@ -28,6 +28,8 @@ import { draw, getQuota } from '../lottery/service.js';
 import { grantOrderCompletedSpinCredits } from '../lottery/repository.js';
 import { incrementLotterySpinBalanceConn } from '../lottery/spinBalanceAccount.js';
 import { notifyMemberOrderCompletedSpinReward } from '../memberInboxNotifications/repository.js';
+import { incrementMemberActivityForNewOrder } from '../members/memberActivityTotals.js';
+import { reverseActivityDataForOrder } from '../admin/orderReversal.js';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { runWebhookProcessorRpc } from '../webhooks/rpcBridge.js';
 import { runTenantMigrationRpc } from './tenantMigrationMysql.js';
@@ -320,6 +322,11 @@ export async function tableInsertController(req: AuthenticatedRequest, res: Resp
         if (st === 'completed' && ins.id) {
           const memberId = ins.member_id != null ? String(ins.member_id).trim() : '';
           const tenantId = ins.tenant_id != null ? String(ins.tenant_id).trim() : '';
+          try {
+            await incrementMemberActivityForNewOrder(ins);
+          } catch (actErr) {
+            console.error('[TableProxy] INSERT orders incrementMemberActivity:', actErr);
+          }
           if (memberId && tenantId) {
             try {
               const { granted, amount } = await grantOrderCompletedSpinCredits({
@@ -412,14 +419,9 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
       whereExec = `${whereExec} AND \`status\` = 'pending'`;
     }
 
-    let preCompletedOrders: { id: string; status: unknown; member_id: unknown; tenant_id: unknown }[] | null = null;
-    if (
-      table === 'orders' &&
-      mappedData.status !== undefined &&
-      String(mappedData.status ?? '').toLowerCase().trim() === 'completed' &&
-      whereExec
-    ) {
-      preCompletedOrders = await query(
+    let preStatusOrders: { id: string; status: unknown; member_id: unknown; tenant_id: unknown }[] | null = null;
+    if (table === 'orders' && mappedData.status !== undefined && whereExec) {
+      preStatusOrders = await query(
         `SELECT id, status, member_id, tenant_id FROM \`orders\` ${whereExec}`,
         filterValues,
       );
@@ -440,27 +442,42 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
       return;
     }
 
-    if (preCompletedOrders && preCompletedOrders.length > 0) {
-      for (const row of preCompletedOrders) {
+    if (preStatusOrders && preStatusOrders.length > 0) {
+      const newStatus = String(mappedData.status ?? '').toLowerCase().trim();
+      for (const row of preStatusOrders) {
         const prev = String(row.status ?? '').toLowerCase().trim();
-        if (prev === 'completed') continue;
+        if (prev === newStatus) continue;
         const memberId = row.member_id != null ? String(row.member_id) : '';
         const tenantId = row.tenant_id != null ? String(row.tenant_id) : '';
-        const { granted, amount } = await grantOrderCompletedSpinCredits({
-          orderId: String(row.id),
-          memberId: memberId || null,
-          tenantId: tenantId || null,
-        });
-        if (granted && amount > 0 && memberId && tenantId) {
+
+        if (newStatus === 'completed' && prev !== 'completed') {
           try {
-            await notifyMemberOrderCompletedSpinReward({
-              tenantId,
-              memberId,
-              orderId: String(row.id),
-              spins: amount,
-            });
-          } catch (inboxErr) {
-            console.error('[TableProxy] order completed spin inbox notify failed:', inboxErr);
+            const updatedRow = await queryOne<Record<string, unknown>>(
+              'SELECT * FROM `orders` WHERE id = ?', [row.id],
+            );
+            if (updatedRow) await incrementMemberActivityForNewOrder(updatedRow);
+          } catch (actErr) {
+            console.error('[TableProxy] UPDATE orders incrementMemberActivity:', actErr);
+          }
+          if (memberId && tenantId) {
+            try {
+              const { granted, amount } = await grantOrderCompletedSpinCredits({
+                orderId: String(row.id),
+                memberId: memberId || null,
+                tenantId: tenantId || null,
+              });
+              if (granted && amount > 0) {
+                await notifyMemberOrderCompletedSpinReward({ tenantId, memberId, orderId: String(row.id), spins: amount });
+              }
+            } catch (spinErr) {
+              console.error('[TableProxy] order completed spin:', spinErr);
+            }
+          }
+        } else if (prev === 'completed' && newStatus !== 'completed') {
+          try {
+            await reverseActivityDataForOrder(String(row.id));
+          } catch (revErr) {
+            console.error('[TableProxy] UPDATE orders reverseActivityData:', revErr);
           }
         }
       }
@@ -500,8 +517,18 @@ export async function tableDeleteController(req: AuthenticatedRequest, res: Resp
   }
 
   try {
-    // 先查出要删除的行
     const rows = await query(`SELECT * FROM \`${table}\` ${where}`, values);
+
+    if (table === 'orders' && rows.length > 0) {
+      for (const row of rows as Record<string, unknown>[]) {
+        const st = String(row.status ?? '').toLowerCase().trim();
+        if (st === 'completed' && row.id) {
+          try { await reverseActivityDataForOrder(String(row.id)); }
+          catch (revErr) { console.error('[TableProxy] DELETE orders reverseActivityData:', revErr); }
+        }
+      }
+    }
+
     await execute(`DELETE FROM \`${table}\` ${where}`, values);
     res.json({ data: rows, error: null });
   } catch (e) {

@@ -930,6 +930,7 @@ export async function migrateSchemaPatches(): Promise<void> {
     await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_segment_ticks_done', 'INT NOT NULL DEFAULT 0');
     await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_ticks_min', 'INT NULL');
     await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_ticks_max', 'INT NULL');
+    await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_runs_per_user', 'INT NOT NULL DEFAULT 1');
     try {
       await execute(`
         UPDATE invite_leaderboard_tenant_growth_schedule

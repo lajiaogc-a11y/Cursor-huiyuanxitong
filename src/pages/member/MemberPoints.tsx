@@ -506,32 +506,21 @@ export default function MemberPoints() {
   useEffect(() => {
     if (!member?.id) return;
     let cancelled = false;
-    setTodayEarnedLoading(true);
-    void (async () => {
+    const fetchTodayEarned = async (showLoading: boolean) => {
+      if (showLoading) setTodayEarnedLoading(true);
       const r = await getMemberPointsLedgerRpc(member.id, "all", 200, 0);
       if (cancelled) return;
       if (r.success) setTodayEarned(sumTodayEarnedFromLedger(r.rows));
       else setTodayEarned(0);
       setTodayEarnedLoading(false);
-    })();
+    };
+    void fetchTodayEarned(true);
+    const timer = window.setInterval(() => void fetchTodayEarned(false), 30_000);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
-  }, [member?.id, redemptionsKey]);
-
-  useEffect(() => {
-    if (!member?.id || pullNonce === 0) return;
-    let cancelled = false;
-    void (async () => {
-      const r = await getMemberPointsLedgerRpc(member.id, "all", 200, 0);
-      if (cancelled) return;
-      if (r.success) setTodayEarned(sumTodayEarnedFromLedger(r.rows));
-      else setTodayEarned(0);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [member?.id, pullNonce]);
+  }, [member?.id, redemptionsKey, pullNonce]);
 
   useEffect(() => {
     const id = location.hash.replace(/^#/, "").trim();

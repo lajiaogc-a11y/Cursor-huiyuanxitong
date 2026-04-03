@@ -245,7 +245,10 @@ export default function MemberSettings() {
       return getMemberPointsLedgerRpc(memberId, ledgerCategory, 100, 0);
     },
     enabled: !!memberId && expandedPointsLedger,
-    staleTime: 60_000,
+    staleTime: 20_000,
+    refetchInterval: expandedPointsLedger && pageVisible ? 30_000 : false,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
   const ledgerRows = ledgerPack?.success ? ledgerPack.rows : [];

@@ -25,6 +25,7 @@ import {
   getActivityDataRetentionApi,
   putActivityDataRetentionApi,
   postActivityDataRetentionRunApi,
+  postActivityDataRetentionPurgeAllApi,
 } from "@/services/staff/dataApi/activityDataRetention";
 import { formatBeijingTime } from "@/lib/beijingTime";
 
@@ -48,12 +49,14 @@ export function ActivityDataRetentionPanel({ tenantId }: ActivityDataRetentionPa
   const [retentionDaysInput, setRetentionDaysInput] = useState("365");
   const [retentionMeta, setRetentionMeta] = useState<{
     lastRunAt: string | null;
-    lastSummary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number } | null;
+    lastSummary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number; spinCredits: number } | null;
   }>({ lastRunAt: null, lastSummary: null });
   const [retentionLoading, setRetentionLoading] = useState(false);
   const [retentionSaving, setRetentionSaving] = useState(false);
   const [retentionRunning, setRetentionRunning] = useState(false);
   const [retentionRunConfirmOpen, setRetentionRunConfirmOpen] = useState(false);
+  const [purgeAllRunning, setPurgeAllRunning] = useState(false);
+  const [purgeAllConfirmOpen, setPurgeAllConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -112,14 +115,33 @@ export function ActivityDataRetentionPanel({ tenantId }: ActivityDataRetentionPa
       });
       notify.success(
         t(
-          `已清理：抽奖 ${r.summary.lotteryLogs} 条，签到 ${r.summary.checkIns} 条，抽奖积分流水 ${r.summary.lotteryPointsLedger} 条`,
-          `Cleaned: ${r.summary.lotteryLogs} lottery rows, ${r.summary.checkIns} check-ins, ${r.summary.lotteryPointsLedger} lottery ledger rows`,
+          `已清理：抽奖 ${r.summary.lotteryLogs} 条，签到 ${r.summary.checkIns} 条，抽奖积分流水 ${r.summary.lotteryPointsLedger} 条，抽奖次数 ${r.summary.spinCredits ?? 0} 条`,
+          `Cleaned: ${r.summary.lotteryLogs} lottery, ${r.summary.checkIns} check-ins, ${r.summary.lotteryPointsLedger} ledger, ${r.summary.spinCredits ?? 0} spin credits`,
         ),
       );
     } catch {
       notify.error(t("清理失败", "Cleanup failed"));
     } finally {
       setRetentionRunning(false);
+    }
+  };
+
+  const handlePurgeAll = async () => {
+    if (!tenantId || !canConfigureActivityRetention) return;
+    setPurgeAllRunning(true);
+    try {
+      const r = await postActivityDataRetentionPurgeAllApi(tenantId);
+      const s = r.summary;
+      notify.success(
+        t(
+          `已全部清理：抽奖 ${s.lotteryLogs} 条，签到 ${s.checkIns} 条，抽奖积分流水 ${s.lotteryPointsLedger} 条，抽奖次数 ${s.spinCredits} 条`,
+          `Purged all: ${s.lotteryLogs} lottery, ${s.checkIns} check-ins, ${s.lotteryPointsLedger} ledger, ${s.spinCredits} spin credits`,
+        ),
+      );
+    } catch {
+      notify.error(t("全部清理失败", "Purge all failed"));
+    } finally {
+      setPurgeAllRunning(false);
     }
   };
 
@@ -155,8 +177,8 @@ export function ActivityDataRetentionPanel({ tenantId }: ActivityDataRetentionPa
           </CardTitle>
           <p className="text-sm text-muted-foreground font-normal mt-1">
             {t(
-              "仅清理超过保留期的明细：抽奖流水、签到流水、抽奖类积分流水（不含消费/推荐积分、活动赠送、订单）。启用后服务端每 24 小时自动执行一次。",
-              "Deletes rows older than the retention period: lottery logs, check-in logs, and lottery-type points_ledger rows only (not consumption/referral points, activity gifts, or orders). When enabled, the server runs cleanup every 24 hours.",
+              "仅清理超过保留期的明细：抽奖流水、签到流水、抽奖类积分流水、抽奖次数记录（不含消费/推荐积分、活动赠送、订单）。启用后服务端每 24 小时自动执行一次。",
+              "Deletes rows older than the retention period: lottery logs, check-in logs, lottery-type points ledger and spin credit records (not consumption/referral points, activity gifts, or orders). When enabled, the server runs cleanup every 24 hours.",
             )}
           </p>
         </CardHeader>
@@ -215,7 +237,8 @@ export function ActivityDataRetentionPanel({ tenantId }: ActivityDataRetentionPa
                       {" "}
                       — {t("抽奖", "Lottery")} {retentionMeta.lastSummary.lotteryLogs}, {t("签到", "Check-in")}{" "}
                       {retentionMeta.lastSummary.checkIns}, {t("抽奖积分流水", "Lottery ledger")}{" "}
-                      {retentionMeta.lastSummary.lotteryPointsLedger}
+                      {retentionMeta.lastSummary.lotteryPointsLedger}, {t("抽奖次数", "Spin credits")}{" "}
+                      {retentionMeta.lastSummary.spinCredits ?? 0}
                     </>
                   )}
                 </p>
@@ -234,6 +257,15 @@ export function ActivityDataRetentionPanel({ tenantId }: ActivityDataRetentionPa
                   >
                     {retentionRunning ? t("执行中…", "Running…") : t("立即按保留期清理", "Clean up now")}
                   </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="destructive"
+                    disabled={purgeAllRunning}
+                    onClick={() => setPurgeAllConfirmOpen(true)}
+                  >
+                    {purgeAllRunning ? t("清理中…", "Purging…") : t("全部清理", "Purge all")}
+                  </Button>
                 </div>
               )}
             </>
@@ -247,8 +279,8 @@ export function ActivityDataRetentionPanel({ tenantId }: ActivityDataRetentionPa
             <AlertDialogTitle>{t("立即按保留期清理？", "Clean up expired activity data now?")}</AlertDialogTitle>
             <AlertDialogDescription>
               {t(
-                "将永久删除超过保留天数的抽奖流水、签到流水与抽奖类积分流水，此操作不可撤销。确定继续？",
-                "Permanently deletes lottery logs, check-in logs, and lottery-type points ledger rows older than your retention period. This cannot be undone. Continue?",
+                "将永久删除超过保留天数的抽奖流水、签到流水、抽奖类积分流水与抽奖次数记录，此操作不可撤销。确定继续？",
+                "Permanently deletes lottery logs, check-in logs, lottery-type points ledger rows and spin credit records older than your retention period. This cannot be undone. Continue?",
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -262,6 +294,32 @@ export function ActivityDataRetentionPanel({ tenantId }: ActivityDataRetentionPa
               }}
             >
               {t("确认清理", "Confirm cleanup")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={purgeAllConfirmOpen} onOpenChange={setPurgeAllConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("全部清理活动数据？", "Purge ALL activity data?")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                "将永久删除全部抽奖流水、签到流水、抽奖类积分流水与抽奖次数记录（无论日期），此操作不可撤销。确定继续？",
+                "Permanently deletes ALL lottery logs, check-in logs, lottery-type points ledger rows and spin credit records regardless of date. This cannot be undone. Continue?",
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                setPurgeAllConfirmOpen(false);
+                void handlePurgeAll();
+              }}
+            >
+              {t("确认全部清理", "Confirm purge all")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
