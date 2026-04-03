@@ -243,6 +243,7 @@ export async function adminListLogsController(req: AuthenticatedRequest, res: Re
     prize_name: String(row.prize_name ?? ''),
     prize_type: String(row.prize_type ?? ''),
     prize_value: Number(row.prize_value ?? 0),
+    reward_points: Number(row.reward_points ?? 0),
     prize_cost: Number((row as any).prize_cost ?? 0),
     reward_status: String((row as any).reward_status ?? 'done'),
     reward_type: String((row as any).reward_type ?? 'auto'),

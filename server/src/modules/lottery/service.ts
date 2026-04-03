@@ -50,6 +50,10 @@ export interface DrawResult {
   reward_status?: 'pending' | 'done' | 'failed';
   /** Phase 1: 失败原因（仅 reward_status=failed） */
   fail_reason?: string;
+  /** 实际到账积分（以此为准，不要用 prize.value） */
+  reward_points?: number;
+  /** 发放后余额快照 */
+  balance_after?: number | null;
   /** Phase 2: 预算/RTP 警告码（抽奖成功时可附带，表示结果受到预算约束） */
   budget_warning?: 'BUDGET_EXCEEDED' | 'BUDGET_LOW' | 'RTP_LIMIT_REACHED';
   /** Phase 3: 风控降级标记（结果被强制保底） */
@@ -353,10 +357,10 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
       rewardType,
     });
 
-    // ── 11. 更新 reward_status + retry_count ──
+    // ── 11. 更新 reward_status + reward_points + retry_count ──
     await execConn(conn,
-      'UPDATE lottery_logs SET reward_status = ?, fail_reason = ?, retry_count = COALESCE(retry_count, 0) + ? WHERE id = ?',
-      [reward.status, reward.failReason, 0, logId],
+      'UPDATE lottery_logs SET reward_status = ?, fail_reason = ?, reward_points = ?, retry_count = COALESCE(retry_count, 0) + ? WHERE id = ?',
+      [reward.status, reward.failReason, reward.awardedPoints, 0, logId],
     );
 
     // ── 12. 事务内更新每日预算消耗 ──
@@ -379,6 +383,8 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
       remaining: newRemaining,
       reward_status: reward.status,
       fail_reason: reward.failReason ?? undefined,
+      reward_points: reward.awardedPoints,
+      balance_after: reward.balanceAfter,
       budget_warning: budgetWarning,
       risk_downgraded: riskDowngrade || undefined,
     };
@@ -422,6 +428,10 @@ export interface FulfillRewardArgs {
 export interface FulfillRewardResult {
   status: 'pending' | 'done' | 'failed';
   failReason: string | null;
+  /** 实际到账积分（仅 status=done 且 prizeType=points 时有效） */
+  awardedPoints: number;
+  /** 操作后余额快照（仅 status=done 且 prizeType=points 时有效） */
+  balanceAfter: number | null;
 }
 
 /**
@@ -439,18 +449,18 @@ export async function fulfillRewardOnConn(
 
   // none 型：无需任何发放
   if (rewardType === 'none') {
-    return { status: 'done', failReason: null };
+    return { status: 'done', failReason: null, awardedPoints: 0, balanceAfter: null };
   }
 
   // manual 型（custom 奖品）：保持 pending，等待后台人工操作
   if (rewardType === 'manual') {
-    return { status: 'pending', failReason: null };
+    return { status: 'pending', failReason: null, awardedPoints: 0, balanceAfter: null };
   }
 
-  // auto 型：积分类自动发放 — 全部经由统一 pointsService，不再单独写 member_activity / points_log
+  // auto 型：积分类自动发放 — 全部经由统一 pointsService
   if (prizeType === 'points' && prizeValue > 0) {
     try {
-      await addPoints(conn, {
+      const mutation = await addPoints(conn, {
         memberId,
         amount: prizeValue,
         type: 'lottery',
@@ -459,15 +469,20 @@ export async function fulfillRewardOnConn(
         description: `幸运抽奖: ${prizeName}`,
         extras: { tenant_id: tenantId },
       });
-      return { status: 'done', failReason: null };
+      return {
+        status: 'done',
+        failReason: null,
+        awardedPoints: mutation.amount,
+        balanceAfter: mutation.balanceAfter,
+      };
     } catch (err) {
       const reason = `POINTS_GRANT_FAILED: ${err instanceof Error ? err.message : String(err)}`.slice(0, 500);
-      return { status: 'failed', failReason: reason };
+      return { status: 'failed', failReason: reason, awardedPoints: 0, balanceAfter: null };
     }
   }
 
   // auto 但 value=0 或未知 type → 无实际发放
-  return { status: 'done', failReason: null };
+  return { status: 'done', failReason: null, awardedPoints: 0, balanceAfter: null };
 }
 
 export async function getQuota(memberId: string) {

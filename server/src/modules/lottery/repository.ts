@@ -89,6 +89,7 @@ export interface LotteryLog {
   prize_name: string;
   prize_type: string;
   prize_value: number;
+  reward_points?: number;
   created_at: string;
   request_id?: string | null;
   reward_status?: string;
@@ -123,7 +124,7 @@ export async function listLotteryLogs(memberId: string, limit = 50, offset = 0):
   const lim = Math.min(500, Math.max(1, limit));
   const off = Math.max(0, offset);
   return query<LotteryLog>(
-    'SELECT id, member_id, prize_name, prize_type, prize_value, created_at FROM lottery_logs WHERE member_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+    'SELECT id, member_id, prize_name, prize_type, prize_value, reward_status, reward_type, fail_reason, created_at FROM lottery_logs WHERE member_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
     [memberId, lim, off],
   );
 }
@@ -178,7 +179,8 @@ export async function listAllLotteryLogs(
   const off = Math.max(0, offset);
   const { clause, params } = lotteryLogsMemberFilterSql(opts);
   return query<LotteryLogAdminRow>(
-    `SELECT l.id, l.member_id, l.tenant_id, l.prize_id, l.prize_name, l.prize_type, l.prize_value, l.created_at,
+    `SELECT l.id, l.member_id, l.tenant_id, l.prize_id, l.prize_name, l.prize_type, l.prize_value,
+            COALESCE(l.reward_points, 0) AS reward_points, l.created_at,
             COALESCE(l.reward_status, 'done') AS reward_status,
             COALESCE(l.reward_type, 'auto') AS reward_type,
             COALESCE(l.prize_cost, 0) AS prize_cost,

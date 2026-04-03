@@ -1345,6 +1345,7 @@ export async function migrateSchemaPatches(): Promise<void> {
   // lottery_logs: 记录每次抽奖的奖品成本和奖励类型，便于事后审计 + 补偿重试
   await addCol('lottery_logs', 'prize_cost', "DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT '本次抽奖的奖品成本（快照，不依赖 join lottery_prizes）'");
   await addCol('lottery_logs', 'reward_type', "VARCHAR(32) NOT NULL DEFAULT 'auto' COMMENT 'auto=自动发放(积分等) manual=需人工确认(custom) none=无需发放'");
+  await addCol('lottery_logs', 'reward_points', "INT NOT NULL DEFAULT 0 COMMENT '实际到账积分（与 prize_value 可能不同）'");
   try { await execute('CREATE INDEX idx_lottery_logs_reward_pending ON lottery_logs (reward_status, reward_type, created_at)'); } catch { /* exists */ }
 
   // ── 安全加固 ──

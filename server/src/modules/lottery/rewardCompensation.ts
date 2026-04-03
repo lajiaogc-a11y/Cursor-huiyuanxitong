@@ -132,9 +132,9 @@ export async function retryFailedRewards(tenantId: string | null, batchSize = 20
 
         await conn.query(
           `UPDATE lottery_logs
-           SET reward_status = ?, fail_reason = ?, retry_count = COALESCE(retry_count, 0) + 1
+           SET reward_status = ?, fail_reason = ?, reward_points = ?, retry_count = COALESCE(retry_count, 0) + 1
            WHERE id = ?`,
-          [result.status, result.failReason, row.id],
+          [result.status, result.failReason, result.awardedPoints, row.id],
         );
 
         if (result.status === 'done') succeeded++;
@@ -211,8 +211,8 @@ export async function manualRetryReward(logId: string): Promise<{ ok: boolean; e
   });
 
   await execute(
-    `UPDATE lottery_logs SET reward_status = ?, fail_reason = ?, retry_count = COALESCE(retry_count, 0) + 1 WHERE id = ?`,
-    [result.status, result.failReason, logId],
+    `UPDATE lottery_logs SET reward_status = ?, fail_reason = ?, reward_points = ?, retry_count = COALESCE(retry_count, 0) + 1 WHERE id = ?`,
+    [result.status, result.failReason, result.awardedPoints, logId],
   );
 
   return { ok: true, newStatus: result.status };

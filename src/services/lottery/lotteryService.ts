@@ -31,6 +31,8 @@ export interface LotteryLog {
   prize_name: string;
   prize_type: string;
   prize_value: number;
+  /** 实际到账积分（以此为准） */
+  reward_points?: number;
   /** Phase 4: 奖品成本（快照） */
   prize_cost?: number;
   /** Phase 4: 奖励发放状态 */
@@ -60,6 +62,10 @@ export interface DrawResult {
   error?: string;
   reward_status?: 'pending' | 'done' | 'failed';
   fail_reason?: string;
+  /** 实际到账积分（以此为准，不要用 prize.value） */
+  reward_points?: number;
+  /** 发放后余额快照 */
+  balance_after?: number | null;
   budget_warning?: 'BUDGET_EXCEEDED' | 'BUDGET_LOW' | 'RTP_LIMIT_REACHED';
   /** Phase 3: 风控降级（结果被强制保底） */
   risk_downgraded?: boolean;

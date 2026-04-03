@@ -167,6 +167,8 @@ export default function MemberSpin() {
   const [spinning, setSpinning] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [result, setResult] = useState<DrawResult["prize"] | null>(null);
+  const [lastDrawRewardPoints, setLastDrawRewardPoints] = useState<number | undefined>(undefined);
+  const [lastDrawRewardStatus, setLastDrawRewardStatus] = useState<string | undefined>(undefined);
   const [lastDrawMeta, setLastDrawMeta] = useState<{ budget_warning?: string; risk_downgraded?: boolean } | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [prizes, setPrizes] = useState<LotteryPrize[]>(cached?.prizes ?? []);
@@ -386,6 +388,8 @@ export default function MemberSpin() {
         }
         const prize = r.prize!;
         if (typeof r.remaining === "number") setRemaining(r.remaining);
+        setLastDrawRewardPoints(r.reward_points);
+        setLastDrawRewardStatus(r.reward_status);
         setLastDrawMeta({ budget_warning: r.budget_warning, risk_downgraded: r.risk_downgraded });
 
         let targetIdx = prizes.findIndex((p) => p.id === prize.id);
@@ -497,16 +501,22 @@ export default function MemberSpin() {
   const resultModalContent = () => {
     if (!result) return null;
     if (result.type === "points") {
+      const displayPoints = lastDrawRewardPoints ?? result.value;
+      const rewardFailed = lastDrawRewardStatus === 'failed';
       return (
         <div className="px-1 py-3 text-center">
           <div className="mb-2 text-5xl" role="img" aria-hidden>
-            🎉
+            {rewardFailed ? '⚠️' : '🎉'}
           </div>
           <p className="m-0 mb-1 text-xl font-extrabold text-pu-gold-soft">
-            {t(`恭喜获得 ${result.value} 积分！`, `Congrats! You won ${result.value} points!`)}
+            {rewardFailed
+              ? t('积分发放异常，请稍后查看账户', 'Points delivery issue. Please check your account later.')
+              : t(`恭喜获得 ${displayPoints} 积分！`, `Congrats! You won ${displayPoints} points!`)}
           </p>
           <p className="m-0 text-[13px] text-[hsl(var(--pu-m-text-dim)/0.85)]">
-            {t("积分已发放到账户", "Points credited to your account")}
+            {rewardFailed
+              ? t('系统将自动补发，无需重复操作', 'System will auto-retry. No action needed.')
+              : t("积分已发放到账户", "Points credited to your account")}
           </p>
         </div>
       );
@@ -898,8 +908,13 @@ export default function MemberSpin() {
                     <div className="min-w-0 flex-1">
                       <div className={cn("truncate text-sm font-bold", spinLogTitleClass(log.prize_type))}>
                         {log.prize_name}
-                        {log.prize_type === "points" && log.prize_value > 0 ? (
-                          <span className="ml-1.5 tabular-nums text-pu-gold-soft">+{log.prize_value}</span>
+                        {log.prize_type === "points" && (log.reward_points ?? log.prize_value) > 0 ? (
+                          <span className="ml-1.5 tabular-nums text-pu-gold-soft">+{log.reward_points ?? log.prize_value}</span>
+                        ) : null}
+                        {log.reward_status === "failed" ? (
+                          <span className="ml-1.5 text-[11px] font-medium text-red-400">{t("(发放中)", "(processing)")}</span>
+                        ) : log.reward_status === "pending" && log.reward_type === "manual" ? (
+                          <span className="ml-1.5 text-[11px] font-medium text-amber-400">{t("(待处理)", "(pending)")}</span>
                         ) : null}
                       </div>
                       <div className="mt-0.5 text-[11px] font-medium text-[hsl(var(--pu-m-text-dim))]">

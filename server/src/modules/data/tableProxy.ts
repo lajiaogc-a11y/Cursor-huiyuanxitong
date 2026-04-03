@@ -1217,6 +1217,10 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                 value: dr.prize.value,
               }
             : undefined,
+          reward_status: dr.reward_status,
+          reward_points: dr.reward_points,
+          balance_after: dr.balance_after,
+          fail_reason: dr.fail_reason,
         };
         break;
       }
