@@ -7,7 +7,7 @@ import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { query, execute, withTransaction } from '../../database/index.js';
 import { config } from '../../config/index.js';
 import { ensureDefaultMemberLevelRulesRepository } from '../memberLevels/repository.js';
-import { incrementLotterySpinBalanceConn } from '../lottery/spinBalanceAccount.js';
+// Spin balance is now managed at first-login time (see memberAuth/controller.ts)
 import { generateMemberCode } from '../../utils/memberCode.js';
 
 type ReferrerResolved = {
@@ -365,24 +365,8 @@ export async function completeInviteRegister(params: {
         eventInserted = false;
       }
 
-      const [portalRows] = await conn.query<RowDataPacket[]>(
-        `SELECT invite_reward_spins FROM member_portal_settings WHERE tenant_id = ? LIMIT 1`,
-        [referrer.tenant_id],
-      );
-      const portalRow = portalRows[0] as { invite_reward_spins?: number } | undefined;
-      const rewardSpins = Number(portalRow?.invite_reward_spins ?? 3);
-      if (eventInserted && rewardSpins > 0) {
-        await conn.query(
-          'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
-          [referrer.id, rewardSpins, 'referral'],
-        );
-        await incrementLotterySpinBalanceConn(conn, referrer.id, rewardSpins);
-        await conn.query(
-          'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
-          [newId, rewardSpins, 'invite_welcome'],
-        );
-        await incrementLotterySpinBalanceConn(conn, newId, rewardSpins);
-      }
+      // Spin credits are NOT granted at registration time.
+      // They are granted on the referee's FIRST LOGIN (see memberAuth/controller.ts → grantReferralSpinsOnFirstLogin).
 
       try {
         await conn.query(

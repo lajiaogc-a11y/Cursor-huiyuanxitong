@@ -578,6 +578,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
           : null;
         if (fn === 'member_check_in_today') {
           let shareCreditsToday = 0;
+          let dailyShareCap = 0;
           if (memberId) {
             const shareRow = await queryOne<{ total: number }>(
               `SELECT COALESCE(SUM(amount),0) AS total FROM spin_credits
@@ -587,6 +588,14 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
               [memberId],
             );
             shareCreditsToday = Number(shareRow?.total ?? 0);
+            const mRow = await queryOne<{ tenant_id: string | null }>('SELECT tenant_id FROM members WHERE id = ?', [memberId]);
+            if (mRow?.tenant_id) {
+              const sRow = await queryOne<{ daily_share_reward_limit?: number | null }>(
+                'SELECT daily_share_reward_limit FROM member_portal_settings WHERE tenant_id = ? LIMIT 1',
+                [mRow.tenant_id],
+              );
+              dailyShareCap = Math.max(0, Number(sRow?.daily_share_reward_limit ?? 0));
+            }
           }
           let checkInSnapshot: Awaited<ReturnType<typeof buildMemberCheckInDailySnapshot>> | null = null;
           if (memberId) {
@@ -609,10 +618,12 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
               next_reward_total: 1,
               next_credits: 1,
             };
+          const shareCapReached = dailyShareCap > 0 && shareCreditsToday >= dailyShareCap;
           result = {
             checked_in: snap.checked_in_today,
-            share_claimed_today: shareCreditsToday > 0,
+            share_claimed_today: shareCapReached,
             share_credits_today: shareCreditsToday,
+            daily_share_cap: dailyShareCap,
             ...snap,
           };
         } else {
@@ -833,7 +844,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
         const redemptionId = params.p_redemption_id;
         const action = params.p_action;
         const note = params.p_note || null;
-        if (!redemptionId || !['complete', 'reject'].includes(action)) {
+        if (!redemptionId || !['complete', 'reject', 'cancel'].includes(action)) {
           result = { success: false, error: 'INVALID_PARAMS' };
           break;
         }
@@ -841,7 +852,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
           result = { success: false, error: 'TENANT_NOT_FOUND' };
           break;
         }
-        const newStatus = action === 'complete' ? 'completed' : 'rejected';
+        const newStatus = action === 'complete' ? 'completed' : action === 'cancel' ? 'cancelled' : 'rejected';
         const empId = req.user?.type === 'employee' ? String(req.user.id || '').trim() : '';
         const empNameRaw =
           req.user?.type === 'employee'
@@ -889,7 +900,14 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
               throw err;
             }
 
-            if (String(red.status || '').toLowerCase().trim() !== 'pending') {
+            const currentStatus = String(red.status || '').toLowerCase().trim();
+            if (action === 'cancel') {
+              if (currentStatus !== 'completed') {
+                const err = new Error('ONLY_COMPLETED_CAN_CANCEL');
+                (err as { code?: string }).code = 'ONLY_COMPLETED_CAN_CANCEL';
+                throw err;
+              }
+            } else if (currentStatus !== 'pending') {
               const err = new Error('ALREADY_PROCESSED');
               (err as { code?: string }).code = 'ALREADY_PROCESSED';
               throw err;
@@ -928,6 +946,51 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                     acct.tenant_id,
                   ],
                 );
+              }
+            } else if (action === 'cancel') {
+              const qty = Math.max(1, Math.floor(Number(red.quantity ?? 1)));
+              const mallItemIdRaw = red.mall_item_id != null ? String(red.mall_item_id).trim() : '';
+
+              if (cost > 0) {
+                const totalSpent = Number(
+                  ((await conn.query('SELECT COALESCE(total_spent,0) AS ts FROM points_accounts WHERE id = ?', [acct.id]))[0] as { ts?: unknown }[])[0]?.ts ?? 0,
+                );
+                const spentDeduct = Math.min(cost, totalSpent);
+                await conn.query(
+                  `UPDATE points_accounts SET balance = balance + ?, total_spent = GREATEST(total_spent - ?, 0), updated_at = NOW(3) WHERE id = ?`,
+                  [cost, spentDeduct, acct.id],
+                );
+                const [balRows] = await conn.query('SELECT COALESCE(balance,0) AS b FROM points_accounts WHERE id = ?', [acct.id]);
+                const afterBal = Number((balRows as { b?: unknown }[])[0]?.b ?? 0);
+                await conn.query(
+                  `INSERT INTO points_ledger (id, account_id, member_id, type, amount, balance_after, reference_type, reference_id, description, created_by, tenant_id, created_at)
+                   VALUES (?, ?, ?, 'redeem_cancelled', ?, ?, 'mall_redemption_cancel', ?, ?, ?, ?, NOW(3))`,
+                  [
+                    randomUUID(),
+                    acct.id,
+                    String(red.member_id),
+                    cost,
+                    afterBal,
+                    String(redemptionId),
+                    `商城兑换取消退回（${String(red.item_title || '商品')} ×${qty}，退回 ${cost} 积分${note ? `，说明: ${String(note)}` : ''}）`,
+                    empId || null,
+                    acct.tenant_id,
+                  ],
+                );
+              }
+
+              if (mallItemIdRaw && /^[0-9a-f-]{36}$/i.test(mallItemIdRaw)) {
+                const [stRows] = await conn.query(
+                  'SELECT COALESCE(stock_remaining, -1) AS sr FROM member_points_mall_items WHERE id = ? FOR UPDATE',
+                  [mallItemIdRaw],
+                );
+                const sr = Number((stRows as { sr?: unknown }[])[0]?.sr ?? -1);
+                if (Number.isFinite(sr) && sr >= 0) {
+                  await conn.query('UPDATE member_points_mall_items SET stock_remaining = stock_remaining + ? WHERE id = ?', [
+                    qty,
+                    mallItemIdRaw,
+                  ]);
+                }
               }
             } else {
               const qty = Math.max(1, Math.floor(Number(red.quantity ?? 1)));
@@ -995,7 +1058,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
               tenantId: String(memTenant || tenantId || ''),
               memberId: String(red.member_id),
               redemptionId: String(redemptionId),
-              outcome: action === 'complete' ? 'completed' : 'rejected',
+              outcome: action === 'complete' ? 'completed' : action === 'cancel' ? 'rejected' : 'rejected',
               itemTitle: String(red.item_title || 'Item'),
               quantity: qtyN,
               points: cost,
@@ -1009,10 +1072,10 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
             operator_account: processedName || 'employee',
             operator_role: req.user?.role ?? 'employee',
             module: 'points_redemption',
-            operation_type: action === 'complete' ? 'status_change' : 'reject',
+            operation_type: action === 'complete' ? 'status_change' : action === 'cancel' ? 'cancel' : 'reject',
             object_id: String(redemptionId),
-            object_description: `商城兑换${action === 'complete' ? '完成' : '驳回'}: ${mallRedemptionNotifyRef.payload?.itemTitle ?? '商品'}`,
-            before_data: { status: 'pending' },
+            object_description: `商城兑换${action === 'complete' ? '完成' : action === 'cancel' ? '取消' : '驳回'}: ${mallRedemptionNotifyRef.payload?.itemTitle ?? '商品'}`,
+            before_data: { status: action === 'cancel' ? 'completed' : 'pending' },
             after_data: { status: newStatus, note },
             ip_address: req.ip ?? null,
           }).catch(err => console.error('[RPC] mall redemption operation log:', err));
@@ -1169,14 +1232,6 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
             if (!mRow) {
               return { success: false, error: 'MEMBER_NOT_FOUND' };
             }
-            const [dupRows] = await conn.query(
-              `SELECT id FROM spin_credits WHERE member_id = ? AND source = 'share'
-               AND created_at >= CURDATE() AND created_at < DATE_ADD(CURDATE(), INTERVAL 1 DAY) LIMIT 1`,
-              [memberId],
-            );
-            if ((dupRows as { id: string }[]).length > 0) {
-              return { success: false, error: 'ALREADY_CLAIMED_TODAY' };
-            }
             const tid = mRow.tenant_id ?? null;
             let shareReward = 1;
             let dailyCap = 0;
@@ -1221,11 +1276,13 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
               [memberId],
             );
             const shareCreditsToday = Number((sumAfter as { total: number }[])[0]?.total ?? 0);
+            const capReached = dailyCap > 0 && shareCreditsToday >= dailyCap;
             return {
               success: true,
               credits: shareReward,
-              share_claimed_today: true,
+              share_claimed_today: capReached,
               share_credits_today: shareCreditsToday,
+              daily_share_cap: dailyCap,
             };
             } finally {
               await mysqlReleaseLock(conn, shareLock);

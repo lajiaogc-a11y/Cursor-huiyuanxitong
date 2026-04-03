@@ -163,6 +163,7 @@ export default function DataManagementTab() {
               operationLogs: deleteSelections.operationLogs,
               loginLogs: deleteSelections.loginLogs,
               knowledgeData: deleteSelections.knowledgeData,
+              taskData: deleteSelections.taskData,
             },
             partial: isPartialSuccess,
             errorCount: errors.length,
@@ -237,6 +238,11 @@ export default function DataManagementTab() {
         }
         if (deleteSelections.loginLogs) {
           queryClient.invalidateQueries({ queryKey: ['login-logs'] });
+        }
+        if (deleteSelections.taskData?.tasks || deleteSelections.taskData?.taskItems) {
+          queryClient.invalidateQueries({ queryKey: ['tasks'] });
+          queryClient.invalidateQueries({ queryKey: ['task-history'] });
+          notifyDataMutation({ table: 'tasks', operation: 'DELETE', source: 'manual' }).catch(console.error);
         }
       }
 

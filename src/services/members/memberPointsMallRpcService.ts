@@ -231,7 +231,7 @@ export async function listMyPointsMallRedemptionOrders(
 
 export async function processMyPointsMallRedemptionOrder(
   orderId: string,
-  action: "complete" | "reject",
+  action: "complete" | "reject" | "cancel",
   note?: string,
 ): Promise<{ success: boolean; status: string }> {
   const data = await apiPost<unknown>("/api/data/rpc/process_my_member_points_mall_redemption", {

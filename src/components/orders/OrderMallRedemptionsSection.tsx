@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, RotateCcw, Building2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Loader2, RotateCcw, Building2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -39,12 +41,13 @@ import {
   processMyPointsMallRedemptionOrder,
   type PointsMallRedemptionOrder,
 } from "@/services/members/memberPointsMallService";
+import { apiPost } from "@/api/client";
 import { OrderPagination } from "./OrderPagination";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
 
-export type MallOrderStatusFilter = "all" | "pending" | "completed" | "rejected";
+export type MallOrderStatusFilter = "all" | "pending" | "completed" | "rejected" | "cancelled";
 
 function formatBeijingTime(iso: string): string {
   try {
@@ -118,6 +121,12 @@ export function OrderMallRedemptionsSection({
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [confirmCompleteId, setConfirmCompleteId] = useState<string | null>(null);
   const [confirmRejectId, setConfirmRejectId] = useState<string | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const [cancelPassword, setCancelPassword] = useState("");
+  const [cancelPasswordVisible, setCancelPasswordVisible] = useState(false);
+  const [cancelVerifying, setCancelVerifying] = useState(false);
+  const [cancelAuthError, setCancelAuthError] = useState("");
+  const cancelPasswordRef = useRef<HTMLInputElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [jumpToPage, setJumpToPage] = useState("");
 
@@ -196,14 +205,16 @@ export function OrderMallRedemptionsSection({
     }
   };
 
-  const processOne = async (orderId: string, action: "complete" | "reject") => {
+  const processOne = async (orderId: string, action: "complete" | "reject" | "cancel") => {
     setProcessingId(orderId);
     try {
       await processMyPointsMallRedemptionOrder(orderId, action);
       notify.success(
         action === "complete"
           ? t("订单已标记完成", "Order marked as completed")
-          : t("订单已驳回并已退回积分", "Order rejected and points refunded"),
+          : action === "cancel"
+            ? t("订单已取消，积分与库存已回流", "Order cancelled, points and stock restored")
+            : t("订单已驳回并已退回积分", "Order rejected and points refunded"),
       );
       await load();
       notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
@@ -216,6 +227,41 @@ export function OrderMallRedemptionsSection({
     }
   };
 
+  const handleCancelConfirm = async () => {
+    const orderId = confirmCancelId;
+    if (!orderId || !cancelPassword.trim()) return;
+    setCancelVerifying(true);
+    setCancelAuthError("");
+    try {
+      const verifyRes = await apiPost<{ success?: boolean; valid?: boolean }>("/api/auth/verify-password", {
+        password: cancelPassword,
+      });
+      if (!verifyRes || verifyRes.valid !== true) {
+        setCancelAuthError(t("密码验证失败，请重新输入", "Password verification failed, please try again"));
+        setCancelVerifying(false);
+        return;
+      }
+    } catch {
+      setCancelAuthError(t("密码验证失败", "Password verification failed"));
+      setCancelVerifying(false);
+      return;
+    }
+    setConfirmCancelId(null);
+    setCancelPassword("");
+    setCancelPasswordVisible(false);
+    setCancelVerifying(false);
+    setCancelAuthError("");
+    await processOne(orderId, "cancel");
+  };
+
+  const openCancelDialog = (orderId: string) => {
+    setCancelPassword("");
+    setCancelPasswordVisible(false);
+    setCancelAuthError("");
+    setConfirmCancelId(orderId);
+    setTimeout(() => cancelPasswordRef.current?.focus(), 100);
+  };
+
   const statusBadge = (o: PointsMallRedemptionOrder) => (
     <Badge variant={o.status === "pending" ? "secondary" : "outline"} className="shrink-0 text-[10px]">
       {o.status === "pending"
@@ -224,7 +270,9 @@ export function OrderMallRedemptionsSection({
           ? t("已完成", "Completed")
           : o.status === "rejected"
             ? t("已驳回", "Rejected")
-            : o.status}
+            : o.status === "cancelled"
+              ? t("已取消", "Cancelled")
+              : o.status}
     </Badge>
   );
 
@@ -332,6 +380,20 @@ export function OrderMallRedemptionsSection({
                     </Button>
                   </div>
                 )}
+                {o.status === "completed" && canProcessOrders && (
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-9 flex-1 text-xs touch-manipulation text-destructive border-destructive/40"
+                      disabled={processingId === o.id}
+                      onClick={() => openCancelDialog(o.id)}
+                    >
+                      {t("取消订单", "Cancel order")}
+                    </Button>
+                  </div>
+                )}
               </MobileCard>
             ))}
             <MobilePagination
@@ -347,19 +409,19 @@ export function OrderMallRedemptionsSection({
         <>
           <div className="rounded-lg border bg-card overflow-hidden">
             <StickyScrollTableContainer minWidth="980px">
-              <Table className="text-xs">
+              <Table className="text-xs table-auto w-full">
                 <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
                   <TableRow className="bg-muted/50 hover:bg-transparent">
-                    <TableHead className="w-14 px-1.5">{t("图", "Img")}</TableHead>
-                    <TableHead className="px-1.5 min-w-[120px]">{t("商品", "Item")}</TableHead>
-                    <TableHead className="whitespace-nowrap min-w-[108px] px-1.5">{t("电话号码", "Phone")}</TableHead>
-                    <TableHead className="whitespace-nowrap px-1.5">{t("会员编号", "Member code")}</TableHead>
-                    <TableHead className="w-14 px-1.5 text-center">{t("数量", "Qty")}</TableHead>
-                    <TableHead className="w-20 px-1.5 text-center">{t("积分", "Pts")}</TableHead>
-                    <TableHead className="w-24 px-1.5">{t("状态", "Status")}</TableHead>
-                    <TableHead className="min-w-[132px] px-1.5">{t("时间", "Time")}</TableHead>
-                    <TableHead className="min-w-[100px] px-1.5">{t("经手人", "Handler")}</TableHead>
-                    <TableHead className="w-[140px] text-right px-1.5 sticky right-0 z-20 bg-muted shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.15)]">
+                    <TableHead className="w-14 px-2 text-center">{t("图", "Img")}</TableHead>
+                    <TableHead className="px-2 text-center">{t("商品", "Item")}</TableHead>
+                    <TableHead className="whitespace-nowrap px-2 text-center">{t("电话号码", "Phone")}</TableHead>
+                    <TableHead className="whitespace-nowrap px-2 text-center">{t("会员编号", "Code")}</TableHead>
+                    <TableHead className="px-2 text-right">{t("数量", "Qty")}</TableHead>
+                    <TableHead className="px-2 text-right">{t("积分", "Pts")}</TableHead>
+                    <TableHead className="whitespace-nowrap px-2 text-center">{t("时间", "Time")}</TableHead>
+                    <TableHead className="px-2 text-center">{t("经手人", "Handler")}</TableHead>
+                    <TableHead className="px-2 text-center">{t("状态", "Status")}</TableHead>
+                    <TableHead className="w-[180px] text-center px-2 sticky right-0 z-20 bg-muted shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.15)]">
                       {t("操作", "Actions")}
                     </TableHead>
                   </TableRow>
@@ -373,44 +435,46 @@ export function OrderMallRedemptionsSection({
                         highlightRedemptionId === o.id && "bg-primary/5 ring-2 ring-inset ring-primary/60",
                       )}
                     >
-                      <TableCell className="px-1.5">
-                        {String(o.item_image_url || "").trim() ? (
-                          <ResolvableMediaThumb
-                            idKey={`mall-ord-t-${o.id}`}
-                            url={o.item_image_url}
-                            frameClassName="h-10 w-10 shrink-0 rounded-md"
-                            imgClassName="border object-cover"
-                          />
-                        ) : (
-                          <div className="grid h-10 w-10 place-items-center rounded-md border bg-muted/40 text-[10px] text-muted-foreground">
-                            —
-                          </div>
-                        )}
+                      <TableCell className="px-2 text-center">
+                        <div className="flex justify-center">
+                          {String(o.item_image_url || "").trim() ? (
+                            <ResolvableMediaThumb
+                              idKey={`mall-ord-t-${o.id}`}
+                              url={o.item_image_url}
+                              frameClassName="h-10 w-10 shrink-0 rounded-md"
+                              imgClassName="border object-cover"
+                            />
+                          ) : (
+                            <div className="grid h-10 w-10 place-items-center rounded-md border bg-muted/40 text-[10px] text-muted-foreground">
+                              —
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
-                      <TableCell className="font-medium max-w-[200px] truncate px-1.5" title={o.item_title}>
+                      <TableCell className="font-medium text-center max-w-[200px] truncate px-2" title={o.item_title}>
                         {o.item_title}
                       </TableCell>
-                      <TableCell className="font-mono text-[11px] whitespace-nowrap px-1.5">
+                      <TableCell className="font-mono text-[11px] text-center whitespace-nowrap px-2">
                         {displayStr(o.member_phone, "—")}
                       </TableCell>
-                      <TableCell className="font-mono text-[11px] whitespace-nowrap px-1.5">
+                      <TableCell className="font-mono text-[11px] text-center whitespace-nowrap px-2">
                         {displayStr(o.member_code, "—")}
                       </TableCell>
-                      <TableCell className="text-center px-1.5">{o.quantity}</TableCell>
-                      <TableCell className="text-center px-1.5">{o.points_used}</TableCell>
-                      <TableCell className="px-1.5">{statusBadge(o)}</TableCell>
-                      <TableCell className="text-muted-foreground whitespace-nowrap px-1.5">
+                      <TableCell className="text-right tabular-nums px-2">{o.quantity}</TableCell>
+                      <TableCell className="text-right tabular-nums px-2">{o.points_used}</TableCell>
+                      <TableCell className="text-center text-muted-foreground whitespace-nowrap px-2">
                         {formatBeijingTime(o.created_at)}
                       </TableCell>
                       <TableCell
-                        className="text-muted-foreground whitespace-nowrap max-w-[140px] truncate px-1.5"
+                        className="text-center text-muted-foreground whitespace-nowrap max-w-[140px] truncate px-2"
                         title={o.handler_name || ""}
                       >
                         {displayStr(o.handler_name, "—")}
                       </TableCell>
-                      <TableCell className="text-right px-1.5 sticky right-0 z-10 bg-background shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.15)]">
+                      <TableCell className="text-center px-2">{statusBadge(o)}</TableCell>
+                      <TableCell className="text-center px-2 sticky right-0 z-10 bg-background shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.15)]">
                         {o.status === "pending" && canProcessOrders ? (
-                          <div className="flex justify-end gap-1 flex-wrap">
+                          <div className="flex justify-center gap-1 flex-wrap">
                             <Button
                               type="button"
                               size="sm"
@@ -429,6 +493,19 @@ export function OrderMallRedemptionsSection({
                               onClick={() => setConfirmCompleteId(o.id)}
                             >
                               {t("完成", "Complete")}
+                            </Button>
+                          </div>
+                        ) : o.status === "completed" && canProcessOrders ? (
+                          <div className="flex justify-center">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-[10px] px-2 text-destructive border-destructive/40 hover:bg-destructive/10"
+                              disabled={processingId === o.id}
+                              onClick={() => openCancelDialog(o.id)}
+                            >
+                              {t("取消", "Cancel")}
                             </Button>
                           </div>
                         ) : (
@@ -497,6 +574,75 @@ export function OrderMallRedemptionsSection({
               }}
             >
               {t("驳回", "Reject")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!confirmCancelId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmCancelId(null);
+            setCancelPassword("");
+            setCancelPasswordVisible(false);
+            setCancelAuthError("");
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("取消已完成的兑换订单？", "Cancel this completed redemption?")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                "取消后已扣积分将退回会员，商品库存将恢复。此操作不可撤销，请输入您的登录密码确认。",
+                "Points will be refunded and stock restored. This cannot be undone. Enter your login password to confirm.",
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 px-1">
+            <Label htmlFor="cancel-mall-pw">{t("登录密码", "Login password")}</Label>
+            <div className="relative">
+              <Input
+                ref={cancelPasswordRef}
+                id="cancel-mall-pw"
+                type={cancelPasswordVisible ? "text" : "password"}
+                placeholder={t("请输入密码", "Enter password")}
+                value={cancelPassword}
+                onChange={(e) => {
+                  setCancelPassword(e.target.value);
+                  setCancelAuthError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && cancelPassword.trim()) void handleCancelConfirm();
+                }}
+                disabled={cancelVerifying}
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                tabIndex={0}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setCancelPasswordVisible(!cancelPasswordVisible)}
+                aria-label={cancelPasswordVisible ? "Hide password" : "Show password"}
+              >
+                {cancelPasswordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {cancelAuthError && <p className="text-xs text-destructive">{cancelAuthError}</p>}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelVerifying}>{t("返回", "Back")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={!cancelPassword.trim() || cancelVerifying}
+              onClick={(e) => {
+                e.preventDefault();
+                void handleCancelConfirm();
+              }}
+            >
+              {cancelVerifying ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+              {t("确认取消", "Confirm cancel")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

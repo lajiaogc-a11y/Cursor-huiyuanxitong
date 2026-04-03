@@ -851,6 +851,32 @@ export async function bulkDeleteRepository(
     } catch (e: unknown) { errors.push(`knowledge_categories: ${e instanceof Error ? e.message : String(e)}`); }
   }
 
+  // 20. task_items (maintenance history / progress — delete before tasks to avoid FK)
+  const taskData = deleteSelections.taskData ?? { tasks: false, taskItems: false };
+  if (taskData.taskItems) {
+    const cond = deleteAll ? 'id <> ?' : 'created_at < ?';
+    const val = deleteAll ? NULL_UUID : cutoffDateStr;
+    const cnt = await safeCount(`SELECT COUNT(*) as cnt FROM task_items WHERE ${cond}`, [val]);
+    try {
+      await execute(`DELETE FROM task_items WHERE ${cond}`, [val]);
+      if (cnt) deletedSummary.push({ table: '维护历史', count: cnt });
+    } catch (e: unknown) { errors.push(`task_items: ${e instanceof Error ? e.message : String(e)}`); }
+  }
+
+  // 21. tasks (after task_items)
+  if (taskData.tasks) {
+    const cond = deleteAll ? 'id <> ?' : 'created_at < ?';
+    const val = deleteAll ? NULL_UUID : cutoffDateStr;
+    const cnt = await safeCount(`SELECT COUNT(*) as cnt FROM tasks WHERE ${cond}`, [val]);
+    try {
+      if (taskData.taskItems !== true) {
+        await execute(`DELETE FROM task_items WHERE task_id IN (SELECT id FROM tasks WHERE ${cond})`, [val]);
+      }
+      await execute(`DELETE FROM tasks WHERE ${cond}`, [val]);
+      if (cnt) deletedSummary.push({ table: '工作任务', count: cnt });
+    } catch (e: unknown) { errors.push(`tasks: ${e instanceof Error ? e.message : String(e)}`); }
+  }
+
   } catch (topErr: unknown) {
     const msg = topErr instanceof Error ? topErr.message : String(topErr);
     console.error('[bulkDelete] 未预期的顶层错误:', msg);

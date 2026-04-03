@@ -30,6 +30,7 @@ export interface BulkDeleteSelections {
   operationLogs?: boolean;
   loginLogs?: boolean;
   knowledgeData?: { categories: boolean; articles: boolean };
+  taskData?: { tasks: boolean; taskItems: boolean };
   preserveActivityData?: boolean;
 }
 

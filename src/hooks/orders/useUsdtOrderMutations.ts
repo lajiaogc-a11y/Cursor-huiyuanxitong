@@ -203,6 +203,7 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
           });
         } catch (sideEffectErr) {
           console.error('USDT order cancelled but side effects failed:', sideEffectErr);
+          notify.warning(t('订单已取消，但日志/账变等后续操作未完成', 'Order cancelled, but logging/balance side effects incomplete'));
         }
         void queryClient.invalidateQueries({ queryKey: ['meika-fiat-orders'] });
         void queryClient.invalidateQueries({ queryKey: ['meika-usdt-orders'] });
@@ -272,6 +273,7 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
           });
         } catch (sideEffectErr) {
           console.error('USDT order restored but side effects failed:', sideEffectErr);
+          notify.warning(t('订单已恢复，但日志/账变等后续操作未完成', 'Order restored, but logging/balance side effects incomplete'));
         }
         void queryClient.invalidateQueries({ queryKey: ['meika-fiat-orders'] });
         void queryClient.invalidateQueries({ queryKey: ['meika-usdt-orders'] });
@@ -349,6 +351,7 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         });
       } catch (sideErr) {
         console.error('[UsdtOrderMutations] Post-delete side effects failed (order already deleted):', sideErr);
+        notify.warning(t('订单已删除，但日志/账变等后续操作未完成', 'Order deleted, but logging/balance side effects incomplete'));
       }
       void queryClient.invalidateQueries({ queryKey: ['meika-fiat-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['meika-usdt-orders'] });

@@ -3,6 +3,7 @@
  */
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
+import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { query, queryOne, execute } from '../../database/index.js';
 import { resolveLevelNameZhForMember } from '../memberLevels/repository.js';
 
@@ -210,6 +211,63 @@ export async function recordMemberLoginRepository(memberId: string, tenantId: st
     `UPDATE members SET last_login_at = NOW(3), last_seen_at = NOW(3) WHERE id = ?`,
     [memberId],
   );
+}
+
+/**
+ * Called on each login. If the member was invited (has a referral_events
+ * 'register' row) and hasn't yet received their first-login reward, grant
+ * spins to both referrer and referee. Idempotent via UNIQUE KEY on
+ * referral_events (tenant_id, referrer_id, referee_id, event_type).
+ */
+export async function grantReferralSpinsOnFirstLogin(memberId: string): Promise<void> {
+  const { withTransaction } = await import('../../database/index.js');
+  const { incrementLotterySpinBalanceConn } = await import('../lottery/spinBalanceAccount.js');
+
+  const regEvent = await queryOne<{
+    tenant_id: string;
+    referrer_id: string;
+    referee_id: string;
+  }>(
+    `SELECT tenant_id, referrer_id, referee_id FROM referral_events
+     WHERE referee_id = ? AND event_type = 'register' LIMIT 1`,
+    [memberId],
+  );
+  if (!regEvent || !regEvent.referrer_id) return;
+
+  const alreadyGranted = await queryOne<{ cnt: number }>(
+    `SELECT COUNT(*) AS cnt FROM referral_events
+     WHERE referee_id = ? AND event_type = 'first_login_reward' LIMIT 1`,
+    [memberId],
+  );
+  if (Number(alreadyGranted?.cnt) > 0) return;
+
+  await withTransaction(async (conn) => {
+    const [idempRows] = await conn.query(
+      `INSERT IGNORE INTO referral_events (id, tenant_id, referrer_id, referee_id, event_type, event_value, created_at)
+       VALUES (UUID(), ?, ?, ?, 'first_login_reward', NULL, NOW(3))`,
+      [regEvent.tenant_id, regEvent.referrer_id, memberId],
+    );
+    if ((idempRows as ResultSetHeader).affectedRows !== 1) return;
+
+    const [portalRows] = await conn.query<RowDataPacket[]>(
+      `SELECT invite_reward_spins FROM member_portal_settings WHERE tenant_id = ? LIMIT 1`,
+      [regEvent.tenant_id],
+    );
+    const rewardSpins = Number((portalRows[0] as { invite_reward_spins?: number } | undefined)?.invite_reward_spins ?? 3);
+    if (rewardSpins <= 0) return;
+
+    await conn.query(
+      'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
+      [regEvent.referrer_id, rewardSpins, 'referral'],
+    );
+    await incrementLotterySpinBalanceConn(conn, regEvent.referrer_id, rewardSpins);
+
+    await conn.query(
+      'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
+      [memberId, rewardSpins, 'invite_welcome'],
+    );
+    await incrementLotterySpinBalanceConn(conn, memberId, rewardSpins);
+  });
 }
 
 /** 会员端请求心跳：5 分钟内最多写库一次 */

@@ -697,22 +697,6 @@ export default function OrderManagement() {
 
   useEffect(() => {
     setSelectedNormalDbIds(new Set());
-  }, [currentPage]);
-
-  useEffect(() => {
-    setSelectedUsdtDbIds(new Set());
-  }, [currentUsdtPage]);
-
-  useEffect(() => {
-    setSelectedMeikaFiatDbIds(new Set());
-  }, [currentMeikaFiatPage]);
-
-  useEffect(() => {
-    setSelectedMeikaUsdtDbIds(new Set());
-  }, [currentMeikaUsdtPage]);
-
-  useEffect(() => {
-    setSelectedNormalDbIds(new Set());
     setSelectedUsdtDbIds(new Set());
     setSelectedMeikaFiatDbIds(new Set());
     setSelectedMeikaUsdtDbIds(new Set());
@@ -1597,22 +1581,33 @@ export default function OrderManagement() {
     const ids = tab === "meika-fiat" ? [...selectedMeikaFiatDbIds] : [...selectedNormalDbIds];
     if (ids.length === 0) return;
     let ok = 0;
+    const failedIds = new Set<string>();
     for (const id of ids) {
-      if (tab === "meika-fiat") {
-        if (await deleteMeikaFiatOrderRef.current(id)) ok++;
-      } else if (await deleteOrderRef.current(id)) ok++;
+      const success = tab === "meika-fiat"
+        ? await deleteMeikaFiatOrderRef.current(id)
+        : await deleteOrderRef.current(id);
+      if (success) ok++;
+      else failedIds.add(id);
     }
-    if (tab === "meika-fiat") setSelectedMeikaFiatDbIds(new Set());
-    else setSelectedNormalDbIds(new Set());
+    if (tab === "meika-fiat") setSelectedMeikaFiatDbIds(failedIds);
+    else setSelectedNormalDbIds(failedIds);
     if (tab === "meika-fiat") await refetchMeikaFiatOrders();
     else await refetchOrders();
-    queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
-    queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
-    queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
-    notifyDataMutation({ table: "orders", operation: "DELETE", source: "manual" }).catch(console.error);
-    notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
-    notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(console.error);
-    notify.success(t(`已删除 ${ok} 条订单`, `Deleted ${ok} order(s)`));
+    if (ok > 0) {
+      queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
+      queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
+      queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
+      notifyDataMutation({ table: "orders", operation: "DELETE", source: "manual" }).catch(console.error);
+      notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
+      notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(console.error);
+    }
+    if (failedIds.size === 0) {
+      notify.success(t(`已删除 ${ok} 条订单`, `Deleted ${ok} order(s)`));
+    } else if (ok > 0) {
+      notify.warning(t(`已删除 ${ok} 条，${failedIds.size} 条失败（已保留选中）`, `Deleted ${ok}, ${failedIds.size} failed (kept selected)`));
+    } else {
+      notify.error(t(`删除失败：${failedIds.size} 条均未成功`, `Delete failed: all ${failedIds.size} order(s) failed`));
+    }
   };
 
   const runBatchNormalCancel = async () => {
@@ -1624,22 +1619,33 @@ export default function OrderManagement() {
     const ids = rows.filter((o) => sel.has(o.dbId) && o.status === "completed").map((o) => o.dbId);
     if (ids.length === 0) return;
     let ok = 0;
+    const failedIds = new Set<string>();
     for (const id of ids) {
-      if (tab === "meika-fiat") {
-        if (await cancelMeikaFiatOrderRef.current(id)) ok++;
-      } else if (await cancelOrderRef.current(id)) ok++;
+      const success = tab === "meika-fiat"
+        ? await cancelMeikaFiatOrderRef.current(id)
+        : await cancelOrderRef.current(id);
+      if (success) ok++;
+      else failedIds.add(id);
     }
-    if (tab === "meika-fiat") setSelectedMeikaFiatDbIds(new Set());
-    else setSelectedNormalDbIds(new Set());
+    if (tab === "meika-fiat") setSelectedMeikaFiatDbIds(failedIds);
+    else setSelectedNormalDbIds(failedIds);
     if (tab === "meika-fiat") await refetchMeikaFiatOrders();
     else await refetchOrders();
-    queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
-    queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
-    queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
-    notifyDataMutation({ table: "orders", operation: "UPDATE", source: "manual" }).catch(console.error);
-    notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
-    notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(console.error);
-    notify.success(t(`已取消 ${ok} 条订单`, `Cancelled ${ok} order(s)`));
+    if (ok > 0) {
+      queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
+      queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
+      queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
+      notifyDataMutation({ table: "orders", operation: "UPDATE", source: "manual" }).catch(console.error);
+      notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
+      notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(console.error);
+    }
+    if (failedIds.size === 0) {
+      notify.success(t(`已取消 ${ok} 条订单`, `Cancelled ${ok} order(s)`));
+    } else if (ok > 0) {
+      notify.warning(t(`已取消 ${ok} 条，${failedIds.size} 条失败（已保留选中）`, `Cancelled ${ok}, ${failedIds.size} failed (kept selected)`));
+    } else {
+      notify.error(t(`取消失败：${failedIds.size} 条均未成功`, `Cancel failed: all ${failedIds.size} order(s) failed`));
+    }
   };
 
   const runBatchUsdtDelete = async () => {
@@ -1649,22 +1655,33 @@ export default function OrderManagement() {
     const ids = tab === "meika-usdt" ? [...selectedMeikaUsdtDbIds] : [...selectedUsdtDbIds];
     if (ids.length === 0) return;
     let ok = 0;
+    const failedIds = new Set<string>();
     for (const id of ids) {
-      if (tab === "meika-usdt") {
-        if (await deleteMeikaUsdtOrderRef.current(id)) ok++;
-      } else if (await deleteUsdtOrderRef.current(id)) ok++;
+      const success = tab === "meika-usdt"
+        ? await deleteMeikaUsdtOrderRef.current(id)
+        : await deleteUsdtOrderRef.current(id);
+      if (success) ok++;
+      else failedIds.add(id);
     }
-    if (tab === "meika-usdt") setSelectedMeikaUsdtDbIds(new Set());
-    else setSelectedUsdtDbIds(new Set());
+    if (tab === "meika-usdt") setSelectedMeikaUsdtDbIds(failedIds);
+    else setSelectedUsdtDbIds(failedIds);
     if (tab === "meika-usdt") await refetchMeikaUsdtOrders();
     else await refetchUsdtOrders();
-    queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
-    queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
-    queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
-    notifyDataMutation({ table: "orders", operation: "DELETE", source: "manual" }).catch(console.error);
-    notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
-    notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(console.error);
-    notify.success(t(`已删除 ${ok} 条 USDT 订单`, `Deleted ${ok} USDT order(s)`));
+    if (ok > 0) {
+      queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
+      queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
+      queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
+      notifyDataMutation({ table: "orders", operation: "DELETE", source: "manual" }).catch(console.error);
+      notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
+      notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(console.error);
+    }
+    if (failedIds.size === 0) {
+      notify.success(t(`已删除 ${ok} 条 USDT 订单`, `Deleted ${ok} USDT order(s)`));
+    } else if (ok > 0) {
+      notify.warning(t(`已删除 ${ok} 条，${failedIds.size} 条失败（已保留选中）`, `Deleted ${ok}, ${failedIds.size} failed (kept selected)`));
+    } else {
+      notify.error(t(`删除失败：${failedIds.size} 条均未成功`, `Delete failed: all ${failedIds.size} USDT order(s) failed`));
+    }
   };
 
   const runBatchUsdtCancel = async () => {
@@ -1676,22 +1693,33 @@ export default function OrderManagement() {
     const ids = rows.filter((o) => sel.has(o.dbId) && o.status === "completed").map((o) => o.dbId);
     if (ids.length === 0) return;
     let ok = 0;
+    const failedIds = new Set<string>();
     for (const id of ids) {
-      if (tab === "meika-usdt") {
-        if (await cancelMeikaUsdtOrderRef.current(id)) ok++;
-      } else if (await cancelUsdtOrderRef.current(id)) ok++;
+      const success = tab === "meika-usdt"
+        ? await cancelMeikaUsdtOrderRef.current(id)
+        : await cancelUsdtOrderRef.current(id);
+      if (success) ok++;
+      else failedIds.add(id);
     }
-    if (tab === "meika-usdt") setSelectedMeikaUsdtDbIds(new Set());
-    else setSelectedUsdtDbIds(new Set());
+    if (tab === "meika-usdt") setSelectedMeikaUsdtDbIds(failedIds);
+    else setSelectedUsdtDbIds(failedIds);
     if (tab === "meika-usdt") await refetchMeikaUsdtOrders();
     else await refetchUsdtOrders();
-    queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
-    queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
-    queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
-    notifyDataMutation({ table: "orders", operation: "UPDATE", source: "manual" }).catch(console.error);
-    notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
-    notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(console.error);
-    notify.success(t(`已取消 ${ok} 条 USDT 订单`, `Cancelled ${ok} USDT order(s)`));
+    if (ok > 0) {
+      queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
+      queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
+      queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
+      notifyDataMutation({ table: "orders", operation: "UPDATE", source: "manual" }).catch(console.error);
+      notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
+      notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(console.error);
+    }
+    if (failedIds.size === 0) {
+      notify.success(t(`已取消 ${ok} 条 USDT 订单`, `Cancelled ${ok} USDT order(s)`));
+    } else if (ok > 0) {
+      notify.warning(t(`已取消 ${ok} 条，${failedIds.size} 条失败（已保留选中）`, `Cancelled ${ok}, ${failedIds.size} failed (kept selected)`));
+    } else {
+      notify.error(t(`取消失败：${failedIds.size} 条均未成功`, `Cancel failed: all ${failedIds.size} USDT order(s) failed`));
+    }
   };
 
   const confirmOrderBatchAction = () => {
@@ -1883,12 +1911,12 @@ export default function OrderManagement() {
         title={
           activeTab === "mall"
             ? t("商城订单", "Mall orders")
-            : t("订单列表", "Order list")
+            : ""
         }
         description={
           activeTab === "mall"
             ? t("会员积分商城提交的兑换单；驳回将退回积分。", "Points mall redemptions; rejecting refunds points.")
-            : t("以下为当前筛选与分页下的订单。", "Orders matching current filters and page.")
+            : ""
         }
       >
           {activeTab !== "mall" ? (

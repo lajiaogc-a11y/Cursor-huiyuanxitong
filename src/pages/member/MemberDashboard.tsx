@@ -266,7 +266,9 @@ export default function MemberDashboard() {
   const {
     checkedInToday,
     checkingIn,
-    shareClaimedToday,
+    shareCapReached,
+    shareCreditsToday,
+    dailyShareCap,
     claimingShare,
     checkInSummary,
     handleCheckIn,
@@ -343,7 +345,7 @@ export default function MemberDashboard() {
   const dailyTaskRowsTotal =
     (showCheckIn ? 1 : 0) + (showShare ? 1 : 0) + (showInvite ? 1 : 0) + 1;
   const dailyTaskRowsDone =
-    (showCheckIn && checkedInToday ? 1 : 0) + (showShare && shareClaimedToday ? 1 : 0);
+    (showCheckIn && checkedInToday ? 1 : 0) + (showShare && shareCapReached ? 1 : 0);
 
   const nextFallbackBanner = useCallback(() => {
     setFallbackBannerSliding(true);
@@ -372,7 +374,7 @@ export default function MemberDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [member?.id, checkedInToday, shareClaimedToday]);
+  }, [member?.id, checkedInToday, shareCapReached]);
 
   /** 下拉刷新：静默更新「今日获得」避免与 React Query 并发时再闪一屏骨架 */
   useEffect(() => {
@@ -553,22 +555,26 @@ export default function MemberDashboard() {
         ) : null}
 
         {showShare ? (
-          <div className={`${taskRowBase} ${shareClaimedToday ? taskRowDone : taskRowTodo}`}>
+          <div className={`${taskRowBase} ${shareCapReached ? taskRowDone : taskRowTodo}`}>
             <div className="flex min-w-0 items-center gap-3">
               <span className="text-lg shrink-0" aria-hidden>
                 📤
               </span>
               <div className="min-w-0">
-                <div className={`text-sm font-bold ${shareClaimedToday ? "text-pu-emerald-soft" : "text-[hsl(var(--pu-m-text))]"}`}>
+                <div className={`text-sm font-bold ${shareCapReached ? "text-pu-emerald-soft" : "text-[hsl(var(--pu-m-text))]"}`}>
                   {t("分享好友", "Share with friends")}
                 </div>
                 <div className="text-[11px] font-medium text-[hsl(var(--pu-m-text-dim))]">
                   +{ps.share_reward_spins} {t("次转盘", "spins")}
-                  {ps.daily_share_reward_limit > 0 ? ` · ${t("每日上限", "daily cap")} ${ps.daily_share_reward_limit}` : ""}
+                  {dailyShareCap > 0 ? (
+                    <> · <span className={shareCapReached ? "text-pu-emerald-soft" : ""}>{t("已分享", "Shared")} {shareCreditsToday}/{dailyShareCap}</span></>
+                  ) : shareCreditsToday > 0 ? (
+                    <> · {t("今日已分享", "Shared today")} {shareCreditsToday}</>
+                  ) : null}
                 </div>
               </div>
             </div>
-            {shareClaimedToday ? (
+            {shareCapReached ? (
               <CheckCircle className="h-5 w-5 shrink-0 text-pu-emerald" aria-hidden />
             ) : (
               <LoadingButton
@@ -594,6 +600,9 @@ export default function MemberDashboard() {
                 <div className="text-[11px] font-medium text-[hsl(var(--pu-m-text-dim))]">
                   {t("双方各得", "Both earn")} +{ps.invite_reward_spins} {t("次转盘", "spins")}
                   {ps.daily_invite_reward_limit > 0 ? ` · ${t("每日上限", "daily cap")} ${ps.daily_invite_reward_limit}` : ""}
+                  {(member?.invite_success_lifetime_count ?? 0) > 0 && (
+                    <> · <span className="text-pu-emerald-soft">{t("已邀请", "Invited")} +{member!.invite_success_lifetime_count}</span></>
+                  )}
                 </div>
               </div>
             </div>
@@ -966,11 +975,18 @@ export default function MemberDashboard() {
               onClick={() => stashPointsHashBeforeInviteNavigation(window.location.pathname, window.location.hash)}
               className="group flex flex-col items-center gap-2 rounded-2xl p-3 no-underline transition-all duration-200"
             >
-              <div
-                className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-gradient-to-br from-pu-emerald to-pu-emerald-soft transition-transform duration-300 group-hover:scale-105 motion-reduce:group-hover:scale-100"
-                style={{ boxShadow: "0 6px 20px -6px hsl(var(--pu-m-surface-border) / 0.4)" }}
-              >
-                <Users className="h-[22px] w-[22px] text-[hsl(var(--pu-m-bg-1))]" strokeWidth={2} aria-hidden />
+              <div className="relative">
+                <div
+                  className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-gradient-to-br from-pu-emerald to-pu-emerald-soft transition-transform duration-300 group-hover:scale-105 motion-reduce:group-hover:scale-100"
+                  style={{ boxShadow: "0 6px 20px -6px hsl(var(--pu-m-surface-border) / 0.4)" }}
+                >
+                  <Users className="h-[22px] w-[22px] text-[hsl(var(--pu-m-bg-1))]" strokeWidth={2} aria-hidden />
+                </div>
+                {(member?.invite_success_lifetime_count ?? 0) > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-pu-emerald px-1 text-[10px] font-bold leading-none text-white shadow">
+                    +{member!.invite_success_lifetime_count}
+                  </span>
+                )}
               </div>
               <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))] transition group-hover:text-[hsl(var(--pu-m-text))]">
                 {t("邀请好友", "Invite")}
@@ -1073,6 +1089,11 @@ export default function MemberDashboard() {
             <div className="relative">
               <Share2 className="mx-auto mb-3 h-8 w-8 text-pu-emerald" aria-hidden />
               <h3 className="mb-1 text-lg font-extrabold text-[hsl(var(--pu-m-text))]">{t("邀请好友赚转盘", "Invite friends for spins")}</h3>
+              {(member?.invite_success_lifetime_count ?? 0) > 0 && (
+                <p className="mb-2 text-xs font-semibold text-pu-emerald">
+                  {t("已成功邀请", "Successfully invited")} <span className="text-sm">+{member!.invite_success_lifetime_count}</span> {t("位好友", "friends")}
+                </p>
+              )}
               <p className="mb-5 text-xs text-[hsl(var(--pu-m-text-dim))]">
                 {ps.daily_invite_reward_limit > 0
                   ? t(

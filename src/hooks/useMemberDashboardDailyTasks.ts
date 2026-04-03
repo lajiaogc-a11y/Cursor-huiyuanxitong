@@ -15,16 +15,23 @@ import type { MemberDailyStatus } from "@/services/memberPortal/memberActivitySe
 export type MemberDashboardDailyTasksOptions = {
   memberId: string | undefined;
   inviteToken: string;
-  /** token 未就绪时用于邀请路径的回退（如 member_code） */
   invitePathFallback: string;
-  /** 生成 WhatsApp 分享文案（含邀请链接） */
   buildShareInviteText: (inviteLink: string) => string;
   refreshMember: () => Promise<void>;
   refreshPoints: () => void | Promise<void>;
   refreshSpinQuota: () => void | Promise<void>;
 };
 
-const _dailyStatusCache = new Map<string, { checkedIn: boolean; shareClaimed: boolean; summary: MemberDailyStatus; spinsEarned: number | null; shareSpinsEarned: number | null }>();
+interface DailyCache {
+  checkedIn: boolean;
+  shareCreditsToday: number;
+  dailyShareCap: number;
+  summary: MemberDailyStatus;
+  spinsEarned: number | null;
+  shareSpinsEarned: number | null;
+}
+
+const _dailyStatusCache = new Map<string, DailyCache>();
 
 export function useMemberDashboardDailyTasks({
   memberId,
@@ -38,9 +45,14 @@ export function useMemberDashboardDailyTasks({
   const checkInGuard = useActionGuard(2000);
   const shareGuard = useActionGuard(2000);
   const cached = memberId ? _dailyStatusCache.get(memberId) : undefined;
+
   const [checkedInToday, setCheckedInToday] = useState(cached?.checkedIn ?? false);
   const [checkingIn, setCheckingIn] = useState(false);
-  const [shareClaimedToday, setShareClaimedToday] = useState(cached?.shareClaimed ?? false);
+
+  const [shareCreditsToday, setShareCreditsToday] = useState(cached?.shareCreditsToday ?? 0);
+  const [dailyShareCap, setDailyShareCap] = useState(cached?.dailyShareCap ?? 0);
+  const shareCapReached = dailyShareCap > 0 && shareCreditsToday >= dailyShareCap;
+
   const [claimingShare, setClaimingShare] = useState(false);
   const [checkInSpinsEarned, setCheckInSpinsEarned] = useState<number | null>(cached?.spinsEarned ?? null);
   const [checkInSummary, setCheckInSummary] = useState<MemberDailyStatus | null>(cached?.summary ?? null);
@@ -51,7 +63,8 @@ export function useMemberDashboardDailyTasks({
     const c = _dailyStatusCache.get(memberId);
     if (c) {
       setCheckedInToday(c.checkedIn);
-      setShareClaimedToday(c.shareClaimed);
+      setShareCreditsToday(c.shareCreditsToday);
+      setDailyShareCap(c.dailyShareCap);
       setCheckInSummary(c.summary);
       setCheckInSpinsEarned(c.spinsEarned);
       setShareSpinsEarned(c.shareSpinsEarned);
@@ -59,6 +72,8 @@ export function useMemberDashboardDailyTasks({
       setCheckInSpinsEarned(null);
       setShareSpinsEarned(null);
       setCheckInSummary(null);
+      setShareCreditsToday(0);
+      setDailyShareCap(0);
     }
   }, [memberId]);
 
@@ -70,11 +85,15 @@ export function useMemberDashboardDailyTasks({
         const r = await fetchMemberDailyStatus(memberId);
         if (cancelled) return;
         setCheckedInToday(!!r.checked_in_today);
-        setShareClaimedToday(!!r.share_claimed_today);
+        const sc = Math.max(0, Number(r.share_credits_today ?? 0));
+        const cap = Math.max(0, Number(r.daily_share_cap ?? 0));
+        setShareCreditsToday(sc);
+        setDailyShareCap(cap);
         setCheckInSummary(r);
         _dailyStatusCache.set(memberId, {
           checkedIn: !!r.checked_in_today,
-          shareClaimed: !!r.share_claimed_today,
+          shareCreditsToday: sc,
+          dailyShareCap: cap,
           summary: r,
           spinsEarned: null,
           shareSpinsEarned: null,
@@ -82,7 +101,8 @@ export function useMemberDashboardDailyTasks({
       } catch {
         if (!cancelled && !_dailyStatusCache.has(memberId)) {
           setCheckedInToday(false);
-          setShareClaimedToday(false);
+          setShareCreditsToday(0);
+          setDailyShareCap(0);
           setCheckInSummary(null);
         }
       }
@@ -106,9 +126,14 @@ export function useMemberDashboardDailyTasks({
             const snap = await fetchMemberDailyStatus(memberId);
             setCheckInSummary(snap);
             setCheckedInToday(!!snap.checked_in_today);
+            const sc = Math.max(0, Number(snap.share_credits_today ?? 0));
+            const cap = Math.max(0, Number(snap.daily_share_cap ?? 0));
+            setShareCreditsToday(sc);
+            setDailyShareCap(cap);
             _dailyStatusCache.set(memberId, {
               checkedIn: !!snap.checked_in_today,
-              shareClaimed: shareClaimedToday,
+              shareCreditsToday: sc,
+              dailyShareCap: cap,
               summary: snap,
               spinsEarned: granted,
               shareSpinsEarned: shareSpinsEarned,
@@ -173,7 +198,7 @@ export function useMemberDashboardDailyTasks({
   ]);
 
   const handleShareAndClaim = useCallback(async () => {
-    if (!memberId || claimingShare || shareClaimedToday) return;
+    if (!memberId || claimingShare || shareCapReached) return;
     await shareGuard(async () => {
       const inviteLink = `${window.location.origin}/invite/${inviteToken || invitePathFallback || ""}`;
       window.open(`https://wa.me/?text=${encodeURIComponent(buildShareInviteText(inviteLink))}`, "_blank", "noopener,noreferrer");
@@ -181,23 +206,31 @@ export function useMemberDashboardDailyTasks({
       try {
         const r = await memberClaimShareReward(memberId);
         if (r?.success) {
-          setShareClaimedToday(r.share_claimed_today !== false);
           const n = Math.max(0, Math.floor(Number(r.credits ?? 1)));
           setShareSpinsEarned(n);
+          const sc = Math.max(0, Number(r.share_credits_today ?? shareCreditsToday + n));
+          const cap = r.daily_share_cap != null ? Math.max(0, Number(r.daily_share_cap)) : dailyShareCap;
+          setShareCreditsToday(sc);
+          setDailyShareCap(cap);
           const prev = _dailyStatusCache.get(memberId);
           if (prev) {
-            _dailyStatusCache.set(memberId, { ...prev, shareClaimed: true, shareSpinsEarned: n });
+            _dailyStatusCache.set(memberId, { ...prev, shareCreditsToday: sc, dailyShareCap: cap, shareSpinsEarned: n });
           }
           try { await Promise.resolve(refreshSpinQuota()); } catch { /* non-critical */ }
           try { if (navigator.vibrate) navigator.vibrate(12); } catch { /* ignore */ }
-          notifySuccess([`分享成功！已获得 ${n} 次抽奖`, `Shared! You earned ${n} spin(s).`]);
+          const capMsg = cap > 0 ? ` (${sc}/${cap})` : "";
+          notifySuccess([`分享成功！已获得 ${n} 次抽奖${capMsg}`, `Shared! You earned ${n} spin(s)${capMsg}.`]);
         } else if (r?.error === "ALREADY_CLAIMED_TODAY") {
-          setShareClaimedToday(true);
-          notifyInfo(["今日已领取过分享奖励", "Share reward already claimed today"]);
+          setShareCreditsToday((prev) => Math.max(prev, dailyShareCap));
+          notifyInfo(["今日分享奖励已达上限", "Daily share reward limit reached"]);
         } else if (r?.error === "SHARE_REWARD_DISABLED") {
           notifyInfo(["未开启分享奖励", "Share reward is not enabled"]);
         } else if (r?.error === "SHARE_DAILY_CAP_REACHED") {
-          notifyInfo(["今日分享奖励已达上限", "Daily share reward limit reached"]);
+          const serverCap = Math.max(0, Number((r as { cap?: number }).cap ?? dailyShareCap));
+          const serverToday = Math.max(0, Number((r as { today?: number }).today ?? shareCreditsToday));
+          setShareCreditsToday(serverToday);
+          if (serverCap > 0) setDailyShareCap(serverCap);
+          notifyInfo([`今日分享奖励已达上限 (${serverToday}/${serverCap})`, `Daily share limit reached (${serverToday}/${serverCap})`]);
         } else if (r?.error === "DUPLICATE_REQUEST") {
           notifyInfo(["请勿重复领取，请稍候再试", "Please wait before claiming again"]);
         } else if (r?.error === "MEMBER_NOT_FOUND") {
@@ -224,18 +257,22 @@ export function useMemberDashboardDailyTasks({
   }, [
     memberId,
     claimingShare,
-    shareClaimedToday,
+    shareCapReached,
     shareGuard,
     inviteToken,
     invitePathFallback,
     buildShareInviteText,
     refreshSpinQuota,
+    shareCreditsToday,
+    dailyShareCap,
   ]);
 
   return {
     checkedInToday,
     checkingIn,
-    shareClaimedToday,
+    shareCapReached,
+    shareCreditsToday,
+    dailyShareCap,
     claimingShare,
     checkInSpinsEarned,
     shareSpinsEarned,

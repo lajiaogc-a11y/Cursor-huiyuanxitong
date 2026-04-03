@@ -9,6 +9,7 @@ import {
   recordMemberLoginRepository,
   bumpMemberLoginSessionRepository,
   getMemberTokenClaimsForSignRepository,
+  grantReferralSpinsOnFirstLogin,
 } from './repository.js';
 import { signMemberToken, type MemberAuthenticatedRequest } from './middleware.js';
 
@@ -45,6 +46,11 @@ export async function memberSignInController(req: Request, res: Response): Promi
       await recordMemberLoginRepository(member.id, member.tenant_id ?? null);
     } catch (e) {
       console.error('[MemberAuth] record login error:', e);
+    }
+    try {
+      await grantReferralSpinsOnFirstLogin(member.id);
+    } catch (e) {
+      console.error('[MemberAuth] referral first-login reward error:', e);
     }
     const token = signMemberToken(member.id, member.phone_number, member.tenant_id, sessionSeq);
     res.json({ success: true, data: { member, token } });

@@ -1,15 +1,16 @@
 /**
  * 订单导入服务
+ *
+ * 副作用统一委托给 orderSideEffectOrchestrator.runImportOrderSideEffects，
+ * 不在此文件内散落调用 points / activity / balance / webhook。
  */
 
 import { listEmployeesApi } from '@/api/employees';
 import { listMembersApi } from '@/services/members/membersApiService';
 import { listCardsApi, listVendorsApi, listPaymentProvidersApi } from '@/services/shared/entityLookupService';
-import { createOrderApi, updateOrderPointsApi } from '@/services/orders/ordersApiService';
-import { createPointsOnOrderCreate, type CreatePointsParams } from '@/services/points/pointsService';
-import { normalizeCurrencyCode } from '@/config/currencies';
+import { createOrderApi } from '@/services/orders/ordersApiService';
 import { calculateNormalOrderDerivedValues, calculateUsdtOrderDerivedValues } from '@/lib/orderCalculations';
-import { logOrderBalanceChange } from '@/services/finance/balanceLogService';
+import { runImportOrderSideEffects } from '@/services/orders/orderSideEffectOrchestrator';
 import { cleanPhoneNumber } from './utils';
 import { getNowBeijingISO } from '@/lib/beijingTime';
 import { generateUniqueOrderNumber } from '@/hooks/orders/utils';
@@ -243,83 +244,42 @@ export async function batchImportOrders(
         continue;
       }
 
-      if (!skipPointsCreation && record.status === 'completed' && memberCode && record.phone_number && actualPayment > 0) {
-        const normalizedCurrency = normalizeCurrencyCode(currency || 'NGN');
-
-        if (normalizedCurrency) {
-          try {
-            const pointsParams: CreatePointsParams = {
-              orderId: insertedOrder.id,
-              orderPhoneNumber: record.phone_number,
-              memberCode: memberCode,
-              actualPayment: actualPayment,
-              currency: normalizedCurrency,
-              creatorId: record.creator_id || undefined,
-            };
-
-            const pointsResult = await createPointsOnOrderCreate(pointsParams);
-
-            if (pointsResult.success) {
-              await updateOrderPointsApi(insertedOrder.id, {
-                points_status: 'added',
-                order_points: pointsResult.consumptionPoints
-              });
-
-              result.pointsCreated++;
-            }
-          } catch (pointsError) {
-            console.warn(`[ImportOrder] Failed to create points for order ${insertedOrder.id}:`, pointsError);
-            result.warnings.push(`行 ${i + 2}: 订单已创建，但积分发放失败 (Order created, points grant failed)`);
-          }
-        }
-      }
-
       result.imported++;
 
-      if (!skipPointsCreation && memberId && record.phone_number) {
-        try {
-          const normalizedCurrency = normalizeCurrencyCode(currency || 'NGN');
-          if (normalizedCurrency) {
-            const { batchUpdateMemberActivity } = await import('@/hooks/useMemberActivity');
-            const profit = currency === 'USDT' ? record.profit_usdt : record.profit_ngn;
-            await batchUpdateMemberActivity({
-              memberId,
-              phoneNumber: record.phone_number,
-              accumulatedAmount: { currency: normalizedCurrency, amount: actualPayment },
-              profitAmount: profit || 0,
-              incrementOrderCount: true,
-            });
-          }
-        } catch (activityError) {
-          console.warn(`[ImportOrder] Failed to update member activity for order ${insertedOrder.id}:`, activityError);
-          result.warnings.push(`行 ${i + 2}: 订单已创建，但会员活动同步失败 (Order created, activity sync failed)`);
-        }
-      }
-
+      // --- Unified side-effects via orchestrator ---
+      // Server createOrderService already handled: member activity increment,
+      // common cards sync, and spin credits. We only run client-side side-effects
+      // that the server doesn't cover: points, balance log, webhook.
       if (!skipPointsCreation && record.status === 'completed') {
-        try {
-          const vendorName = record.card_merchant_id ? (vendorIdToName[record.card_merchant_id] || '') : '';
-          const providerName = record.vendor_id ? (providerIdToName[record.vendor_id] || '') : '';
+        const vendorName = record.card_merchant_id ? (vendorIdToName[record.card_merchant_id] || '') : '';
+        const providerName = record.vendor_id ? (providerIdToName[record.vendor_id] || '') : '';
 
-          if (vendorName || providerName) {
-            const profit = currency === 'USDT' ? record.profit_usdt : record.profit_ngn;
-            await logOrderBalanceChange({
-              vendorName,
-              providerName,
-              cardWorth: record.amount || cardWorth,
-              paymentValue: record.payment_value || 0,
-              actualPaid: actualPayment,
-              currency: currency,
-              foreignRate: foreignRate,
-              orderId: insertedOrder.id,
-              orderNumber: record.order_number,
-              operatorId: record.creator_id || undefined,
-              operatorName: currentUserName || undefined,
-            });
-          }
-        } catch (balanceError) {
-          console.warn(`[ImportOrder] Failed to log balance change for order ${insertedOrder.id}:`, balanceError);
-          result.warnings.push(`行 ${i + 2}: 订单已创建，但余额变动记录失败 (Order created, balance log failed)`);
+        const sideEffects = await runImportOrderSideEffects({
+          orderId: insertedOrder.id,
+          orderNumber: record.order_number,
+          phoneNumber: record.phone_number || '',
+          memberCode: memberCode,
+          currency: currency,
+          cardValue: cardValue,
+          cardWorth: record.amount || cardWorth,
+          paymentValue: record.payment_value || 0,
+          actualPaid: actualPayment,
+          foreignRate: foreignRate,
+          vendorId: record.card_merchant_id || '',
+          providerId: record.vendor_id || '',
+          vendorName,
+          providerName,
+          cardType: record.order_type || '',
+          creatorId: record.creator_id || undefined,
+          creatorName: currentUserName || undefined,
+          createdAt: record.created_at,
+          pointsStatus: record.points_status || 'none',
+          skipPoints: skipPointsCreation || !memberCode || !record.phone_number || actualPayment <= 0,
+        });
+
+        if (sideEffects.pointsCreated) result.pointsCreated++;
+        for (const w of sideEffects.warnings) {
+          result.warnings.push(`行 ${i + 2}: ${w}`);
         }
       }
     } catch (error: any) {

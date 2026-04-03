@@ -62,6 +62,10 @@ export type DeleteBulkSelections = {
     categories: boolean;
     articles: boolean;
   };
+  taskData: {
+    tasks: boolean;
+    taskItems: boolean;
+  };
   preserveActivityData: boolean;
 };
 
@@ -88,6 +92,7 @@ const SELECT_ALL_STATE: DeleteBulkSelections = {
   operationLogs: false,
   loginLogs: false,
   knowledgeData: { categories: false, articles: false },
+  taskData: { tasks: true, taskItems: true },
   preserveActivityData: true,
 };
 
@@ -114,6 +119,7 @@ const SELECT_NONE_STATE: DeleteBulkSelections = {
   operationLogs: false,
   loginLogs: false,
   knowledgeData: { categories: false, articles: false },
+  taskData: { tasks: false, taskItems: false },
   preserveActivityData: true,
 };
 
@@ -129,14 +135,14 @@ function Panel({
   return (
     <section
       className={cn(
-        "rounded-md border border-border bg-card/50 p-2 shadow-sm ring-1 ring-border/25 dark:bg-card/30 dark:ring-border/40",
+        "rounded-lg border border-border/60 bg-card/40 p-3 dark:bg-card/20",
         className,
       )}
     >
-      <h3 className="mb-1.5 border-b border-border pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <h3 className="mb-2 border-b border-border/50 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         {title}
       </h3>
-      <div className="space-y-1">{children}</div>
+      <div className="space-y-1.5">{children}</div>
     </section>
   );
 }
@@ -182,7 +188,7 @@ function Row({
   );
 }
 
-type DeleteCategoryStep = "orders" | "members" | "merchant" | "other";
+type DeleteCategoryStep = "orders" | "members" | "merchant" | "other" | "tasks";
 
 function DeleteCategoryPanel({
   step,
@@ -316,7 +322,8 @@ function DeleteCategoryPanel({
                 members: { ...prev.members, activityLotteryLogs: checked },
               }))
             }
-            label={t("抽奖数据（抽奖流水+抽奖类积分流水）", "Lottery logs + lottery points ledger")}
+            label={t("抽奖数据", "Lottery data")}
+            hint={t("抽奖流水+抽奖类积分流水", "Lottery logs + lottery points ledger")}
           />
           <Row
             id="delete-activity-checkins"
@@ -327,7 +334,8 @@ function DeleteCategoryPanel({
                 members: { ...prev.members, activityCheckIns: checked },
               }))
             }
-            label={t("签到数据（签到流水+签到发放的抽奖次数）", "Check-ins + check-in spin credits")}
+            label={t("签到数据", "Check-in data")}
+            hint={t("签到流水+签到发放的抽奖次数", "Check-ins + check-in spin credits")}
           />
           <Row
             id="delete-activity-spin-order"
@@ -338,7 +346,8 @@ function DeleteCategoryPanel({
                 members: { ...prev.members, activitySpinOrder: checked },
               }))
             }
-            label={t("订单抽奖（完成订单发放的抽奖次数）", "Order spin credits")}
+            label={t("订单抽奖", "Order spin credits")}
+            hint={t("完成订单发放的抽奖次数", "Spins from completed orders")}
           />
           <Row
             id="delete-activity-spin-share"
@@ -349,7 +358,8 @@ function DeleteCategoryPanel({
                 members: { ...prev.members, activitySpinShare: checked },
               }))
             }
-            label={t("分享数据（分享奖励抽奖次数）", "Share spin credits")}
+            label={t("分享数据", "Share data")}
+            hint={t("分享奖励抽奖次数", "Share spin credits")}
           />
           <Row
             id="delete-activity-spin-invite"
@@ -360,7 +370,8 @@ function DeleteCategoryPanel({
                 members: { ...prev.members, activitySpinInvite: checked },
               }))
             }
-            label={t("邀请数据（邀请/注册欢迎抽奖次数）", "Invite spin credits")}
+            label={t("邀请数据", "Invite data")}
+            hint={t("邀请/注册欢迎抽奖次数", "Invite + welcome spin credits")}
           />
           <Row
             id="delete-activity-spin-other"
@@ -371,7 +382,8 @@ function DeleteCategoryPanel({
                 members: { ...prev.members, activitySpinOther: checked },
               }))
             }
-            label={t("其他抽奖次数（未归类来源）", "Other spin credits")}
+            label={t("其他抽奖次数", "Other spin credits")}
+            hint={t("未归类来源", "Uncategorised sources")}
           />
           <Row
             id="delete-activity-member-summary"
@@ -382,7 +394,8 @@ function DeleteCategoryPanel({
                 members: { ...prev.members, activityMemberSummary: checked },
               }))
             }
-            label={t("会员活动汇总（member_activity 等，见下方保留选项）", "Member activity summary (see preserve below)")}
+            label={t("会员活动汇总", "Member activity summary")}
+            hint={t("member_activity 等，见下方保留选项", "See preserve option below")}
           />
           <Row
             id="delete-activity-gift"
@@ -477,6 +490,35 @@ function DeleteCategoryPanel({
           />
         </Panel>
       );
+    case "tasks":
+      return (
+        <Panel title={t("工作任务", "Work Tasks")}>
+          <Row
+            id="delete-tasks"
+            checked={deleteSelections.taskData.tasks}
+            onCheckedChange={(checked) =>
+              setDeleteSelections((prev) => ({
+                ...prev,
+                taskData: { ...prev.taskData, tasks: checked },
+              }))
+            }
+            label={t("任务列表", "Task List")}
+            hint={t("已发布/已关闭的工作任务", "Published and closed tasks")}
+          />
+          <Row
+            id="delete-task-items"
+            checked={deleteSelections.taskData.taskItems}
+            onCheckedChange={(checked) =>
+              setDeleteSelections((prev) => ({
+                ...prev,
+                taskData: { ...prev.taskData, taskItems: checked },
+              }))
+            }
+            label={t("维护历史", "Maintenance History")}
+            hint={t("任务完成明细/进度记录", "Task completion details and progress")}
+          />
+        </Panel>
+      );
     case "other":
       return (
         <Panel title={t("其他 / 知识库", "Other / Knowledge")}>
@@ -488,7 +530,29 @@ function DeleteCategoryPanel({
             }
             label={t("推荐关系", "Referral Relations")}
           />
-          <div className="col-span-full mt-1 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 dark:border-amber-700 dark:bg-amber-950/30">
+          <Row
+            id="delete-knowledge-articles"
+            checked={deleteSelections.knowledgeData.articles}
+            onCheckedChange={(checked) =>
+              setDeleteSelections((prev) => ({
+                ...prev,
+                knowledgeData: { ...prev.knowledgeData, articles: checked },
+              }))
+            }
+            label={t("知识库文章", "Knowledge Articles")}
+          />
+          <Row
+            id="delete-knowledge-categories"
+            checked={deleteSelections.knowledgeData.categories}
+            onCheckedChange={(checked) =>
+              setDeleteSelections((prev) => ({
+                ...prev,
+                knowledgeData: { ...prev.knowledgeData, categories: checked },
+              }))
+            }
+            label={t("知识库分类", "Knowledge Categories")}
+          />
+          <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-2 dark:border-amber-700 dark:bg-amber-950/30">
             <p className="flex items-center gap-1.5 text-[10px] font-medium text-amber-800 dark:text-amber-300">
               <AlertTriangle className="h-3 w-3 shrink-0" />
               {t(
@@ -520,28 +584,6 @@ function DeleteCategoryPanel({
               setDeleteSelections((prev) => ({ ...prev, loginLogs: checked }))
             }
             label={t("⚠ 登录日志", "⚠ Login Logs")}
-          />
-          <Row
-            id="delete-knowledge-articles"
-            checked={deleteSelections.knowledgeData.articles}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                knowledgeData: { ...prev.knowledgeData, articles: checked },
-              }))
-            }
-            label={t("知识库文章", "Knowledge Articles")}
-          />
-          <Row
-            id="delete-knowledge-categories"
-            checked={deleteSelections.knowledgeData.categories}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                knowledgeData: { ...prev.knowledgeData, categories: checked },
-              }))
-            }
-            label={t("知识库分类", "Knowledge Categories")}
           />
         </Panel>
       );
@@ -611,8 +653,8 @@ export function DataManagementDeleteDialog({
     >
       <AlertDialogContent
         className={cn(
-          "grid !max-h-[min(92dvh,920px)] w-[min(96vw,72rem)] max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-2 overflow-hidden p-3 sm:p-4",
-          "max-md:!max-h-[min(88dvh,900px)]",
+          "grid !max-h-[min(94dvh,960px)] w-[min(97vw,82rem)] max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-3 overflow-hidden p-4 sm:p-5",
+          "max-md:!max-h-[min(90dvh,920px)]",
         )}
       >
         <AlertDialogHeader className="shrink-0 space-y-1 text-left">
@@ -620,19 +662,15 @@ export function DataManagementDeleteDialog({
             <Trash2 className="h-4 w-4 shrink-0" />
             {t("删除数据", "Delete Data")}
           </AlertDialogTitle>
-          <AlertDialogDescription className="space-y-1 text-xs leading-snug">
-            <span className="block">
-              {t(
-                "请选择要删除的数据类型和保留时间。此操作不可撤销。",
-                "Select data types to delete and retention period. This action cannot be undone.",
-              )}
-            </span>
-            <span className="block text-[10px] text-muted-foreground">
-              {t(
-                "提示：带虚线下划线的项可悬停或长按查看完整说明（触屏建议长按）。",
-                "Tip: dotted-underline items show full text on hover or long-press (long-press on touch).",
-              )}
-            </span>
+          <AlertDialogDescription asChild>
+            <div className="space-y-1 text-xs leading-snug text-muted-foreground">
+              <span className="block">
+                {t(
+                  "请选择要删除的数据类型和保留时间。此操作不可撤销。",
+                  "Select data types to delete and retention period. This action cannot be undone.",
+                )}
+              </span>
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -643,10 +681,10 @@ export function DataManagementDeleteDialog({
             isLgUp && "overflow-y-auto pr-1 [-webkit-overflow-scrolling:touch]",
           )}
         >
-          <div className="flex min-h-0 flex-col gap-2">
-            {/* 顶栏：保留规则 + 批量操作 — 单行尽量横排 */}
-            <div className="flex shrink-0 flex-wrap items-end gap-2 border-b border-border pb-2">
-              <div className="min-w-[160px] flex-1 space-y-0.5">
+          <div className="flex min-h-0 flex-col gap-3">
+            {/* Toolbar: retention + batch actions */}
+            <div className="flex shrink-0 flex-wrap items-end gap-3 border-b border-border pb-2.5">
+              <div className="min-w-[180px] flex-1 space-y-0.5">
                 <Label className="text-[11px] text-muted-foreground">{t("保留近期数据", "Retain Recent Data")}</Label>
                 <Select value={deleteRetainMonths} onValueChange={setDeleteRetainMonths}>
                   <SelectTrigger className="h-8 text-xs">
@@ -661,12 +699,12 @@ export function DataManagementDeleteDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1.5">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-8 px-2 text-xs"
+                  className="h-8 px-3 text-xs"
                   onClick={() => setDeleteSelections(SELECT_ALL_STATE)}
                 >
                   {t("全选", "Select All")}
@@ -675,7 +713,7 @@ export function DataManagementDeleteDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-8 px-2 text-xs"
+                  className="h-8 px-3 text-xs"
                   onClick={() => setDeleteSelections(SELECT_NONE_STATE)}
                 >
                   {t("取消全选", "Deselect All")}
@@ -683,17 +721,13 @@ export function DataManagementDeleteDialog({
               </div>
             </div>
 
-            {!isLgUp ? (
-              <p className="text-[10px] leading-tight text-muted-foreground">
-                {t("小屏按分类切换标签选择；桌面并排四列。", "Use tabs per category on small screens; four columns on desktop.")}
-              </p>
-            ) : null}
-
+            {/* Desktop: 5-column grid */}
             {isLgUp ? (
-              <div className="grid min-h-0 auto-rows-min grid-cols-4 items-start gap-2">
+              <div className="grid min-h-0 auto-rows-min grid-cols-5 items-start gap-3">
                 <DeleteCategoryPanel step="orders" {...categoryPanelProps} />
                 <DeleteCategoryPanel step="members" {...categoryPanelProps} />
                 <DeleteCategoryPanel step="merchant" {...categoryPanelProps} />
+                <DeleteCategoryPanel step="tasks" {...categoryPanelProps} />
                 <DeleteCategoryPanel step="other" {...categoryPanelProps} />
               </div>
             ) : (
@@ -702,24 +736,30 @@ export function DataManagementDeleteDialog({
                 onValueChange={(v) => setMobileDeleteTab(v as DeleteCategoryStep)}
                 className="min-h-0"
               >
-                <TabsList className="grid h-auto w-full grid-cols-4 gap-0.5 p-1">
+                <TabsList className="grid h-auto w-full grid-cols-5 gap-0.5 p-1">
                   <TabsTrigger
                     value="orders"
                     className="px-0.5 py-2 text-[9px] leading-tight sm:px-1 sm:text-[11px]"
                   >
-                    {t("订单/报表", "Orders")}
+                    {t("订单", "Orders")}
                   </TabsTrigger>
                   <TabsTrigger
                     value="members"
                     className="px-0.5 py-2 text-[9px] leading-tight sm:px-1 sm:text-[11px]"
                   >
-                    {t("会员/交班", "Members")}
+                    {t("会员", "Members")}
                   </TabsTrigger>
                   <TabsTrigger
                     value="merchant"
                     className="px-0.5 py-2 text-[9px] leading-tight sm:px-1 sm:text-[11px]"
                   >
-                    {t("商家", "Merchant")}
+                    {t("结算", "Settle")}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="tasks"
+                    className="px-0.5 py-2 text-[9px] leading-tight sm:px-1 sm:text-[11px]"
+                  >
+                    {t("任务", "Tasks")}
                   </TabsTrigger>
                   <TabsTrigger
                     value="other"
@@ -728,41 +768,48 @@ export function DataManagementDeleteDialog({
                     {t("其他", "Other")}
                   </TabsTrigger>
                 </TabsList>
-                <TabsContent value="orders" className="mt-2 min-h-0 overflow-hidden outline-none">
+                <TabsContent value="orders" className="mt-2 min-h-0 overflow-y-auto outline-none">
                   <DeleteCategoryPanel step="orders" {...categoryPanelProps} />
                 </TabsContent>
-                <TabsContent value="members" className="mt-2 min-h-0 overflow-hidden outline-none">
+                <TabsContent value="members" className="mt-2 min-h-0 overflow-y-auto outline-none">
                   <DeleteCategoryPanel step="members" {...categoryPanelProps} />
                 </TabsContent>
-                <TabsContent value="merchant" className="mt-2 min-h-0 overflow-hidden outline-none">
+                <TabsContent value="merchant" className="mt-2 min-h-0 overflow-y-auto outline-none">
                   <DeleteCategoryPanel step="merchant" {...categoryPanelProps} />
                 </TabsContent>
-                <TabsContent value="other" className="mt-2 min-h-0 overflow-hidden outline-none">
+                <TabsContent value="tasks" className="mt-2 min-h-0 overflow-y-auto outline-none">
+                  <DeleteCategoryPanel step="tasks" {...categoryPanelProps} />
+                </TabsContent>
+                <TabsContent value="other" className="mt-2 min-h-0 overflow-y-auto outline-none">
                   <DeleteCategoryPanel step="other" {...categoryPanelProps} />
                 </TabsContent>
               </Tabs>
             )}
 
-            {/* 密码 + 进度 — 贴底横条，避免被挤出视区 */}
-            <div className="shrink-0 space-y-1.5 border-t border-border pt-2">
-              <Label className="text-[11px]">{t("管理员密码", "Admin Password")}</Label>
-              <p className="text-[10px] leading-tight text-muted-foreground">
-                {t(
-                  "请输入当前登录账号的登录密码（非独立管理员口令）。",
-                  "Enter your current account login password (not a separate admin PIN).",
-                )}
-              </p>
-              <Input
-                type="password"
-                name="current-password"
-                autoComplete="current-password"
-                className="h-9 text-sm"
-                value={deletePassword}
-                onChange={(e) => setDeletePassword(e.target.value)}
-                placeholder={t("当前账号登录密码", "Your account login password")}
-              />
+            {/* Password + progress */}
+            <div className="shrink-0 space-y-2 border-t border-border pt-3">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="min-w-[240px] flex-1 space-y-1">
+                  <Label className="text-[11px]">{t("管理员密码", "Admin Password")}</Label>
+                  <p className="text-[10px] leading-tight text-muted-foreground">
+                    {t(
+                      "请输入当前登录账号的登录密码（非独立管理员口令）。",
+                      "Enter your current account login password (not a separate admin PIN).",
+                    )}
+                  </p>
+                  <Input
+                    type="password"
+                    name="current-password"
+                    autoComplete="current-password"
+                    className="h-9 text-sm"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    placeholder={t("当前账号登录密码", "Your account login password")}
+                  />
+                </div>
+              </div>
               {isDeleting ? (
-                <div className="space-y-2 rounded-md border border-destructive/25 bg-destructive/5 p-2">
+                <div className="space-y-2 rounded-md border border-destructive/25 bg-destructive/5 p-2.5">
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-destructive" />
                     <span className="text-xs font-medium text-destructive">
@@ -795,7 +842,7 @@ export function DataManagementDeleteDialog({
           </div>
         </div>
 
-        <AlertDialogFooter className="shrink-0 gap-2 border-t border-border pt-2 max-md:[&_button]:min-h-10 sm:justify-end">
+        <AlertDialogFooter className="shrink-0 gap-2 border-t border-border pt-2.5 max-md:[&_button]:min-h-10 sm:justify-end">
           <AlertDialogCancel
             className="mt-0"
             onClick={() => {

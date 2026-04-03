@@ -120,13 +120,13 @@ export default function MemberInvite() {
 
   const shareWhatsApp = () => {
     const prefixText = prefix ? `${prefix}\n` : "";
-    const msg = `${prefixText}Join ${portalSettings.company_name || "FastGC"}! Register to get ${inviteRewardSpins} free spins to win prizes! Click: ${inviteLink}`;
+    const msg = `${prefixText}Join ${portalSettings.company_name || "FastGC"}! Register & log in to get ${inviteRewardSpins} free spins to win prizes! Click: ${inviteLink}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
   };
 
   const shareTelegram = () => {
     const prefixText = prefix ? `${prefix}\n` : "";
-    const msg = `${prefixText}Join ${portalSettings.company_name || "FastGC"}! Register to get ${inviteRewardSpins} free spins to win prizes!`;
+    const msg = `${prefixText}Join ${portalSettings.company_name || "FastGC"}! Register & log in to get ${inviteRewardSpins} free spins to win prizes!`;
     window.open(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
   };
 
@@ -273,8 +273,8 @@ export default function MemberInvite() {
     },
     {
       step: "02",
-      title: t("好友完成注册", "Friend registers"),
-      desc: t("对方通过你的专属链接完成注册", "They sign up via your unique link"),
+      title: t("好友注册并登录", "Friend registers & logs in"),
+      desc: t("对方通过你的专属链接注册并首次登录", "They sign up via your link and log in for the first time"),
       color: "--pu-emerald",
       colorSoft: "--pu-emerald-soft",
       emoji: "✅",
@@ -516,7 +516,7 @@ export default function MemberInvite() {
               dailyInviteRewardLimit > 0
                 ? t(`每日邀请奖励上限：${dailyInviteRewardLimit}`, `Daily invite reward cap: ${dailyInviteRewardLimit}`)
                 : t("邀请次数不限", "No cap on invites"),
-              t("注册完成后系统自动发放奖励", "Rewards are granted automatically after registration"),
+              t("好友注册并首次登录后系统自动发放奖励", "Rewards are granted automatically after the friend registers and logs in"),
               t(
                 "此为会员邀请新会员；若需注册员工账号，请使用管理员提供的员工邀请码，勿混用本链接。",
                 "This link invites new members only. For staff accounts, use invitation codes from your admin—not this link.",
@@ -535,8 +535,8 @@ export default function MemberInvite() {
           <p className="m-0 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim))]">
             <Zap className="mr-1 inline h-3 w-3 text-pu-gold-soft" aria-hidden />
             {t(
-              "分享你的专属链接，好友注册成功后，双方各得转盘抽奖机会。恶意刷号将取消奖励资格。",
-              "Share your link; after a friend registers, both of you get wheel spins. Abuse may void rewards.",
+              "分享你的专属链接，好友注册并首次登录后，双方各得转盘抽奖机会。恶意刷号将取消奖励资格。",
+              "Share your link; after a friend registers and logs in for the first time, both of you get wheel spins. Abuse may void rewards.",
             )}
           </p>
         </div>

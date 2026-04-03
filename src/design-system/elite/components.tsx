@@ -44,15 +44,18 @@ export function EliteSectionCard({
   children: ReactNode;
   action?: ReactNode;
 }) {
+  const hasHeader = !!(title || description || action);
   return (
     <EliteCard className="p-5">
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <h3 className="text-base font-semibold text-foreground">{title}</h3>
-          {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+      {hasHeader && (
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            {title && <h3 className="text-base font-semibold text-foreground">{title}</h3>}
+            {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+          </div>
+          {action}
         </div>
-        {action}
-      </div>
+      )}
       {children}
     </EliteCard>
   );

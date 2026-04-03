@@ -276,6 +276,126 @@ export async function runRestoreOrderSideEffects(input: LifecycleSideEffectsInpu
   invalidateOrderRelatedQueries(queryClient, "UPDATE");
 }
 
+/**
+ * Headless side-effect runner for batch-import context.
+ * Mirrors runCreateOrderSideEffects but without React queryClient,
+ * fetchOrders, or UI-specific invalidations. Returns structured warnings.
+ */
+export interface ImportOrderSideEffectsInput {
+  orderId: string;
+  orderNumber: string;
+  phoneNumber: string;
+  memberCode: string;
+  currency: string;
+  cardValue: number;
+  cardWorth: number;
+  paymentValue: number;
+  actualPaid: number;
+  foreignRate: number;
+  vendorId: string;
+  providerId: string;
+  vendorName: string;
+  providerName: string;
+  cardType: string;
+  creatorId?: string;
+  creatorName?: string;
+  createdAt: string;
+  pointsStatus: string;
+  skipPoints?: boolean;
+}
+
+export interface ImportOrderSideEffectsResult {
+  pointsCreated: boolean;
+  balanceLogged: boolean;
+  webhookFired: boolean;
+  warnings: string[];
+}
+
+export async function runImportOrderSideEffects(
+  input: ImportOrderSideEffectsInput,
+): Promise<ImportOrderSideEffectsResult> {
+  const result: ImportOrderSideEffectsResult = {
+    pointsCreated: false,
+    balanceLogged: false,
+    webhookFired: false,
+    warnings: [],
+  };
+
+  // 1. Points (with idempotency: skip if already added)
+  if (
+    !input.skipPoints &&
+    input.pointsStatus !== "added" &&
+    input.memberCode &&
+    input.phoneNumber &&
+    input.actualPaid > 0
+  ) {
+    const pointsCurrency = normalizeCurrencyCode(input.currency);
+    if (pointsCurrency) {
+      try {
+        const pointsResult = await createPointsOnOrderCreate({
+          orderId: input.orderId,
+          orderPhoneNumber: input.phoneNumber,
+          memberCode: input.memberCode,
+          actualPayment: input.actualPaid,
+          currency: pointsCurrency,
+          creatorId: input.creatorId,
+        });
+        if (pointsResult.success) {
+          result.pointsCreated = true;
+          await import("@/services/orders/ordersApiService").then((m) =>
+            m.updateOrderPointsApi(input.orderId, { points_status: "added" }),
+          );
+        }
+      } catch (err) {
+        result.warnings.push(`积分发放失败 (points grant failed): ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+
+  // 2. Balance log (idempotent via source_id uniqueness / 409 handling in ledger service)
+  if (input.vendorName || input.providerName) {
+    try {
+      await logOrderBalanceChange({
+        vendorName: input.vendorName,
+        providerName: input.providerName,
+        cardWorth: input.cardWorth,
+        paymentValue: input.paymentValue,
+        actualPaid: input.actualPaid,
+        currency: input.currency,
+        foreignRate: input.foreignRate,
+        orderId: input.orderId,
+        orderNumber: input.orderNumber,
+        operatorId: input.creatorId,
+        operatorName: input.creatorName,
+      });
+      result.balanceLogged = true;
+    } catch (err) {
+      result.warnings.push(`余额变动记录失败 (balance log failed): ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // 3. Webhook (fire-and-forget; import also triggers order.created)
+  try {
+    const { triggerOrderCreated } = await import("@/services/webhookService");
+    await triggerOrderCreated({
+      id: input.orderId,
+      orderNumber: input.orderNumber,
+      phoneNumber: input.phoneNumber,
+      memberCode: input.memberCode,
+      currency: input.currency,
+      amount: input.cardWorth,
+      actualPaid: input.actualPaid,
+      cardType: input.cardType,
+      createdAt: input.createdAt,
+    });
+    result.webhookFired = true;
+  } catch {
+    // Webhook failure is non-critical for import
+  }
+
+  return result;
+}
+
 export async function runDeleteOrderSideEffects(input: LifecycleSideEffectsInput): Promise<void> {
   const {
     dbId,

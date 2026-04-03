@@ -9,8 +9,12 @@ import { MEMBER_PORTAL_RPC_PATHS } from "./routes";
 export type MemberDailyStatus = {
   checked_in?: boolean;
   checked_in_today?: boolean;
+  /** true = daily cap reached (no more shares available today) */
   share_claimed_today?: boolean;
+  /** Total share spin credits earned today */
   share_credits_today?: number;
+  /** Configured daily cap (0 = unlimited) */
+  daily_share_cap?: number;
   /** 后端计算的连续签到展示天数（已签=含今日；未签=截至昨日） */
   current_streak_days?: number;
   reward_base?: number;
@@ -55,8 +59,10 @@ export type ShareRewardResult = {
   success?: boolean;
   error?: string;
   credits?: number;
+  /** true = daily cap reached after this share */
   share_claimed_today?: boolean;
   share_credits_today?: number;
+  daily_share_cap?: number;
 };
 
 export async function memberClaimShareReward(memberId: string): Promise<ShareRewardResult> {
