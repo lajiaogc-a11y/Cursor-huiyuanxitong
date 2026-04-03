@@ -16,13 +16,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CompactTableSkeleton } from "@/components/skeletons/TablePageSkeleton";
@@ -40,20 +33,6 @@ import {
   type InviteLeaderboardFakeRow,
   type InviteLeaderboardGrowthSettings,
 } from "@/services/staff/inviteLeaderboardAdminService";
-
-function normalizeInviteGrowth(raw: InviteLeaderboardGrowthSettings | null): InviteLeaderboardGrowthSettings | null {
-  if (!raw) return null;
-  return {
-    ...raw,
-    growth_segment_hours: raw.growth_segment_hours ?? 12,
-    growth_alloc_mode: raw.growth_alloc_mode === "even" ? "even" : "random",
-    growth_segment_ticks_planned: Number(raw.growth_segment_ticks_planned ?? 0),
-    growth_segment_ticks_done: Number(raw.growth_segment_ticks_done ?? 0),
-    growth_ticks_min: raw.growth_ticks_min != null ? Number(raw.growth_ticks_min) : null,
-    growth_ticks_max: raw.growth_ticks_max != null ? Number(raw.growth_ticks_max) : null,
-    growth_runs_per_user: Math.max(1, Math.min(10, Math.floor(Number(raw.growth_runs_per_user ?? 1)))),
-  };
-}
 import { formatBeijingDate } from "@/lib/beijingTime";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -64,6 +43,17 @@ import {
 } from "@/components/ui/mobile-data-card";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/api/client";
+
+function computeCycleEnd(settings: InviteLeaderboardGrowthSettings): string | null {
+  if (!settings.growth_segment_started_at) return null;
+  const startMs = Date.parse(
+    settings.growth_segment_started_at.replace(" ", "T") +
+      (settings.growth_segment_started_at.includes("Z") ? "" : "Z"),
+  );
+  if (!Number.isFinite(startMs)) return null;
+  const endMs = startMs + settings.growth_segment_hours * 3600 * 1000;
+  return new Date(endMs).toISOString().slice(0, 23).replace("T", " ");
+}
 
 export function InviteLeaderboardSettingsTab({
   tenantId,
@@ -110,9 +100,8 @@ export function InviteLeaderboardSettingsTab({
         staffGetInviteLeaderboardGrowthSettings(tenantId),
       ]);
       setRows(list);
-      if (growth) setGrowthDraft(normalizeInviteGrowth(growth));
-      else setGrowthDraft(null);
-    } catch (e) {
+      setGrowthDraft(growth);
+    } catch {
       notify.error(t("加载失败", "Load failed"));
       setRows([]);
       setGrowthDraft(null);
@@ -125,31 +114,15 @@ export function InviteLeaderboardSettingsTab({
     if (!tenantId || !canMutate || !growthDraft) return;
     setGrowthSaving(true);
     try {
-      const batchAuto =
-        growthDraft.growth_ticks_min == null && growthDraft.growth_ticks_max == null;
-      let tmin = Math.max(1, Math.min(72, Math.floor(growthDraft.growth_ticks_min ?? 6)));
-      let tmax = Math.max(1, Math.min(72, Math.floor(growthDraft.growth_ticks_max ?? 12)));
-      if (tmin > tmax) [tmin, tmax] = [tmax, tmin];
       const next = await staffPatchInviteLeaderboardGrowthSettings(tenantId, {
         auto_growth_enabled: growthDraft.auto_growth_enabled,
         growth_segment_hours: growthDraft.growth_segment_hours,
-        growth_alloc_mode: growthDraft.growth_alloc_mode,
         growth_delta_min: growthDraft.growth_delta_min,
         growth_delta_max: growthDraft.growth_delta_max,
-        growth_runs_per_user: growthDraft.growth_runs_per_user ?? 1,
-        ...(batchAuto
-          ? { growth_ticks_use_auto: true }
-          : {
-              growth_ticks_min: tmin,
-              growth_ticks_max: tmax,
-            }),
       });
-      if (next) setGrowthDraft(normalizeInviteGrowth(next));
+      if (next) setGrowthDraft(next);
       notify.success(
-        t(
-          "增长策略已保存，已按当前 UTC 段重置 tick 与下次执行时间",
-          "Saved; current UTC segment ticks and next run time were reset",
-        ),
+        t("增长策略已保存，当前周期已重置", "Saved; current cycle has been reset"),
       );
     } catch (e) {
       notify.error(e instanceof ApiError ? e.message : t("保存失败", "Save failed"));
@@ -282,12 +255,18 @@ export function InviteLeaderboardSettingsTab({
     }
   };
 
+  const pendingCount = rows.filter((r) => r.is_active && r.next_growth_at).length;
+  const processedCount = rows.filter(
+    (r) => r.is_active && !r.next_growth_at && r.growth_cycles > 0,
+  ).length;
+  const cycleEnd = growthDraft ? computeCycleEnd(growthDraft) : null;
+
   return (
     <div className="space-y-6">
       <p className="text-xs text-muted-foreground -mb-1 border-l-2 border-primary/30 pl-2 leading-relaxed">
         {t(
-          "路径：会员系统 → 邀请与模拟 →「邀请设置」。假用户与真实会员合并排序，邀请页展示前 5 名。自动增长以「段长（小时，UTC）」为一个完整周期（例如 72）：周期内会把当前所有可增长的假用户随机打乱，再拆成若干批执行；每人在该周期内只增长一次，各批人数可不同（如第一批 5 人、第二批 8 人）。批次数可由后台指定范围（如 6～12），留空则系统按段长自动推算。每批在周期内的触发时刻由「批次触发时刻」决定：随机=落在该批对应时间窗内随机一点，均分=靠近该时间窗中点。每小时检测任务。单条假用户最多 30 次增长周期。",
-          "Path: Member portal → Invite & simulation → Invite settings. Fakes merge with real members for the invite top 5. Auto-growth uses segment length (hours, UTC) as one full cycle (e.g. 72h): each cycle shuffles all eligible synthetic users and splits them into batches; each user grows once per cycle and batch sizes can vary (e.g. 5 then 8). Set min/max batch count (e.g. 6–12) or leave auto. When each batch fires within the cycle is controlled by “Batch timing”: random = jitter inside that batch’s time window; even = near the window midpoint. Hourly job. Max 30 growth cycles per synthetic row.",
+          "假用户与真实会员合并排序，邀请页展示前 5 名。自动增长以「周期时长」为一个完整周期（如 72 小时）：周期开始时为每个假用户分配一个周期内的随机时间点，到时间后自动增加 0～3 人。每个假用户在一个周期内只增长一次，且各自在不同时刻触发。周期结束后自动开始新周期。每小时检测一次。单条假用户最多 30 个生命周期。",
+          "Synthetic users merge with real members for the top 5 invite ranking. Auto-growth runs in cycles (e.g. 72h): at cycle start, each user is assigned a random time within the window. When that time arrives, they get +0~3 invites. Each user grows exactly once per cycle at their own random time. New cycle starts when the previous one ends. Checked hourly. Max 30 lifetime cycles per row.",
         )}
       </p>
 
@@ -298,8 +277,8 @@ export function InviteLeaderboardSettingsTab({
           </CardTitle>
           <p className="text-sm text-muted-foreground font-normal mt-1">
             {t(
-              "保存后按当前 UTC 段重新规划本周期批次数与时间表；本周期内每人只结算一次，按随机分批人数执行。",
-              "Saving replans batch count and schedule for the current UTC segment; each user settles once per cycle with random batch sizes.",
+              "保存后当前周期重置，所有假用户会重新分配随机增长时间。",
+              "Saving resets the current cycle; all users get new random growth times.",
             )}
           </p>
         </CardHeader>
@@ -319,12 +298,12 @@ export function InviteLeaderboardSettingsTab({
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1 col-span-2 sm:col-span-1">
-                  <label className="text-xs text-muted-foreground">{t("段长（小时，UTC）", "Segment length (h, UTC)")}</label>
+                <div className="space-y-1 col-span-2">
+                  <label className="text-xs text-muted-foreground">{t("周期时长（小时）", "Cycle length (hours)")}</label>
                   <Input
                     type="number"
                     min={1}
-                    max={168}
+                    max={720}
                     disabled={!canMutate || growthSaving}
                     value={growthDraft.growth_segment_hours}
                     onChange={(e) =>
@@ -332,137 +311,21 @@ export function InviteLeaderboardSettingsTab({
                         d
                           ? {
                               ...d,
-                              growth_segment_hours: Math.max(1, Math.min(168, Math.floor(Number(e.target.value) || 1))),
+                              growth_segment_hours: Math.max(1, Math.min(720, Math.floor(Number(e.target.value) || 1))),
                             }
                           : d,
                       )
                     }
                   />
-                </div>
-                <div className="space-y-1 col-span-2 sm:col-span-1">
-                  <label className="text-xs text-muted-foreground">{t("批次触发时刻", "Batch timing")}</label>
-                  <Select
-                    value={growthDraft.growth_alloc_mode}
-                    disabled={!canMutate || growthSaving}
-                    onValueChange={(v) =>
-                      setGrowthDraft((d) =>
-                        d ? { ...d, growth_alloc_mode: v === "even" ? "even" : "random" } : d,
-                      )
-                    }
-                  >
-                    <SelectTrigger className="h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="random">
-                        {t("随机（该批时间窗内随机触发）", "Random (fire anywhere in the batch window)")}
-                      </SelectItem>
-                      <SelectItem value="even">
-                        {t("均分（靠近该批时间窗中点）", "Even (near the batch window midpoint)")}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
                   <p className="text-[11px] text-muted-foreground leading-snug">
                     {t(
-                      "周期按批次数切成相等的时间窗；此处决定每批在各自窗内的触发位置，不是「每人跑几次」——每人每周期仍只增长一次。",
-                      "The cycle is split into equal time windows per batch; this only shifts when each batch fires inside its window. Each user still grows once per cycle.",
-                    )}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 col-span-2 rounded-md border border-border/80 px-3 py-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm">{t("周期内批次数（自动推算）", "Batch count: auto from segment")}</span>
-                    <Switch
-                      checked={
-                        growthDraft.growth_ticks_min == null && growthDraft.growth_ticks_max == null
-                      }
-                      disabled={!canMutate || growthSaving}
-                      onCheckedChange={(auto) =>
-                        setGrowthDraft((d) =>
-                          d
-                            ? auto
-                              ? { ...d, growth_ticks_min: null, growth_ticks_max: null }
-                              : {
-                                  ...d,
-                                  growth_ticks_min: d.growth_ticks_min ?? 6,
-                                  growth_ticks_max: d.growth_ticks_max ?? 12,
-                                }
-                            : d,
-                        )
-                      }
-                    />
-                  </div>
-                  {growthDraft.growth_ticks_min != null || growthDraft.growth_ticks_max != null ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-xs text-muted-foreground">
-                          {t("每周期最少批次数", "Min batches / cycle")}
-                        </label>
-                        <Input
-                          type="number"
-                          min={1}
-                          max={72}
-                          disabled={!canMutate || growthSaving}
-                          value={growthDraft.growth_ticks_min ?? 6}
-                          onChange={(e) =>
-                            setGrowthDraft((d) =>
-                              d
-                                ? {
-                                    ...d,
-                                    growth_ticks_min: Math.max(
-                                      1,
-                                      Math.min(72, Math.floor(Number(e.target.value) || 1)),
-                                    ),
-                                  }
-                                : d,
-                            )
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs text-muted-foreground">
-                          {t("每周期最多批次数", "Max batches / cycle")}
-                        </label>
-                        <Input
-                          type="number"
-                          min={1}
-                          max={72}
-                          disabled={!canMutate || growthSaving}
-                          value={growthDraft.growth_ticks_max ?? 12}
-                          onChange={(e) =>
-                            setGrowthDraft((d) =>
-                              d
-                                ? {
-                                    ...d,
-                                    growth_ticks_max: Math.max(
-                                      1,
-                                      Math.min(72, Math.floor(Number(e.target.value) || 1)),
-                                    ),
-                                  }
-                                : d,
-                            )
-                          }
-                        />
-                      </div>
-                    </div>
-                  ) : null}
-                  <p className="text-[11px] text-muted-foreground leading-snug">
-                    {t(
-                      "关闭自动后：每个新周期在「最少～最多」之间随机取一个批次数；再在该周期内随机拆分所有假用户到各批（人数和不等）。",
-                      "When manual: each new cycle picks a batch count between min and max, then randomly splits all users across batches (uneven sizes).",
-                    )}
-                  </p>
-                </div>
-                <div className="space-y-1 col-span-2">
-                  <p className="text-xs text-muted-foreground">
-                    {t(
-                      `本周期已计划批次数：${growthDraft.growth_segment_ticks_planned}，已完成：${growthDraft.growth_segment_ticks_done}（保存策略后会按当前段重算）`,
-                      `Batches planned this segment: ${growthDraft.growth_segment_ticks_planned}, done: ${growthDraft.growth_segment_ticks_done} (saving resets for the current segment)`,
+                      "每个周期内，每个假用户在随机时刻自动增长一次。周期结束后自动开始新周期。",
+                      "Within each cycle, every user grows once at their own random time. A new cycle starts automatically when the current one ends.",
                     )}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">{t("每轮增量下限（人）", "Delta min / row")}</label>
+                  <label className="text-xs text-muted-foreground">{t("每次增量下限（人）", "Delta min (people)")}</label>
                   <Input
                     type="number"
                     min={0}
@@ -477,7 +340,7 @@ export function InviteLeaderboardSettingsTab({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">{t("每轮增量上限（人）", "Delta max / row")}</label>
+                  <label className="text-xs text-muted-foreground">{t("每次增量上限（人）", "Delta max (people)")}</label>
                   <Input
                     type="number"
                     min={0}
@@ -491,36 +354,27 @@ export function InviteLeaderboardSettingsTab({
                     }
                   />
                 </div>
-                <div className="space-y-1 col-span-2">
-                  <label className="text-xs text-muted-foreground">{t("每周期每人最多执行次数", "Max runs per user per cycle")}</label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={10}
-                    disabled={!canMutate || growthSaving}
-                    value={growthDraft.growth_runs_per_user ?? 1}
-                    onChange={(e) =>
-                      setGrowthDraft((d) =>
-                        d ? { ...d, growth_runs_per_user: Math.max(1, Math.min(10, Math.floor(Number(e.target.value) || 1))) } : d,
-                      )
-                    }
-                  />
-                  <p className="text-[11px] text-muted-foreground leading-snug">
-                    {t(
-                      "每个周期内，每个假用户最多被分配到几个不同批次执行增长。设为 1 即每人每周期只增长一次（推荐）。",
-                      "Within each cycle, each synthetic user is assigned to at most this many batches. Set 1 for one growth per cycle (recommended).",
-                    )}
-                  </p>
-                </div>
               </div>
-              <div className="text-xs text-muted-foreground space-y-1">
+              <div className="text-xs text-muted-foreground space-y-1 rounded-md border border-border/50 px-3 py-2">
                 <p>
-                  {t("上次执行：", "Last run: ")}{" "}
+                  {t("当前周期开始：", "Cycle started: ")}{" "}
+                  {growthDraft.growth_segment_started_at ? formatBeijingDate(growthDraft.growth_segment_started_at) : "—"}
+                </p>
+                <p>
+                  {t("当前周期结束：", "Cycle ends: ")}{" "}
+                  {cycleEnd ? formatBeijingDate(cycleEnd) : "—"}
+                </p>
+                <p>
+                  {t("上次增长：", "Last growth: ")}{" "}
                   {growthDraft.last_fake_growth_at ? formatBeijingDate(growthDraft.last_fake_growth_at) : "—"}
                 </p>
                 <p>
-                  {t("计划下次：", "Next run: ")}{" "}
+                  {t("下一个用户增长：", "Next user growth: ")}{" "}
                   {growthDraft.next_fake_growth_at ? formatBeijingDate(growthDraft.next_fake_growth_at) : "—"}
+                </p>
+                <p>
+                  {t(`本周期：待增长 ${pendingCount} 人，已完成 ${processedCount} 人`,
+                     `This cycle: ${pendingCount} pending, ${processedCount} done`)}
                 </p>
               </div>
               {canMutate ? (
@@ -611,12 +465,7 @@ export function InviteLeaderboardSettingsTab({
           {!tenantId ? (
             <p className="text-sm text-muted-foreground">{t("无租户上下文", "No tenant context")}</p>
           ) : loading ? (
-            <div
-              className="py-4"
-              role="status"
-              aria-busy="true"
-              aria-label={t("加载中…", "Loading…")}
-            >
+            <div className="py-4" role="status" aria-busy="true" aria-label={t("加载中…", "Loading…")}>
               <CompactTableSkeleton columns={7} rows={8} />
             </div>
           ) : rows.length === 0 ? (
@@ -753,8 +602,8 @@ export function InviteLeaderboardSettingsTab({
             <AlertDialogTitle>{t("立即跑增长任务？", "Run growth job now?")}</AlertDialogTitle>
             <AlertDialogDescription>
               {t(
-                "与定时任务相同：仅对「计划下次」时间已到的租户执行一轮增长；未到时间的租户不会提前增长。确定继续？",
-                "Same as the hourly job: only tenants whose scheduled next run time has passed will grow; others are skipped. Continue?",
+                "立即检查并处理所有已到时间的假用户增长。如果当前周期已结束，会自动开始新周期。确定继续？",
+                "Immediately checks and processes all due fake user growth. If the current cycle has ended, a new cycle starts automatically. Continue?",
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>

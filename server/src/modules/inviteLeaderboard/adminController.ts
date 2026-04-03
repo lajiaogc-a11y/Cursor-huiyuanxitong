@@ -86,6 +86,7 @@ function serializeFakeRow(r: InviteFakeUserRow) {
     growth_cycles: r.growth_cycles,
     max_growth_cycles: r.max_growth_cycles,
     is_active: !!r.is_active,
+    next_growth_at: r.next_growth_at ?? null,
     created_at: r.created_at,
     updated_at: r.updated_at,
   };
@@ -294,18 +295,11 @@ function serializeGrowthSettings(d: InviteLeaderboardGrowthScheduleDto) {
   return {
     auto_growth_enabled: d.auto_growth_enabled,
     growth_segment_hours: d.growth_segment_hours,
-    growth_alloc_mode: d.growth_alloc_mode,
-    growth_segment_ticks_planned: d.growth_segment_ticks_planned,
-    growth_segment_ticks_done: d.growth_segment_ticks_done,
-    growth_ticks_min: d.growth_ticks_min,
-    growth_ticks_max: d.growth_ticks_max,
-    growth_interval_hours_min: d.growth_interval_hours_min,
-    growth_interval_hours_max: d.growth_interval_hours_max,
     growth_delta_min: d.growth_delta_min,
     growth_delta_max: d.growth_delta_max,
+    growth_segment_started_at: d.growth_segment_started_at,
     last_fake_growth_at: d.last_fake_growth_at,
     next_fake_growth_at: d.next_fake_growth_at,
-    growth_runs_per_user: d.growth_runs_per_user ?? 1,
   };
 }
 
@@ -345,33 +339,13 @@ export async function patchInviteLeaderboardGrowthSettingsController(
   const patch: {
     auto_growth_enabled?: boolean;
     growth_segment_hours?: number;
-    growth_alloc_mode?: string;
-    growth_interval_hours_min?: number;
-    growth_interval_hours_max?: number;
     growth_delta_min?: number;
     growth_delta_max?: number;
-    growth_ticks_use_auto?: boolean;
-    growth_ticks_min?: number | null;
-    growth_ticks_max?: number | null;
-    growth_runs_per_user?: number;
   } = {};
   if (typeof body.auto_growth_enabled === 'boolean') patch.auto_growth_enabled = body.auto_growth_enabled;
   if (body.growth_segment_hours != null) patch.growth_segment_hours = Number(body.growth_segment_hours);
-  if (body.growth_alloc_mode != null) patch.growth_alloc_mode = String(body.growth_alloc_mode);
-  if (body.growth_interval_hours_min != null) patch.growth_interval_hours_min = Number(body.growth_interval_hours_min);
-  if (body.growth_interval_hours_max != null) patch.growth_interval_hours_max = Number(body.growth_interval_hours_max);
   if (body.growth_delta_min != null) patch.growth_delta_min = Number(body.growth_delta_min);
   if (body.growth_delta_max != null) patch.growth_delta_max = Number(body.growth_delta_max);
-  if (body.growth_ticks_use_auto === true) patch.growth_ticks_use_auto = true;
-  if (body.growth_ticks_min !== undefined) {
-    patch.growth_ticks_min =
-      body.growth_ticks_min === null ? null : Number(body.growth_ticks_min);
-  }
-  if (body.growth_ticks_max !== undefined) {
-    patch.growth_ticks_max =
-      body.growth_ticks_max === null ? null : Number(body.growth_ticks_max);
-  }
-  if (body.growth_runs_per_user != null) patch.growth_runs_per_user = Math.max(1, Math.min(10, Math.floor(Number(body.growth_runs_per_user))));
   if (Object.keys(patch).length === 0) {
     res.status(400).json({ success: false, error: 'empty body' });
     return;

@@ -908,46 +908,27 @@ export async function migrateSchemaPatches(): Promise<void> {
     console.warn('[schema-patch] invite_leaderboard_cron_ticket seed:', ((e as Error).message || '').slice(0, 120));
   }
 
-  // 邀请榜增长：固定时长「段」（默认 12h）、段内多次 tick；段内时刻随机或均分；假用户按哈希分桶在不同 tick 结算
+  // 邀请榜增长调度：扩展列
   if (await tableExists('invite_leaderboard_tenant_growth_schedule')) {
     await addCol('invite_leaderboard_tenant_growth_schedule', 'next_fake_growth_at', 'DATETIME(3) NULL');
-    await addCol(
-      'invite_leaderboard_tenant_growth_schedule',
-      'growth_interval_hours_min',
-      'INT NOT NULL DEFAULT 72',
-    );
-    await addCol(
-      'invite_leaderboard_tenant_growth_schedule',
-      'growth_interval_hours_max',
-      'INT NOT NULL DEFAULT 84',
-    );
-    await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_delta_min', 'INT NOT NULL DEFAULT 1');
+    await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_interval_hours_min', 'INT NOT NULL DEFAULT 72');
+    await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_interval_hours_max', 'INT NOT NULL DEFAULT 84');
+    await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_delta_min', 'INT NOT NULL DEFAULT 0');
     await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_delta_max', 'INT NOT NULL DEFAULT 3');
     await addCol('invite_leaderboard_tenant_growth_schedule', 'auto_growth_enabled', 'TINYINT(1) NOT NULL DEFAULT 1');
-    await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_segment_hours', 'INT NOT NULL DEFAULT 12');
-    await addCol(
-      'invite_leaderboard_tenant_growth_schedule',
-      'growth_alloc_mode',
-      "VARCHAR(16) NOT NULL DEFAULT 'random'",
-    );
+    await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_segment_hours', 'INT NOT NULL DEFAULT 72');
+    await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_alloc_mode', "VARCHAR(16) NOT NULL DEFAULT 'random'");
     await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_segment_started_at', 'DATETIME(3) NULL');
     await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_segment_ticks_planned', 'INT NOT NULL DEFAULT 0');
     await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_segment_ticks_done', 'INT NOT NULL DEFAULT 0');
     await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_ticks_min', 'INT NULL');
     await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_ticks_max', 'INT NULL');
     await addCol('invite_leaderboard_tenant_growth_schedule', 'growth_runs_per_user', 'INT NOT NULL DEFAULT 1');
-    try {
-      await execute(`
-        UPDATE invite_leaderboard_tenant_growth_schedule
-        SET next_fake_growth_at = CASE
-          WHEN last_fake_growth_at IS NOT NULL THEN DATE_ADD(last_fake_growth_at, INTERVAL (72 + FLOOR(RAND() * 13)) HOUR)
-          ELSE DATE_ADD(NOW(3), INTERVAL (72 + FLOOR(RAND() * 13)) HOUR)
-        END
-        WHERE next_fake_growth_at IS NULL
-      `);
-    } catch (e: unknown) {
-      console.warn('[schema-patch] invite_lb next_fake_growth_at backfill:', ((e as Error).message || '').slice(0, 120));
-    }
+  }
+
+  // 每个假用户独立调度：next_growth_at 记录该用户在本周期内的随机增长时间
+  if (await tableExists('invite_leaderboard_fake_users')) {
+    await addCol('invite_leaderboard_fake_users', 'next_growth_at', 'DATETIME(3) NULL');
   }
 
   await createTbl(

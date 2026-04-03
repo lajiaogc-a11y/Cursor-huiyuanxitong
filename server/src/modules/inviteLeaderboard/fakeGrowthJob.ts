@@ -1,26 +1,22 @@
 /**
- * 邀请榜假用户增长：按 UTC 固定「段」时长（如 72h）为一个周期；周期内分若干批（tick）执行。
- * - 每周期开始随机定批次数（可后台配置 min/max，否则按段长自动推算）。
- * - 本周期内全部活跃假用户随机打乱后拆成各批，人数可不一（如 5、8、12…），每人每周期只增长一次。
- * - 「段内时刻」：把周期均分为与批次数相同的时间桶；random=每桶内随机时刻触发一批，even=靠近桶中点。
- * - 每小时检测；FOR UPDATE 行锁防多实例并发。
+ * 邀请榜假用户自动增长 — 简化版
+ *
+ * 逻辑：
+ * 1. 每个周期（默认 72h），为所有活跃假用户各分配一个随机时间 next_growth_at。
+ * 2. 每小时检查：处理所有 next_growth_at <= NOW() 的用户，增量 = random(delta_min, delta_max)。
+ * 3. 处理完的用户 next_growth_at = NULL，本周期不再增长。
+ * 4. 周期结束后（NOW >= cycle_start + segment_hours）开始新周期，重新分配。
+ * 5. 每个假用户在一个周期内只增长一次，且各自在不同随机时刻触发。
  */
 import { randomUUID } from 'node:crypto';
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { withTransaction } from '../../database/index.js';
 import {
   finishJobRun,
-  insertGrowthScheduleIfMissing,
   insertJobRunStart,
   INVITE_LEADERBOARD_DEFAULT_GROWTH,
   randomIntegerInclusive,
   mysqlUtcFromMs,
-  utcSegmentBounds,
-  parseGrowthAllocMode,
-  resolveTicksPlannedForSegment,
-  computeNextTickMysqlUtc,
-  inviteFakeUsersForGrowthTick,
-  type InviteLeaderboardGrowthAllocMode,
 } from './repository.js';
 
 function parseMysqlDate(s: string | null | undefined): number | null {
@@ -32,46 +28,74 @@ function parseMysqlDate(s: string | null | undefined): number | null {
 }
 
 type SchedRow = {
-  last_fake_growth_at: string | null;
-  next_fake_growth_at: string | null;
   growth_segment_hours: number;
-  growth_alloc_mode: InviteLeaderboardGrowthAllocMode;
-  growth_segment_started_at: string | null;
-  growth_segment_ticks_planned: number;
-  growth_segment_ticks_done: number;
-  growth_ticks_min: number | null;
-  growth_ticks_max: number | null;
   growth_delta_min: number;
   growth_delta_max: number;
   auto_growth_enabled: number;
-  growth_runs_per_user: number;
+  growth_segment_started_at: string | null;
+  last_fake_growth_at: string | null;
 };
 
 function readSchedRow(r: RowDataPacket | undefined): SchedRow | null {
   if (!r) return null;
   const row = r as Record<string, unknown>;
   return {
-    last_fake_growth_at: row.last_fake_growth_at != null ? String(row.last_fake_growth_at) : null,
-    next_fake_growth_at: row.next_fake_growth_at != null ? String(row.next_fake_growth_at) : null,
-    growth_segment_hours: Math.max(1, Math.min(168, Number(row.growth_segment_hours ?? 12))),
-    growth_alloc_mode: parseGrowthAllocMode(row.growth_alloc_mode),
-    growth_segment_started_at:
-      row.growth_segment_started_at != null ? String(row.growth_segment_started_at) : null,
-    growth_segment_ticks_planned: Math.max(0, Math.floor(Number(row.growth_segment_ticks_planned ?? 0))),
-    growth_segment_ticks_done: Math.max(0, Math.floor(Number(row.growth_segment_ticks_done ?? 0))),
-    growth_ticks_min:
-      row.growth_ticks_min != null && row.growth_ticks_min !== ''
-        ? Math.max(1, Math.min(72, Math.floor(Number(row.growth_ticks_min))))
-        : null,
-    growth_ticks_max:
-      row.growth_ticks_max != null && row.growth_ticks_max !== ''
-        ? Math.max(1, Math.min(72, Math.floor(Number(row.growth_ticks_max))))
-        : null,
-    growth_delta_min: Math.max(0, Number(row.growth_delta_min ?? 1)),
+    growth_segment_hours: Math.max(1, Math.min(720, Number(row.growth_segment_hours ?? 72))),
+    growth_delta_min: Math.max(0, Number(row.growth_delta_min ?? 0)),
     growth_delta_max: Math.max(0, Number(row.growth_delta_max ?? 3)),
     auto_growth_enabled: Number(row.auto_growth_enabled ?? 1),
-    growth_runs_per_user: Math.max(1, Math.min(10, Math.floor(Number(row.growth_runs_per_user ?? 1)))),
+    growth_segment_started_at:
+      row.growth_segment_started_at != null ? String(row.growth_segment_started_at) : null,
+    last_fake_growth_at:
+      row.last_fake_growth_at != null ? String(row.last_fake_growth_at) : null,
   };
+}
+
+/**
+ * 开始新周期：为每个活跃假用户分配一个 [now, now + segmentHours] 内的随机时间。
+ * 同时重置 growth_cycles（本周期计数已由 max_growth_cycles 限制总生命周期）。
+ */
+async function startNewCycle(
+  conn: PoolConnection,
+  tenantId: string,
+  segmentHours: number,
+): Promise<void> {
+  const nowMs = Date.now();
+  const cycleStartStr = mysqlUtcFromMs(nowMs);
+  const totalSeconds = segmentHours * 3600;
+
+  await conn.query(
+    `UPDATE invite_leaderboard_fake_users
+     SET next_growth_at = DATE_ADD(?, INTERVAL FLOOR(RAND() * ?) SECOND),
+         updated_at = NOW(3)
+     WHERE tenant_id = ? AND is_active = 1 AND growth_cycles < max_growth_cycles`,
+    [cycleStartStr, totalSeconds, tenantId],
+  );
+
+  await conn.query(
+    `UPDATE invite_leaderboard_fake_users
+     SET next_growth_at = NULL
+     WHERE tenant_id = ? AND (is_active = 0 OR growth_cycles >= max_growth_cycles) AND next_growth_at IS NOT NULL`,
+    [tenantId],
+  );
+
+  const [nextRow] = await conn.query<RowDataPacket[]>(
+    `SELECT MIN(next_growth_at) AS earliest
+     FROM invite_leaderboard_fake_users
+     WHERE tenant_id = ? AND next_growth_at IS NOT NULL`,
+    [tenantId],
+  );
+  const earliest = (nextRow[0] as Record<string, unknown> | undefined)?.earliest;
+  const nextStr = earliest != null ? String(earliest) : null;
+
+  await conn.query(
+    `UPDATE invite_leaderboard_tenant_growth_schedule
+     SET growth_segment_started_at = ?,
+         next_fake_growth_at = ?,
+         updated_at = NOW(3)
+     WHERE tenant_id = ?`,
+    [cycleStartStr, nextStr, tenantId],
+  );
 }
 
 async function runGrowthInTransaction(conn: PoolConnection): Promise<{
@@ -90,198 +114,89 @@ async function runGrowthInTransaction(conn: PoolConnection): Promise<{
   );
   const tenantIds = (tidRows as { tenant_id: string }[]).map((r) => String(r.tenant_id));
   const nowMs = Date.now();
-  const def = INVITE_LEADERBOARD_DEFAULT_GROWTH;
 
   for (const tenantId of tenantIds) {
     const [schedRows] = await conn.query<RowDataPacket[]>(
-      `SELECT last_fake_growth_at, next_fake_growth_at,
-              growth_segment_hours, growth_alloc_mode, growth_segment_started_at,
-              growth_segment_ticks_planned, growth_segment_ticks_done,
-              growth_ticks_min, growth_ticks_max,
-              growth_delta_min, growth_delta_max, auto_growth_enabled,
-              growth_runs_per_user
+      `SELECT growth_segment_hours, growth_delta_min, growth_delta_max,
+              auto_growth_enabled, growth_segment_started_at, last_fake_growth_at
        FROM invite_leaderboard_tenant_growth_schedule WHERE tenant_id = ? LIMIT 1`,
       [tenantId],
     );
     const sched = readSchedRow(schedRows[0] as RowDataPacket | undefined);
 
-    const [fakeRows] = await conn.query<RowDataPacket[]>(
-      `SELECT id FROM invite_leaderboard_fake_users
-       WHERE tenant_id = ? AND is_active = 1 AND growth_cycles < max_growth_cycles`,
-      [tenantId],
-    );
-    const ids = (fakeRows as { id: string }[]).map((r) => String(r.id));
-
     if (!sched) {
-      await insertGrowthScheduleIfMissing(
-        conn,
-        tenantId,
-        def.growth_interval_hours_min,
-        def.growth_interval_hours_max,
-        def.growth_delta_min,
-        def.growth_delta_max,
-      );
-      continue;
-    }
-
-    const segH = sched.growth_segment_hours;
-    const mode = sched.growth_alloc_mode;
-    const { startMs: segStart, endMs: segEnd } = utcSegmentBounds(nowMs, segH);
-    const anchorMs = parseMysqlDate(sched.growth_segment_started_at);
-
-    let ticksPlanned = sched.growth_segment_ticks_planned;
-    let ticksDone = sched.growth_segment_ticks_done;
-    let nextStr: string | null = sched.next_fake_growth_at;
-
-    const needsSegmentReset = anchorMs == null || anchorMs !== segStart || ticksPlanned < 1;
-    if (needsSegmentReset) {
-      ticksPlanned = resolveTicksPlannedForSegment({
-        segmentHours: segH,
-        mode,
-        ticksMin: sched.growth_ticks_min,
-        ticksMax: sched.growth_ticks_max,
-      });
-      ticksDone = 0;
-      nextStr = computeNextTickMysqlUtc({
-        segStartMs: segStart,
-        segEndMs: segEnd,
-        tickIndex: 0,
-        ticksPlanned,
-        allocMode: mode,
-      });
-    }
-
-    const persistSegmentOnly = async (): Promise<void> => {
       await conn.query(
-        `UPDATE invite_leaderboard_tenant_growth_schedule
-         SET growth_segment_started_at = ?,
-             growth_segment_ticks_planned = ?,
-             growth_segment_ticks_done = ?,
-             next_fake_growth_at = ?,
-             growth_interval_hours_min = ?,
-             growth_interval_hours_max = ?,
-             updated_at = NOW(3)
-         WHERE tenant_id = ?`,
+        `INSERT IGNORE INTO invite_leaderboard_tenant_growth_schedule
+         (tenant_id, growth_segment_hours, growth_delta_min, growth_delta_max, auto_growth_enabled, updated_at)
+         VALUES (?, ?, ?, ?, 1, NOW(3))`,
         [
-          mysqlUtcFromMs(segStart),
-          ticksPlanned,
-          ticksDone,
-          nextStr,
-          segH,
-          segH,
           tenantId,
+          INVITE_LEADERBOARD_DEFAULT_GROWTH.growth_segment_hours,
+          INVITE_LEADERBOARD_DEFAULT_GROWTH.growth_delta_min,
+          INVITE_LEADERBOARD_DEFAULT_GROWTH.growth_delta_max,
         ],
       );
-    };
-
-    if (!sched.auto_growth_enabled) {
-      if (needsSegmentReset) await persistSegmentOnly();
       continue;
     }
 
-    const nextMs = parseMysqlDate(nextStr);
-    const due = nextMs == null || nowMs >= nextMs;
-
-    if (!due) {
-      if (needsSegmentReset) await persistSegmentOnly();
-      continue;
-    }
+    if (!sched.auto_growth_enabled) continue;
 
     tenantsEligible++;
 
+    const cycleStartMs = parseMysqlDate(sched.growth_segment_started_at);
+    const cycleEndMs =
+      cycleStartMs != null ? cycleStartMs + sched.growth_segment_hours * 3600 * 1000 : null;
+    const needNewCycle = cycleStartMs == null || cycleEndMs == null || nowMs >= cycleEndMs;
+
+    if (needNewCycle) {
+      await startNewCycle(conn, tenantId, sched.growth_segment_hours);
+    }
+
     const dMin = Math.min(sched.growth_delta_min, sched.growth_delta_max);
     const dMax = Math.max(sched.growth_delta_min, sched.growth_delta_max);
-    const lo = Math.min(dMin, dMax);
-    const hi = Math.max(dMin, dMax);
-    let evenDelta: number | null = null;
-    if (mode === 'even') {
-      if (hi <= 0) evenDelta = 0;
-      else {
-        const mid = Math.floor((lo + hi) / 2);
-        evenDelta = Math.max(lo, Math.min(hi, mid));
-      }
-    }
 
-    const runsPerUser = sched.growth_runs_per_user;
-    const expandedIds = runsPerUser <= 1
-      ? ids
-      : ids.flatMap((id) => Array.from({ length: runsPerUser }, () => id));
-
-    let lastNext = nextStr ?? computeNextTickMysqlUtc({
-      segStartMs: segStart,
-      segEndMs: segEnd,
-      tickIndex: 0,
-      ticksPlanned,
-      allocMode: mode,
-    });
-
-    while (true) {
-      const nm = parseMysqlDate(lastNext);
-      if (nm != null && nowMs < nm) break;
-
-      if (ticksDone >= ticksPlanned) {
-        lastNext = mysqlUtcFromMs(segEnd + 60_000);
-        break;
-      }
-
-      const k = ticksDone;
-      const idsThis = inviteFakeUsersForGrowthTick(tenantId, segStart, k, ticksPlanned, expandedIds);
-
-      for (const id of idsThis) {
-        const delta =
-          evenDelta !== null
-            ? evenDelta
-            : dMax <= 0
-              ? 0
-              : dMin >= dMax
-                ? dMax
-                : randomIntegerInclusive(lo, hi);
-        await conn.query(
-          `UPDATE invite_leaderboard_fake_users
-           SET auto_increment_count = auto_increment_count + ?,
-               growth_cycles = growth_cycles + 1,
-               updated_at = NOW(3)
-           WHERE tenant_id = ? AND id = ? AND is_active = 1 AND growth_cycles < max_growth_cycles`,
-          [delta, tenantId, id],
-        );
-        rowsUpdated++;
-      }
-
-      ticksDone += 1;
-      if (ticksDone >= ticksPlanned) {
-        lastNext = mysqlUtcFromMs(segEnd + 60_000);
-        break;
-      }
-      lastNext = computeNextTickMysqlUtc({
-        segStartMs: segStart,
-        segEndMs: segEnd,
-        tickIndex: ticksDone,
-        ticksPlanned,
-        allocMode: mode,
-      });
-    }
-
-    await conn.query(
-      `UPDATE invite_leaderboard_tenant_growth_schedule
-       SET last_fake_growth_at = NOW(3),
-           next_fake_growth_at = ?,
-           growth_segment_started_at = ?,
-           growth_segment_ticks_planned = ?,
-           growth_segment_ticks_done = ?,
-           growth_interval_hours_min = ?,
-           growth_interval_hours_max = ?,
-           updated_at = NOW(3)
-       WHERE tenant_id = ?`,
-      [
-        lastNext,
-        mysqlUtcFromMs(segStart),
-        ticksPlanned,
-        ticksDone,
-        segH,
-        segH,
-        tenantId,
-      ],
+    const [dueRows] = await conn.query<RowDataPacket[]>(
+      `SELECT id FROM invite_leaderboard_fake_users
+       WHERE tenant_id = ? AND is_active = 1 AND growth_cycles < max_growth_cycles
+         AND next_growth_at IS NOT NULL AND next_growth_at <= NOW(3)`,
+      [tenantId],
     );
+    const dueIds = (dueRows as { id: string }[]).map((r) => String(r.id));
+
+    for (const id of dueIds) {
+      const delta = dMax <= 0 ? 0 : randomIntegerInclusive(dMin, dMax);
+      await conn.query(
+        `UPDATE invite_leaderboard_fake_users
+         SET auto_increment_count = auto_increment_count + ?,
+             growth_cycles = growth_cycles + 1,
+             next_growth_at = NULL,
+             updated_at = NOW(3)
+         WHERE tenant_id = ? AND id = ? AND is_active = 1 AND growth_cycles < max_growth_cycles`,
+        [delta, tenantId, id],
+      );
+      rowsUpdated++;
+    }
+
+    if (dueIds.length > 0) {
+      const [nextRow] = await conn.query<RowDataPacket[]>(
+        `SELECT MIN(next_growth_at) AS earliest
+         FROM invite_leaderboard_fake_users
+         WHERE tenant_id = ? AND next_growth_at IS NOT NULL`,
+        [tenantId],
+      );
+      const earliest = (nextRow[0] as Record<string, unknown> | undefined)?.earliest;
+      const nextStr = earliest != null ? String(earliest) : null;
+
+      await conn.query(
+        `UPDATE invite_leaderboard_tenant_growth_schedule
+         SET last_fake_growth_at = NOW(3),
+             next_fake_growth_at = ?,
+             updated_at = NOW(3)
+         WHERE tenant_id = ?`,
+        [nextStr, tenantId],
+      );
+    }
+
     tenantsProcessed++;
   }
 
@@ -344,7 +259,7 @@ let timer: ReturnType<typeof setInterval> | undefined;
 export function startInviteLeaderboardGrowthScheduler(): void {
   if (timer) return;
   console.log(
-    '[API] Invite leaderboard fake growth: hourly check; UTC segment + in-segment ticks; fakes bucketed per tick (邀请设置)',
+    '[API] Invite leaderboard fake growth: hourly check; per-user random scheduling within cycle',
   );
   void runInviteLeaderboardFakeGrowthJob();
   timer = setInterval(() => {
