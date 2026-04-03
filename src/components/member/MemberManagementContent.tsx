@@ -1101,7 +1101,7 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">{t("推荐人", "Referrer")}</Label>
-                    <Input value={editingMember.referrerPhone || ""} onChange={(e) => setEditingMember({ ...editingMember, referrerPhone: e.target.value })} placeholder={t("推荐人电话", "Phone")} />
+                    <Input value={editingMember.referrerPhone || ""} onChange={(e) => setEditingMember({ ...editingMember, referrerPhone: e.target.value })} placeholder={t("推荐人电话", "Phone")} disabled={!canEditField('referrer')} />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">{t("录入人", "Recorder")}</Label>
@@ -1215,7 +1215,7 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-center gap-3">
                     <Label className="w-20 text-right shrink-0">{t("推荐人", "Referrer")}</Label>
-                    <Input value={editingMember.referrerPhone || ""} onChange={(e) => setEditingMember({ ...editingMember, referrerPhone: e.target.value })} placeholder={t("推荐人电话", "Referrer phone")} className="flex-1" />
+                    <Input value={editingMember.referrerPhone || ""} onChange={(e) => setEditingMember({ ...editingMember, referrerPhone: e.target.value })} placeholder={t("推荐人电话", "Referrer phone")} className="flex-1" disabled={!canEditField('referrer')} />
                   </div>
                   <div className="flex items-center gap-3">
                     <Label className="w-20 text-right shrink-0">{t("录入人", "Recorder")}</Label>

@@ -1216,20 +1216,78 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
         break;
       }
 
-      case 'member_grant_spin_for_share': {
+      /**
+       * 分享领奖凭证：前端在打开分享页之前调用，后端返回一次性 nonce（5 分钟有效）。
+       * 前端把 nonce 传给 member_grant_spin_for_share 作为领取凭证。
+       */
+      case 'member_request_share_nonce': {
         const memberId = effectiveMemberIdForRpc(req, params);
         if (!memberId) {
           result = { success: false, error: 'INVALID_PARAMS' };
           break;
         }
         try {
-          const { randomUUID } = await import('crypto');
+          const mRow = await queryOne<{ tenant_id: string | null }>('SELECT tenant_id FROM members WHERE id = ?', [memberId]);
+          if (!mRow) { result = { success: false, error: 'MEMBER_NOT_FOUND' }; break; }
+
+          const plainNonce = randomBytes(16).toString('hex');
+          const nonceHash = createHash('sha256').update(plainNonce, 'utf8').digest('hex');
+          const id = randomUUID();
+          const NONCE_TTL_SEC = 300;
+          await execute(
+            `INSERT INTO share_nonces (id, member_id, tenant_id, nonce_hash, expires_at, created_at)
+             VALUES (?, ?, ?, ?, DATE_ADD(NOW(3), INTERVAL ? SECOND), NOW(3))`,
+            [id, memberId, mRow.tenant_id, nonceHash, NONCE_TTL_SEC],
+          );
+          result = { success: true, nonce: plainNonce, expires_in: NONCE_TTL_SEC };
+        } catch (e) {
+          console.error('[RPC] member_request_share_nonce', e);
+          result = { success: false, error: 'NONCE_FAILED' };
+        }
+        break;
+      }
+
+      case 'member_grant_spin_for_share': {
+        const memberId = effectiveMemberIdForRpc(req, params);
+        if (!memberId) {
+          result = { success: false, error: 'INVALID_PARAMS' };
+          break;
+        }
+        const rawNonce = String(params.p_share_nonce || '').trim();
+        if (!rawNonce || rawNonce.length < 16) {
+          result = { success: false, error: 'INVALID_SHARE_NONCE' };
+          break;
+        }
+        const nonceHash = createHash('sha256').update(rawNonce, 'utf8').digest('hex');
+        try {
           result = await withTransaction(async (conn) => {
             const shareLock = buildMysqlUserLockName('share_spin', memberId);
             if (!(await mysqlGetLock(conn, shareLock, 6))) {
               return { success: false, error: 'DUPLICATE_REQUEST' };
             }
             try {
+            // Validate and consume nonce atomically
+            const [nonceRows] = await conn.query(
+              `SELECT id, member_id, used_at, expires_at FROM share_nonces
+               WHERE nonce_hash = ? FOR UPDATE`,
+              [nonceHash],
+            );
+            const nonceRow = (nonceRows as { id: string; member_id: string; used_at: Date | null; expires_at: Date }[])[0];
+            if (!nonceRow) {
+              return { success: false, error: 'INVALID_SHARE_NONCE' };
+            }
+            if (nonceRow.member_id !== memberId) {
+              return { success: false, error: 'INVALID_SHARE_NONCE' };
+            }
+            if (nonceRow.used_at) {
+              return { success: false, error: 'NONCE_ALREADY_USED' };
+            }
+            if (new Date(nonceRow.expires_at).getTime() < Date.now()) {
+              return { success: false, error: 'NONCE_EXPIRED' };
+            }
+            // Mark nonce as consumed
+            await conn.query('UPDATE share_nonces SET used_at = NOW(3) WHERE id = ? AND used_at IS NULL', [nonceRow.id]);
+
             const [mRows] = await conn.query('SELECT id, tenant_id FROM members WHERE id = ? FOR UPDATE', [memberId]);
             const mRow = (mRows as { id: string; tenant_id: string | null }[])[0];
             if (!mRow) {
@@ -1894,9 +1952,12 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
           const s = String(rawIdem).trim().slice(0, 64);
           if (/^[a-zA-Z0-9_-]{8,64}$/.test(s)) clientRequestId = s;
         }
+        // Auto-generate idempotency key if frontend didn't provide one
+        if (!clientRequestId) {
+          clientRequestId = `srv_${randomUUID().replace(/-/g, '')}`;
+        }
 
         // All write operations + final balance/stock checks inside transaction
-        const { randomUUID } = await import('crypto');
         try {
           result = await withTransaction(async (conn) => {
             const mallLock = buildMysqlUserLockName('mall_redeem', memberId);

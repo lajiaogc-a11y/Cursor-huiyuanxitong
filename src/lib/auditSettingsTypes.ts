@@ -90,6 +90,7 @@ export const MEMBER_AUDIT_FIELDS: AuditFieldDef[] = [
   { key: "bankCard", label_zh: "银行卡", label_en: "Bank Card" },
   { key: "currencyPreferences", label_zh: "币种偏好", label_en: "Currency Preferences" },
   { key: "sourceId", label_zh: "来源", label_en: "Source" },
+  { key: "referrer", label_zh: "推荐人", label_en: "Referrer" },
 ];
 
 /** 活动赠送：与 ActivityReports 编辑赠送记录时提交的 changes 一致 */

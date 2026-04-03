@@ -53,9 +53,11 @@ import {
 export async function drawController(req: AuthenticatedRequest, res: Response) {
   const memberId = req.user?.id;
   if (!memberId) { res.status(401).json({ success: false, error: 'UNAUTHORIZED' }); return; }
+  const { randomUUID } = await import('crypto');
+  // Always enforce idempotency: use client-supplied request_id or auto-generate one server-side
   const requestId = typeof req.body?.request_id === 'string' && req.body.request_id.trim()
     ? req.body.request_id.trim()
-    : undefined;
+    : `srv_${randomUUID()}`;
   const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || null;
   const deviceFingerprint = typeof req.body?.device_fingerprint === 'string' && req.body.device_fingerprint.trim()
     ? req.body.device_fingerprint.trim().slice(0, 128)

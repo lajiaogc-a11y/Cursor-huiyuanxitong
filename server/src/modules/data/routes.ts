@@ -78,6 +78,15 @@ const PUBLIC_RPC_WHITELIST = new Set([
   'member_get_portal_settings',
 ]);
 
+/** 分享凭证申请 — 与分享领奖共用限流（须在通用 /rpc/:fn 之前注册） */
+router.post(
+  '/rpc/member_request_share_nonce',
+  memberGrantSpinShareLimiter,
+  dataRpcPostLimiter,
+  authMiddleware,
+  rpcProxyController,
+);
+
 /** P0：分享领次数 — 额外限流（须在通用 /rpc/:fn 之前注册） */
 router.post(
   '/rpc/member_grant_spin_for_share',

@@ -1347,5 +1347,26 @@ export async function migrateSchemaPatches(): Promise<void> {
   await addCol('lottery_logs', 'reward_type', "VARCHAR(32) NOT NULL DEFAULT 'auto' COMMENT 'auto=自动发放(积分等) manual=需人工确认(custom) none=无需发放'");
   try { await execute('CREATE INDEX idx_lottery_logs_reward_pending ON lottery_logs (reward_status, reward_type, created_at)'); } catch { /* exists */ }
 
+  // ── 安全加固 ──
+
+  // check_ins: 唯一约束保证同一会员同一天不可能重复签到（替代纯 INSERT 错误处理）
+  safeIndex('CREATE UNIQUE INDEX uk_check_ins_member_date ON check_ins (member_id, check_in_date)');
+
+  // share_nonces: 分享领奖一次性凭证表（防止无实际分享即领取奖励）
+  await createTbl('share_nonces', `
+    CREATE TABLE share_nonces (
+      id VARCHAR(36) NOT NULL PRIMARY KEY,
+      member_id VARCHAR(36) NOT NULL,
+      tenant_id VARCHAR(36) NULL,
+      nonce_hash VARCHAR(64) NOT NULL COMMENT 'SHA-256 of plaintext nonce',
+      used_at DATETIME(3) NULL DEFAULT NULL,
+      expires_at DATETIME(3) NOT NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      UNIQUE KEY uk_share_nonces_hash (nonce_hash),
+      KEY idx_share_nonces_member (member_id, used_at),
+      KEY idx_share_nonces_expires (expires_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
   console.log('[schema-patch] done.');
 }

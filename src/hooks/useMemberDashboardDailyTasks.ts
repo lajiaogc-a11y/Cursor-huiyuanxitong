@@ -9,6 +9,7 @@ import {
   fetchMemberDailyStatus,
   memberCheckIn,
   memberClaimShareReward,
+  requestShareNonce,
 } from "@/services/memberPortal/memberDailyTasksPortalService";
 import type { MemberDailyStatus } from "@/services/memberPortal/memberActivityService";
 
@@ -200,11 +201,27 @@ export function useMemberDashboardDailyTasks({
   const handleShareAndClaim = useCallback(async () => {
     if (!memberId || claimingShare || shareCapReached) return;
     await shareGuard(async () => {
-      const inviteLink = `${window.location.origin}/invite/${inviteToken || invitePathFallback || ""}`;
-      window.open(`https://wa.me/?text=${encodeURIComponent(buildShareInviteText(inviteLink))}`, "_blank", "noopener,noreferrer");
       setClaimingShare(true);
       try {
-        const r = await memberClaimShareReward(memberId);
+        // Step 1: Request a one-time nonce from the server BEFORE opening the share page
+        const nonceRes = await requestShareNonce(memberId);
+        if (!nonceRes?.success || !nonceRes.nonce) {
+          const errCode = nonceRes?.error;
+          if (errCode === "SHARE_REWARD_DISABLED") {
+            notifyInfo(["未开启分享奖励", "Share reward is not enabled"]);
+          } else {
+            notifyError([errCode || "领取凭证获取失败", errCode || "Failed to obtain share credential"]);
+          }
+          return;
+        }
+        const shareNonce = nonceRes.nonce;
+
+        // Step 2: Open the share page
+        const inviteLink = `${window.location.origin}/invite/${inviteToken || invitePathFallback || ""}`;
+        window.open(`https://wa.me/?text=${encodeURIComponent(buildShareInviteText(inviteLink))}`, "_blank", "noopener,noreferrer");
+
+        // Step 3: Claim reward with the one-time nonce
+        const r = await memberClaimShareReward(memberId, shareNonce);
         if (r?.success) {
           const n = Math.max(0, Math.floor(Number(r.credits ?? 1)));
           setShareSpinsEarned(n);
@@ -231,6 +248,10 @@ export function useMemberDashboardDailyTasks({
           setShareCreditsToday(serverToday);
           if (serverCap > 0) setDailyShareCap(serverCap);
           notifyInfo([`今日分享奖励已达上限 (${serverToday}/${serverCap})`, `Daily share limit reached (${serverToday}/${serverCap})`]);
+        } else if (r?.error === "INVALID_SHARE_NONCE" || r?.error === "NONCE_EXPIRED") {
+          notifyError(["分享凭证无效或已过期，请重新分享", "Share credential invalid or expired, please share again"]);
+        } else if (r?.error === "NONCE_ALREADY_USED") {
+          notifyInfo(["此次分享奖励已领取", "This share reward has already been claimed"]);
         } else if (r?.error === "DUPLICATE_REQUEST") {
           notifyInfo(["请勿重复领取，请稍候再试", "Please wait before claiming again"]);
         } else if (r?.error === "MEMBER_NOT_FOUND") {

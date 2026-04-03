@@ -5,6 +5,7 @@ export {
   fetchMemberDailyStatus,
   memberCheckIn,
   memberClaimShareReward,
+  requestShareNonce,
   type MemberDailyStatus,
   type MemberCheckInResult,
   type ShareRewardResult,

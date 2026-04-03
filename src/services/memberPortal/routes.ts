@@ -34,6 +34,7 @@ export const MEMBER_PORTAL_RPC_PATHS = {
   MEMBER_CHECK_IN_TODAY: "/api/data/rpc/member_check_in_today",
   MEMBER_CHECK_IN: "/api/data/rpc/member_check_in",
   MEMBER_GRANT_SPIN_FOR_SHARE: "/api/data/rpc/member_grant_spin_for_share",
+  MEMBER_REQUEST_SHARE_NONCE: "/api/data/rpc/member_request_share_nonce",
   MEMBER_GET_INVITE_TOKEN: "/api/data/rpc/member_get_invite_token",
   MEMBER_GET_ORDERS: "/api/data/rpc/member_get_orders",
   MEMBER_UPDATE_NICKNAME: "/api/data/rpc/member_update_nickname",

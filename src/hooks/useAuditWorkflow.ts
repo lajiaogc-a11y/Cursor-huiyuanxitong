@@ -1,6 +1,6 @@
 // ============= Audit Workflow Hook =============
-// 审核工作流 - 根据 role_permissions 表检查权限，并结合审核设置（auditSettings）决定是否提交审核
-// 方案 A：只有「权限不允许直接编辑」且「字段在审核设置中被勾选」时，才写入 audit_records
+// 审核工作流 - 审核设置优先：字段在审核设置中被勾选时，非管理员的修改一律进入待审核队列；
+// 未勾选的字段依据 role_permissions 的 can_edit 决定是否允许直接编辑。
 
 import { useCallback, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -58,6 +58,8 @@ const WORKFLOW_TO_AUDIT_SETTING_KEY: Record<string, Record<string, string>> = {
     customerFeature: 'customerFeature',
     source_id: 'sourceId',
     sourceId: 'sourceId',
+    referrer: 'referrer',
+    referrerPhone: 'referrer',
   },
   activity: {
     currency: 'currency',
@@ -126,6 +128,8 @@ const WORKFLOW_TO_ROLE_PERMISSION_FIELD: Record<
     currency_preferences: 'currency_preferences',
     sourceId: 'source',
     source_id: 'source',
+    referrerPhone: 'referrer',
+    referrer: 'referrer',
     points: 'points',
   },
   activity: {},
@@ -168,6 +172,7 @@ const FIELD_LABELS: Record<string, Record<string, string>> = {
     bankCard: '银行卡',
     preferredCurrency: '币种偏好',
     sourceId: '来源',
+    referrerPhone: '推荐人',
     points: '积分',
   },
   activity: {
@@ -208,6 +213,7 @@ const FIELD_LABELS_EN: Record<string, Record<string, string>> = {
     bankCard: 'Bank Card',
     preferredCurrency: 'Currency Preferences',
     sourceId: 'Source',
+    referrerPhone: 'Referrer',
     points: 'Points',
   },
   activity: {
@@ -316,18 +322,14 @@ export function useAuditWorkflow() {
     return Array.isArray(fieldArray) && fieldArray.includes(auditSettingKey);
   }, []);
 
-  // 检查当前用户是否需要审核
-  // 方案 A：只有「权限不允许直接编辑」且「字段在审核设置中被勾选」时，才需要审核
+  // 审核优先：字段在审核设置中被勾选时，非管理员一律需要审核
   const checkNeedsApproval = useCallback(async (
     module: 'order' | 'member' | 'activity',
     fieldKey: string
   ): Promise<boolean> => {
-    const canEditDirectly = await checkCanEditDirectly(module, fieldKey);
-    if (canEditDirectly) return false;
-
     const inAuditSettings = await checkFieldInAuditSettings(module, fieldKey);
     return inAuditSettings;
-  }, [checkCanEditDirectly, checkFieldInAuditSettings]);
+  }, [checkFieldInAuditSettings]);
 
   // 提交审核请求到 audit_records 表
   const submitForApproval = useCallback(async (params: {
@@ -343,14 +345,9 @@ export function useAuditWorkflow() {
       return { submitted: false, message: t('用户未登录', 'User not logged in') };
     }
 
-    const canEditDirectly = await checkCanEditDirectly(params.module, params.fieldKey);
-    if (canEditDirectly) {
-      return { submitted: false, message: t('无需审核，可直接编辑', 'No approval needed, can edit directly') };
-    }
-
     const inAuditSettings = await checkFieldInAuditSettings(params.module, params.fieldKey);
     if (!inAuditSettings) {
-      return { submitted: false, message: t('此字段不可编辑且未开放审核', 'This field cannot be edited and is not open for review') };
+      return { submitted: false, message: t('此字段未开放审核', 'This field is not open for review') };
     }
 
     const fieldLabel = FIELD_LABELS[params.module]?.[params.fieldKey] || params.fieldKey;
@@ -379,7 +376,7 @@ export function useAuditWorkflow() {
       submitted: true, 
       message: t(`修改 "${fieldLabel}" 已提交审核，等待管理员审批`, `Change to "${fieldLabelEn}" submitted for review, awaiting admin approval`) 
     };
-  }, [employee, checkCanEditDirectly, checkFieldInAuditSettings, t]);
+  }, [employee, checkFieldInAuditSettings, t]);
 
   // 批量提交审核（多个字段变更）
   const submitBatchForApproval = useCallback(async (params: {
@@ -404,28 +401,26 @@ export function useAuditWorkflow() {
     const directFields: string[] = [];
     const rejectedFields: string[] = [];
     
+    // 第一轮：预分类所有字段，不写 audit_records
+    const classified: { change: typeof params.changes[0]; category: 'pending' | 'direct' | 'rejected' }[] = [];
     for (const change of params.changes) {
-      const canEditDirectly = await checkCanEditDirectly(params.module, change.fieldKey);
       const inAuditSettings = await checkFieldInAuditSettings(params.module, change.fieldKey);
-      
-      if (canEditDirectly) {
-        directFields.push(change.fieldKey);
-      } else if (inAuditSettings) {
+      if (inAuditSettings) {
         pendingFields.push(change.fieldKey);
-        await submitForApproval({
-          module: params.module,
-          fieldKey: change.fieldKey,
-          oldValue: change.oldValue,
-          newValue: change.newValue,
-          targetId: params.targetId,
-          targetDescription: params.targetDescription,
-          originalData: params.originalData,
-        });
+        classified.push({ change, category: 'pending' });
       } else {
-        rejectedFields.push(change.fieldKey);
+        const canEditDirectly = await checkCanEditDirectly(params.module, change.fieldKey);
+        if (canEditDirectly) {
+          directFields.push(change.fieldKey);
+          classified.push({ change, category: 'direct' });
+        } else {
+          rejectedFields.push(change.fieldKey);
+          classified.push({ change, category: 'rejected' });
+        }
       }
     }
 
+    // 有被拒字段时，立即终止，不写任何 audit_records
     if (rejectedFields.length > 0) {
       const fieldLabels = rejectedFields.map(f => FIELD_LABELS[params.module]?.[f] || f);
       const fieldLabelsEn = rejectedFields.map(f => FIELD_LABELS_EN[params.module]?.[f] || f);
@@ -440,6 +435,21 @@ export function useAuditWorkflow() {
           `The following fields cannot be edited and are not open for review: ${fieldLabelsEn.join(', ')}`
         ),
       };
+    }
+
+    // 第二轮：确认无拒绝后，提交需要审核的字段到 audit_records
+    for (const item of classified) {
+      if (item.category === 'pending') {
+        await submitForApproval({
+          module: params.module,
+          fieldKey: item.change.fieldKey,
+          oldValue: item.change.oldValue,
+          newValue: item.change.newValue,
+          targetId: params.targetId,
+          targetDescription: params.targetDescription,
+          originalData: params.originalData,
+        });
+      }
     }
 
     if (pendingFields.length > 0) {

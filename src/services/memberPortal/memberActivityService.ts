@@ -65,9 +65,29 @@ export type ShareRewardResult = {
   daily_share_cap?: number;
 };
 
-export async function memberClaimShareReward(memberId: string): Promise<ShareRewardResult> {
+/**
+ * Step 1: Request a one-time share nonce from the server.
+ * The nonce must be presented when claiming the share reward.
+ */
+export async function requestShareNonce(memberId: string): Promise<{ success: boolean; nonce?: string; error?: string }> {
   return safeActionCall(
-    () => apiPost<ShareRewardResult>(MEMBER_PORTAL_RPC_PATHS.MEMBER_GRANT_SPIN_FOR_SHARE, { p_member_id: memberId }),
+    () => apiPost<{ success: boolean; nonce?: string; error?: string }>(
+      MEMBER_PORTAL_RPC_PATHS.MEMBER_REQUEST_SHARE_NONCE,
+      { p_member_id: memberId },
+    ),
+    "requestShareNonce",
+  );
+}
+
+/**
+ * Step 2: Claim share reward using the one-time nonce obtained from requestShareNonce.
+ */
+export async function memberClaimShareReward(memberId: string, shareNonce: string): Promise<ShareRewardResult> {
+  return safeActionCall(
+    () => apiPost<ShareRewardResult>(
+      MEMBER_PORTAL_RPC_PATHS.MEMBER_GRANT_SPIN_FOR_SHARE,
+      { p_member_id: memberId, p_share_nonce: shareNonce },
+    ),
     "memberClaimShareReward",
   ) as Promise<ShareRewardResult>;
 }
