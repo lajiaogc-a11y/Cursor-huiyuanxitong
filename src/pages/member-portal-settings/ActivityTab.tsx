@@ -1,14 +1,18 @@
+import { useState, useRef, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Gift, Info, Link2, Share2, SlidersHorizontal, Users } from "lucide-react";
+import { Gift, Info, Link2, Share2, SlidersHorizontal, Users, Image as ImageIcon, Upload, Check } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import type { MemberPortalSettings } from "@/services/members/memberPortalSettingsService";
+import { apiPost } from "@/api/client";
+import { POSTER_FRAMES, type PosterFrame } from "@/lib/invitePosterFrames";
 import { SectionTitle } from "./shared";
+import { notify } from "@/lib/notifyHub";
 
 function SwitchRow({
   label,
@@ -319,6 +323,315 @@ export function ActivityTab({ settings, onSettingsChange }: ActivityTabProps) {
           </div>
         </CardContent>
       </Card>
+
+      <PosterSettingsSection settings={settings} onSettingsChange={onSettingsChange} t={t} />
     </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ *  海报设置区块
+ * ════════════════════════════════════════════════════════════════════════ */
+
+function PosterSettingsSection({
+  settings,
+  onSettingsChange,
+  t,
+}: {
+  settings: MemberPortalSettings;
+  onSettingsChange: (patch: Partial<MemberPortalSettings>) => void;
+  t: (zh: string, en: string) => string;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadBg = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      notify.error(t("请选择图片文件", "Please select an image file"));
+      return;
+    }
+    setUploading(true);
+    try {
+      const dataUrl: string = await new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = () => res(reader.result as string);
+        reader.onerror = () => rej(new Error("read failed"));
+        reader.readAsDataURL(file);
+      });
+      const resp = await apiPost<{ success: boolean; url?: string; error?: string }>("/api/upload/image", {
+        data: dataUrl,
+        file_name: file.name,
+      });
+      if (resp?.success && resp.url) {
+        onSettingsChange({ poster_custom_bg_url: resp.url });
+        notify.success(t("背景图已上传", "Background image uploaded"));
+      } else {
+        notify.error(t("上传失败", "Upload failed"));
+      }
+    } catch {
+      notify.error(t("上传失败", "Upload failed"));
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }, [onSettingsChange, t]);
+
+  return (
+    <Card className="rounded-2xl border-2 border-violet-500/25 bg-gradient-to-b from-violet-500/[0.07] via-card to-card shadow-md overflow-hidden">
+      <CardContent className="pt-5 pb-5 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-700 dark:text-violet-400">
+            <ImageIcon className="h-5 w-5" strokeWidth={2} aria-hidden />
+          </div>
+          <div className="min-w-0 space-y-1">
+            <h4 className="text-sm font-bold text-foreground tracking-tight">
+              {t("邀请海报设置", "Invite poster settings")}
+            </h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {t(
+                "配置会员端「保存邀请海报」的文字和模板样式；二维码自动嵌入海报中央。",
+                "Configure text and visual template for the member \"Save invite poster\"; QR code auto-embeds in center.",
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* 文字设置 */}
+        <div className="rounded-xl border border-border/50 bg-muted/25 p-4 space-y-4">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            {t("海报文字", "Poster text")}
+          </p>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">{t("标题（中文）", "Headline (Chinese)")}</Label>
+              <Input
+                className="h-10 rounded-xl border-border/60"
+                value={settings.poster_headline_zh}
+                onChange={(e) => onSettingsChange({ poster_headline_zh: e.target.value })}
+                placeholder={t("邀请好友", "邀请好友")}
+                maxLength={40}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">{t("标题（英文）", "Headline (English)")}</Label>
+              <Input
+                className="h-10 rounded-xl border-border/60"
+                value={settings.poster_headline_en}
+                onChange={(e) => onSettingsChange({ poster_headline_en: e.target.value })}
+                placeholder="Invite friends"
+                maxLength={40}
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            {t(
+              "海报顶部大标题，分两行显示。留空则使用默认「邀请好友 / 赢取奖励」。",
+              "Poster headline displayed in two lines. Leave empty for default \"Invite friends / Earn rewards\".",
+            )}
+          </p>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">{t("副标题（中文）", "Subtext (Chinese)")}</Label>
+              <Input
+                className="h-10 rounded-xl border-border/60"
+                value={settings.poster_subtext_zh}
+                onChange={(e) => onSettingsChange({ poster_subtext_zh: e.target.value })}
+                placeholder={t("扫描下方二维码注册，双方各得 {spins} 次抽奖", "扫描下方二维码注册，双方各得 {spins} 次抽奖")}
+                maxLength={80}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">{t("副标题（英文）", "Subtext (English)")}</Label>
+              <Input
+                className="h-10 rounded-xl border-border/60"
+                value={settings.poster_subtext_en}
+                onChange={(e) => onSettingsChange({ poster_subtext_en: e.target.value })}
+                placeholder="Scan QR to register, {spins} free spins each"
+                maxLength={80}
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            {t(
+              "二维码上方说明文字。可使用 {spins} 占位符，系统会自动替换为当前奖励次数。留空使用默认文案。",
+              "Text above QR code. Use {spins} placeholder—auto replaced with current reward spins. Leave empty for default.",
+            )}
+          </p>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">{t("底部文字（中文）", "Footer (Chinese)")}</Label>
+              <Input
+                className="h-10 rounded-xl border-border/60"
+                value={settings.poster_footer_zh}
+                onChange={(e) => onSettingsChange({ poster_footer_zh: e.target.value })}
+                placeholder={t("公司名称", "Company Name")}
+                maxLength={60}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">{t("底部文字（英文）", "Footer (English)")}</Label>
+              <Input
+                className="h-10 rounded-xl border-border/60"
+                value={settings.poster_footer_en}
+                onChange={(e) => onSettingsChange({ poster_footer_en: e.target.value })}
+                placeholder="Company Name"
+                maxLength={60}
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            {t("海报最底部公司名或品牌文字。留空则使用公司名称。", "Company or brand name at poster bottom. Leave empty for company name.")}
+          </p>
+        </div>
+
+        {/* 模板选择 */}
+        <div className="rounded-xl border border-border/50 bg-muted/25 p-4 space-y-4">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            {t("内置海报模板", "Built-in poster templates")}
+          </p>
+          <p className="text-[11px] text-muted-foreground -mt-2">
+            {t(
+              "选择一个内置配色模板。如上传自定义背景图，则模板配色仅用于文字颜色。",
+              "Choose a built-in color scheme. If a custom background is uploaded, only text colors from the template are used.",
+            )}
+          </p>
+          <div className="grid grid-cols-5 gap-2">
+            {POSTER_FRAMES.map((frame) => (
+              <PosterFramePreview
+                key={frame.id}
+                frame={frame}
+                selected={settings.poster_frame_id === frame.id}
+                onClick={() => onSettingsChange({ poster_frame_id: frame.id })}
+                t={t}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* 自定义背景 */}
+        <div className="rounded-xl border border-border/50 bg-muted/25 p-4 space-y-3">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <Upload className="h-3.5 w-3.5" aria-hidden />
+            {t("自定义海报背景", "Custom poster background")}
+          </p>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            {t(
+              "上传自定义背景图后将覆盖内置模板背景。推荐尺寸：750×1334px（9:16 竖屏比例）。二维码区域位于画布中央偏上（约 y=520, 280×280px），请在设计时预留该区域为浅色或透明。上传图片会自动转为 WebP 格式。",
+              "Upload a custom background to override the built-in template. Recommended: 750×1334px (9:16 portrait). QR code area is center-upper (approx y=520, 280×280px)—keep that area light or transparent. Images auto-convert to WebP.",
+            )}
+          </p>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            {settings.poster_custom_bg_url ? (
+              <div className="relative">
+                <img
+                  src={settings.poster_custom_bg_url}
+                  alt="poster bg"
+                  className="h-28 w-auto rounded-lg border border-border/60 object-cover"
+                />
+                <button
+                  type="button"
+                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs font-bold shadow"
+                  onClick={() => onSettingsChange({ poster_custom_bg_url: null })}
+                  title={t("移除", "Remove")}
+                >
+                  ×
+                </button>
+              </div>
+            ) : null}
+            <label
+              className={cn(
+                "flex h-28 w-28 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-border/60 text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/30",
+                uploading && "pointer-events-none opacity-50",
+              )}
+            >
+              <Upload className="h-5 w-5" />
+              <span className="text-[10px] font-medium">{uploading ? t("上传中…", "Uploading…") : t("上传图片", "Upload")}</span>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleUploadBg}
+                disabled={uploading}
+              />
+            </label>
+          </div>
+        </div>
+
+        <Alert className="rounded-xl border-violet-200/60 bg-violet-50/60 dark:border-violet-900/40 dark:bg-violet-950/25">
+          <Info className="h-4 w-4 text-violet-700 dark:text-violet-400 shrink-0" />
+          <AlertDescription className="text-xs text-foreground/85 leading-relaxed">
+            {t(
+              "海报由会员端「保存邀请海报」按钮实时生成，包含会员个人二维码。修改后保存草稿并发布，会员再次保存海报即生效。",
+              "Posters are generated in real-time when members tap \"Save invite poster\", embedding their personal QR code. Save draft and publish for changes to take effect.",
+            )}
+          </AlertDescription>
+        </Alert>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PosterFramePreview({
+  frame,
+  selected,
+  onClick,
+  t,
+}: {
+  frame: PosterFrame;
+  selected: boolean;
+  onClick: () => void;
+  t: (zh: string, en: string) => string;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawnRef = useRef(false);
+
+  const drawPreview = useCallback(
+    (node: HTMLCanvasElement | null) => {
+      if (!node || drawnRef.current) return;
+      canvasRef.current = node;
+      const ctx = node.getContext("2d");
+      if (!ctx) return;
+      node.width = 75;
+      node.height = 133;
+      ctx.save();
+      ctx.scale(75 / 750, 133 / 1334);
+      frame.drawBackground(ctx);
+      // Mini QR placeholder
+      ctx.fillStyle = frame.qrBgColor;
+      ctx.fillRect(235, 520, 280, 280);
+      ctx.restore();
+      drawnRef.current = true;
+    },
+    [frame],
+  );
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group relative flex flex-col items-center gap-1.5 rounded-xl border-2 p-1.5 transition-all",
+        selected
+          ? "border-primary bg-primary/10 shadow-md"
+          : "border-border/40 hover:border-primary/30 hover:bg-muted/20",
+      )}
+    >
+      {selected && (
+        <div className="absolute -right-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow">
+          <Check className="h-3 w-3" strokeWidth={3} />
+        </div>
+      )}
+      <canvas ref={drawPreview} className="rounded-md" style={{ width: 75, height: 133 }} />
+      <span className="text-[10px] font-medium leading-tight text-center">
+        {t(frame.labelZh, frame.labelEn)}
+      </span>
+    </button>
   );
 }

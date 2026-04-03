@@ -149,9 +149,17 @@ const _spinCache = new Map<
   }
 >();
 
+export function clearSpinCache(): void {
+  _spinCache.clear();
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("member:signout", () => _spinCache.clear());
+}
+
 /** Member spin page: duplicate-tap guard via spinGuard + spinning/remaining. */
 export default function MemberSpin() {
-  const { member } = useMemberAuth();
+  const { member, refreshMember } = useMemberAuth();
   const { t } = useLanguage();
   const spinGuard = useActionGuard(1000);
   const cached = member ? _spinCache.get(member.id) : undefined;
@@ -405,6 +413,7 @@ export default function MemberSpin() {
               setLogsTotal(total);
             })
             .catch(() => { /* post-draw log refresh is best-effort */ });
+          void refreshMember().catch(() => {});
           void queryClient.invalidateQueries({ queryKey: memberQueryKeys.spin(member.id) });
           void queryClient.invalidateQueries({ queryKey: memberQueryKeys.points(member.id) });
           void queryClient.invalidateQueries({ queryKey: memberQueryKeys.pointsBreakdown(member.id) });
@@ -436,7 +445,7 @@ export default function MemberSpin() {
       }
     });
     if (guarded === null) return;
-  }, [member, spinning, remaining, prizes, spinGuard, t, applyQuota]);
+  }, [member, spinning, remaining, prizes, spinGuard, t, applyQuota, refreshMember]);
 
   const lotteryLogsOnly = useMemo(
     () => logs.filter((log) => isLotteryPrizeLogType(log.prize_type)),

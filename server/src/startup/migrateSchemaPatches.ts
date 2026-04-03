@@ -1368,5 +1368,15 @@ export async function migrateSchemaPatches(): Promise<void> {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
+  // ── 邀请海报设置 ──
+  await addCol('member_portal_settings', 'poster_headline_zh', "VARCHAR(200) NULL COMMENT '海报标题(中文)'");
+  await addCol('member_portal_settings', 'poster_headline_en', "VARCHAR(200) NULL COMMENT '海报标题(英文)'");
+  await addCol('member_portal_settings', 'poster_subtext_zh', "VARCHAR(300) NULL COMMENT '海报副标题(中文)，{spins}替换为次数'");
+  await addCol('member_portal_settings', 'poster_subtext_en', "VARCHAR(300) NULL COMMENT '海报副标题(英文)，{spins}替换为次数'");
+  await addCol('member_portal_settings', 'poster_footer_zh', "VARCHAR(200) NULL COMMENT '海报底部文字(中文)'");
+  await addCol('member_portal_settings', 'poster_footer_en', "VARCHAR(200) NULL COMMENT '海报底部文字(英文)'");
+  await addCol('member_portal_settings', 'poster_frame_id', "VARCHAR(20) NOT NULL DEFAULT 'gold' COMMENT '内置海报模板ID'");
+  await addCol('member_portal_settings', 'poster_custom_bg_url', "VARCHAR(500) NULL COMMENT '自定义海报背景图URL'");
+
   console.log('[schema-patch] done.');
 }

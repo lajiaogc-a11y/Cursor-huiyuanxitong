@@ -15,3 +15,7 @@ export function getMallCache(): Map<string, PointsMallItemLike[]> {
 export function clearMallCatalogCache(): void {
   _mallCache.clear();
 }
+
+if (typeof window !== "undefined") {
+  window.addEventListener("member:signout", () => _mallCache.clear());
+}

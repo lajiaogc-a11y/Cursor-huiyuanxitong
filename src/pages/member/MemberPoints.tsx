@@ -73,7 +73,7 @@ function normalizeMallItem(row: PointsMallItem): PointsMallItem {
   return {
     ...row,
     points_cost: num(row.points_cost, 0),
-    stock_remaining: row.stock_remaining == null ? -1 : num(row.stock_remaining, -1),
+    stock_remaining: row.stock_remaining == null ? 0 : num(row.stock_remaining, 0),
     per_order_limit: Math.max(1, num(row.per_order_limit, 1)),
     per_user_daily_limit: Math.max(0, num(row.per_user_daily_limit, 0)),
     per_user_lifetime_limit: Math.max(0, num(row.per_user_lifetime_limit, 0)),
@@ -411,7 +411,7 @@ function MemberRedemptionHistoryFeed({
 const _mallCache = getMallCache() as Map<string, PointsMallItem[]>;
 
 export default function MemberPoints() {
-  const { member } = useMemberAuth();
+  const { member, refreshMember } = useMemberAuth();
   const queryClient = useQueryClient();
   const location = useLocation();
   const { settings: portalSettings } = useMemberPortalSettings(member?.id);
@@ -629,6 +629,7 @@ export default function MemberPoints() {
         setRedeemError(null);
         setRedeemTarget(null);
         await refreshPoints();
+        void refreshMember().catch(() => {});
         void queryClient.invalidateQueries({ queryKey: memberQueryKeys.points(member.id) });
         void queryClient.invalidateQueries({ queryKey: memberQueryKeys.mall(member.id) });
         void queryClient.invalidateQueries({ queryKey: memberQueryKeys.profile(member.id) });
@@ -656,7 +657,7 @@ export default function MemberPoints() {
       }
       finally { setRedeeming(false); }
     });
-  }, [member, redeemTarget, redeemQty, redeemGuard, refreshPoints, queryClient, t]);
+  }, [member, redeemTarget, redeemQty, redeemGuard, refreshPoints, refreshMember, queryClient, t]);
 
   if (!member) return null;
 

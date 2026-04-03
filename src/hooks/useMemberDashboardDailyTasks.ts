@@ -34,6 +34,14 @@ interface DailyCache {
 
 const _dailyStatusCache = new Map<string, DailyCache>();
 
+export function clearDailyStatusCache(): void {
+  _dailyStatusCache.clear();
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("member:signout", () => _dailyStatusCache.clear());
+}
+
 export function useMemberDashboardDailyTasks({
   memberId,
   inviteToken,
@@ -233,7 +241,14 @@ export function useMemberDashboardDailyTasks({
           if (prev) {
             _dailyStatusCache.set(memberId, { ...prev, shareCreditsToday: sc, dailyShareCap: cap, shareSpinsEarned: n });
           }
+          try { await refreshMember(); } catch { /* non-critical */ }
+          try { await Promise.resolve(refreshPoints()); } catch { /* non-critical */ }
           try { await Promise.resolve(refreshSpinQuota()); } catch { /* non-critical */ }
+          try {
+            const snap = await fetchMemberDailyStatus(memberId);
+            setShareCreditsToday(Math.max(0, Number(snap.share_credits_today ?? sc)));
+            setDailyShareCap(Math.max(0, Number(snap.daily_share_cap ?? cap)));
+          } catch { /* non-critical */ }
           try { if (navigator.vibrate) navigator.vibrate(12); } catch { /* ignore */ }
           const capMsg = cap > 0 ? ` (${sc}/${cap})` : "";
           notifySuccess([`分享成功！已获得 ${n} 次抽奖${capMsg}`, `Shared! You earned ${n} spin(s)${capMsg}.`]);
@@ -283,6 +298,8 @@ export function useMemberDashboardDailyTasks({
     inviteToken,
     invitePathFallback,
     buildShareInviteText,
+    refreshMember,
+    refreshPoints,
     refreshSpinQuota,
     shareCreditsToday,
     dailyShareCap,

@@ -19,6 +19,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
+import { getPosterFrame, drawInvitePoster } from "@/lib/invitePosterFrames";
 import { useMemberPoints } from "@/hooks/useMemberPoints";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { MemberInviteHero } from "@/components/member/MemberInviteHero";
@@ -130,7 +131,7 @@ export default function MemberInvite() {
     window.open(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
   };
 
-  const downloadInvitePoster = useCallback(() => {
+  const downloadInvitePoster = useCallback(async () => {
     if (!inviteLink) return;
     const svgEl = document.getElementById("member-invite-qr-svg");
     if (!svgEl) {
@@ -139,67 +140,56 @@ export default function MemberInvite() {
     }
     const company = portalSettings.company_name || "FastGC";
     const spins = inviteRewardSpins;
+    const frame = getPosterFrame(portalSettings.poster_frame_id || "gold");
+
+    const headlineL1 = (portalSettings.poster_headline_zh || portalSettings.poster_headline_en)
+      ? t(portalSettings.poster_headline_zh || "邀请好友", portalSettings.poster_headline_en || "Invite friends")
+      : t("邀请好友", "Invite friends");
+    const headlineL2Zh = portalSettings.poster_headline_zh ? "" : "赢取奖励";
+    const headlineL2En = portalSettings.poster_headline_en ? "" : "Earn rewards";
+    const headlineL2 = (portalSettings.poster_headline_zh || portalSettings.poster_headline_en)
+      ? "" : t(headlineL2Zh, headlineL2En);
+
+    const rawSubtext = (portalSettings.poster_subtext_zh || portalSettings.poster_subtext_en)
+      ? t(
+          portalSettings.poster_subtext_zh || `扫描二维码注册，双方各得 ${spins} 次抽奖`,
+          portalSettings.poster_subtext_en || `Scan QR to register, ${spins} free spins each`,
+        )
+      : t(`扫描下方二维码注册，双方各得 ${spins} 次免费转盘`, `Scan the QR code to register — ${spins} free spins each`);
+    const subtext = rawSubtext.replace(/\{spins\}/g, String(spins));
+
+    const footer = (portalSettings.poster_footer_zh || portalSettings.poster_footer_en)
+      ? t(portalSettings.poster_footer_zh || company, portalSettings.poster_footer_en || company)
+      : `— ${company} —`;
+
     const canvas = document.createElement("canvas");
-    const W = 750;
-    const H = 1000;
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      notify.error(t("无法生成图片", "Could not create image"));
-      return;
+
+    let customBgImage: HTMLImageElement | null = null;
+    if (portalSettings.poster_custom_bg_url) {
+      try {
+        customBgImage = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error("bg load failed"));
+          img.src = portalSettings.poster_custom_bg_url!;
+        });
+      } catch {
+        customBgImage = null;
+      }
     }
 
-    /** 导出海报：与 member-portal `pu-m-bg-*` / `pu-m-text` 同色（Canvas 不用 CSS 变量） */
-    const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-    bgGrad.addColorStop(0, "hsl(216, 50%, 6%)");
-    bgGrad.addColorStop(0.55, "hsl(216, 50%, 8%)");
-    bgGrad.addColorStop(1, "hsl(219, 40%, 11%)");
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, W, H);
-
-    ctx.fillStyle = "hsl(210, 40%, 98%)";
-    ctx.textAlign = "center";
-    ctx.font = "800 40px system-ui, sans-serif";
-    ctx.fillText(t("邀请好友", "Invite friends"), W / 2, 120);
-    ctx.font = "800 40px system-ui, sans-serif";
-    ctx.fillText(t("赢取奖励", "Earn rewards"), W / 2, 175);
-    ctx.fillStyle = "hsla(213, 20%, 60%, 0.72)";
-    ctx.font = "500 18px system-ui, sans-serif";
-    ctx.fillText(t("扫描下方二维码注册", "Scan the QR code to register"), W / 2, 230);
-    ctx.fillText(
-      t(`双方各得 ${spins} 次免费转盘`, `${spins} free wheel spins each`),
-      W / 2,
-      265,
-    );
-
-    const qrBoxSize = 280;
-    const qrX = (W - qrBoxSize) / 2;
-    const qrY = 310;
-    ctx.fillStyle = "hsl(210, 40%, 98%)";
-    if (typeof ctx.roundRect === "function") {
-      ctx.beginPath();
-      ctx.roundRect(qrX, qrY, qrBoxSize, qrBoxSize, 24);
-      ctx.fill();
-    } else {
-      ctx.fillRect(qrX, qrY, qrBoxSize, qrBoxSize);
-    }
-
-    const svgData = new XMLSerializer().serializeToString(svgEl);
-    const img = new Image();
-    img.onload = () => {
-      const pad = 24;
-      ctx.drawImage(img, qrX + pad, qrY + pad, qrBoxSize - pad * 2, qrBoxSize - pad * 2);
-      ctx.fillStyle = "hsla(213, 20%, 60%, 0.55)";
-      ctx.font = "500 13px monospace";
-      ctx.textAlign = "center";
-      const linkLines = inviteLink.length > 52 ? [inviteLink.slice(0, 52), inviteLink.slice(52)] : [inviteLink];
-      linkLines.forEach((line, i) => {
-        ctx.fillText(line, W / 2, qrY + qrBoxSize + 36 + i * 18);
+    try {
+      await drawInvitePoster(canvas, {
+        frame,
+        headlineL1,
+        headlineL2,
+        subtext,
+        footerText: footer,
+        inviteLink,
+        qrSvgElement: svgEl,
+        customBgImage,
       });
-      ctx.fillStyle = "hsla(213, 20%, 60%, 0.38)";
-      ctx.font = "500 14px system-ui, sans-serif";
-      ctx.fillText(`— ${company} —`, W / 2, H - 48);
       canvas.toBlob(
         (blob) => {
           if (!blob) {
@@ -211,10 +201,10 @@ export default function MemberInvite() {
         "image/png",
         0.95,
       );
-    };
-    img.onerror = () => notify.error(t("无法生成图片", "Could not create image"));
-    img.src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgData)))}`;
-  }, [inviteLink, portalSettings.company_name, inviteRewardSpins, t]);
+    } catch {
+      notify.error(t("无法生成图片", "Could not create image"));
+    }
+  }, [inviteLink, portalSettings, inviteRewardSpins, t]);
 
   if (!member) return null;
   if (!portalSettings.enable_invite) {

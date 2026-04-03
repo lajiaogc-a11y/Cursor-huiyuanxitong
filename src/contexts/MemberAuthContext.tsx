@@ -13,6 +13,7 @@ import {
   setMemberAccessToken,
   clearMemberAccessToken,
   MEMBER_ACCESS_TOKEN_KEY,
+  ApiError,
 } from '@/lib/apiClient';
 import { clearMemberPortalSettingsBrowserCaches } from '@/lib/memberPortalBrowserCache';
 import { queryClient } from '@/lib/queryClient';
@@ -163,6 +164,7 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
       if (!result.success) return { success: false, message: result.message, code: result.code };
       if (result.member && result.token) {
         clearMallCatalogCache();
+        try { window.dispatchEvent(new CustomEvent('member:signout')); } catch { /* clear page caches on account switch */ }
         setMember(result.member);
         saveSession(result.member);
         setMemberAccessToken(result.token);
@@ -188,6 +190,7 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
     clearMallCatalogCache();
     try { localStorage.removeItem("member_saved_credentials"); } catch { /* storage unavailable */ }
     queryClient.removeQueries({ queryKey: [...memberQueryKeys.all] });
+    try { window.dispatchEvent(new CustomEvent('member:signout')); } catch { /* ignore */ }
   }, [bumpAuth]);
 
   const setPassword = useCallback(async (oldPassword: string, newPassword: string) => {
@@ -222,10 +225,18 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
       if (m) {
         setMember(m);
         saveSession(m);
+      } else {
+        setMember(null);
+        saveSession(null);
+        clearMemberAccessToken();
+        bumpAuth();
       }
-    } catch {
-      if (import.meta.env.DEV) {
-        console.warn('[MemberAuth] refreshMember failed');
+    } catch (err) {
+      if (err instanceof ApiError && (err.statusCode === 401 || err.statusCode === 403)) {
+        setMember(null);
+        saveSession(null);
+        clearMemberAccessToken();
+        bumpAuth();
       }
     }
   }, [member, bumpAuth]);
@@ -289,9 +300,10 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
   }, [member?.id, bumpAuth]);
 
   const isAuthenticated = useMemo(() => {
+    void authTick; // force recalculation when token state changes
     if (!member?.id) return false;
     return readMemberTokenPresent();
-  }, [member]);
+  }, [member, authTick]);
 
   return (
     <MemberAuthContext.Provider

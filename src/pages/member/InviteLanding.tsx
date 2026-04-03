@@ -246,6 +246,10 @@ export default function InviteLanding() {
         setLoading(false);
         return;
       }
+      setRegisterToken(null);
+      setPhone("");
+      setPassword("");
+      setConfirmPassword("");
       setSubmitted(true);
       notify.success(t("注册成功", "Registration successful!"));
     } catch (e: unknown) {

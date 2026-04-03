@@ -21,11 +21,12 @@ export function isPublicMemberOnboardingPath(path: string): boolean {
   );
 }
 
-/** 浏览器当前 SPA 路径：会员界面、邀请落地、会员登录根（「/」与 Hash 模式下 getSpaPathname 一致） */
+/**
+ * 浏览器当前 SPA 路径：会员界面、邀请落地。
+ * 「/」不再匹配 —— 避免在根路径下双 token 并存时误带会员 token 给员工接口。
+ */
 export function isMemberRealmPathname(pathname: string): boolean {
-  if (pathname === "/" || pathname === "") return true;
   if (pathname.startsWith("/member") || pathname.startsWith("/invite")) return true;
-  // 子路径部署：如 /app/member/...（避免误判 /staff/member-portal：须为路径段 member 后跟 / 或结尾）
   return /(?:^|\/)member(?:\/|$)/.test(pathname) || /(?:^|\/)invite(?:\/|$)/.test(pathname);
 }
 
@@ -37,9 +38,12 @@ export function isMemberScopedApiPath(path: string): boolean {
     path.startsWith("/api/member-inbox") ||
     path.startsWith("/api/data/rpc/member_") ||
     base.startsWith("/api/invite/") ||
-    /** 会员拉门户皮肤/转盘奖品：勿带失效的员工 JWT，否则 authMiddleware 直接 401 */
     base.startsWith("/api/member-portal-settings/by-member/") ||
-    base.includes("/api/member-portal-settings/spin-wheel-prizes/by-member/")
+    base.includes("/api/member-portal-settings/spin-wheel-prizes/by-member/") ||
+    base.startsWith("/api/lottery/quota/") ||
+    base.startsWith("/api/lottery/logs/") ||
+    base === "/api/lottery/sim-feed" ||
+    base.startsWith("/api/lottery/prizes/")
   );
 }
 

@@ -8,6 +8,8 @@
 import {
   isPublicMemberOnboardingPath,
   isStaffOnlyAuthPath,
+  isMemberScopedApiPath,
+  isMemberTokenFirstApiPath,
   shouldPreferMemberToken,
 } from '@/lib/memberTokenPathMatrix';
 import { getApiBaseUrl } from '@/lib/apiBase';
@@ -107,8 +109,11 @@ export function resolveBearerTokenForPath(path: string): string | null {
   }
   const staff = localStorage.getItem(API_ACCESS_TOKEN_KEY);
   if (staff) return staff;
-  // 最后兜底：如果员工 token 也没有，尝试用会员 token（避免完全无 token 导致 401 闪退）
-  return localStorage.getItem(MEMBER_ACCESS_TOKEN_KEY);
+  // Only fall back to member token for known member API paths, not arbitrary requests
+  if (isMemberScopedApiPath(path) || isMemberTokenFirstApiPath(path)) {
+    return localStorage.getItem(MEMBER_ACCESS_TOKEN_KEY);
+  }
+  return null;
 }
 
 async function getAuthHeaders(path: string): Promise<HeadersInit> {

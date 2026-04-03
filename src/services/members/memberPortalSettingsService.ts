@@ -124,6 +124,19 @@ export interface MemberPortalSettings {
   member_inbox_notify_announcement: boolean;
   /** 会员收件箱通知文案模板（空则服务端用内置默认 + 占位符填充） */
   member_inbox_copy_templates: MemberInboxCopyTemplates;
+  /** 邀请海报标题（中文），空则用默认 */
+  poster_headline_zh: string;
+  poster_headline_en: string;
+  /** 邀请海报副标题，{spins} 会被替换为实际次数 */
+  poster_subtext_zh: string;
+  poster_subtext_en: string;
+  /** 邀请海报底部文字 */
+  poster_footer_zh: string;
+  poster_footer_en: string;
+  /** 内置海报模板 ID: dark / gold / green / blue / red */
+  poster_frame_id: string;
+  /** 自定义海报背景图 URL（上传后自动转 WebP），为空则用内置模板 */
+  poster_custom_bg_url: string | null;
 }
 
 /** 单条通知标题/正文模板（支持 {{占位符}}） */
@@ -283,6 +296,14 @@ export const DEFAULT_SETTINGS: MemberPortalSettings = {
   member_inbox_notify_mall_redemption: true,
   member_inbox_notify_announcement: true,
   member_inbox_copy_templates: DEFAULT_MEMBER_INBOX_COPY_TEMPLATES,
+  poster_headline_zh: "",
+  poster_headline_en: "",
+  poster_subtext_zh: "",
+  poster_subtext_en: "",
+  poster_footer_zh: "",
+  poster_footer_en: "",
+  poster_frame_id: "gold",
+  poster_custom_bg_url: null,
 };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -501,6 +522,15 @@ function normalizeSettings(raw: Record<string, unknown> = {}): MemberPortalSetti
       DEFAULT_SETTINGS.member_inbox_notify_announcement,
     ),
     member_inbox_copy_templates: normalizeMemberInboxCopyTemplates(raw?.member_inbox_copy_templates),
+    poster_headline_zh: raw?.poster_headline_zh != null ? String(raw.poster_headline_zh) : DEFAULT_SETTINGS.poster_headline_zh,
+    poster_headline_en: raw?.poster_headline_en != null ? String(raw.poster_headline_en) : DEFAULT_SETTINGS.poster_headline_en,
+    poster_subtext_zh: raw?.poster_subtext_zh != null ? String(raw.poster_subtext_zh) : DEFAULT_SETTINGS.poster_subtext_zh,
+    poster_subtext_en: raw?.poster_subtext_en != null ? String(raw.poster_subtext_en) : DEFAULT_SETTINGS.poster_subtext_en,
+    poster_footer_zh: raw?.poster_footer_zh != null ? String(raw.poster_footer_zh) : DEFAULT_SETTINGS.poster_footer_zh,
+    poster_footer_en: raw?.poster_footer_en != null ? String(raw.poster_footer_en) : DEFAULT_SETTINGS.poster_footer_en,
+    poster_frame_id: ['dark', 'gold', 'green', 'blue', 'red'].includes(String(raw?.poster_frame_id))
+      ? String(raw.poster_frame_id) : DEFAULT_SETTINGS.poster_frame_id,
+    poster_custom_bg_url: raw?.poster_custom_bg_url != null ? String(raw.poster_custom_bg_url) : null,
   };
 }
 

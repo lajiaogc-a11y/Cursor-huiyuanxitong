@@ -116,6 +116,14 @@ const MEMBER_PORTAL_SETTINGS_WRITABLE_COLUMNS = new Set<string>([
   'member_inbox_notify_mall_redemption',
   'member_inbox_notify_announcement',
   'member_inbox_copy_templates',
+  'poster_headline_zh',
+  'poster_headline_en',
+  'poster_subtext_zh',
+  'poster_subtext_en',
+  'poster_footer_zh',
+  'poster_footer_en',
+  'poster_frame_id',
+  'poster_custom_bg_url',
 ]);
 
 /** MySQL JSON 列可能为 Buffer / 字符串 / 已解析数组 — 统一解析为 JS 数组 */
@@ -706,6 +714,14 @@ export async function getMemberPortalSettingsForEmployee(
     member_inbox_notify_mall_redemption: row.member_inbox_notify_mall_redemption ?? true,
     member_inbox_notify_announcement: row.member_inbox_notify_announcement ?? true,
     member_inbox_copy_templates: parseMemberInboxCopyTemplatesFromDb(row.member_inbox_copy_templates),
+    poster_headline_zh: row.poster_headline_zh ?? '',
+    poster_headline_en: row.poster_headline_en ?? '',
+    poster_subtext_zh: row.poster_subtext_zh ?? '',
+    poster_subtext_en: row.poster_subtext_en ?? '',
+    poster_footer_zh: row.poster_footer_zh ?? '',
+    poster_footer_en: row.poster_footer_en ?? '',
+    poster_frame_id: row.poster_frame_id ?? 'gold',
+    poster_custom_bg_url: row.poster_custom_bg_url ?? null,
   };
   return {
     success: true,
@@ -815,6 +831,14 @@ function buildPublicSettings(row: Record<string, unknown>): Record<string, unkno
     member_inbox_notify_order_spin: row.member_inbox_notify_order_spin ?? true,
     member_inbox_notify_mall_redemption: row.member_inbox_notify_mall_redemption ?? true,
     member_inbox_notify_announcement: row.member_inbox_notify_announcement ?? true,
+    poster_headline_zh: row.poster_headline_zh ?? '',
+    poster_headline_en: row.poster_headline_en ?? '',
+    poster_subtext_zh: row.poster_subtext_zh ?? '',
+    poster_subtext_en: row.poster_subtext_en ?? '',
+    poster_footer_zh: row.poster_footer_zh ?? '',
+    poster_footer_en: row.poster_footer_en ?? '',
+    poster_frame_id: row.poster_frame_id ?? 'gold',
+    poster_custom_bg_url: row.poster_custom_bg_url ?? null,
   };
 }
 
