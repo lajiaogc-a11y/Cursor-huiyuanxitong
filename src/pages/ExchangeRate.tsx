@@ -182,7 +182,7 @@ export default function ExchangeRate() {
     if (!isPlatformAdminReadonlyView) return false;
     notify.error(t(`平台总管理查看租户时为只读，无法${actionText}`, `Read-only in admin view, cannot ${actionText}`));
     return true;
-  }, [isPlatformAdminReadonlyView]);
+  }, [isPlatformAdminReadonlyView, t]);
   
   // 使用数据库hooks获取订单数据
   const { orders, addOrder } = useOrders();
@@ -266,6 +266,7 @@ export default function ExchangeRate() {
       }
     };
     loadRatesFromSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 订阅共享数据变更（BTC价格、快捷设置、汇率采集等）
@@ -360,7 +361,7 @@ export default function ExchangeRate() {
   const TAB_CONFIG = useMemo(() => [
     { value: 'calc1', label: { zh: '台位 A', en: 'Desk A' } },
     { value: 'calc2', label: { zh: '台位 B', en: 'Desk B' } },
-    { value: 'calc3', label: { zh: '台位 C', en: 'Desk C' } },
+    { value: 'calc3', label: { zh: '美卡专区', en: 'US Card Zone' } },
     { value: 'activity', label: { zh: '活动赠送', en: 'Gifts' } },
     { value: 'memo', label: { zh: '工作备忘', en: 'Memos' }, showBadge: true },
     { value: 'referral', label: { zh: '推荐录入', en: 'Referral' } },
@@ -413,7 +414,7 @@ export default function ExchangeRate() {
       setActiveTab(tabFromUrl);
       sessionStorage.setItem('exchangeRateActiveTab', tabFromUrl);
     }
-  }, [tabFromUrl]);
+  }, [tabFromUrl, TAB_CONFIG]);
   
   // Tab 切换处理 - 保存到 sessionStorage 以便导航返回时恢复
   const handleTabChange = useCallback((value: string) => {
@@ -429,14 +430,14 @@ export default function ExchangeRate() {
       const tabNames: Record<string, string> = {
         calc1: t('台位 A', 'Station A'),
         calc2: t('台位 B', 'Station B'),
-        calc3: t('台位 C', 'Station C'),
+        calc3: t('美卡专区', 'US Card Zone'),
       };
       notify.success(t(`已切换到 ${tabNames[value]}`, `Switched to ${tabNames[value]}`), {
         duration: 1500,
         icon: '✓',
       });
     }
-  }, [activeTab]);
+  }, [activeTab, t]);
   
   // 初始化时从数据库加载利润分析百分比（过短数组会与桌面 grid 列数不一致，表现为「先全后只剩一列」）
   useEffect(() => {
@@ -789,7 +790,7 @@ export default function ExchangeRate() {
     const payUsdtVal = parseFloat(payUsdt) || 0;
     if (usdtBid === 0 && usdtAsk === 0) return '';
     return payUsdtVal > 0 ? t('卖出价', 'Sell rate') : t('买入价', 'Buy rate');
-  }, [payUsdt, usdtBid, usdtAsk]);
+  }, [payUsdt, usdtBid, usdtAsk, t]);
 
   // 现金专属（只读计算）= 当前激活计算器的卡片汇率 × USDT汇率
   const cashSpecial = useMemo(() => {
@@ -1028,7 +1029,7 @@ export default function ExchangeRate() {
     });
     
     return { naira, cedi, usdt };
-  }, [cardValue, cardRate, nairaRate, cediRate, usdtRate, usdtBid, usdtFeeNum, profitRates, feeSettings]);
+  }, [cardValue, cardRate, usdtBid, usdtFeeNum, profitRates, feeSettings, safeCediRate, safeNairaRate, safeUsdtRate]);
 
   // 计算实际利润和利率 - 使用安全计算防止 NaN
   const profitCalculation = useMemo(() => {
@@ -1070,7 +1071,7 @@ export default function ExchangeRate() {
       btcProfitU: safeToFixed(btcProfitU, 2),
       btcRate: safeToFixed(btcActualRate, 2),
     };
-  }, [cardValue, cardRate, usdtRate, usdtFeeNum, payNaira, payCedi, payUsdt, payBtc, nairaRate, cediRate, btcPrice, feeSettings]);
+  }, [cardValue, cardRate, usdtFeeNum, payNaira, payCedi, payUsdt, payBtc, btcPrice, feeSettings, safeCediRate, safeNairaRate, safeUsdtRate]);
 
   // 币种偏好显示 - 优先显示会员数据，否则显示当前支付选择
   const currencyPreference = useMemo(() => {

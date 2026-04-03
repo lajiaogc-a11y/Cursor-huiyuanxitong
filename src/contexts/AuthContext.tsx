@@ -596,6 +596,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isMounted = false;
       clearTimeout(initTimeoutId);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [syncUserData, setAndCacheEmployee]);
 
   // 加载权限并轮询更新（替代 Realtime 订阅）；后台标签页不轮询，减少卡顿与无效渲染
@@ -769,6 +770,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
 
     // Sign out complete, all caches cleared
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopIpValidationInterval]);
 
   const updateEmployeeLocal = useCallback((patch: Partial<EmployeeInfo>) => {

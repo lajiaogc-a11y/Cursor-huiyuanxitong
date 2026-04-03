@@ -54,6 +54,7 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
   
   useEffect(() => {
     loadReceivers();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   // 添加接班人

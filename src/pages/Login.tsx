@@ -83,6 +83,7 @@ export default function Login() {
 
   useEffect(() => {
     if (error) setError(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username, password]);
 
   const parseErrorCode = (message: string): string => {
@@ -316,7 +317,7 @@ export default function Login() {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded text-[#94a3b8] hover:text-[#64748B] hover:bg-[#f1f5f9] dark:hover:bg-slate-600/50 dark:hover:text-slate-300 transition-colors"
-                    tabIndex={-1}
+                    tabIndex={0}
                     aria-label={showPassword ? t("隐藏密码", "Hide password") : t("显示密码", "Show password")}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}

@@ -1,6 +1,17 @@
 // 订单查询函数 - 从 useOrders 提取，不修改业务逻辑
 import { calculateUsdtOrderDerivedValues } from '@/lib/orderCalculations';
-import { getTenantOrdersFull, getTenantUsdtOrdersFull, getTenantMembersFull, getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getMyTenantMembersFull } from '@/services/tenantService';
+import {
+  getTenantOrdersFull,
+  getTenantUsdtOrdersFull,
+  getTenantMembersFull,
+  getMyTenantOrdersFull,
+  getMyTenantUsdtOrdersFull,
+  getMyTenantMembersFull,
+  getTenantMeikaFiatOrdersFull,
+  getTenantMeikaUsdtOrdersFull,
+  getMyTenantMeikaFiatOrdersFull,
+  getMyTenantMeikaUsdtOrdersFull,
+} from '@/services/tenantService';
 import { mapDbOrderToOrder, formatBeijingTime, resolveSalesPersonName } from './utils';
 import type { Order, UsdtOrder, OrderFilters, PointsStatus } from './types';
 import { PAGE_SIZE } from './types';
@@ -76,11 +87,12 @@ export async function fetchOrdersFromDb(
   page: number = 1,
   pageSize: number = PAGE_SIZE,
   filters?: OrderFilters,
-  useMyTenantRpc?: boolean
+  useMyTenantRpc?: boolean,
+  listVariant: 'standard' | 'meika-fiat' = 'standard',
 ): Promise<{ orders: Order[]; totalCount: number }> {
   if (tenantId && !useMyTenantRpc) {
     const [ordersData, membersData] = await Promise.all([
-      getTenantOrdersFull(tenantId),
+      listVariant === 'meika-fiat' ? getTenantMeikaFiatOrdersFull(tenantId) : getTenantOrdersFull(tenantId),
       getTenantMembersFull(tenantId),
     ]);
     const phoneToMemberCode = new Map<string, string>();
@@ -125,7 +137,7 @@ export async function fetchOrdersFromDb(
 
   // 租户员工或平台未选租户：一律使用 RPC，避免 RLS 拦截
   const [ordersData, membersData] = await Promise.all([
-    getMyTenantOrdersFull(),
+    listVariant === 'meika-fiat' ? getMyTenantMeikaFiatOrdersFull() : getMyTenantOrdersFull(),
     getMyTenantMembersFull(),
   ]);
   const phoneToMemberCode = new Map<string, string>();
@@ -173,11 +185,12 @@ export async function fetchUsdtOrdersFromDb(
   page: number = 1,
   pageSize: number = PAGE_SIZE,
   filters?: OrderFilters,
-  useMyTenantRpc?: boolean
+  useMyTenantRpc?: boolean,
+  listVariant: 'standard' | 'meika-usdt' = 'standard',
 ): Promise<{ orders: UsdtOrder[]; totalCount: number }> {
   if (tenantId && !useMyTenantRpc) {
     const [ordersData, membersData] = await Promise.all([
-      getTenantUsdtOrdersFull(tenantId),
+      listVariant === 'meika-usdt' ? getTenantMeikaUsdtOrdersFull(tenantId) : getTenantUsdtOrdersFull(tenantId),
       getTenantMembersFull(tenantId),
     ]);
     const phoneToMemberCode = new Map<string, string>();
@@ -258,7 +271,7 @@ export async function fetchUsdtOrdersFromDb(
   }
 
   const [ordersData, membersData] = await Promise.all([
-    getMyTenantUsdtOrdersFull(),
+    listVariant === 'meika-usdt' ? getMyTenantMeikaUsdtOrdersFull() : getMyTenantUsdtOrdersFull(),
     getMyTenantMembersFull(),
   ]);
   const phoneToMemberCode = new Map<string, string>();

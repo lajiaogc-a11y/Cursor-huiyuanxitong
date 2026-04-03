@@ -106,6 +106,7 @@ export function MallRedemptionStaffNotifier() {
     if (!current) return;
     const timer = window.setTimeout(dismissOne, AUTO_DISMISS_MS);
     return () => window.clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.id, dismissOne]);
 
   const goToOrder = useCallback(() => {

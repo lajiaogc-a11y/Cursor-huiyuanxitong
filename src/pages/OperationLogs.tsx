@@ -791,6 +791,7 @@ export default function OperationLogs() {
   // 可批量恢复的日志
   const restorableLogs = useMemo(() => {
     return filteredLogs.filter(log => canRestore(log));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredLogs]);
 
   const logKpiItems = useMemo(

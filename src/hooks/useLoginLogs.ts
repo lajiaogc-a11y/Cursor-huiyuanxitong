@@ -3,7 +3,7 @@
  * IP 地理位置在后端登录时写入 ip_location 字段，前端直接展示。
  * 对于历史记录中缺少 ip_location 的，通过 POST /api/logs/login/resolve-locations 回填。
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
@@ -84,7 +84,7 @@ export function useLoginLogs(
     enabled,
   });
 
-  const logs = data?.logs ?? [];
+  const logs = useMemo(() => data?.logs ?? [], [data?.logs]);
   const totalLogs = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalLogs / PAGE_SIZE));
 

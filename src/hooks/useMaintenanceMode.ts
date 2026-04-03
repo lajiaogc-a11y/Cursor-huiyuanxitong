@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MaintenanceStatus } from "@/services/maintenanceModeService";
 import { getMaintenanceModeStatusResult } from "@/services/maintenanceModeService";
 
@@ -13,7 +13,7 @@ const DEFAULT_STATUS: MaintenanceStatus = {
 
 export function useMaintenanceMode(tenantId?: string | null) {
   const [status, setStatus] = useState<MaintenanceStatus>(DEFAULT_STATUS);
-  const fetchedRef = useRef(false);
+  const [fetched, setFetched] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -24,13 +24,14 @@ export function useMaintenanceMode(tenantId?: string | null) {
     } catch {
       // keep defaults on error
     } finally {
-      fetchedRef.current = true;
+      setFetched(true);
     }
   }, [tenantId]);
 
   useEffect(() => {
+    setFetched(false);
     void refresh();
   }, [refresh]);
 
-  return useMemo(() => ({ loading: false, status, refresh }), [status, refresh]);
+  return useMemo(() => ({ loading: !fetched, status, refresh }), [fetched, status, refresh]);
 }

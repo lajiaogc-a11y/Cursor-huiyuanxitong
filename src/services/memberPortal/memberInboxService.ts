@@ -1,6 +1,6 @@
 import { apiDelete, apiGet, apiPost } from "@/api/client";
 
-export type MemberInboxApiCategory = "system" | "reward" | "activity" | "invite" | "order";
+export type MemberInboxApiCategory = "trade" | "redemption" | "announcement" | "other";
 
 export type MemberInboxApiItem = {
   id: string;

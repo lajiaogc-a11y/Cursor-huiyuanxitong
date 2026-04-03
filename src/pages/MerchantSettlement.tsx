@@ -302,6 +302,7 @@ export default function MerchantSettlement() {
       }
     };
     initData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employee]);
 
   // 租户切换时清除缓存并重新加载（跳过首次挂载，避免与 initData 重复）
@@ -316,6 +317,7 @@ export default function MerchantSettlement() {
       _msCache = null;
       loadData().then(() => loadEmployees());
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveTenantId]);
 
   // Local save guard: suppress Realtime reloads during local saves to prevent race conditions
@@ -392,6 +394,7 @@ export default function MerchantSettlement() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const loadData = async () => {
     // Use allSettled for orders to tolerate partial failures
     const orderResults = (effectiveTenantId && !useMyTenantRpc)

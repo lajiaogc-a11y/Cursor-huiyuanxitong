@@ -4,7 +4,6 @@
  *
  * query/convertDecimals 使用 any：各行结构随 SQL 变化，由调用方泛型 T 约束。
  */
-/* eslint-disable @typescript-eslint/no-explicit-any -- mysql2 动态行与通用 query<T> */
 import mysql from 'mysql2/promise';
 import type { PoolConnection } from 'mysql2/promise';
 import { config } from '../config/index.js';

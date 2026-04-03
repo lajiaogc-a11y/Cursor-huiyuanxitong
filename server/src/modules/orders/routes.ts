@@ -9,6 +9,8 @@ import {
   listOrdersController,
   getOrdersFullController,
   getUsdtOrdersFullController,
+  getMeikaFiatOrdersFullController,
+  getMeikaUsdtOrdersFullController,
   createOrderController,
   updateOrderPointsController,
 } from './controller.js';
@@ -32,6 +34,8 @@ const router = Router();
 router.get('/', authMiddleware, validate({ query: listQuery }), listOrdersController);
 router.get('/full', authMiddleware, getOrdersFullController);
 router.get('/usdt-full', authMiddleware, getUsdtOrdersFullController);
+router.get('/meika-fiat-full', authMiddleware, getMeikaFiatOrdersFullController);
+router.get('/meika-usdt-full', authMiddleware, getMeikaUsdtOrdersFullController);
 router.post('/', authMiddleware, validate({ body: createOrderSchema }), createOrderController);
 router.patch('/:id/points', authMiddleware, updateOrderPointsController);
 

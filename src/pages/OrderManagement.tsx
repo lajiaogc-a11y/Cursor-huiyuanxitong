@@ -47,7 +47,15 @@ import { exportTableToXLSX } from "@/services/dataExportImportService";
 import { notify } from "@/lib/notifyHub";
 import { showServiceErrorToast } from "@/services/serviceErrorToast";
 import { TimeRangeType, DateRange, getTimeRangeDates, ALL_TIME_DATE_RANGE } from "@/lib/dateFilter";
-import { useOrders, useUsdtOrders, useOrderStats, Order, UsdtOrder } from "@/hooks/useOrders";
+import {
+  useOrders,
+  useUsdtOrders,
+  useMeikaOrders,
+  useMeikaUsdtOrders,
+  useOrderStats,
+  Order,
+  UsdtOrder,
+} from "@/hooks/useOrders";
 import { updateOrderUseCase } from "@/application/order/useCases/orderLifecycleUseCases";
 import { useMerchantNameResolver } from "@/hooks/useNameResolver";
 import { useColumnVisibility, ColumnConfig } from "@/hooks/useColumnVisibility";
@@ -269,7 +277,9 @@ export default function OrderManagement() {
   const { viewingTenantId } = useTenantView() || {};
   const effectiveTenantId = viewingTenantId || currentEmployee?.tenant_id || null;
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState("normal");
+  const [activeTab, setActiveTab] = useState<
+    "normal" | "usdt" | "meika-fiat" | "meika-usdt" | "mall"
+  >("normal");
   const [mallOrdersRefreshNonce, setMallOrdersRefreshNonce] = useState(0);
   const [mallHighlightId, setMallHighlightId] = useState<string | null>(null);
   /** 商城订单状态筛选（与列表 API / 客户端搜索配合） */
@@ -337,11 +347,15 @@ export default function OrderManagement() {
   const PAGE_SIZE = 50;
   const [currentPage, setCurrentPage] = useState(1);
   const [currentUsdtPage, setCurrentUsdtPage] = useState(1);
+  const [currentMeikaFiatPage, setCurrentMeikaFiatPage] = useState(1);
+  const [currentMeikaUsdtPage, setCurrentMeikaUsdtPage] = useState(1);
   const [jumpToPage, setJumpToPage] = useState("");
   const [selectedNormalDbIds, setSelectedNormalDbIds] = useState<Set<string>>(() => new Set());
   const [selectedUsdtDbIds, setSelectedUsdtDbIds] = useState<Set<string>>(() => new Set());
+  const [selectedMeikaFiatDbIds, setSelectedMeikaFiatDbIds] = useState<Set<string>>(() => new Set());
+  const [selectedMeikaUsdtDbIds, setSelectedMeikaUsdtDbIds] = useState<Set<string>>(() => new Set());
   const [orderBatchDialog, setOrderBatchDialog] = useState<
-    null | { mode: "delete" | "cancel"; tab: "normal" | "usdt" }
+    null | { mode: "delete" | "cancel"; tab: "normal" | "usdt" | "meika-fiat" | "meika-usdt" }
   >(null);
 
   // 构建筛选参数（用于服务端分页）
@@ -374,12 +388,44 @@ export default function OrderManagement() {
     pageSize: PAGE_SIZE,
     filters: orderFilters,
     paused: isAnyDialogOpen,
+    enabled: activeTab === "normal",
   });
   const { orders: usdtOrders, totalCount: usdtTotalCount, isError: isUsdtOrdersError, cancelOrder: cancelUsdtOrder, restoreOrder: restoreUsdtOrder, deleteOrder: deleteUsdtOrder, refetch: refetchUsdtOrders } = useUsdtOrders({
     page: currentUsdtPage,
     pageSize: PAGE_SIZE,
     filters: orderFilters,
     paused: isAnyDialogOpen,
+    enabled: activeTab === "usdt",
+  });
+  const {
+    orders: meikaFiatOrders,
+    totalCount: meikaFiatTotalCount,
+    isError: isMeikaFiatError,
+    cancelOrder: cancelMeikaFiatOrder,
+    restoreOrder: restoreMeikaFiatOrder,
+    deleteOrder: deleteMeikaFiatOrder,
+    refetch: refetchMeikaFiatOrders,
+  } = useMeikaOrders({
+    page: currentMeikaFiatPage,
+    pageSize: PAGE_SIZE,
+    filters: orderFilters,
+    paused: isAnyDialogOpen,
+    enabled: activeTab === "meika-fiat",
+  });
+  const {
+    orders: meikaUsdtOrders,
+    totalCount: meikaUsdtTotalCount,
+    isError: isMeikaUsdtError,
+    cancelOrder: cancelMeikaUsdtOrder,
+    restoreOrder: restoreMeikaUsdtOrder,
+    deleteOrder: deleteMeikaUsdtOrder,
+    refetch: refetchMeikaUsdtOrders,
+  } = useMeikaUsdtOrders({
+    page: currentMeikaUsdtPage,
+    pageSize: PAGE_SIZE,
+    filters: orderFilters,
+    paused: isAnyDialogOpen,
+    enabled: activeTab === "meika-usdt",
   });
 
   const { totalProfit: statsTotalProfit, usdtProfit: statsUsdtProfit, totalCardValue: statsTotalCardValue, tradingUsers: statsTradingUsers } = useOrderStats(orderFilters);
@@ -390,17 +436,29 @@ export default function OrderManagement() {
   // 用 ref 存储 refetch 函数，避免 useEffect 依赖变化导致无限循环
   const refetchOrdersRef = useRef(refetchOrders);
   const refetchUsdtOrdersRef = useRef(refetchUsdtOrders);
+  const refetchMeikaFiatOrdersRef = useRef(refetchMeikaFiatOrders);
+  const refetchMeikaUsdtOrdersRef = useRef(refetchMeikaUsdtOrders);
   refetchOrdersRef.current = refetchOrders;
   refetchUsdtOrdersRef.current = refetchUsdtOrders;
+  refetchMeikaFiatOrdersRef.current = refetchMeikaFiatOrders;
+  refetchMeikaUsdtOrdersRef.current = refetchMeikaUsdtOrders;
 
   const cancelOrderRef = useRef(cancelOrder);
   const deleteOrderRef = useRef(deleteOrder);
   const cancelUsdtOrderRef = useRef(cancelUsdtOrder);
   const deleteUsdtOrderRef = useRef(deleteUsdtOrder);
+  const deleteMeikaFiatOrderRef = useRef(deleteMeikaFiatOrder);
+  const cancelMeikaFiatOrderRef = useRef(cancelMeikaFiatOrder);
+  const deleteMeikaUsdtOrderRef = useRef(deleteMeikaUsdtOrder);
+  const cancelMeikaUsdtOrderRef = useRef(cancelMeikaUsdtOrder);
   cancelOrderRef.current = cancelOrder;
   deleteOrderRef.current = deleteOrder;
   cancelUsdtOrderRef.current = cancelUsdtOrder;
   deleteUsdtOrderRef.current = deleteUsdtOrder;
+  deleteMeikaFiatOrderRef.current = deleteMeikaFiatOrder;
+  cancelMeikaFiatOrderRef.current = cancelMeikaFiatOrder;
+  deleteMeikaUsdtOrderRef.current = deleteMeikaUsdtOrder;
+  cancelMeikaUsdtOrderRef.current = cancelMeikaUsdtOrder;
 
   // 右下角商城兑换通知「前往订单」：?tab=mall&highlightMall=<redemptionId>
   // 审核中心「积分兑换待审核」：?tab=mall&mallStatus=pending
@@ -506,6 +564,8 @@ export default function OrderManagement() {
         }
         refetchOrdersRef.current();
         refetchUsdtOrdersRef.current();
+        refetchMeikaFiatOrdersRef.current();
+        refetchMeikaUsdtOrdersRef.current();
         refreshTimeoutId = null;
       }, 300); // 300ms debounce
     };
@@ -540,7 +600,7 @@ export default function OrderManagement() {
     }
   };
 
-  // 服务端分页：orders/usdtOrders 已是筛选后的当前页数据
+  // 服务端分页：orders/usdtOrders/meika* 已是筛选后的当前页数据
   const filteredOrders = orders;
   const filteredUsdtOrders = usdtOrders;
 
@@ -573,8 +633,23 @@ export default function OrderManagement() {
     () => [
       {
         label: t("列表条数（当前模式）", "Rows (current mode)"),
-        value: String(activeTab === "usdt" ? usdtTotalCount : totalCount),
-        change: activeTab === "usdt" ? "USDT" : t("奈拉/赛地", "NGN/GHS"),
+        value: String(
+          activeTab === "usdt"
+            ? usdtTotalCount
+            : activeTab === "meika-fiat"
+              ? meikaFiatTotalCount
+              : activeTab === "meika-usdt"
+                ? meikaUsdtTotalCount
+                : totalCount,
+        ),
+        change:
+          activeTab === "usdt"
+            ? "USDT"
+            : activeTab === "meika-fiat"
+              ? t("美卡专区（赛奈）", "Meika · NGN/GHS")
+              : activeTab === "meika-usdt"
+                ? t("美卡专区 USDT", "Meika · USDT")
+                : t("奈拉/赛地", "NGN/GHS"),
         tone: "neutral" as const,
       },
       {
@@ -596,7 +671,7 @@ export default function OrderManagement() {
         tone: "positive" as const,
       },
     ],
-    [activeTab, totalCount, usdtTotalCount, stats, t],
+    [activeTab, totalCount, usdtTotalCount, meikaFiatTotalCount, meikaUsdtTotalCount, stats, t],
   );
 
   // 排序功能 - 普通订单
@@ -605,11 +680,20 @@ export default function OrderManagement() {
   // 排序功能 - USDT订单
   const { sortedData: sortedUsdtOrders, sortConfig: usdtSortConfig, requestSort: requestUsdtSort } = useSortableData(filteredUsdtOrders);
 
+  const { sortedData: sortedMeikaFiatOrders, sortConfig: meikaFiatSortConfig, requestSort: requestMeikaFiatSort } =
+    useSortableData(meikaFiatOrders);
+  const { sortedData: sortedMeikaUsdtOrders, sortConfig: meikaUsdtSortConfig, requestSort: requestMeikaUsdtSort } =
+    useSortableData(meikaUsdtOrders);
+
   // 分页计算 - 服务端分页，每页50条
   const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / PAGE_SIZE)), [totalCount]);
   const totalUsdtPages = useMemo(() => Math.max(1, Math.ceil(usdtTotalCount / PAGE_SIZE)), [usdtTotalCount]);
+  const totalMeikaFiatPages = useMemo(() => Math.max(1, Math.ceil(meikaFiatTotalCount / PAGE_SIZE)), [meikaFiatTotalCount]);
+  const totalMeikaUsdtPages = useMemo(() => Math.max(1, Math.ceil(meikaUsdtTotalCount / PAGE_SIZE)), [meikaUsdtTotalCount]);
   const paginatedOrders = sortedOrders;
   const paginatedUsdtOrders = sortedUsdtOrders;
+  const paginatedMeikaFiatOrders = sortedMeikaFiatOrders;
+  const paginatedMeikaUsdtOrders = sortedMeikaUsdtOrders;
 
   useEffect(() => {
     setSelectedNormalDbIds(new Set());
@@ -620,8 +704,18 @@ export default function OrderManagement() {
   }, [currentUsdtPage]);
 
   useEffect(() => {
+    setSelectedMeikaFiatDbIds(new Set());
+  }, [currentMeikaFiatPage]);
+
+  useEffect(() => {
+    setSelectedMeikaUsdtDbIds(new Set());
+  }, [currentMeikaUsdtPage]);
+
+  useEffect(() => {
     setSelectedNormalDbIds(new Set());
     setSelectedUsdtDbIds(new Set());
+    setSelectedMeikaFiatDbIds(new Set());
+    setSelectedMeikaUsdtDbIds(new Set());
   }, [activeTab]);
 
   const normalBatchCancelCount = useMemo(
@@ -636,28 +730,53 @@ export default function OrderManagement() {
     [paginatedUsdtOrders, selectedUsdtDbIds],
   );
 
+  const meikaFiatBatchCancelCount = useMemo(
+    () =>
+      paginatedMeikaFiatOrders.filter((o) => selectedMeikaFiatDbIds.has(o.dbId) && o.status === "completed").length,
+    [paginatedMeikaFiatOrders, selectedMeikaFiatDbIds],
+  );
+
+  const meikaUsdtBatchCancelCount = useMemo(
+    () =>
+      paginatedMeikaUsdtOrders.filter((o) => selectedMeikaUsdtDbIds.has(o.dbId) && o.status === "completed").length,
+    [paginatedMeikaUsdtOrders, selectedMeikaUsdtDbIds],
+  );
+
   // 重置页码当筛选变化时
   useEffect(() => {
     setCurrentPage(1);
     setCurrentUsdtPage(1);
+    setCurrentMeikaFiatPage(1);
+    setCurrentMeikaUsdtPage(1);
   }, [orderFilters]);
 
   // 跳转到指定页
-  const handleJumpToPage = (isUsdt: boolean) => {
+  const handleJumpToPage = (target: "normal" | "usdt" | "meika-fiat" | "meika-usdt") => {
     const page = parseInt(jumpToPage);
-    const maxPage = isUsdt ? totalUsdtPages : totalPages;
+    const maxPage =
+      target === "usdt"
+        ? totalUsdtPages
+        : target === "meika-fiat"
+          ? totalMeikaFiatPages
+          : target === "meika-usdt"
+            ? totalMeikaUsdtPages
+            : totalPages;
     if (!isNaN(page) && page >= 1 && page <= maxPage) {
-      if (isUsdt) {
-        setCurrentUsdtPage(page);
-      } else {
-        setCurrentPage(page);
-      }
+      if (target === "usdt") setCurrentUsdtPage(page);
+      else if (target === "meika-fiat") setCurrentMeikaFiatPage(page);
+      else if (target === "meika-usdt") setCurrentMeikaUsdtPage(page);
+      else setCurrentPage(page);
       setJumpToPage("");
     }
   };
 
   const handleRefresh = async () => {
-    await Promise.all([refetchOrders(), refetchUsdtOrders()]);
+    await Promise.all([
+      refetchOrders(),
+      refetchUsdtOrders(),
+      refetchMeikaFiatOrders(),
+      refetchMeikaUsdtOrders(),
+    ]);
     setMallOrdersRefreshNonce((n) => n + 1);
     notify.success(t("订单已刷新", "Orders refreshed"));
   };
@@ -889,6 +1008,8 @@ export default function OrderManagement() {
       );
         
       await refetchOrders();
+      queryClient.invalidateQueries({ queryKey: ["meika-fiat-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["meika-usdt-orders"] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
@@ -918,6 +1039,8 @@ export default function OrderManagement() {
         setEditingOrder(null);
         setOriginalOrder(null);
         await refetchOrders();
+        queryClient.invalidateQueries({ queryKey: ["meika-fiat-orders"] });
+        queryClient.invalidateQueries({ queryKey: ["meika-usdt-orders"] });
         return;
       }
       
@@ -1016,6 +1139,8 @@ export default function OrderManagement() {
       );
         
       await refetchOrders();
+      queryClient.invalidateQueries({ queryKey: ["meika-fiat-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["meika-usdt-orders"] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
@@ -1034,7 +1159,8 @@ export default function OrderManagement() {
   };
 
   const handleCancel = async (dbId: string): Promise<boolean> => {
-    await cancelOrder(dbId);
+    if (activeTab === "meika-fiat") await cancelMeikaFiatOrder(dbId);
+    else await cancelOrder(dbId);
     notify.success(t("订单已取消", "Order cancelled"));
     return true;
   };
@@ -1049,14 +1175,16 @@ export default function OrderManagement() {
 
   const confirmRestore = async () => {
     if (restoreOrderId) {
-      await restoreOrder(restoreOrderId);
+      if (activeTab === "meika-fiat") await restoreMeikaFiatOrder(restoreOrderId);
+      else await restoreOrder(restoreOrderId);
       notify.success(t("订单已恢复为已完成", "Order restored to completed"));
       setRestoreOrderId(null);
     }
   };
 
   const handleDelete = async (dbId: string): Promise<boolean> => {
-    const success = await deleteOrder(dbId);
+    const success =
+      activeTab === "meika-fiat" ? await deleteMeikaFiatOrder(dbId) : await deleteOrder(dbId);
     if (success) {
       notify.success(t("订单已删除", "Order deleted"));
     }
@@ -1220,6 +1348,8 @@ export default function OrderManagement() {
       );
         
       await refetchUsdtOrders();
+      queryClient.invalidateQueries({ queryKey: ["meika-fiat-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["meika-usdt-orders"] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
@@ -1249,6 +1379,8 @@ export default function OrderManagement() {
         setEditingUsdtOrder(null);
         setOriginalUsdtOrder(null);
         await refetchUsdtOrders();
+        queryClient.invalidateQueries({ queryKey: ["meika-fiat-orders"] });
+        queryClient.invalidateQueries({ queryKey: ["meika-usdt-orders"] });
         return;
       }
       
@@ -1330,6 +1462,8 @@ export default function OrderManagement() {
       );
         
       await refetchUsdtOrders();
+      queryClient.invalidateQueries({ queryKey: ["meika-fiat-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["meika-usdt-orders"] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
@@ -1348,7 +1482,8 @@ export default function OrderManagement() {
   };
 
   const handleCancelUsdt = async (dbId: string): Promise<boolean> => {
-    await cancelUsdtOrder(dbId);
+    if (activeTab === "meika-usdt") await cancelMeikaUsdtOrder(dbId);
+    else await cancelUsdtOrder(dbId);
     notify.success(t("USDT订单已取消", "USDT order cancelled"));
     return true;
   };
@@ -1359,14 +1494,16 @@ export default function OrderManagement() {
 
   const confirmRestoreUsdt = async () => {
     if (restoreUsdtOrderId) {
-      await restoreUsdtOrder(restoreUsdtOrderId);
+      if (activeTab === "meika-usdt") await restoreMeikaUsdtOrder(restoreUsdtOrderId);
+      else await restoreUsdtOrder(restoreUsdtOrderId);
       notify.success(t("USDT订单已恢复为已完成", "USDT order restored to completed"));
       setRestoreUsdtOrderId(null);
     }
   };
 
   const handleDeleteUsdt = async (dbId: string): Promise<boolean> => {
-    const success = await deleteUsdtOrder(dbId);
+    const success =
+      activeTab === "meika-usdt" ? await deleteMeikaUsdtOrder(dbId) : await deleteUsdtOrder(dbId);
     if (success) {
       notify.success(t("USDT订单已删除", "USDT order deleted"));
     }
@@ -1413,16 +1550,62 @@ export default function OrderManagement() {
     });
   };
 
+  const toggleMeikaFiatDbId = (dbId: string) => {
+    setSelectedMeikaFiatDbIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(dbId)) next.delete(dbId);
+      else next.add(dbId);
+      return next;
+    });
+  };
+
+  const toggleMeikaFiatPage = () => {
+    const pageIds = paginatedMeikaFiatOrders.map((o) => o.dbId);
+    setSelectedMeikaFiatDbIds((prev) => {
+      const allOn = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allOn) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  const toggleMeikaUsdtDbId = (dbId: string) => {
+    setSelectedMeikaUsdtDbIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(dbId)) next.delete(dbId);
+      else next.add(dbId);
+      return next;
+    });
+  };
+
+  const toggleMeikaUsdtPage = () => {
+    const pageIds = paginatedMeikaUsdtOrders.map((o) => o.dbId);
+    setSelectedMeikaUsdtDbIds((prev) => {
+      const allOn = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allOn) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
   const runBatchNormalDelete = async () => {
-    const ids = [...selectedNormalDbIds];
+    if (!orderBatchDialog) return;
+    const { tab } = orderBatchDialog;
     setOrderBatchDialog(null);
+    const ids = tab === "meika-fiat" ? [...selectedMeikaFiatDbIds] : [...selectedNormalDbIds];
     if (ids.length === 0) return;
     let ok = 0;
     for (const id of ids) {
-      if (await deleteOrderRef.current(id)) ok++;
+      if (tab === "meika-fiat") {
+        if (await deleteMeikaFiatOrderRef.current(id)) ok++;
+      } else if (await deleteOrderRef.current(id)) ok++;
     }
-    setSelectedNormalDbIds(new Set());
-    await refetchOrders();
+    if (tab === "meika-fiat") setSelectedMeikaFiatDbIds(new Set());
+    else setSelectedNormalDbIds(new Set());
+    if (tab === "meika-fiat") await refetchMeikaFiatOrders();
+    else await refetchOrders();
     queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
     queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
     queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
@@ -1433,17 +1616,23 @@ export default function OrderManagement() {
   };
 
   const runBatchNormalCancel = async () => {
-    const ids = paginatedOrders
-      .filter((o) => selectedNormalDbIds.has(o.dbId) && o.status === "completed")
-      .map((o) => o.dbId);
+    if (!orderBatchDialog) return;
+    const { tab } = orderBatchDialog;
     setOrderBatchDialog(null);
+    const rows = tab === "meika-fiat" ? paginatedMeikaFiatOrders : paginatedOrders;
+    const sel = tab === "meika-fiat" ? selectedMeikaFiatDbIds : selectedNormalDbIds;
+    const ids = rows.filter((o) => sel.has(o.dbId) && o.status === "completed").map((o) => o.dbId);
     if (ids.length === 0) return;
     let ok = 0;
     for (const id of ids) {
-      if (await cancelOrderRef.current(id)) ok++;
+      if (tab === "meika-fiat") {
+        if (await cancelMeikaFiatOrderRef.current(id)) ok++;
+      } else if (await cancelOrderRef.current(id)) ok++;
     }
-    setSelectedNormalDbIds(new Set());
-    await refetchOrders();
+    if (tab === "meika-fiat") setSelectedMeikaFiatDbIds(new Set());
+    else setSelectedNormalDbIds(new Set());
+    if (tab === "meika-fiat") await refetchMeikaFiatOrders();
+    else await refetchOrders();
     queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
     queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
     queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
@@ -1454,15 +1643,21 @@ export default function OrderManagement() {
   };
 
   const runBatchUsdtDelete = async () => {
-    const ids = [...selectedUsdtDbIds];
+    if (!orderBatchDialog) return;
+    const { tab } = orderBatchDialog;
     setOrderBatchDialog(null);
+    const ids = tab === "meika-usdt" ? [...selectedMeikaUsdtDbIds] : [...selectedUsdtDbIds];
     if (ids.length === 0) return;
     let ok = 0;
     for (const id of ids) {
-      if (await deleteUsdtOrderRef.current(id)) ok++;
+      if (tab === "meika-usdt") {
+        if (await deleteMeikaUsdtOrderRef.current(id)) ok++;
+      } else if (await deleteUsdtOrderRef.current(id)) ok++;
     }
-    setSelectedUsdtDbIds(new Set());
-    await refetchUsdtOrders();
+    if (tab === "meika-usdt") setSelectedMeikaUsdtDbIds(new Set());
+    else setSelectedUsdtDbIds(new Set());
+    if (tab === "meika-usdt") await refetchMeikaUsdtOrders();
+    else await refetchUsdtOrders();
     queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
     queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
     queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
@@ -1473,17 +1668,23 @@ export default function OrderManagement() {
   };
 
   const runBatchUsdtCancel = async () => {
-    const ids = paginatedUsdtOrders
-      .filter((o) => selectedUsdtDbIds.has(o.dbId) && o.status === "completed")
-      .map((o) => o.dbId);
+    if (!orderBatchDialog) return;
+    const { tab } = orderBatchDialog;
     setOrderBatchDialog(null);
+    const rows = tab === "meika-usdt" ? paginatedMeikaUsdtOrders : paginatedUsdtOrders;
+    const sel = tab === "meika-usdt" ? selectedMeikaUsdtDbIds : selectedUsdtDbIds;
+    const ids = rows.filter((o) => sel.has(o.dbId) && o.status === "completed").map((o) => o.dbId);
     if (ids.length === 0) return;
     let ok = 0;
     for (const id of ids) {
-      if (await cancelUsdtOrderRef.current(id)) ok++;
+      if (tab === "meika-usdt") {
+        if (await cancelMeikaUsdtOrderRef.current(id)) ok++;
+      } else if (await cancelUsdtOrderRef.current(id)) ok++;
     }
-    setSelectedUsdtDbIds(new Set());
-    await refetchUsdtOrders();
+    if (tab === "meika-usdt") setSelectedMeikaUsdtDbIds(new Set());
+    else setSelectedUsdtDbIds(new Set());
+    if (tab === "meika-usdt") await refetchMeikaUsdtOrders();
+    else await refetchUsdtOrders();
     queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
     queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
     queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
@@ -1496,7 +1697,7 @@ export default function OrderManagement() {
   const confirmOrderBatchAction = () => {
     if (!orderBatchDialog) return;
     const { mode, tab } = orderBatchDialog;
-    if (tab === "normal") {
+    if (tab === "normal" || tab === "meika-fiat") {
       void (mode === "delete" ? runBatchNormalDelete() : runBatchNormalCancel());
     } else {
       void (mode === "delete" ? runBatchUsdtDelete() : runBatchUsdtCancel());
@@ -1507,8 +1708,8 @@ export default function OrderManagement() {
     <div className="space-y-6">
       <PageHeader
         description={t(
-          "查看与处理赛地/奈拉、USDT 与积分商城兑换订单，支持筛选、导入导出与列显示设置。",
-          "View and manage NGN/GHS, USDT, and points-mall redemption orders with filters, import/export, and column visibility.",
+          "查看与处理赛地/奈拉、USDT、美卡专区（汇率页美卡专区台位提交）与积分商城兑换订单，支持筛选、导入导出与列显示设置。",
+          "View and manage NGN/GHS, USDT, Meika-zone orders (from Exchange Rate · US Card Zone), mall redemptions, filters, import/export, and columns.",
         )}
         actions={
           !isMobile ? (
@@ -1520,16 +1721,30 @@ export default function OrderManagement() {
               {activeTab !== "mall" ? (
                 <>
                   <ColumnVisibilityDropdown
-                    columns={activeTab === "normal" ? normalOrderColumns : usdtOrderColumns}
-                    visibleColumns={activeTab === "normal" ? normalColumnVisibility.visibleColumns : usdtColumnVisibility.visibleColumns}
-                    onToggleColumn={activeTab === "normal" ? normalColumnVisibility.toggleColumn : usdtColumnVisibility.toggleColumn}
-                    onReset={activeTab === "normal" ? normalColumnVisibility.resetToDefault : usdtColumnVisibility.resetToDefault}
+                    columns={activeTab === "usdt" || activeTab === "meika-usdt" ? usdtOrderColumns : normalOrderColumns}
+                    visibleColumns={
+                      activeTab === "usdt" || activeTab === "meika-usdt"
+                        ? usdtColumnVisibility.visibleColumns
+                        : normalColumnVisibility.visibleColumns
+                    }
+                    onToggleColumn={
+                      activeTab === "usdt" || activeTab === "meika-usdt"
+                        ? usdtColumnVisibility.toggleColumn
+                        : normalColumnVisibility.toggleColumn
+                    }
+                    onReset={
+                      activeTab === "usdt" || activeTab === "meika-usdt"
+                        ? usdtColumnVisibility.resetToDefault
+                        : normalColumnVisibility.resetToDefault
+                    }
                   />
                   <TableImportButton
                     tableName="orders"
                     onImportComplete={() => {
                       refetchOrders();
                       refetchUsdtOrders();
+                      refetchMeikaFiatOrders();
+                      refetchMeikaUsdtOrders();
                       queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
                       queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
                       queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
@@ -1572,12 +1787,18 @@ export default function OrderManagement() {
       <FilterBar>
         <div className={isMobile ? "flex w-full flex-col gap-3" : "flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto shrink-0">
-            <TabsList className="grid h-9 grid-cols-3 min-w-0 max-w-full sm:max-w-none">
+            <TabsList className="flex h-auto min-h-9 flex-wrap gap-1 min-w-0 max-w-full sm:max-w-none">
               <TabsTrigger value="normal" className="px-1.5 text-[10px] sm:px-3 sm:text-xs">
                 {isMobile ? t("奈拉/赛地", "Naira/Cedi") : t("赛地 / 奈拉模式", "Cedi / Naira Mode")}
               </TabsTrigger>
               <TabsTrigger value="usdt" className="px-1.5 text-[10px] sm:px-3 sm:text-xs">
                 USDT{!isMobile && t(" 模式", " Mode")}
+              </TabsTrigger>
+              <TabsTrigger value="meika-fiat" className="px-1.5 text-[10px] sm:px-3 sm:text-xs">
+                {isMobile ? t("美卡·赛奈", "Meika N/G") : t("美卡专区（赛奈）", "Meika · NGN/GHS")}
+              </TabsTrigger>
+              <TabsTrigger value="meika-usdt" className="px-1.5 text-[10px] sm:px-3 sm:text-xs">
+                {isMobile ? t("美卡·U", "Meika U") : t("美卡专区 USDT", "Meika · USDT")}
               </TabsTrigger>
               <TabsTrigger value="mall" className="px-1.5 text-[10px] sm:px-3 sm:text-xs">
                 {isMobile ? t("商城", "Mall") : t("商城订单", "Mall orders")}
@@ -1740,7 +1961,7 @@ export default function OrderManagement() {
                 onPageChange={setCurrentPage}
                 jumpToPage={jumpToPage}
                 onJumpToPageChange={setJumpToPage}
-                onJumpToPage={() => handleJumpToPage(false)}
+                onJumpToPage={() => handleJumpToPage("normal")}
                 t={t}
                 {...(!useCompactLayout
                   ? {
@@ -1836,7 +2057,7 @@ export default function OrderManagement() {
                 onPageChange={setCurrentUsdtPage}
                 jumpToPage={jumpToPage}
                 onJumpToPageChange={setJumpToPage}
-                onJumpToPage={() => handleJumpToPage(true)}
+                onJumpToPage={() => handleJumpToPage("usdt")}
                 t={t}
                 {...(!useCompactLayout
                   ? {
@@ -1896,6 +2117,92 @@ export default function OrderManagement() {
                         ) : null,
                     }
                   : {})}
+              />
+            </TabsContent>
+
+            <TabsContent value="meika-fiat">
+              {isMeikaFiatError && (
+                <div className="mb-3">
+                  <ErrorState
+                    title={t("美卡专区订单加载失败", "Failed to load Meika orders")}
+                    description={t("请点击刷新重试。", "Please refresh and try again.")}
+                  />
+                </div>
+              )}
+              <p className="mb-2 text-xs text-muted-foreground">
+                {t(
+                  "此列表为只读视图，数据跟随「赛地/奈拉模式」同步刷新。如需修改请前往对应主列表操作。",
+                  "Read-only view — data syncs from the Fiat tab. Edit or manage orders there.",
+                )}
+              </p>
+              <OrderTable
+                orders={paginatedMeikaFiatOrders}
+                useCompactLayout={useCompactLayout}
+                columnVisibility={normalColumnVisibility}
+                sortConfig={meikaFiatSortConfig}
+                onSort={requestMeikaFiatSort}
+                onEdit={undefined as never}
+                onCancel={undefined as never}
+                onRestore={undefined as never}
+                onDelete={undefined as never}
+                canEditCancelButton={false}
+                canDelete={false}
+                resolveCardName={resolveCardName}
+                resolveVendorName={resolveVendorName}
+                resolveProviderName={resolveProviderName}
+                isAdmin={isAdmin}
+                currentPage={currentMeikaFiatPage}
+                totalPages={totalMeikaFiatPages}
+                totalCount={meikaFiatTotalCount}
+                pageSize={PAGE_SIZE}
+                onPageChange={setCurrentMeikaFiatPage}
+                jumpToPage={jumpToPage}
+                onJumpToPageChange={setJumpToPage}
+                onJumpToPage={() => handleJumpToPage("meika-fiat")}
+                t={t}
+              />
+            </TabsContent>
+
+            <TabsContent value="meika-usdt">
+              {isMeikaUsdtError && (
+                <div className="mb-3">
+                  <ErrorState
+                    title={t("美卡专区 USDT 订单加载失败", "Failed to load Meika USDT orders")}
+                    description={t("请点击刷新重试。", "Please refresh and try again.")}
+                  />
+                </div>
+              )}
+              <p className="mb-2 text-xs text-muted-foreground">
+                {t(
+                  "此列表为只读视图，数据跟随「USDT 模式」同步刷新。如需修改请前往对应主列表操作。",
+                  "Read-only view — data syncs from the USDT tab. Edit or manage orders there.",
+                )}
+              </p>
+              <OrderUsdtTable
+                orders={paginatedMeikaUsdtOrders}
+                useCompactLayout={useCompactLayout}
+                columnVisibility={usdtColumnVisibility}
+                sortConfig={meikaUsdtSortConfig}
+                onSort={requestMeikaUsdtSort}
+                onEdit={undefined as never}
+                onCancel={undefined as never}
+                onRestore={undefined as never}
+                onDelete={undefined as never}
+                canEditCancelButton={false}
+                canDelete={false}
+                resolveCardName={resolveCardName}
+                resolveVendorName={resolveVendorName}
+                resolveProviderName={resolveProviderName}
+                isAdmin={isAdmin}
+                currentPage={currentMeikaUsdtPage}
+                totalPages={totalMeikaUsdtPages}
+                totalCount={meikaUsdtTotalCount}
+                pageSize={PAGE_SIZE}
+                onPageChange={setCurrentMeikaUsdtPage}
+                jumpToPage={jumpToPage}
+                onJumpToPageChange={setJumpToPage}
+                onJumpToPage={() => handleJumpToPage("meika-usdt")}
+                t={t}
               />
             </TabsContent>
 
@@ -1972,33 +2279,33 @@ export default function OrderManagement() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {orderBatchDialog?.mode === "delete" ? (
-                orderBatchDialog.tab === "normal" ? (
+                orderBatchDialog.tab === "normal" || orderBatchDialog.tab === "meika-fiat" ? (
                   <>
                     {t(
-                      `将删除所选的 ${selectedNormalDbIds.size} 条订单，确定继续？`,
-                      `Delete ${selectedNormalDbIds.size} selected order(s)?`,
+                      `将删除所选的 ${orderBatchDialog.tab === "meika-fiat" ? selectedMeikaFiatDbIds.size : selectedNormalDbIds.size} 条订单，确定继续？`,
+                      `Delete ${orderBatchDialog.tab === "meika-fiat" ? selectedMeikaFiatDbIds.size : selectedNormalDbIds.size} selected order(s)?`,
                     )}
                   </>
                 ) : (
                   <>
                     {t(
-                      `将删除所选的 ${selectedUsdtDbIds.size} 条 USDT 订单，确定继续？`,
-                      `Delete ${selectedUsdtDbIds.size} selected USDT order(s)?`,
+                      `将删除所选的 ${orderBatchDialog.tab === "meika-usdt" ? selectedMeikaUsdtDbIds.size : selectedUsdtDbIds.size} 条 USDT 订单，确定继续？`,
+                      `Delete ${orderBatchDialog.tab === "meika-usdt" ? selectedMeikaUsdtDbIds.size : selectedUsdtDbIds.size} selected USDT order(s)?`,
                     )}
                   </>
                 )
-              ) : orderBatchDialog?.tab === "normal" ? (
+              ) : orderBatchDialog?.tab === "normal" || orderBatchDialog?.tab === "meika-fiat" ? (
                 <>
                   {t(
-                    `将把 ${normalBatchCancelCount} 条「已完成」订单取消，确定继续？`,
-                    `Cancel ${normalBatchCancelCount} completed order(s)?`,
+                    `将把 ${orderBatchDialog.tab === "meika-fiat" ? meikaFiatBatchCancelCount : normalBatchCancelCount} 条「已完成」订单取消，确定继续？`,
+                    `Cancel ${orderBatchDialog.tab === "meika-fiat" ? meikaFiatBatchCancelCount : normalBatchCancelCount} completed order(s)?`,
                   )}
                 </>
               ) : (
                 <>
                   {t(
-                    `将把 ${usdtBatchCancelCount} 条「已完成」USDT 订单取消，确定继续？`,
-                    `Cancel ${usdtBatchCancelCount} completed USDT order(s)?`,
+                    `将把 ${orderBatchDialog.tab === "meika-usdt" ? meikaUsdtBatchCancelCount : usdtBatchCancelCount} 条「已完成」USDT 订单取消，确定继续？`,
+                    `Cancel ${orderBatchDialog.tab === "meika-usdt" ? meikaUsdtBatchCancelCount : usdtBatchCancelCount} completed USDT order(s)?`,
                   )}
                 </>
               )}

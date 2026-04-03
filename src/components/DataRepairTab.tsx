@@ -38,7 +38,7 @@ import {
 
 const DataRepairTab = forwardRef<HTMLDivElement>(function DataRepairTab(_, ref) {
   const { language } = useLanguage();
-  const t = (zh: string, en: string) => (language === 'zh' ? zh : en);
+  const t = useCallback((zh: string, en: string) => (language === 'zh' ? zh : en), [language]);
 
   const [isScanning, setIsScanning] = useState(false);
   const [isRepairing, setIsRepairing] = useState(false);
@@ -76,7 +76,7 @@ const DataRepairTab = forwardRef<HTMLDivElement>(function DataRepairTab(_, ref) 
     } finally {
       setIsScanning(false);
     }
-  }, [language]);
+  }, [t]);
 
   const handleRepair = useCallback(async () => {
     setIsRepairing(true);
@@ -144,7 +144,7 @@ const DataRepairTab = forwardRef<HTMLDivElement>(function DataRepairTab(_, ref) 
     } finally {
       setIsRepairing(false);
     }
-  }, [language, vendorMissing, providerMissing]);
+  }, [vendorMissing, providerMissing, t]);
 
   const executeCleanOrphaned = useCallback(async () => {
     setIsCleaning(true);
@@ -173,7 +173,7 @@ const DataRepairTab = forwardRef<HTMLDivElement>(function DataRepairTab(_, ref) 
     } finally {
       setIsCleaning(false);
     }
-  }, [language]);
+  }, [t]);
 
   const totalMissingVendor = vendorMissing.reduce((sum, v) => sum + Math.max(0, v.missingCount), 0);
   const totalMissingProvider = providerMissing.reduce((sum, p) => sum + Math.max(0, p.missingCount), 0);

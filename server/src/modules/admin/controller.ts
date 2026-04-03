@@ -103,7 +103,11 @@ export async function archiveOrdersController(req: Request, res: Response): Prom
         deleteSelections: {
           orders: true,
           recycleActivityDataOnOrderDelete: body.recycleActivityData ?? false,
-          members: { memberManagement: false, activityData: false, activityGift: false, pointsLedger: false },
+          members: {
+            memberManagement: false,
+            activityGift: false,
+            pointsLedger: false,
+          },
           preserveActivityData: true,
         },
       },
@@ -145,7 +149,18 @@ export async function archiveMembersController(req: Request, res: Response): Pro
         retainMonths: body.retainMonths,
         deleteSelections: {
           orders: false,
-          members: { memberManagement: true, activityData: true, activityGift: true, pointsLedger: true },
+          members: {
+            memberManagement: true,
+            activityLotteryLogs: true,
+            activityCheckIns: true,
+            activitySpinOrder: true,
+            activitySpinShare: true,
+            activitySpinInvite: true,
+            activitySpinOther: true,
+            activityMemberSummary: true,
+            activityGift: true,
+            pointsLedger: true,
+          },
           preserveActivityData: body.preserveActivityData ?? true,
         },
       },

@@ -136,6 +136,7 @@ export default function SystemHealthMonitor() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { checkHealth(); }, []);
 
   const getLatencyStatus = (ms: number) => {

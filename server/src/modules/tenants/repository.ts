@@ -411,6 +411,12 @@ export async function deleteTenantRepository(input: {
        )`,
       [input.tenantId, input.tenantId]
     );
+    try {
+      await conn.query(
+        `DELETE FROM meika_zone_order_links WHERE tenant_id = ?`,
+        [input.tenantId]
+      );
+    } catch { /* table may not exist yet */ }
     await conn.query(
       `DELETE FROM orders
        WHERE creator_id IN (SELECT id FROM employees WHERE tenant_id = ?)

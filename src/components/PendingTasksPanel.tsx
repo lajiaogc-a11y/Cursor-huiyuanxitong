@@ -101,7 +101,7 @@ export default function PendingTasksPanel() {
       }
     };
     load();
-  }, [employee, canViewAudit, effectiveTenantId]);
+  }, [employee, canViewAudit, effectiveTenantId, t]);
 
   // Don't render if nothing pending
   if (!loading && items.length === 0) return null;

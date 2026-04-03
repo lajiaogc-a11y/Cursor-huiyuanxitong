@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -30,7 +30,7 @@ import {
 } from "@/lib/dateFilter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { getFeeSettings, getUsdtFee, FeeSettings, getGiftDistributionSettings, getEmployeeManualGiftRatios, updateEmployeeManualGiftRatio } from "@/stores/systemSettings";
+import { getFeeSettings, FeeSettings, getGiftDistributionSettings, getEmployeeManualGiftRatios, updateEmployeeManualGiftRatio } from "@/stores/systemSettings";
 
 import { trackRender } from "@/lib/performanceUtils";
 import {
@@ -230,8 +230,7 @@ export default function ReportManagement() {
   // ============= 员工利润报表 =============
   // 按员工姓名（real_name）匹配订单的销售员名称统计
   const employeeProfitData = useMemo<EmployeeProfitData[]>(() => {
-    // 获取USDT汇率用于计算
-    const usdtRate = getUsdtFee() || 1;
+    const usdtRate = usdtRateForReport;
     
     // 获取活动赠送分配比例设置
     const distributionSettings = getGiftDistributionSettings();
@@ -337,7 +336,7 @@ export default function ReportManagement() {
         manualGiftAmount,
       };
     }).filter((e) => e.orderCount > 0); // 只显示有订单的员工
-  }, [employees, orders, activityGifts, manualRatios, dateRange, employee]);
+  }, [employees, orders, activityGifts, manualRatios, dateRange, employee, usdtRateForReport]);
 
   // 根据用户角色过滤员工利润数据 - 员工只能看到自己的报表
   const filteredEmployeeProfitData = useMemo(() => {
@@ -866,23 +865,32 @@ export default function ReportManagement() {
       activityGiftAmount: data.reduce((sum, d) => sum + d.activityGiftAmount, 0),
       manualGiftAmount: data.reduce((sum, d) => sum + d.manualGiftAmount, 0),
     };
-  }, [filteredEmployeeProfitData, searchTerm, searchLowerSafe]);
+  }, [filteredEmployeeProfitData, searchLowerSafe]);
   
-  // 手动占比更新函数
-  const handleManualRatioChange = async (employeeId: string, value: string) => {
+  const ratioSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  useEffect(() => {
+    const timers = ratioSaveTimers.current;
+    return () => {
+      for (const id of Object.keys(timers)) {
+        clearTimeout(timers[id]);
+      }
+    };
+  }, []);
+
+  const handleManualRatioChange = useCallback((employeeId: string, value: string) => {
     const ratio = Math.min(100, Math.max(0, parseFloat(value) || 0));
-    
-    // 立即更新本地状态
     setManualRatios(prev => ({ ...prev, [employeeId]: ratio }));
-    
-    // 保存到数据库
-    try {
-      await updateEmployeeManualGiftRatio(employeeId, ratio);
-    } catch (error) {
-      console.error('Failed to update manual ratio:', error);
-      notify.error(t('保存失败', 'Save failed'));
-    }
-  };
+
+    clearTimeout(ratioSaveTimers.current[employeeId]);
+    ratioSaveTimers.current[employeeId] = setTimeout(async () => {
+      try {
+        await updateEmployeeManualGiftRatio(employeeId, ratio);
+      } catch (error) {
+        console.error('Failed to update manual ratio:', error);
+        notify.error(t('保存失败', 'Save failed'));
+      }
+    }, 600);
+  }, [t]);
 
   const cardSummary = useMemo(() => {
     const data = cardReportData.filter(item => 
@@ -894,7 +902,7 @@ export default function ReportManagement() {
       profitNgn: data.reduce((sum, d) => sum + d.profitNgn, 0),
       profitUsdt: data.reduce((sum, d) => sum + d.profitUsdt, 0),
     };
-  }, [cardReportData, searchTerm, searchLowerSafe]);
+  }, [cardReportData, searchLowerSafe]);
 
   const vendorSummary = useMemo(() => {
     const data = vendorReportData.filter(item => 
@@ -906,7 +914,7 @@ export default function ReportManagement() {
       profitNgn: data.reduce((sum, d) => sum + d.profitNgn, 0),
       profitUsdt: data.reduce((sum, d) => sum + d.profitUsdt, 0),
     };
-  }, [vendorReportData, searchTerm, searchLowerSafe]);
+  }, [vendorReportData, searchLowerSafe]);
 
   const providerSummary = useMemo(() => {
     const data = paymentProviderReportData.filter((item) => {
@@ -919,6 +927,7 @@ export default function ReportManagement() {
       paymentValueNgnGhs: data.reduce((sum, d) => sum + d.paymentValueNgnGhs, 0),
       paymentValueUsdt: data.reduce((sum, d) => sum + d.paymentValueUsdt, 0),
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentProviderReportData, searchTerm, searchLowerSafe]);
 
   const dailySummary = useMemo(() => {
@@ -960,7 +969,7 @@ export default function ReportManagement() {
       giftValueTotal: data.reduce((sum, d) => sum + d.giftValueTotal, 0),
       effectCount: data.reduce((sum, d) => sum + d.effectCount, 0),
     };
-  }, [activityReportData, searchTerm, searchLowerSafe]);
+  }, [activityReportData, searchLowerSafe]);
 
   const handleExport = () => {
     const isEn = false; // 使用中文导出

@@ -7,6 +7,8 @@ import {
   listOrdersService,
   getOrdersFullService,
   getUsdtOrdersFullService,
+  getMeikaFiatOrdersFullService,
+  getMeikaUsdtOrdersFullService,
   createOrderService,
   updateOrderPointsService,
 } from './service.js';
@@ -48,6 +50,30 @@ export async function getUsdtOrdersFullController(req: AuthenticatedRequest, res
   const queryTenantId = req.query.tenant_id as string | undefined;
   const tenantId = resolveTenantId(req, queryTenantId, true);
   const data = await getUsdtOrdersFullService(token, tenantId);
+  res.json({ success: true, data });
+}
+
+export async function getMeikaFiatOrdersFullController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const token = req.user?.token;
+  if (!token) {
+    res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Token required' } });
+    return;
+  }
+  const queryTenantId = req.query.tenant_id as string | undefined;
+  const tenantId = resolveTenantId(req, queryTenantId, true);
+  const data = await getMeikaFiatOrdersFullService(token, tenantId);
+  res.json({ success: true, data });
+}
+
+export async function getMeikaUsdtOrdersFullController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const token = req.user?.token;
+  if (!token) {
+    res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Token required' } });
+    return;
+  }
+  const queryTenantId = req.query.tenant_id as string | undefined;
+  const tenantId = resolveTenantId(req, queryTenantId, true);
+  const data = await getMeikaUsdtOrdersFullService(token, tenantId);
   res.json({ success: true, data });
 }
 

@@ -37,7 +37,6 @@ async function tableSelectMaybeSingle<T>(table: string, select: string, filters:
 async function fetchAllPages<T>(table: string, select: string, filters: Record<string, string>, order?: string): Promise<T[]> {
   const all: T[] = [];
   let offset = 0;
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const q: Record<string, string> = {
       select,

@@ -36,7 +36,13 @@ export type DeleteBulkSelections = {
   };
   members: {
     memberManagement: boolean;
-    activityData: boolean;
+    activityLotteryLogs: boolean;
+    activityCheckIns: boolean;
+    activitySpinOrder: boolean;
+    activitySpinShare: boolean;
+    activitySpinInvite: boolean;
+    activitySpinOther: boolean;
+    activityMemberSummary: boolean;
     activityGift: boolean;
     pointsLedger: boolean;
   };
@@ -63,7 +69,18 @@ const SELECT_ALL_STATE: DeleteBulkSelections = {
   orders: true,
   recycleActivityDataOnOrderDelete: false,
   reports: { employee: true, card: true, vendor: true, daily: true },
-  members: { memberManagement: false, activityData: true, activityGift: true, pointsLedger: true },
+  members: {
+    memberManagement: false,
+    activityLotteryLogs: true,
+    activityCheckIns: true,
+    activitySpinOrder: true,
+    activitySpinShare: true,
+    activitySpinInvite: true,
+    activitySpinOther: true,
+    activityMemberSummary: true,
+    activityGift: true,
+    pointsLedger: true,
+  },
   shiftData: { shiftHandovers: true, shiftReceivers: true },
   merchantSettlement: { balanceChangeLogs: true, initialBalances: true },
   referralRelations: false,
@@ -78,7 +95,18 @@ const SELECT_NONE_STATE: DeleteBulkSelections = {
   orders: false,
   recycleActivityDataOnOrderDelete: false,
   reports: { employee: false, card: false, vendor: false, daily: false },
-  members: { memberManagement: false, activityData: false, activityGift: false, pointsLedger: false },
+  members: {
+    memberManagement: false,
+    activityLotteryLogs: false,
+    activityCheckIns: false,
+    activitySpinOrder: false,
+    activitySpinShare: false,
+    activitySpinInvite: false,
+    activitySpinOther: false,
+    activityMemberSummary: false,
+    activityGift: false,
+    pointsLedger: false,
+  },
   shiftData: { shiftHandovers: false, shiftReceivers: false },
   merchantSettlement: { balanceChangeLogs: false, initialBalances: false },
   referralRelations: false,
@@ -280,15 +308,81 @@ function DeleteCategoryPanel({
             label={t("会员管理", "Member Management")}
           />
           <Row
-            id="delete-activity-data"
-            checked={deleteSelections.members.activityData}
+            id="delete-activity-lottery-logs"
+            checked={deleteSelections.members.activityLotteryLogs}
             onCheckedChange={(checked) =>
               setDeleteSelections((prev) => ({
                 ...prev,
-                members: { ...prev.members, activityData: checked },
+                members: { ...prev.members, activityLotteryLogs: checked },
               }))
             }
-            label={t("活动数据", "Activity Data")}
+            label={t("抽奖数据（抽奖流水+抽奖类积分流水）", "Lottery logs + lottery points ledger")}
+          />
+          <Row
+            id="delete-activity-checkins"
+            checked={deleteSelections.members.activityCheckIns}
+            onCheckedChange={(checked) =>
+              setDeleteSelections((prev) => ({
+                ...prev,
+                members: { ...prev.members, activityCheckIns: checked },
+              }))
+            }
+            label={t("签到数据（签到流水+签到发放的抽奖次数）", "Check-ins + check-in spin credits")}
+          />
+          <Row
+            id="delete-activity-spin-order"
+            checked={deleteSelections.members.activitySpinOrder}
+            onCheckedChange={(checked) =>
+              setDeleteSelections((prev) => ({
+                ...prev,
+                members: { ...prev.members, activitySpinOrder: checked },
+              }))
+            }
+            label={t("订单抽奖（完成订单发放的抽奖次数）", "Order spin credits")}
+          />
+          <Row
+            id="delete-activity-spin-share"
+            checked={deleteSelections.members.activitySpinShare}
+            onCheckedChange={(checked) =>
+              setDeleteSelections((prev) => ({
+                ...prev,
+                members: { ...prev.members, activitySpinShare: checked },
+              }))
+            }
+            label={t("分享数据（分享奖励抽奖次数）", "Share spin credits")}
+          />
+          <Row
+            id="delete-activity-spin-invite"
+            checked={deleteSelections.members.activitySpinInvite}
+            onCheckedChange={(checked) =>
+              setDeleteSelections((prev) => ({
+                ...prev,
+                members: { ...prev.members, activitySpinInvite: checked },
+              }))
+            }
+            label={t("邀请数据（邀请/注册欢迎抽奖次数）", "Invite spin credits")}
+          />
+          <Row
+            id="delete-activity-spin-other"
+            checked={deleteSelections.members.activitySpinOther}
+            onCheckedChange={(checked) =>
+              setDeleteSelections((prev) => ({
+                ...prev,
+                members: { ...prev.members, activitySpinOther: checked },
+              }))
+            }
+            label={t("其他抽奖次数（未归类来源）", "Other spin credits")}
+          />
+          <Row
+            id="delete-activity-member-summary"
+            checked={deleteSelections.members.activityMemberSummary}
+            onCheckedChange={(checked) =>
+              setDeleteSelections((prev) => ({
+                ...prev,
+                members: { ...prev.members, activityMemberSummary: checked },
+              }))
+            }
+            label={t("会员活动汇总（member_activity 等，见下方保留选项）", "Member activity summary (see preserve below)")}
           />
           <Row
             id="delete-activity-gift"
@@ -334,7 +428,7 @@ function DeleteCategoryPanel({
             }
             label={t("接班人列表", "Shift Receivers")}
           />
-          {deleteSelections.members.activityData ? (
+          {deleteSelections.members.activityMemberSummary ? (
             <div className="mt-1 flex items-start gap-2 rounded border border-amber-500/30 bg-amber-500/10 p-1.5">
               <Checkbox
                 id="preserve-activity-data"

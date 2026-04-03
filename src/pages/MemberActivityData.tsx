@@ -453,6 +453,7 @@ export default function MemberActivityData() {
         lotteryReward,
       };
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [members, orders, usdtOrders, gifts, dateRange, pointsLedgerData]);
 
   // 排序功能

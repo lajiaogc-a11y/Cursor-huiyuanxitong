@@ -5,8 +5,11 @@ import {
   listOrdersRepository,
   getOrdersFullRepository,
   getUsdtOrdersFullRepository,
+  getMeikaFiatOrdersFullRepository,
+  getMeikaUsdtOrdersFullRepository,
   createOrderRepository,
   updateOrderPointsRepository,
+  insertMeikaZoneOrderLinkRepository,
 } from './repository.js';
 import { incrementMemberActivityForNewOrder } from '../members/memberActivityTotals.js';
 import { syncMemberCommonCardsFromOrdersRepository } from '../members/memberCommonCardsFromOrders.js';
@@ -25,8 +28,32 @@ export async function getUsdtOrdersFullService(token: string, tenantId?: string)
   return getUsdtOrdersFullRepository(token, tenantId);
 }
 
+export async function getMeikaFiatOrdersFullService(token: string, tenantId?: string) {
+  return getMeikaFiatOrdersFullRepository(token, tenantId);
+}
+
+export async function getMeikaUsdtOrdersFullService(token: string, tenantId?: string) {
+  return getMeikaUsdtOrdersFullRepository(token, tenantId);
+}
+
 export async function createOrderService(record: Record<string, unknown>) {
-  const data = await createOrderRepository(record);
+  const meikaZone = record.meika_zone === true || record.meika_zone === 'true';
+  const { meika_zone: _mz, ...rest } = record;
+  const data = await createOrderRepository(rest);
+  if (meikaZone && data && typeof data === 'object' && data.id) {
+    try {
+      const row = data as Record<string, unknown>;
+      const cur = String(row.currency ?? '').trim();
+      const kind = cur === 'USDT' ? 'usdt' : 'fiat';
+      await insertMeikaZoneOrderLinkRepository({
+        orderId: String(row.id),
+        tenantId: row.tenant_id as string | null | undefined,
+        kind,
+      });
+    } catch (e) {
+      console.warn('[Orders] insertMeikaZoneOrderLink:', (e as Error).message);
+    }
+  }
   try {
     await incrementMemberActivityForNewOrder(data as Record<string, unknown>);
   } catch (e) {

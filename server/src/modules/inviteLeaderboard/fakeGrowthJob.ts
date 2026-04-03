@@ -103,7 +103,7 @@ async function runGrowthInTransaction(conn: PoolConnection): Promise<{
        FROM invite_leaderboard_tenant_growth_schedule WHERE tenant_id = ? LIMIT 1`,
       [tenantId],
     );
-    let sched = readSchedRow(schedRows[0] as RowDataPacket | undefined);
+    const sched = readSchedRow(schedRows[0] as RowDataPacket | undefined);
 
     const [fakeRows] = await conn.query<RowDataPacket[]>(
       `SELECT id FROM invite_leaderboard_fake_users

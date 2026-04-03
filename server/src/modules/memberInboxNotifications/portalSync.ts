@@ -96,20 +96,12 @@ export async function syncMemberInboxAfterPortalAnnouncementsChange(
   for (const it of nextItems) {
     const sig = stableAnnouncementSignature(it);
     if (prevSigs.has(sig)) continue;
-    const { titleZh, titleEn, bodyZh, bodyEn, displayTitle, displayBody } = bilingualFromItem(it);
+    const { titleZh, titleEn, bodyZh, bodyEn } = bilingualFromItem(it);
     const dedupeKey = hashAnnouncementDedupe(tenantId, sig);
     await fanOutAnnouncementInbox({
       tenantId,
       dedupeKey,
-      title: displayTitle,
-      body: displayBody,
-      metadata: {
-        titleZh,
-        titleEn,
-        contentZh: bodyZh,
-        contentEn: bodyEn,
-        source: 'portal_announcement',
-      },
+      base: { titleZh, titleEn, contentZh: bodyZh, contentEn: bodyEn },
     });
   }
 }

@@ -261,7 +261,6 @@ export default function ReferralEntryTab() {
       clearTimeout(timer);
       referrerLookupGen.current += 1;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [referrerInput, effectiveTenantId]);
   
   // 被推荐人：服务端实时查询是否已是会员，本地会员缓存作为回退
@@ -327,7 +326,6 @@ export default function ReferralEntryTab() {
       clearTimeout(timer);
       refereeLookupGen.current += 1;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refereePhone, effectiveTenantId]);
 
   const refereeDigitsForSubmit = cleanPhoneNumber(refereePhone.trim());

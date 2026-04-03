@@ -55,7 +55,8 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
       orderData: Omit<Order, 'id' | 'dbId' | 'status' | 'order_points' | 'points_status'>,
       memberId?: string,
       employeeId?: string,
-      memberCode?: string
+      memberCode?: string,
+      opts?: { meikaZone?: boolean },
     ): Promise<OrderResult> => {
       if (isPlatformAdminReadonlyView) {
         notify.error(t('平台总管理查看租户时为只读，无法新增订单', 'Read-only in admin view, cannot create order'));
@@ -75,8 +76,10 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         const currency = normalizeCurrencyCode(orderData.demandCurrency);
         const orderPoints = currency ? await calculateOrderPointsAsync(orderData.actualPaid, currency) : 0;
         const dbOrder = await mapOrderToDbAsync(orderData, orderPoints, memberId, employeeId, memberCode, tenantIdForNewOrder);
+        const payload: Record<string, unknown> = { ...dbOrder };
+        if (opts?.meikaZone) payload.meika_zone = true;
 
-        const data = await createOrderUseCase(dbOrder as Record<string, unknown>);
+        const data = await createOrderUseCase(payload);
 
         const dbUuid = data.id;
         const newOrder = {
@@ -113,6 +116,10 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         } catch (sideEffectErr) {
           console.error('Order created but side effects failed:', sideEffectErr);
         }
+        if (opts?.meikaZone) {
+          void queryClient.invalidateQueries({ queryKey: ['meika-fiat-orders'] });
+          void queryClient.invalidateQueries({ queryKey: ['meika-usdt-orders'] });
+        }
         return { order: newOrder, earnedPoints };
       } catch (error) {
         console.error('Failed to add order:', error);
@@ -120,7 +127,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         return { order: null, earnedPoints: 0 };
       }
     },
-    [isPlatformAdminReadonlyView, queryClient, tenantIdForNewOrder]
+    [isPlatformAdminReadonlyView, queryClient, tenantIdForNewOrder, t]
   );
 
   const updateOrder = useCallback(
@@ -141,7 +148,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         return null;
       }
     },
-    [isPlatformAdminReadonlyView]
+    [isPlatformAdminReadonlyView, t]
   );
 
   const cancelOrder = useCallback(
@@ -199,6 +206,8 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         } catch (sideEffectErr) {
           console.error('Order cancelled but side effects failed:', sideEffectErr);
         }
+        void queryClient.invalidateQueries({ queryKey: ['meika-fiat-orders'] });
+        void queryClient.invalidateQueries({ queryKey: ['meika-usdt-orders'] });
         return true;
       } catch (error) {
         console.error('Failed to cancel order:', error);
@@ -206,7 +215,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         return false;
       }
     },
-    [orders, setOrders, fetchOrders, isPlatformAdminReadonlyView, queryClient]
+    [orders, setOrders, fetchOrders, isPlatformAdminReadonlyView, queryClient, t]
   );
 
   const restoreOrder = useCallback(
@@ -269,6 +278,8 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         } catch (sideEffectErr) {
           console.error('Order restored but side effects failed:', sideEffectErr);
         }
+        void queryClient.invalidateQueries({ queryKey: ['meika-fiat-orders'] });
+        void queryClient.invalidateQueries({ queryKey: ['meika-usdt-orders'] });
         return true;
       } catch (error) {
         console.error('Failed to restore order:', error);
@@ -276,7 +287,7 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         return false;
       }
     },
-    [orders, setOrders, fetchOrders, isPlatformAdminReadonlyView, queryClient]
+    [orders, setOrders, fetchOrders, isPlatformAdminReadonlyView, queryClient, t]
   );
 
   const deleteOrder = useCallback(
@@ -344,9 +355,11 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
       } catch (sideErr) {
         console.error('[OrderMutations] Post-delete side effects failed (order already deleted):', sideErr);
       }
+      void queryClient.invalidateQueries({ queryKey: ['meika-fiat-orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['meika-usdt-orders'] });
       return true;
     },
-    [orders, setOrders, fetchOrders, isPlatformAdminReadonlyView, queryClient]
+    [orders, setOrders, fetchOrders, isPlatformAdminReadonlyView, queryClient, t]
   );
 
   return {

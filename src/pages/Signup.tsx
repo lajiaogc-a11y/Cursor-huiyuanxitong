@@ -353,9 +353,10 @@ export default function Signup() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1.5 text-[#94a3b8] transition-colors hover:bg-[#f1f5f9] hover:text-[#64748B] dark:hover:bg-slate-600/50 dark:hover:text-slate-300"
-                  tabIndex={-1}
+                  tabIndex={0}
+                  aria-label={showPassword ? t("signup.hidePassword", "Hide password") : t("signup.showPassword", "Show password")}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
                 </button>
               </div>
             </div>
@@ -377,9 +378,10 @@ export default function Signup() {
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1.5 text-[#94a3b8] transition-colors hover:bg-[#f1f5f9] hover:text-[#64748B] dark:hover:bg-slate-600/50 dark:hover:text-slate-300"
-                  tabIndex={-1}
+                  tabIndex={0}
+                  aria-label={showConfirmPassword ? t("signup.hideConfirmPassword", "Hide password") : t("signup.showConfirmPassword", "Show password")}
                 >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
                 </button>
               </div>
             </div>

@@ -176,6 +176,26 @@ export async function getMyTenantUsdtOrdersFull(): Promise<any[]> {
   return data || [];
 }
 
+export async function getTenantMeikaFiatOrdersFull(tenantId: string): Promise<any[]> {
+  const data = await import('@/services/orders/ordersApiService').then(m => m.getMeikaFiatOrdersFullApi(tenantId));
+  return data || [];
+}
+
+export async function getTenantMeikaUsdtOrdersFull(tenantId: string): Promise<any[]> {
+  const data = await import('@/services/orders/ordersApiService').then(m => m.getMeikaUsdtOrdersFullApi(tenantId));
+  return data || [];
+}
+
+export async function getMyTenantMeikaFiatOrdersFull(): Promise<any[]> {
+  const data = await import('@/services/orders/ordersApiService').then(m => m.getMeikaFiatOrdersFullApi());
+  return data || [];
+}
+
+export async function getMyTenantMeikaUsdtOrdersFull(): Promise<any[]> {
+  const data = await import('@/services/orders/ordersApiService').then(m => m.getMeikaUsdtOrdersFullApi());
+  return data || [];
+}
+
 export async function getMyTenantMembersFull(): Promise<any[]> {
   const data = await listMembersApi({ limit: 100000 });
   return data || [];

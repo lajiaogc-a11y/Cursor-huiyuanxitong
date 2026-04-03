@@ -37,7 +37,14 @@ const bulkDeleteSelectionsSchema = z.object({
   members: z
     .object({
       memberManagement: z.boolean(),
-      activityData: z.boolean(),
+      activityData: z.boolean().optional(),
+      activityLotteryLogs: z.boolean().optional(),
+      activityCheckIns: z.boolean().optional(),
+      activitySpinOrder: z.boolean().optional(),
+      activitySpinShare: z.boolean().optional(),
+      activitySpinInvite: z.boolean().optional(),
+      activitySpinOther: z.boolean().optional(),
+      activityMemberSummary: z.boolean().optional(),
       activityGift: z.boolean(),
       pointsLedger: z.boolean(),
     })

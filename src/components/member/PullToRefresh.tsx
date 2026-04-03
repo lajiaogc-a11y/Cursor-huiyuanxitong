@@ -85,6 +85,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   const onTouchStart = useCallback(
     (e: React.TouchEvent) => {
       if (refreshing) return;
+      if (touchTargetDefersPull(e.target)) return;
       if (!canPull()) return;
       startYRef.current = e.touches[0].clientY;
       pullActiveRef.current = true;
@@ -123,23 +124,22 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
         /* noop */
       }
     }
+    const resetPull = () => {
+      setRefreshing(false);
+      setPulling(false);
+      setPullDistance(0);
+    };
     queryClient
       .invalidateQueries({
         queryKey: memberQueryKeys.all,
         refetchType: "active",
+        type: "active",
       })
       .then(() => {
         window.dispatchEvent(new CustomEvent(MEMBER_PULL_REFRESH_EVENT));
-      setTimeout(() => {
-        setRefreshing(false);
-        setPulling(false);
-        setPullDistance(0);
-      }, 400);
-    }).catch(() => {
-      setRefreshing(false);
-      setPulling(false);
-      setPullDistance(0);
-    });
+        setTimeout(resetPull, 400);
+      })
+      .catch(resetPull);
   }, [prefersReducedMotion]);
 
   const onTouchEnd = useCallback(() => {
@@ -172,12 +172,10 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
     const pathname = location.pathname;
     const prev = memberScrollPrevPathRef.current;
 
-    if (
-      prev != null &&
-      isMemberBottomTabPath(prev) &&
-      isMemberBottomTabPath(pathname)
-    ) {
+    if (prev != null && isMemberBottomTabPath(prev)) {
       memberTabScrollMemoryRef.current[prev] = el.scrollTop;
+    }
+    if (isMemberBottomTabPath(pathname)) {
       el.scrollTop = memberTabScrollMemoryRef.current[pathname] ?? 0;
     } else {
       el.scrollTop = 0;

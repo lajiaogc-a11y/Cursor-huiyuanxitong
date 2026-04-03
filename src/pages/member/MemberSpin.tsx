@@ -238,6 +238,7 @@ export default function MemberSpin() {
     if (!member) return;
     const id = window.setInterval(() => setSpinDataRefreshNonce((n) => n + 1), 30_000);
     return () => window.clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [member?.id]);
 
   const applyQuota = useCallback((q: Pick<QuotaResult, "remaining" | "used_today">) => {
@@ -292,6 +293,7 @@ export default function MemberSpin() {
       if (typeof window.requestIdleCallback === "function") window.cancelIdleCallback(idle as number);
       else window.clearTimeout(idle as number);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [member?.id, pullNonce, spinDataRefreshNonce]);
 
   useEffect(() => {
@@ -314,6 +316,7 @@ export default function MemberSpin() {
       cancelled = true;
       window.clearInterval(id);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [member?.id, pullNonce]);
 
   useEffect(

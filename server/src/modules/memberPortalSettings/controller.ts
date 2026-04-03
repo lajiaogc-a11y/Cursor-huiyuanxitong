@@ -26,7 +26,11 @@ import {
   listLotteryPointsRowsForTenant,
   sumLotteryPointsPositiveForTenant,
 } from './lotteryPointsAdmin.js';
-import { countSpinCreditsForTenant, listSpinCreditsForTenant } from './spinCreditsAdmin.js';
+import {
+  countSpinCreditsForTenant,
+  listSpinCreditsForTenant,
+  type SpinCreditCategory,
+} from './spinCreditsAdmin.js';
 import { resolveTenantIdForActivityDataList } from './activityDataTenant.js';
 
 function errMessage(e: unknown, fallback: string): string {
@@ -405,10 +409,16 @@ export async function listCheckInsController(req: AuthenticatedRequest, res: Res
   const { tenantId } = resolved;
   const limit = Math.min(2000, Math.max(1, Number(req.query.limit) || 50));
   const offset = Math.max(0, Number(req.query.offset) || 0);
+  const phone = typeof req.query.phone === 'string' ? req.query.phone : '';
+  const memberCode = typeof req.query.member_code === 'string' ? req.query.member_code : '';
+  const filter =
+    phone.trim() || memberCode.trim()
+      ? { phone: phone.trim() || undefined, memberCode: memberCode.trim() || undefined }
+      : undefined;
   try {
     const [rows, total] = await Promise.all([
-      listCheckInsForTenant(tenantId, limit, offset),
-      countCheckInsForTenant(tenantId),
+      listCheckInsForTenant(tenantId, limit, offset, filter),
+      countCheckInsForTenant(tenantId, filter),
     ]);
     res.json({ success: true, check_ins: rows, total });
   } catch (e: unknown) {
@@ -472,10 +482,23 @@ export async function listSpinCreditsLogController(req: AuthenticatedRequest, re
   const { tenantId } = resolved;
   const limit = Math.min(2000, Math.max(1, Number(req.query.limit) || 50));
   const offset = Math.max(0, Number(req.query.offset) || 0);
+  const rawCat = typeof req.query.category === 'string' ? req.query.category.trim() : '';
+  const category =
+    rawCat === 'order' || rawCat === 'share' || rawCat === 'invite' ? (rawCat as SpinCreditCategory) : null;
+  if (!category) {
+    res.status(400).json({ success: false, error: 'category required: order | share | invite' });
+    return;
+  }
+  const phone = typeof req.query.phone === 'string' ? req.query.phone : '';
+  const memberCode = typeof req.query.member_code === 'string' ? req.query.member_code : '';
+  const filter =
+    phone.trim() || memberCode.trim()
+      ? { phone: phone.trim() || undefined, memberCode: memberCode.trim() || undefined }
+      : undefined;
   try {
     const [rows, total] = await Promise.all([
-      listSpinCreditsForTenant(tenantId, limit, offset),
-      countSpinCreditsForTenant(tenantId),
+      listSpinCreditsForTenant(tenantId, limit, offset, category, filter),
+      countSpinCreditsForTenant(tenantId, category, filter),
     ]);
     res.json({ success: true, rows, total });
   } catch (e: unknown) {

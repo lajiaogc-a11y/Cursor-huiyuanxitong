@@ -10,7 +10,15 @@ export interface BulkDeleteSelections {
   reports?: { employee: boolean; card: boolean; vendor: boolean; daily: boolean };
   members?: {
     memberManagement: boolean;
-    activityData: boolean;
+    activityLotteryLogs?: boolean;
+    activityCheckIns?: boolean;
+    activitySpinOrder?: boolean;
+    activitySpinShare?: boolean;
+    activitySpinInvite?: boolean;
+    activitySpinOther?: boolean;
+    activityMemberSummary?: boolean;
+    /** @deprecated 服务端仍识别为等同全选活动明细 */
+    activityData?: boolean;
     activityGift: boolean;
     pointsLedger: boolean;
   };

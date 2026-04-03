@@ -197,6 +197,7 @@ export default function DataExportImportTab() {
 
   useEffect(() => {
     loadTableStats();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 导出单个表

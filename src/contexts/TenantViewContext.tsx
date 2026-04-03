@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { preloadTenantEmployeesIntoCache } from "@/hooks/useEmployees";
+import { preloadTenantEmployeesIntoCache } from "@/services/employees/employeeHelpers";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface TenantViewContextType {
@@ -74,6 +74,7 @@ export function TenantViewProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employee?.id, employee?.tenant_id, employee?.is_platform_super_admin]);
 
   // 所有员工（含平台管理员）：自动设置 viewingTenantId = employee.tenant_id

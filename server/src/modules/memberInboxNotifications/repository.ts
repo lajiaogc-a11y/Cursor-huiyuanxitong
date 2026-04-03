@@ -4,8 +4,15 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { execute, query, queryOne } from '../../database/index.js';
 import { getMemberInboxNotifyPolicy } from './notifyPolicy.js';
+import {
+  buildAnnouncementInboxCopy,
+  buildMallRedemptionInboxCopy,
+  buildTradeSpinInboxCopy,
+  fetchMemberInboxCopyTemplates,
+  type MemberInboxCategory,
+} from './copyTemplates.js';
 
-export type MemberInboxCategory = 'system' | 'reward' | 'activity' | 'invite' | 'order';
+export type { MemberInboxCategory };
 
 export interface MemberInboxRow {
   id: string;
@@ -56,8 +63,11 @@ function parseMetadata(raw: unknown): Record<string, unknown> {
 
 function coerceCategory(raw: string): MemberInboxCategory {
   const s = String(raw || '').toLowerCase();
-  if (s === 'reward' || s === 'activity' || s === 'invite' || s === 'order') return s;
-  return 'system';
+  if (s === 'trade' || s === 'redemption' || s === 'announcement') return s;
+  if (s === 'reward') return 'trade';
+  if (s === 'order') return 'redemption';
+  if (s === 'activity') return 'announcement';
+  return 'other';
 }
 
 export function mapRowToListItem(row: MemberInboxRow): MemberInboxListItem {
@@ -145,7 +155,7 @@ export async function upsertMemberInboxOne(input: {
   memberId: string;
   eventType: string;
   dedupeKey: string;
-  category: MemberInboxCategory;
+  category: string;
   title: string;
   body: string;
   link?: string | null;
@@ -197,30 +207,22 @@ export async function notifyMemberOrderCompletedSpinReward(input: {
   const n = Math.max(0, Math.floor(Number(input.spins) || 0));
   if (n <= 0) return;
   const dedupeKey = `order_spin_reward:${input.orderId}`.slice(0, 191);
-  const titleEn = 'Trade completed';
-  const titleZh = '交易完成';
-  const bodyEn =
-    n === 1
-      ? 'Congratulations! Your trade was completed — you earned 1 wheel spin.'
-      : `Congratulations! Your trade was completed — you earned ${n} wheel spins.`;
-  const bodyZh =
-    n === 1
-      ? '恭喜您交易成功，获得 1 次转盘抽奖机会！'
-      : `恭喜您交易成功，获得 ${n} 次转盘抽奖机会！`;
+  const tpl = await fetchMemberInboxCopyTemplates(input.tenantId);
+  const copy = buildTradeSpinInboxCopy(tpl, { spins: n, orderId: input.orderId });
   await upsertMemberInboxOne({
     tenantId: input.tenantId,
     memberId: input.memberId,
     eventType: 'order_completed_spin',
     dedupeKey,
-    category: 'reward',
-    title: titleEn,
-    body: bodyEn,
+    category: 'trade',
+    title: copy.titleCol,
+    body: copy.bodyCol,
     link: '/member/spin',
     metadata: {
-      titleZh,
-      titleEn,
-      contentZh: bodyZh,
-      contentEn: bodyEn,
+      titleZh: copy.titleZh,
+      titleEn: copy.titleEn,
+      contentZh: copy.contentZh,
+      contentEn: copy.contentEn,
       order_id: input.orderId,
       spins: n,
     },
@@ -240,35 +242,28 @@ export async function notifyMemberMallRedemptionOutcome(input: {
   const policy = await getMemberInboxNotifyPolicy(input.tenantId);
   if (!policy.mallRedemption) return;
   const dedupeKey = `mall_rdm:${input.redemptionId}:${input.outcome}`.slice(0, 191);
-  const qty = Math.max(1, Math.floor(input.quantity || 1));
-  const pts = Math.max(0, Math.floor(Number(input.points) || 0));
-  const title = input.outcome === 'completed' ? 'Redemption completed' : 'Redemption rejected';
-  const titleZh = input.outcome === 'completed' ? '兑换已完成' : '兑换已驳回';
-  let bodyEn: string;
-  let bodyZh: string;
-  if (input.outcome === 'completed') {
-    bodyEn = `Your redemption for "${input.itemTitle}" ×${qty} has been completed.${pts > 0 ? ` ${pts} points were deducted from your frozen balance.` : ''}`;
-    bodyZh = `您兑换的「${input.itemTitle}」×${qty} 已处理完成。${pts > 0 ? ` 已从冻结积分中扣除 ${pts} 积分。` : ''}`;
-  } else {
-    const note = input.note?.trim() ? ` Note: ${input.note.trim()}` : '';
-    const noteZh = input.note?.trim() ? ` 说明：${input.note.trim()}` : '';
-    bodyEn = `Your redemption for "${input.itemTitle}" was rejected.${pts > 0 ? ` ${pts} points have been returned to your balance.` : ''}${note}`;
-    bodyZh = `您兑换的「${input.itemTitle}」已被驳回。${pts > 0 ? ` ${pts} 积分已退回可用余额。` : ''}${noteZh}`;
-  }
+  const tpl = await fetchMemberInboxCopyTemplates(input.tenantId);
+  const copy = buildMallRedemptionInboxCopy(tpl, {
+    outcome: input.outcome,
+    itemTitle: input.itemTitle,
+    quantity: input.quantity,
+    points: input.points,
+    note: input.note,
+  });
   await upsertMemberInboxOne({
     tenantId: input.tenantId,
     memberId: input.memberId,
     eventType: 'mall_redemption',
     dedupeKey,
-    category: 'order',
-    title,
-    body: bodyEn,
+    category: 'redemption',
+    title: copy.titleCol,
+    body: copy.bodyCol,
     link: null,
     metadata: {
-      titleZh,
-      titleEn: title,
-      contentZh: bodyZh,
-      contentEn: bodyEn,
+      titleZh: copy.titleZh,
+      titleEn: copy.titleEn,
+      contentZh: copy.contentZh,
+      contentEn: copy.contentEn,
       redemption_id: input.redemptionId,
       outcome: input.outcome,
     },
@@ -278,14 +273,23 @@ export async function notifyMemberMallRedemptionOutcome(input: {
 export async function fanOutAnnouncementInbox(input: {
   tenantId: string;
   dedupeKey: string;
-  title: string;
-  body: string;
-  metadata: Record<string, unknown>;
+  base: { titleZh: string; titleEn: string; contentZh: string; contentEn: string };
+  extraMetadata?: Record<string, unknown>;
 }): Promise<number> {
   const policy = await getMemberInboxNotifyPolicy(input.tenantId);
   if (!policy.announcement) return 0;
+  const tpl = await fetchMemberInboxCopyTemplates(input.tenantId);
+  const built = buildAnnouncementInboxCopy(tpl, input.base);
+  const metadata: Record<string, unknown> = {
+    ...(input.extraMetadata || {}),
+    titleZh: built.titleZh,
+    titleEn: built.titleEn,
+    contentZh: built.contentZh,
+    contentEn: built.contentEn,
+    source: 'portal_announcement',
+  };
   const dk = input.dedupeKey.slice(0, 191);
-  const metaJson = JSON.stringify(input.metadata);
+  const metaJson = JSON.stringify(metadata);
   const members = await query<{ id: string }>(
     `SELECT id FROM members WHERE tenant_id = ? AND (COALESCE(is_deleted, 0) = 0)`,
     [input.tenantId],
@@ -306,9 +310,9 @@ export async function fanOutAnnouncementInbox(input: {
         m.id,
         'announcement',
         dk,
-        input.title.slice(0, 512),
-        input.body,
-        'activity',
+        built.titleCol.slice(0, 512),
+        built.bodyCol,
+        'announcement',
         null,
         metaJson,
       );

@@ -15,6 +15,7 @@ export type {
   UseOrdersOptions,
   UseUsdtOrdersOptions,
 } from './types';
+import type { UseOrdersOptions, UseUsdtOrdersOptions } from './types';
 
 export { PAGE_SIZE } from './types';
 
@@ -69,4 +70,14 @@ export function useUsdtOrders(options: Parameters<typeof useUsdtOrderList>[0] = 
     deleteOrder: mutations.deleteOrder,
     refetch: list.fetchOrders,
   };
+}
+
+/** 订单管理 · 美卡专区（赛地/奈拉）— 仅汇率计算「美卡专区」台位提交的订单 */
+export function useMeikaOrders(options: Omit<UseOrdersOptions, 'listVariant'> & { paused?: boolean } = {}) {
+  return useOrders({ ...options, listVariant: 'meika-fiat' });
+}
+
+/** 订单管理 · 美卡专区 USDT */
+export function useMeikaUsdtOrders(options: Omit<UseUsdtOrdersOptions, 'listVariant'> & { paused?: boolean } = {}) {
+  return useUsdtOrders({ ...options, listVariant: 'meika-usdt' });
 }

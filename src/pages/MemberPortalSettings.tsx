@@ -38,6 +38,7 @@ import {
   approveMyMemberPortalSettingsVersion,
   submitMyMemberPortalSettingsForApproval,
   DEFAULT_SETTINGS,
+  DEFAULT_MEMBER_INBOX_COPY_TEMPLATES,
   getMyMemberPortalSettings,
   listMyMemberPortalSettingsVersions,
   rollbackMyMemberPortalSettingsVersion,
@@ -925,7 +926,7 @@ export default function MemberPortalSettingsPage() {
     return () => {
       cancelled = true;
     };
-  }, [workingDraftKey, tenantId]);
+  }, [workingDraftKey, tenantId, t]);
 
   // 仅「发布管理」需要在线版本号；避免在其它 Tab 每 30s 拉 version.json（移动网络易失败且会误弹 Toast）
   useEffect(() => {
@@ -952,6 +953,7 @@ export default function MemberPortalSettingsPage() {
       }).catch((err) => { console.warn('[MemberPortalSettings] auto-save draft failed:', err); /* auto-save 静默失败 */ });
     }, 5000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId, loading, workingDraftKey, settings, badgesText, banners, moduleOrder, loginCarouselSlides, lastPublishedSnapshot]);
 
   // ── Logo 上传 ─────────────────────────────────────────────────────────────
@@ -1835,6 +1837,125 @@ export default function MemberPortalSettingsPage() {
               checked={!!settings.member_inbox_notify_announcement}
               onChange={(v) => handleSettingsChange({ member_inbox_notify_announcement: v })}
             />
+
+            <Card className="border-border/60">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">
+                  {t("收件箱通知文案（可选）", "Inbox notification copy (optional)")}
+                </CardTitle>
+                <p className="text-xs text-muted-foreground font-normal leading-relaxed">
+                  {t(
+                    "仅填写您希望强调的句式；留空则使用系统内置默认，并由系统自动填入订单、转盘次数、商品名、积分、公告标题与正文等变量。使用英文双花括号占位符，例如 {{spins}}、{{item}}。",
+                    "Write only the wording you want; leave blank for built-in defaults. The system fills order id, spins, item name, points, announcement titles, etc. Use placeholders like {{spins}}, {{item}}.",
+                  )}
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6 text-xs">
+                {(() => {
+                  const tpl = settings.member_inbox_copy_templates ?? DEFAULT_MEMBER_INBOX_COPY_TEMPLATES;
+                  const setTpl = (next: typeof tpl) => handleSettingsChange({ member_inbox_copy_templates: next });
+                  const blockFields = (label: string, b: (typeof tpl)["trade"], path: "trade" | "announcement" | "redemption.completed" | "redemption.rejected") => (
+                    <div className="space-y-2 rounded-lg border border-border/50 bg-muted/20 p-3">
+                      <p className="font-semibold text-foreground">{label}</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label className="text-[11px]">{t("标题（中文）", "Title (ZH)")}</Label>
+                          <Input
+                            value={b.titleZh}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              if (path === "trade") setTpl({ ...tpl, trade: { ...tpl.trade, titleZh: v } });
+                              else if (path === "announcement") setTpl({ ...tpl, announcement: { ...tpl.announcement, titleZh: v } });
+                              else if (path === "redemption.completed")
+                                setTpl({ ...tpl, redemption: { ...tpl.redemption, completed: { ...tpl.redemption.completed, titleZh: v } } });
+                              else setTpl({ ...tpl, redemption: { ...tpl.redemption, rejected: { ...tpl.redemption.rejected, titleZh: v } } });
+                            }}
+                            placeholder={t("可含 {{spins}} 等", "May include {{spins}}, etc.")}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px]">{t("标题（English）", "Title (EN)")}</Label>
+                          <Input
+                            value={b.titleEn}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              if (path === "trade") setTpl({ ...tpl, trade: { ...tpl.trade, titleEn: v } });
+                              else if (path === "announcement") setTpl({ ...tpl, announcement: { ...tpl.announcement, titleEn: v } });
+                              else if (path === "redemption.completed")
+                                setTpl({ ...tpl, redemption: { ...tpl.redemption, completed: { ...tpl.redemption.completed, titleEn: v } } });
+                              else setTpl({ ...tpl, redemption: { ...tpl.redemption, rejected: { ...tpl.redemption.rejected, titleEn: v } } });
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-1 sm:col-span-2">
+                          <Label className="text-[11px]">{t("正文（中文）", "Body (ZH)")}</Label>
+                          <Textarea
+                            rows={2}
+                            value={b.bodyZh}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              if (path === "trade") setTpl({ ...tpl, trade: { ...tpl.trade, bodyZh: v } });
+                              else if (path === "announcement") setTpl({ ...tpl, announcement: { ...tpl.announcement, bodyZh: v } });
+                              else if (path === "redemption.completed")
+                                setTpl({ ...tpl, redemption: { ...tpl.redemption, completed: { ...tpl.redemption.completed, bodyZh: v } } });
+                              else setTpl({ ...tpl, redemption: { ...tpl.redemption, rejected: { ...tpl.redemption.rejected, bodyZh: v } } });
+                            }}
+                            placeholder={t("例如：恭喜您获得 {{spins}} 次转盘机会", "e.g. You earned {{spins}} spin(s)")}
+                          />
+                        </div>
+                        <div className="space-y-1 sm:col-span-2">
+                          <Label className="text-[11px]">{t("正文（English）", "Body (EN)")}</Label>
+                          <Textarea
+                            rows={2}
+                            value={b.bodyEn}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              if (path === "trade") setTpl({ ...tpl, trade: { ...tpl.trade, bodyEn: v } });
+                              else if (path === "announcement") setTpl({ ...tpl, announcement: { ...tpl.announcement, bodyEn: v } });
+                              else if (path === "redemption.completed")
+                                setTpl({ ...tpl, redemption: { ...tpl.redemption, completed: { ...tpl.redemption.completed, bodyEn: v } } });
+                              else setTpl({ ...tpl, redemption: { ...tpl.redemption, rejected: { ...tpl.redemption.rejected, bodyEn: v } } });
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                  return (
+                    <>
+                      <div>
+                        <SectionTitle className="!mt-0 mb-2">{t("交易（转盘奖励）", "Trade (spin reward)")}</SectionTitle>
+                        <p className="mb-2 text-muted-foreground">
+                          {t("占位符：{{spins}} 次数，{{order_id}} 订单号", "Placeholders: {{spins}}, {{order_id}}")}
+                        </p>
+                        {blockFields(t("交易通知", "Trade notification"), tpl.trade, "trade")}
+                      </div>
+                      <div>
+                        <SectionTitle className="!mt-0 mb-2">{t("兑换（商城审核）", "Redemption (mall)")}</SectionTitle>
+                        <p className="mb-2 text-muted-foreground">
+                          {t(
+                            "占位符：{{item}} 商品名，{{qty}} 数量，{{points}} 积分数，{{points_hint}} 系统生成的扣款/退回说明，{{note_line}} 驳回备注（若有）。",
+                            "Placeholders: {{item}}, {{qty}}, {{points}}, {{points_hint}}, {{note_line}} (rejection note if any).",
+                          )}
+                        </p>
+                        {blockFields(t("审核通过", "Approved"), tpl.redemption.completed, "redemption.completed")}
+                        {blockFields(t("已驳回", "Rejected"), tpl.redemption.rejected, "redemption.rejected")}
+                      </div>
+                      <div>
+                        <SectionTitle className="!mt-0 mb-2">{t("公告（首页公告同步）", "Announcements (home feed)")}</SectionTitle>
+                        <p className="mb-2 text-muted-foreground">
+                          {t(
+                            "四项全空则收件箱标题/正文与首页公告一致；填写后可用 {{titleZh}} {{titleEn}} {{contentZh}} {{contentEn}} 引用公告原文。",
+                            "Leave all empty to mirror homepage text. Or wrap with {{titleZh}}, {{titleEn}}, {{contentZh}}, {{contentEn}}.",
+                          )}
+                        </p>
+                        {blockFields(t("公告通知", "Announcement inbox"), tpl.announcement, "announcement")}
+                      </div>
+                    </>
+                  );
+                })()}
+              </CardContent>
+            </Card>
           </div>
         )}
 

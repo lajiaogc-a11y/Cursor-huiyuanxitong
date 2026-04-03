@@ -212,7 +212,6 @@ async function fetchForexRates(): Promise<{
         .catch(() => null),
     ])
 
-    let currencyRatesToNGN: CurrencyRatesToNGN
     const rates = officialRates?.rates || {}
     const ngn = rates.NGN || 1400
     const ghs = rates.GHS || 18
@@ -241,7 +240,7 @@ async function fetchForexRates(): Promise<{
       ? usdtNgn.mid / usdtEur.mid
       : eurToUsd * ngn
 
-    currencyRatesToNGN = {
+    const currencyRatesToNGN: CurrencyRatesToNGN = {
       USD_NGN: usdNgn,
       MYR_NGN: myrNgn,
       GBP_NGN: gbpNgnP2P,

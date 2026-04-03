@@ -8,15 +8,15 @@ import { ROUTES } from "@/routes/constants";
 export function MemberProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, loading, signOut, member } = useMemberAuth();
   const location = useLocation();
-  const { loading: maintenanceLoading, status: maintenanceStatus } = useMaintenanceMode(null);
+  const { loading: maintenanceLoading, status: maintenanceStatus } = useMaintenanceMode(member?.tenant_id ?? null);
 
-  if (loading) {
-    return (
-      <div className="min-h-dvh flex items-center justify-center" style={{ background: "#0A0E1A" }}>
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2" style={{ borderColor: "#4d8cff" }} />
-      </div>
-    );
-  }
+  const memberLoadingSpinner = (
+    <div className="min-h-dvh flex items-center justify-center" style={{ background: "#0A0E1A" }}>
+      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2" style={{ borderColor: "#4d8cff" }} />
+    </div>
+  );
+
+  if (loading) return memberLoadingSpinner;
   if (!isAuthenticated) {
     return <Navigate to="/" state={{ from: location }} replace />;
   }
@@ -29,22 +29,19 @@ export function MemberProtectedRoute({ children }: { children: ReactNode }) {
   if (!mustChange && path === ROUTES.MEMBER.FIRST_PASSWORD) {
     return <Navigate to={ROUTES.MEMBER.DASHBOARD} replace />;
   }
-  if (maintenanceLoading) {
-    return (
-      <div className="min-h-dvh flex items-center justify-center" style={{ background: "#0A0E1A" }}>
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2" style={{ borderColor: "#4d8cff" }} />
-      </div>
-    );
-  }
-  if (maintenanceStatus.globalEnabled) {
+  if (maintenanceLoading) return memberLoadingSpinner;
+  if (maintenanceStatus.effectiveEnabled) {
+    const message =
+      maintenanceStatus.scope === "global"
+        ? maintenanceStatus.globalMessage
+        : maintenanceStatus.tenantMessage;
     return (
       <MaintenanceBlockedView
-        scope="global"
-        message={maintenanceStatus.globalMessage}
+        scope={maintenanceStatus.scope === "global" ? "global" : "tenant"}
+        message={message}
         onLogout={() => signOut()}
       />
     );
   }
-  // 已登录会员端时不再因「同时存在员工 session」强制跳 /staff，避免登录后立刻被踢走（闪退）
   return <>{children}</>;
 }

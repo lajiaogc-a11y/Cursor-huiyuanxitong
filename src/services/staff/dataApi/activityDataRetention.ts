@@ -1,15 +1,20 @@
 import { apiClient } from "@/lib/apiClient";
 
+export interface ActivityDataRetentionLastSummary {
+  lotteryLogs: number;
+  checkIns: number;
+  lotteryPointsLedger: number;
+  spinCreditsOrder: number;
+  spinCreditsShare: number;
+  spinCreditsInvite: number;
+  spinCreditsOther: number;
+}
+
 export interface ActivityDataRetentionSettings {
   enabled: boolean;
   retentionDays: number;
   lastRunAt: string | null;
-  lastSummary: {
-    lotteryLogs: number;
-    checkIns: number;
-    lotteryPointsLedger: number;
-    spinCredits: number;
-  } | null;
+  lastSummary: ActivityDataRetentionLastSummary | null;
 }
 
 export async function getActivityDataRetentionApi(
@@ -31,7 +36,7 @@ export async function putActivityDataRetentionApi(
 }
 
 export async function postActivityDataRetentionRunApi(tenantId?: string | null): Promise<{
-  summary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number; spinCredits: number };
+  summary: ActivityDataRetentionLastSummary;
   settings: ActivityDataRetentionSettings;
 }> {
   const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";
@@ -39,7 +44,7 @@ export async function postActivityDataRetentionRunApi(tenantId?: string | null):
 }
 
 export async function postActivityDataRetentionPurgeAllApi(tenantId?: string | null): Promise<{
-  summary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number; spinCredits: number };
+  summary: ActivityDataRetentionLastSummary;
 }> {
   const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";
   return apiClient.post(`/api/data/activity-data-retention/purge-all${q}`, {});

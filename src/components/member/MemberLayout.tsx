@@ -35,18 +35,33 @@ const MEMBER_ENTRY_SPLASH_MIN_MS = 1200;
 const MEMBER_ENTRY_SPLASH_MAX_MS = 3800;
 
 let _chunksPreloaded = false;
+
+const _scheduleIdle =
+  typeof requestIdleCallback === "function"
+    ? (fn: () => void) => requestIdleCallback(fn, { timeout: 4000 })
+    : (fn: () => void) => setTimeout(fn, 80);
+
 function preloadMemberChunks() {
   if (_chunksPreloaded) return;
   _chunksPreloaded = true;
-  import("@/pages/member/MemberDashboard").catch((err) => { console.warn('[MemberLayout] chunk preload failed:', err); });
-  import("@/pages/member/MemberPoints").catch((err) => { console.warn('[MemberLayout] chunk preload failed:', err); });
-  import("@/pages/member/MemberSpin").catch((err) => { console.warn('[MemberLayout] chunk preload failed:', err); });
-  import("@/pages/member/MemberInvite").catch((err) => { console.warn('[MemberLayout] chunk preload failed:', err); });
-  import("@/pages/member/MemberSettings").catch((err) => { console.warn('[MemberLayout] chunk preload failed:', err); });
-  import("@/pages/member/MemberWallet").catch((err) => { console.warn('[MemberLayout] chunk preload failed:', err); });
-  import("@/pages/member/MemberNotifications").catch((err) => { console.warn('[MemberLayout] chunk preload failed:', err); });
-  import("@/pages/member/MemberOrders").catch((err) => { console.warn('[MemberLayout] chunk preload failed:', err); });
-  import("@/pages/member/MemberTradeContact").catch((err) => { console.warn('[MemberLayout] chunk preload failed:', err); });
+
+  const swallow = (err: unknown) => { console.warn('[MemberLayout] chunk preload failed:', err); };
+
+  import("@/pages/member/MemberDashboard").catch(swallow);
+  import("@/pages/member/MemberPoints").catch(swallow);
+
+  _scheduleIdle(() => {
+    import("@/pages/member/MemberSpin").catch(swallow);
+    import("@/pages/member/MemberInvite").catch(swallow);
+    import("@/pages/member/MemberSettings").catch(swallow);
+  });
+
+  _scheduleIdle(() => {
+    import("@/pages/member/MemberWallet").catch(swallow);
+    import("@/pages/member/MemberNotifications").catch(swallow);
+    import("@/pages/member/MemberOrders").catch(swallow);
+    import("@/pages/member/MemberTradeContact").catch(swallow);
+  });
 }
 
 export function MemberLayout({ children }: { children: ReactNode }) {

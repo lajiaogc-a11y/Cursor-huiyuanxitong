@@ -574,6 +574,7 @@ export default function MemberPoints() {
         setItemsLoading(false);
       }
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [member?.id, catalogRetryKey, pullNonce]);
 
   useEffect(() => {

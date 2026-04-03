@@ -17,8 +17,6 @@ import {
   Megaphone,
   Gift,
   Sparkles,
-  Users,
-  CheckCircle,
   Trash2,
   Check,
 } from "lucide-react";
@@ -43,7 +41,7 @@ import {
   type MemberInboxApiItem,
 } from "@/services/memberPortal/memberInboxService";
 
-type NotifType = "system" | "reward" | "activity" | "invite" | "order";
+type NotifType = "trade" | "redemption" | "announcement" | "other";
 
 interface NotifItem {
   id: string;
@@ -58,8 +56,11 @@ interface NotifItem {
 
 function coerceNotifType(c: string): NotifType {
   const x = String(c || "").toLowerCase();
-  if (x === "reward" || x === "activity" || x === "invite" || x === "order") return x;
-  return "system";
+  if (x === "trade" || x === "redemption" || x === "announcement" || x === "other") return x;
+  if (x === "reward") return "trade";
+  if (x === "order") return "redemption";
+  if (x === "activity") return "announcement";
+  return "other";
 }
 
 function formatInboxDate(iso: string, locale: "zh" | "en"): string {
@@ -90,14 +91,13 @@ const TYPE_CONFIG: Record<
   NotifType,
   { icon: typeof Megaphone; colorVar: string; bg: string }
 > = {
-  system: { icon: Megaphone, colorVar: "--pu-rose", bg: "bg-pu-rose/10" },
-  reward: { icon: Sparkles, colorVar: "--pu-gold", bg: "bg-pu-gold/10" },
-  activity: { icon: Gift, colorVar: "--pu-emerald", bg: "bg-pu-emerald/10" },
-  invite: { icon: Users, colorVar: "--pu-emerald", bg: "bg-pu-emerald/10" },
-  order: { icon: CheckCircle, colorVar: "--pu-gold", bg: "bg-pu-gold/10" },
+  trade: { icon: Sparkles, colorVar: "--pu-gold", bg: "bg-pu-gold/10" },
+  redemption: { icon: Gift, colorVar: "--pu-emerald", bg: "bg-pu-emerald/10" },
+  announcement: { icon: Megaphone, colorVar: "--pu-rose", bg: "bg-pu-rose/10" },
+  other: { icon: Bell, colorVar: "--pu-m-text-dim", bg: "bg-[hsl(var(--pu-m-surface)/0.45)]" },
 };
 
-const FILTER_KEYS = ["all", "system", "reward", "activity", "invite", "order"] as const;
+const FILTER_KEYS = ["all", "trade", "redemption", "announcement"] as const;
 
 export default function MemberNotifications() {
   const { t, language } = useLanguage();
@@ -161,7 +161,9 @@ export default function MemberNotifications() {
   }, [member?.id, portalSettingsLoading, inboxEnabled]);
 
   const filtered =
-    activeFilter === "all" ? notifications : notifications.filter((n) => n.type === activeFilter);
+    activeFilter === "all"
+      ? notifications
+      : notifications.filter((n) => n.type === activeFilter);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -200,11 +202,9 @@ export default function MemberNotifications() {
   const filterLabel = (key: (typeof FILTER_KEYS)[number]) => {
     const m: Record<(typeof FILTER_KEYS)[number], [string, string]> = {
       all: ["全部", "All"],
-      system: ["系统", "System"],
-      reward: ["奖励", "Rewards"],
-      activity: ["活动", "Activity"],
-      invite: ["邀请", "Invite"],
-      order: ["订单", "Orders"],
+      trade: ["交易", "Trade"],
+      redemption: ["兑换", "Redemption"],
+      announcement: ["公告", "Announcements"],
     };
     return t(m[key][0], m[key][1]);
   };
@@ -303,7 +303,7 @@ export default function MemberNotifications() {
 
           <div className="space-y-2.5 px-5">
         {filtered.map((notif) => {
-          const cfg = TYPE_CONFIG[notif.type] || TYPE_CONFIG.system;
+          const cfg = TYPE_CONFIG[notif.type] || TYPE_CONFIG.other;
           const Icon = cfg.icon;
           return (
             <div
@@ -394,7 +394,10 @@ export default function MemberNotifications() {
           </div>
 
           <p className="mt-6 px-5 text-center text-[10px] text-[hsl(var(--pu-m-text-dim)/0.45)]">
-            {t("公告与兑换处理结果会同步到此列表", "Portal announcements and redemption updates appear here")}
+            {t(
+              "交易奖励、商城兑换结果与首页公告会按后台设置同步到此列表",
+              "Trade rewards, mall redemptions, and homepage announcements appear here per your org settings.",
+            )}
           </p>
 
           <div className="h-8" />

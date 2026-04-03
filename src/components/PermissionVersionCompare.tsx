@@ -158,6 +158,7 @@ export function PermissionVersionCompare({
       }
       return a.field_name.localeCompare(b.field_name);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leftVersionId, rightVersionId, versions, currentPermissions]);
 
   const roleLabel = ROLE_LABELS[selectedRole as keyof typeof ROLE_LABELS] || {

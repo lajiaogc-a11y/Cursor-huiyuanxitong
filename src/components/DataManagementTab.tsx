@@ -61,7 +61,13 @@ export default function DataManagementTab() {
     },
     members: {
       memberManagement: false,
-      activityData: false,
+      activityLotteryLogs: false,
+      activityCheckIns: false,
+      activitySpinOrder: false,
+      activitySpinShare: false,
+      activitySpinInvite: false,
+      activitySpinOther: false,
+      activityMemberSummary: false,
       activityGift: false,
       pointsLedger: false,
     },
@@ -179,6 +185,22 @@ export default function DataManagementTab() {
           void queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
           void queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
           notifyDataMutation({ table: 'members', operation: 'DELETE', source: 'manual' }).catch(console.error);
+        }
+        const mSel = deleteSelections.members;
+        if (
+          totalCount > 0 &&
+          mSel &&
+          (mSel.activityLotteryLogs ||
+            mSel.activityCheckIns ||
+            mSel.activitySpinOrder ||
+            mSel.activitySpinShare ||
+            mSel.activitySpinInvite ||
+            mSel.activitySpinOther ||
+            mSel.activityMemberSummary ||
+            mSel.activityGift)
+        ) {
+          void queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
+          void queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
         }
         if (deleteSelections.merchantSettlement?.balanceChangeLogs) {
           queryClient.invalidateQueries({ queryKey: ['merchant-settlement'] });

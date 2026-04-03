@@ -102,21 +102,17 @@ const ActivityGiftDialog = React.memo(function ActivityGiftDialog({ open, onOpen
     if (open) {
       loadActivityTypes();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Get rate based on currency
-  const getRate = (): number => {
+  const currentRate = useMemo((): number => {
     switch (currency) {
-      case "NGN":
-        return nairaRate ?? 0;
-      case "GHS":
-        return cediRate ?? 0;
-      case "USDT":
-        return usdtRate ?? 0;
-      default:
-        return 0;
+      case "NGN": return nairaRate ?? 0;
+      case "GHS": return cediRate ?? 0;
+      case "USDT": return usdtRate ?? 0;
+      default: return 0;
     }
-  };
+  }, [currency, nairaRate, cediRate, usdtRate]);
 
   const calculatedFee = useMemo(() => calculateTransactionFee(currency, amount), [currency, amount]);
 
@@ -126,18 +122,14 @@ const ActivityGiftDialog = React.memo(function ActivityGiftDialog({ open, onOpen
   // USDT: amount * rate = RMB价值
   const calculatedGiftValue = useMemo(() => {
     const amountNum = parseFloat(amount) || 0;
-    const rate = getRate();
-    
-    if (!amountNum || !rate) return 0;
+    if (!amountNum || !currentRate) return 0;
     
     if (currency === "NGN") {
-      // 奈拉：赠送金额 ÷ 当时汇率 + 手续费
-      return Math.abs(amountNum) / rate + calculatedFee;
+      return Math.abs(amountNum) / currentRate + calculatedFee;
     } else {
-      // 赛地/USDT：赠送金额 × 当时汇率 + 手续费
-      return Math.abs(amountNum) * rate + calculatedFee;
+      return Math.abs(amountNum) * currentRate + calculatedFee;
     }
-  }, [currency, amount, calculatedFee, nairaRate, cediRate, usdtRate]);
+  }, [currency, amount, calculatedFee, currentRate]);
 
   // Debounce ref for member lookup
   const memberLookupTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -160,7 +152,7 @@ const ActivityGiftDialog = React.memo(function ActivityGiftDialog({ open, onOpen
       console.error('查询会员出错:', err);
       setMemberError(t("查询失败，请重试", "Query failed, please retry"));
     }
-  }, [t]);
+  }, [t, findMemberByPhone]);
 
   // Handle phone number change - auto-clean and debounced lookup
   // 逻辑与汇率计算器一致：只保留数字，自动去除空格和特殊字符
@@ -211,7 +203,7 @@ const ActivityGiftDialog = React.memo(function ActivityGiftDialog({ open, onOpen
     const result = await addGift({
       currency,
       amount: parseFloat(amount),
-      rate: getRate(),
+      rate: currentRate,
       phoneNumber,
       paymentAgent,
       giftType,
@@ -295,7 +287,7 @@ const ActivityGiftDialog = React.memo(function ActivityGiftDialog({ open, onOpen
             <div className="flex items-center gap-2">
               <Label className="text-xs w-20 shrink-0 text-destructive">* {t("汇率", "Rate")}</Label>
               <Input
-                value={getRate().toString()}
+                value={currentRate.toString()}
                 readOnly
                 className="h-8 flex-1 bg-muted text-sm"
               />

@@ -4,7 +4,6 @@
 
 import { apiPost } from '@/api/client';
 import { fetchTableCountExact } from '@/lib/tableProxyCount';
-import * as XLSX from 'xlsx';
 import { EXPORTABLE_TABLES } from './tableConfig';
 import { parseCSV, escapeCSVField, createUtf8CsvBlob } from './utils';
 import { validateImportData } from './validation';
@@ -253,12 +252,13 @@ function buildPhoneLikeColumnIndices(headers: string[], columnMapping: Record<st
 /**
  * 将 XLSX 行转为与 parseCSV 一致的 string[][]，便于共用 rowsToRecords
  */
-function xlsxRowsToStringMatrix(
+async function xlsxRowsToStringMatrix(
   headers: string[],
   rawRows: any[][],
-  worksheet?: XLSX.WorkSheet,
+  worksheet?: any,
   phoneColIndices?: Set<number>,
-): string[][] {
+): Promise<string[][]> {
+  const XLSX = await import('xlsx');
   const useCells = worksheet != null && phoneColIndices != null && phoneColIndices.size > 0;
   return rawRows.map((row, ri) =>
     headers.map((_, j) => {
@@ -315,6 +315,7 @@ export async function importTableFromXLSX(
       return result;
     }
 
+    const XLSX = await import('xlsx');
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
@@ -339,7 +340,7 @@ export async function importTableFromXLSX(
     }
 
     const phoneCols = buildPhoneLikeColumnIndices(headers, validation.columnMapping);
-    const stringRows = xlsxRowsToStringMatrix(headers, rawRows, worksheet, phoneCols);
+    const stringRows = await xlsxRowsToStringMatrix(headers, rawRows, worksheet, phoneCols);
 
     const allRecords = rowsToRecords(headers, stringRows, validation.columnMapping);
     result.skipped = stringRows.length - allRecords.length;
@@ -429,6 +430,7 @@ export async function parseXLSXForPreview(
   isEnglish: boolean = false
 ): Promise<{ headers: string[]; rowCount: number; validation: ReturnType<typeof validateImportData> } | null> {
   try {
+    const XLSX = await import('xlsx');
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
@@ -469,6 +471,7 @@ export async function downloadImportTemplate(
     const headers = tableConfig.columns.map(col => isEnglish ? col.labelEn : col.label);
 
     if (format === 'xlsx') {
+      const XLSX = await import('xlsx');
       const ws = XLSX.utils.aoa_to_sheet([headers]);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, displayName.slice(0, 31));

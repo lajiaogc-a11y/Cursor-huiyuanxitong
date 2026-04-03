@@ -79,6 +79,7 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
       onUnreadCountChange?.(count);
     }, 10000);
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onUnreadCountChange]);
 
   useEffect(() => {

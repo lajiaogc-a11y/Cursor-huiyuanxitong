@@ -145,7 +145,7 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         return { order: null, earnedPoints: 0 };
       }
     },
-    [isPlatformAdminReadonlyView, queryClient, tenantIdForNewOrder]
+    [isPlatformAdminReadonlyView, queryClient, tenantIdForNewOrder, t]
   );
 
   const cancelOrder = useCallback(
@@ -204,13 +204,15 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         } catch (sideEffectErr) {
           console.error('USDT order cancelled but side effects failed:', sideEffectErr);
         }
+        void queryClient.invalidateQueries({ queryKey: ['meika-fiat-orders'] });
+        void queryClient.invalidateQueries({ queryKey: ['meika-usdt-orders'] });
         return true;
       } catch (error) {
         console.error('Failed to cancel USDT order:', error);
         return false;
       }
     },
-    [orders, setOrders, fetchOrders, isPlatformAdminReadonlyView, queryClient]
+    [orders, setOrders, fetchOrders, isPlatformAdminReadonlyView, queryClient, t]
   );
 
   const restoreOrder = useCallback(
@@ -271,13 +273,15 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
         } catch (sideEffectErr) {
           console.error('USDT order restored but side effects failed:', sideEffectErr);
         }
+        void queryClient.invalidateQueries({ queryKey: ['meika-fiat-orders'] });
+        void queryClient.invalidateQueries({ queryKey: ['meika-usdt-orders'] });
         return true;
       } catch (error) {
         console.error('Failed to restore USDT order:', error);
         return false;
       }
     },
-    [orders, setOrders, fetchOrders, isPlatformAdminReadonlyView, queryClient]
+    [orders, setOrders, fetchOrders, isPlatformAdminReadonlyView, queryClient, t]
   );
 
   const deleteOrder = useCallback(
@@ -346,9 +350,11 @@ export function useUsdtOrderMutations(params: UseUsdtOrderMutationsParams) {
       } catch (sideErr) {
         console.error('[UsdtOrderMutations] Post-delete side effects failed (order already deleted):', sideErr);
       }
+      void queryClient.invalidateQueries({ queryKey: ['meika-fiat-orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['meika-usdt-orders'] });
       return true;
     },
-    [orders, setOrders, fetchOrders, isPlatformAdminReadonlyView, queryClient]
+    [orders, setOrders, fetchOrders, isPlatformAdminReadonlyView, queryClient, t]
   );
 
   return {

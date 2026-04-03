@@ -367,6 +367,11 @@ export async function migrateSchemaPatches(): Promise<void> {
     'member_inbox_notify_announcement',
     'TINYINT(1) NOT NULL DEFAULT 1 COMMENT \'门户公告同步至收件箱\'',
   );
+  await addCol(
+    'member_portal_settings',
+    'member_inbox_copy_templates',
+    'JSON NULL COMMENT \'会员收件箱通知文案模板(占位符)\'',
+  );
 
   // ── phone_pool / phone_reservations columns ──
   if (await tableExists('phone_pool')) {
@@ -1275,6 +1280,21 @@ export async function migrateSchemaPatches(): Promise<void> {
       UNIQUE KEY uq_member_inbox_dedupe (member_id, dedupe_key),
       KEY idx_member_inbox_tm_created (tenant_id, member_id, created_at DESC),
       KEY idx_member_inbox_unread (member_id, is_read, created_at DESC)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  );
+
+  // 美卡专区：汇率计算「美卡专区」台位提交的订单在主表 orders 之外登记关联，供订单管理独立列表
+  await createTbl(
+    'meika_zone_order_links',
+    `CREATE TABLE meika_zone_order_links (
+      id CHAR(36) NOT NULL PRIMARY KEY,
+      tenant_id CHAR(36) NULL,
+      order_id CHAR(36) NOT NULL,
+      kind ENUM('fiat', 'usdt') NOT NULL COMMENT 'fiat=赛地奈拉 usdt=美卡USDT',
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      UNIQUE KEY uq_meika_order (order_id),
+      KEY idx_meika_tenant_kind (tenant_id, kind),
+      KEY idx_meika_order_id (order_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   );
 

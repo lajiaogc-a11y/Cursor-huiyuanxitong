@@ -172,6 +172,8 @@ export async function adminGetLotteryLogs(options?: {
   offset?: number;
   /** 与活动数据一致：平台管理员查看某租户时必须传入 */
   tenantId?: string | null;
+  phone?: string;
+  memberCode?: string;
 }): Promise<{ logs: LotteryLog[]; total: number }> {
   const limit = options?.limit ?? 50;
   const offset = options?.offset ?? 0;
@@ -180,6 +182,8 @@ export async function adminGetLotteryLogs(options?: {
   qs.set("limit", String(limit));
   qs.set("offset", String(offset));
   if (tid) qs.set("tenant_id", tid);
+  if (options?.phone?.trim()) qs.set("phone", options.phone.trim());
+  if (options?.memberCode?.trim()) qs.set("member_code", options.memberCode.trim());
   return safeCall(
     async () => {
       const r = await apiGetAsStaff<{ success: boolean; logs: LotteryLog[]; total?: number }>(

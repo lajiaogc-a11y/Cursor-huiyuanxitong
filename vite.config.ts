@@ -70,6 +70,9 @@ export default defineConfig(({ mode }) => {
           if (id.includes("zod") || id.includes("@hookform") || id.includes("react-hook-form")) return "form-utils";
           if (id.includes("xlsx") || id.includes("exceljs") || id.includes("file-saver")) return "export-utils";
           if (id.includes("sortablejs") || id.includes("@dnd-kit")) return "sortable";
+          if (id.includes("sonner")) return "sonner";
+          if (id.includes("nprogress")) return "nprogress";
+          if (id.includes("class-variance-authority") || id.includes("clsx") || id.includes("tailwind-merge")) return "tw-utils";
         },
       },
     },

@@ -147,11 +147,20 @@ export async function bulkDeleteRepository(
   const pad = (n: number) => String(n).padStart(2, '0');
   const cutoffDateStr = `${cutoffDate.getFullYear()}-${pad(cutoffDate.getMonth() + 1)}-${pad(cutoffDate.getDate())} ${pad(cutoffDate.getHours())}:${pad(cutoffDate.getMinutes())}:${pad(cutoffDate.getSeconds())}`;
 
-  const members = deleteSelections.members ?? { memberManagement: false, activityData: false, activityGift: false, pointsLedger: false };
+  const members = deleteSelections.members ?? { memberManagement: false, activityGift: false, pointsLedger: false };
   const shiftData = deleteSelections.shiftData ?? { shiftHandovers: false, shiftReceivers: false };
   const merchantSettlement = deleteSelections.merchantSettlement ?? { balanceChangeLogs: false, initialBalances: false };
   const knowledgeData = deleteSelections.knowledgeData ?? { categories: false, articles: false };
   const preserveActivityData = deleteSelections.preserveActivityData ?? true;
+
+  const legacyActivity = members.activityData === true;
+  const wantActivityLotteryLogs = members.activityLotteryLogs === true || legacyActivity;
+  const wantActivityCheckIns = members.activityCheckIns === true || legacyActivity;
+  const wantActivitySpinOrder = members.activitySpinOrder === true || legacyActivity;
+  const wantActivitySpinShare = members.activitySpinShare === true || legacyActivity;
+  const wantActivitySpinInvite = members.activitySpinInvite === true || legacyActivity;
+  const wantActivitySpinOther = members.activitySpinOther === true || legacyActivity;
+  const wantActivityMemberSummary = members.activityMemberSummary === true || legacyActivity;
 
   /** 安全 COUNT：查不到行数时返回 0 而不抛出 */
   const safeCount = async (sql: string, vals: unknown[]): Promise<number> => {
@@ -346,6 +355,188 @@ export async function bulkDeleteRepository(
     }
   }
 
+  // 4b. 会员活动门户明细（与「会员系统 → 活动数据」五类 + 其他/签到发次数）
+  if (
+    tenantId &&
+    (wantActivityLotteryLogs ||
+      wantActivityCheckIns ||
+      wantActivitySpinOrder ||
+      wantActivitySpinShare ||
+      wantActivitySpinInvite ||
+      wantActivitySpinOther)
+  ) {
+    if (wantActivityLotteryLogs) {
+      const cnt = await safeCount(
+        deleteAll
+          ? `SELECT COUNT(*) as cnt FROM lottery_logs l
+             LEFT JOIN members m ON m.id = l.member_id
+             WHERE l.tenant_id = ? OR (l.tenant_id IS NULL AND m.tenant_id = ?)`
+          : `SELECT COUNT(*) as cnt FROM lottery_logs l
+             LEFT JOIN members m ON m.id = l.member_id
+             WHERE (l.tenant_id = ? OR (l.tenant_id IS NULL AND m.tenant_id = ?)) AND l.created_at < ?`,
+        deleteAll ? [tenantId, tenantId] : [tenantId, tenantId, cutoffDateStr],
+      );
+      try {
+        if (deleteAll) {
+          await execute(
+            `DELETE l FROM lottery_logs l
+             LEFT JOIN members m ON m.id = l.member_id
+             WHERE l.tenant_id = ? OR (l.tenant_id IS NULL AND m.tenant_id = ?)`,
+            [tenantId, tenantId],
+          );
+        } else {
+          await execute(
+            `DELETE l FROM lottery_logs l
+             LEFT JOIN members m ON m.id = l.member_id
+             WHERE (l.tenant_id = ? OR (l.tenant_id IS NULL AND m.tenant_id = ?)) AND l.created_at < ?`,
+            [tenantId, tenantId, cutoffDateStr],
+          );
+        }
+        if (cnt) deletedSummary.push({ table: '抽奖流水', count: cnt });
+      } catch (e: unknown) {
+        errors.push(`lottery_logs: ${e instanceof Error ? e.message : String(e)}`);
+      }
+      if (!members.pointsLedger) {
+        const plc = await safeCount(
+          deleteAll
+            ? `SELECT COUNT(*) as cnt FROM points_ledger pl
+               INNER JOIN members m ON m.id = pl.member_id
+               WHERE m.tenant_id = ? AND (pl.type = 'lottery' OR pl.transaction_type = 'lottery')`
+            : `SELECT COUNT(*) as cnt FROM points_ledger pl
+               INNER JOIN members m ON m.id = pl.member_id
+               WHERE m.tenant_id = ? AND (pl.type = 'lottery' OR pl.transaction_type = 'lottery') AND pl.created_at < ?`,
+          deleteAll ? [tenantId] : [tenantId, cutoffDateStr],
+        );
+        try {
+          if (deleteAll) {
+            await execute(
+              `DELETE pl FROM points_ledger pl
+               INNER JOIN members m ON m.id = pl.member_id
+               WHERE m.tenant_id = ? AND (pl.type = 'lottery' OR pl.transaction_type = 'lottery')`,
+              [tenantId],
+            );
+          } else {
+            await execute(
+              `DELETE pl FROM points_ledger pl
+               INNER JOIN members m ON m.id = pl.member_id
+               WHERE m.tenant_id = ? AND (pl.type = 'lottery' OR pl.transaction_type = 'lottery') AND pl.created_at < ?`,
+              [tenantId, cutoffDateStr],
+            );
+          }
+          if (plc) deletedSummary.push({ table: '抽奖类积分流水', count: plc });
+        } catch (e: unknown) {
+          errors.push(`points_ledger(lottery): ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+    }
+
+    if (wantActivityCheckIns) {
+      const cnt = await safeCount(
+        deleteAll
+          ? `SELECT COUNT(*) as cnt FROM check_ins c
+             INNER JOIN members m ON m.id = c.member_id
+             WHERE m.tenant_id = ?`
+          : `SELECT COUNT(*) as cnt FROM check_ins c
+             INNER JOIN members m ON m.id = c.member_id
+             WHERE m.tenant_id = ? AND c.created_at < ?`,
+        deleteAll ? [tenantId] : [tenantId, cutoffDateStr],
+      );
+      try {
+        if (deleteAll) {
+          await execute(
+            `DELETE c FROM check_ins c
+             INNER JOIN members m ON m.id = c.member_id
+             WHERE m.tenant_id = ?`,
+            [tenantId],
+          );
+        } else {
+          await execute(
+            `DELETE c FROM check_ins c
+             INNER JOIN members m ON m.id = c.member_id
+             WHERE m.tenant_id = ? AND c.created_at < ?`,
+            [tenantId, cutoffDateStr],
+          );
+        }
+        if (cnt) deletedSummary.push({ table: '签到流水', count: cnt });
+      } catch (e: unknown) {
+        errors.push(`check_ins: ${e instanceof Error ? e.message : String(e)}`);
+      }
+      const scc = await safeCount(
+        deleteAll
+          ? `SELECT COUNT(*) as cnt FROM spin_credits sc
+             INNER JOIN members m ON m.id = sc.member_id
+             WHERE m.tenant_id = ? AND sc.source = 'check_in'`
+          : `SELECT COUNT(*) as cnt FROM spin_credits sc
+             INNER JOIN members m ON m.id = sc.member_id
+             WHERE m.tenant_id = ? AND sc.source = 'check_in' AND sc.created_at < ?`,
+        deleteAll ? [tenantId] : [tenantId, cutoffDateStr],
+      );
+      try {
+        if (deleteAll) {
+          await execute(
+            `DELETE sc FROM spin_credits sc
+             INNER JOIN members m ON m.id = sc.member_id
+             WHERE m.tenant_id = ? AND sc.source = 'check_in'`,
+            [tenantId],
+          );
+        } else {
+          await execute(
+            `DELETE sc FROM spin_credits sc
+             INNER JOIN members m ON m.id = sc.member_id
+             WHERE m.tenant_id = ? AND sc.source = 'check_in' AND sc.created_at < ?`,
+            [tenantId, cutoffDateStr],
+          );
+        }
+        if (scc) deletedSummary.push({ table: '签到·抽奖次数', count: scc });
+      } catch (e: unknown) {
+        errors.push(`spin_credits(check_in): ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+
+    const spinBase = `DELETE sc FROM spin_credits sc
+     INNER JOIN members m ON m.id = sc.member_id
+     WHERE m.tenant_id = ?`;
+    const spinDate = deleteAll ? '' : ' AND sc.created_at < ?';
+    const runSpinCat = async (label: string, extraWhere: string): Promise<void> => {
+      const cnt = await safeCount(
+        deleteAll
+          ? `SELECT COUNT(*) as cnt FROM spin_credits sc
+             INNER JOIN members m ON m.id = sc.member_id
+             WHERE m.tenant_id = ? AND (${extraWhere})`
+          : `SELECT COUNT(*) as cnt FROM spin_credits sc
+             INNER JOIN members m ON m.id = sc.member_id
+             WHERE m.tenant_id = ? AND (${extraWhere}) AND sc.created_at < ?`,
+        deleteAll ? [tenantId] : [tenantId, cutoffDateStr],
+      );
+      try {
+        if (deleteAll) {
+          await execute(`${spinBase} AND (${extraWhere})`, [tenantId]);
+        } else {
+          await execute(`${spinBase} AND (${extraWhere})${spinDate}`, [tenantId, cutoffDateStr]);
+        }
+        if (cnt) deletedSummary.push({ table: label, count: cnt });
+      } catch (e: unknown) {
+        errors.push(`${label}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    };
+
+    if (wantActivitySpinOrder) {
+      await runSpinCat('订单抽奖次数', `sc.source LIKE 'order_completed:%'`);
+    }
+    if (wantActivitySpinShare) {
+      await runSpinCat('分享抽奖次数', `sc.source = 'share'`);
+    }
+    if (wantActivitySpinInvite) {
+      await runSpinCat('邀请抽奖次数', `sc.source IN ('referral','invite_welcome')`);
+    }
+    if (wantActivitySpinOther) {
+      await runSpinCat(
+        '其他抽奖次数',
+        `sc.source NOT LIKE 'order_completed:%' AND sc.source <> 'share' AND sc.source NOT IN ('referral','invite_welcome') AND sc.source <> 'check_in'`,
+      );
+    }
+  }
+
   // 5. member_activity
   // 表结构 member_id 为 NOT NULL：删除会员时只能删除对应活动行，不能 SET NULL。
   // preserveActivityData 仅影响下方「整表按条件清空」，不应用于「按会员删除」。
@@ -359,7 +550,7 @@ export async function bulkDeleteRepository(
       } catch (e: unknown) { errors.push(`member_activity: ${e instanceof Error ? e.message : String(e)}`); }
     }
     if (deletedCount > 0) deletedSummary.push({ table: '会员活动', count: deletedCount });
-  } else if (members.activityData && !preserveActivityData && deleteAll) {
+  } else if (wantActivityMemberSummary && !preserveActivityData && deleteAll) {
     const cnt = await safeCount(`SELECT COUNT(*) as cnt FROM member_activity WHERE id <> ?`, [NULL_UUID]);
     try {
       await execute(`DELETE FROM member_activity WHERE id <> ?`, [NULL_UUID]);
@@ -397,7 +588,7 @@ export async function bulkDeleteRepository(
         await execute(`DELETE FROM points_accounts WHERE member_code IN (${batchIn(batch)})`, batch);
       } catch (e: unknown) { errors.push(`points_accounts: ${e instanceof Error ? e.message : String(e)}`); }
     }
-  } else if (members.activityData && !preserveActivityData && deleteAll) {
+  } else if (wantActivityMemberSummary && !preserveActivityData && deleteAll) {
     const cnt = await safeCount(`SELECT COUNT(*) as cnt FROM points_accounts WHERE id <> ?`, [NULL_UUID]);
     try {
       await execute(`DELETE FROM points_accounts WHERE id <> ?`, [NULL_UUID]);
@@ -417,6 +608,12 @@ export async function bulkDeleteRepository(
 
   // 8. 删除订单
   if (orderIdsToDelete.length > 0) {
+    for (let i = 0; i < orderIdsToDelete.length; i += BATCH_SIZE) {
+      const batch = orderIdsToDelete.slice(i, i + BATCH_SIZE);
+      try {
+        await execute(`DELETE FROM meika_zone_order_links WHERE order_id IN (${batchIn(batch)})`, batch);
+      } catch { /* table may not exist yet */ }
+    }
     let deletedCount = 0;
     for (let i = 0; i < orderIdsToDelete.length; i += BATCH_SIZE) {
       const batch = orderIdsToDelete.slice(i, i + BATCH_SIZE);
@@ -678,6 +875,10 @@ export async function deleteOrderByIdRepository(
   } catch (e: unknown) {
     return { success: false, error: e instanceof Error ? e.message : String(e) };
   }
+
+  try {
+    await execute(`DELETE FROM meika_zone_order_links WHERE order_id = ?`, [orderId]);
+  } catch { /* table may not exist yet */ }
 
   try {
     if (tenantId) {

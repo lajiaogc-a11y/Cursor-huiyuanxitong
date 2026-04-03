@@ -6,15 +6,10 @@
 
 import { emitDataRefresh, emitLegacyEvents, queueQueryInvalidations } from '@/services/system/dataConsistencyHub';
 import { TABLE_LEGACY_EVENTS, TABLE_QUERY_KEYS, type DataTable } from '@/services/system/unifiedRefreshQueryMap';
-import { resetPointsLedgerCache } from '@/stores/pointsLedgerStore';
-import { resetPointsAccountCache } from '@/stores/pointsAccountStore';
 import { resetReferralCache } from '@/stores/referralStore';
-import { refreshEmployees } from '@/services/members/nameResolver';
-import { resetMerchantConfigCache } from '@/stores/merchantConfigStore';
 import { clearCache as clearSharedDataCache } from '@/services/finance/sharedDataService';
-import { resetExchangeRateCache } from '@/stores/exchangeRateStore';
+import { refreshEmployees } from '@/services/members/nameResolver';
 import { resetPointsSettingsCache } from '@/stores/pointsSettingsStore';
-import { resetActivitySettingsCache } from '@/stores/activitySettingsStore';
 
 export type DataRefreshPayload = {
   table: DataTable;
@@ -50,29 +45,26 @@ function setupMembersCrossTabSync(): () => void {
 
 function clearStoreCachesByTable(table: DataTable) {
   if (table === 'points_ledger') {
-    resetPointsLedgerCache();
+    import('@/stores/pointsLedgerStore').then(m => m.resetPointsLedgerCache()).catch(() => {});
   }
   if (table === 'points_accounts') {
-    resetPointsAccountCache();
+    import('@/stores/pointsAccountStore').then(m => m.resetPointsAccountCache()).catch(() => {});
   }
   if (table === 'members') {
     resetReferralCache();
   }
   if (table === 'employees') {
-    refreshEmployees().catch((err) => { console.warn('[dataRefreshManager] refreshEmployees failed:', err); return undefined; });
+    refreshEmployees().catch((err) => { console.warn('[dataRefreshManager] refreshEmployees failed:', err); });
   }
   if (table === 'payment_providers' || table === 'vendors' || table === 'cards') {
-    resetMerchantConfigCache();
+    import('@/stores/merchantConfigStore').then(m => m.resetMerchantConfigCache()).catch(() => {});
   }
-  // 账本 ledger_transactions 与 shared_data 里的 cardMerchantSettlements / paymentProviderSettlements 是独立存储；
-  // 编辑充值/提款会先写结算 JSON 再记账本。此处若 reset 结算缓存会触发立刻重载，易与保存竞态或读到 null，
-  // 表现为「非最新一条的充值改完就从充值明细消失」。余额仍由订单+结算数据计算，用户可点「刷新」强制拉共享数据。
   if (table === 'shared_data_store') {
     clearSharedDataCache();
-    resetMerchantConfigCache();
-    resetExchangeRateCache();
+    import('@/stores/merchantConfigStore').then(m => m.resetMerchantConfigCache()).catch(() => {});
+    import('@/stores/exchangeRateStore').then(m => m.resetExchangeRateCache()).catch(() => {});
     resetPointsSettingsCache();
-    resetActivitySettingsCache();
+    import('@/stores/activitySettingsStore').then(m => m.resetActivitySettingsCache()).catch(() => {});
   }
 }
 

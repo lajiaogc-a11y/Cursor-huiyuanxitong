@@ -12,7 +12,7 @@ import {
   deleteMemberApi,
 } from '@/services/members/membersApiService';
 import { logOperation } from '@/stores/auditLogStore';
-import { getEmployeeNameSync } from '@/hooks/useEmployees';
+import { getEmployeeNameSync } from '@/services/employees/employeeHelpers';
 import { mapDbMemberToMember as sharedMapDbMember, mapMemberToDb, type DbMemberRow } from '@/lib/mappers/memberMapper';
 export type { DbMemberRow } from '@/lib/mappers/memberMapper';
 export { mapMemberToDb } from '@/lib/mappers/memberMapper';

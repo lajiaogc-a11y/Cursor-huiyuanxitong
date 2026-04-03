@@ -49,6 +49,7 @@ export default function ShiftHandoverHistoryTab({
   
   useEffect(() => {
     loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   const loadData = async () => {
@@ -97,7 +98,8 @@ export default function ShiftHandoverHistoryTab({
   useEffect(() => {
     onExportReady?.(handleExport);
     onRefreshReady?.(loadData);
-  }, [onExportReady, onRefreshReady, handleExport, loadData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onExportReady, onRefreshReady]);
   
   // 过滤数据 - 支持交班人和接班人搜索（使用外部 searchTerm）
   const filteredHandovers = useMemo(() => {

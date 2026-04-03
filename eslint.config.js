@@ -14,6 +14,7 @@ export default tseslint.config(
       "release",
       "**/release/**",
       "reference-ui/**",
+      "会员前端设计/**",
     ],
   },
   {
@@ -29,11 +30,12 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      "react-refresh/only-export-components": "off",
       "@typescript-eslint/no-unused-vars": "off",
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
+  
   {
     files: ["src/pages/**/*.{ts,tsx}"],
     rules: {

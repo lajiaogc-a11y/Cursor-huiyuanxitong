@@ -233,9 +233,9 @@ export default function MemberManagement() {
     }
     try {
       await navigator.clipboard.writeText(pwd);
-      notify.success(`Your password is: ${pwd}`);
+      notify.success(t("密码已复制到剪贴板", "Password copied to clipboard"));
     } catch {
-      notify.info(`Your password is: ${pwd}`);
+      notify.error(t("复制失败，请手动复制", "Copy failed, please copy manually"));
     }
   };
 
@@ -350,14 +350,9 @@ export default function MemberManagement() {
                 onPaste={(e) => {
                   e.preventDefault();
                   const raw = e.clipboardData.getData("text");
-                  const pasted = raw.replace(/[^a-zA-Z0-9]/g, "");
+                  const pasted = raw.replace(/[\r\n\t]/g, "").trim();
                   setSearchDraft(pasted);
                   setSearchError("");
-                  if (raw !== pasted) {
-                    notify.info(
-                      t("已去除空格与符号，仅保留字母与数字以便匹配。", "Removed spaces and symbols; only letters and digits are kept for matching."),
-                    );
-                  }
                 }}
                 className={cn("pl-9 pr-9", searchError && "border-destructive")}
                 autoComplete="off"

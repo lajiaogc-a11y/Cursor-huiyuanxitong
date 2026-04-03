@@ -14,7 +14,6 @@ initApiClient();
 // Suppress debug/info logs in production to reduce noise and avoid leaking internals.
 // console.error is intentionally kept active for monitoring and error tracking.
 if (import.meta.env.PROD) {
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   const noop = () => {};
   console.log   = noop;
   console.warn  = noop;

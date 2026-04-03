@@ -6,6 +6,8 @@ import { randomUUID } from 'node:crypto';
 import { query, queryOne, execute } from '../../database/index.js';
 import { ensureOrderNumberForInsert } from './orderNumber.js';
 
+export type MeikaZoneKind = 'fiat' | 'usdt';
+
 export async function listOrdersRepository(tenantId?: string | null, limit = 50) {
   if (tenantId) {
     return query(
@@ -54,6 +56,64 @@ export async function getOrdersFullRepository(_token: string, tenantId?: string)
 /** 平台/租户：USDT 订单完整列表。tenantId 为空时返回全部 */
 export async function getUsdtOrdersFullRepository(_token: string, tenantId?: string): Promise<any[]> {
   return getOrdersFullByTenantRepository(tenantId, false);
+}
+
+/** 美卡专区 · 赛地/奈拉：仅含 meika_zone_order_links.kind=fiat 的订单（与 full 同结构） */
+export async function getMeikaFiatOrdersFullRepository(_token: string, tenantId?: string): Promise<any[]> {
+  const conditions: string[] = [
+    '(o.is_deleted IS NULL OR o.is_deleted = false)',
+    `(o.currency IS NULL OR o.currency != 'USDT')`,
+    `mz.kind = 'fiat'`,
+  ];
+  const params: any[] = [];
+  if (tenantId) {
+    conditions.push(`(o.tenant_id = ? OR o.tenant_id IS NULL)`);
+    params.push(tenantId);
+  }
+  const sql = `SELECT o.*,
+    COALESCE(o.phone_number, m.phone_number) AS phone_number,
+    COALESCE(o.member_code_snapshot, m.member_code) AS member_code_snapshot
+    FROM orders o
+    INNER JOIN meika_zone_order_links mz ON mz.order_id = o.id AND mz.kind = 'fiat'
+    LEFT JOIN members m ON o.member_id = m.id
+    WHERE ${conditions.join(' AND ')}
+    ORDER BY o.created_at DESC`;
+  return query(sql, params);
+}
+
+/** 美卡专区 · USDT：仅含 meika_zone_order_links.kind=usdt 的订单 */
+export async function getMeikaUsdtOrdersFullRepository(_token: string, tenantId?: string): Promise<any[]> {
+  const conditions: string[] = [
+    '(o.is_deleted IS NULL OR o.is_deleted = false)',
+    `o.currency = 'USDT'`,
+    `mz.kind = 'usdt'`,
+  ];
+  const params: any[] = [];
+  if (tenantId) {
+    conditions.push(`(o.tenant_id = ? OR o.tenant_id IS NULL)`);
+    params.push(tenantId);
+  }
+  const sql = `SELECT o.*,
+    COALESCE(o.phone_number, m.phone_number) AS phone_number,
+    COALESCE(o.member_code_snapshot, m.member_code) AS member_code_snapshot
+    FROM orders o
+    INNER JOIN meika_zone_order_links mz ON mz.order_id = o.id AND mz.kind = 'usdt'
+    LEFT JOIN members m ON o.member_id = m.id
+    WHERE ${conditions.join(' AND ')}
+    ORDER BY o.created_at DESC`;
+  return query(sql, params);
+}
+
+export async function insertMeikaZoneOrderLinkRepository(params: {
+  orderId: string;
+  tenantId: string | null | undefined;
+  kind: MeikaZoneKind;
+}): Promise<void> {
+  const id = randomUUID();
+  await execute(
+    `INSERT INTO meika_zone_order_links (id, tenant_id, order_id, kind, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP(3))`,
+    [id, params.tenantId ?? null, params.orderId, params.kind],
+  );
 }
 
 /** 创建订单 */

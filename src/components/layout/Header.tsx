@@ -33,7 +33,7 @@ import { useLayout } from "@/contexts/LayoutContext";
 import { useIsLgUp } from "@/hooks/use-mobile";
 import { useUnreadCount } from "@/hooks/useKnowledge";
 import { useTenantView } from "@/contexts/TenantViewContext";
-import { getPlatformSettingsSubTabTitle } from "@/pages/PlatformSettings";
+import { getPlatformSettingsSubTabTitle } from "@/pages/platformSettingsTabConfig";
 import { updateEmployee, ROLE_LABELS, getRoleLabel } from "@/stores/employeeStore";
 import PerformanceDashboard from "@/components/PerformanceDashboard";
 import { NotificationCenter } from "@/components/NotificationCenter";

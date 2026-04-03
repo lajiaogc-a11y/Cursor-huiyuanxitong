@@ -77,12 +77,19 @@ export interface UseOrdersOptions {
   page?: number;
   pageSize?: number;
   filters?: OrderFilters;
+  /** 美卡专区（赛地/奈拉）列表，数据源为 meika_zone_order_links */
+  listVariant?: 'standard' | 'meika-fiat';
+  /** 为 false 时不请求（用于订单管理多 Tab 懒加载） */
+  enabled?: boolean;
 }
 
 export interface UseUsdtOrdersOptions {
   page?: number;
   pageSize?: number;
   filters?: OrderFilters;
+  /** 美卡专区 USDT 列表 */
+  listVariant?: 'standard' | 'meika-usdt';
+  enabled?: boolean;
 }
 
 export const PAGE_SIZE = 50;

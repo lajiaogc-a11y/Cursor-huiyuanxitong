@@ -276,7 +276,7 @@ export default function UsdtRatePanel({ onRateUpdate, compact = false }: Props) 
     const cur = clampIntervalSec(_config.intervalSeconds);
     const set = new Set<number>([...USDT_RATE_INTERVAL_PRESETS, cur]);
     return [...set].sort((a, b) => a - b);
-  }, [_config.intervalSeconds]);
+  }, []);
 
   const rates = _rates;
   const config = _config;
@@ -290,6 +290,7 @@ export default function UsdtRatePanel({ onRateUpdate, compact = false }: Props) 
     if (sig === prevRatesSigRef.current) return;
     prevRatesSigRef.current = sig;
     onRateUpdate?.(rates);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rates.mid, rates.bid, rates.ask, rates.lastUpdated, onRateUpdate]);
 
   const handleConfirmRate = () => {

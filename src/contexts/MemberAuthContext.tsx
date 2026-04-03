@@ -110,6 +110,11 @@ function readMemberTokenPresent(): boolean {
 
 export function MemberAuthProvider({ children }: { children: ReactNode }) {
   const [member, setMember] = useState<MemberInfo | null>(() => loadInitialMemberState());
+  /** 首次挂载时若存在缓存会话，需向服务端校验一次有效性 */
+  const [sessionVerifying, setSessionVerifying] = useState(() => {
+    const cached = loadInitialMemberState();
+    return Boolean(cached?.id && readMemberTokenPresent());
+  });
   /** 与 token / 跨 tab 同步联动，驱动 isAuthenticated 重算 */
   const [authTick, setAuthTick] = useState(0);
   const bumpAuth = useCallback(() => setAuthTick((t) => t + 1), []);
@@ -225,15 +230,60 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
     }
   }, [member, bumpAuth]);
 
-  // Periodically re-check JWT expiry so the page redirects to login before the user
-  // clicks an action that would silently fail with 401.
+  useEffect(() => {
+    if (!sessionVerifying) return;
+    const cachedMember = loadInitialMemberState();
+    if (!cachedMember?.id || !readMemberTokenPresent()) {
+      setSessionVerifying(false);
+      return;
+    }
+    let cancelled = false;
+    const timeout = setTimeout(() => {
+      if (!cancelled) setSessionVerifying(false);
+    }, 4000);
+    memberGetInfo(cachedMember.id)
+      .then((serverMember) => {
+        if (cancelled) return;
+        if (serverMember) {
+          setMember(serverMember);
+          saveSession(serverMember);
+        } else {
+          setMember(null);
+          saveSession(null);
+          clearMemberAccessToken();
+          bumpAuth();
+        }
+      })
+      .catch(() => {
+        // network error — keep cached session, don't block
+      })
+      .finally(() => {
+        if (!cancelled) setSessionVerifying(false);
+      });
+    return () => { cancelled = true; clearTimeout(timeout); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Periodically re-check JWT expiry and server-side session validity
   useEffect(() => {
     const id = setInterval(() => {
-      if (member?.id && !readMemberTokenPresent()) {
+      if (!member?.id) return;
+      if (!readMemberTokenPresent()) {
         setMember(null);
         saveSession(null);
         bumpAuth();
+        return;
       }
+      memberGetInfo(member.id)
+        .then((serverMember) => {
+          if (!serverMember) {
+            setMember(null);
+            saveSession(null);
+            clearMemberAccessToken();
+            bumpAuth();
+          }
+        })
+        .catch(() => { /* network error — keep current session */ });
     }, 60_000);
     return () => clearInterval(id);
   }, [member?.id, bumpAuth]);
@@ -241,13 +291,13 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = useMemo(() => {
     if (!member?.id) return false;
     return readMemberTokenPresent();
-  }, [member, authTick]);
+  }, [member]);
 
   return (
     <MemberAuthContext.Provider
       value={{
         member,
-        loading: false,
+        loading: sessionVerifying,
         signIn,
         signOut,
         setPassword,

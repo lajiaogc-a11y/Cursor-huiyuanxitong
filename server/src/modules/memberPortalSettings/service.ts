@@ -10,6 +10,7 @@ import {
   DEFAULT_TERMS_EN,
   DEFAULT_TERMS_ZH,
 } from './legalDefaults.js';
+import { parseMemberInboxCopyTemplatesFromDb } from '../memberInboxNotifications/copyTemplates.js';
 
 export interface CreateVersionResult {
   success: boolean;
@@ -114,6 +115,7 @@ const MEMBER_PORTAL_SETTINGS_WRITABLE_COLUMNS = new Set<string>([
   'member_inbox_notify_order_spin',
   'member_inbox_notify_mall_redemption',
   'member_inbox_notify_announcement',
+  'member_inbox_copy_templates',
 ]);
 
 /** MySQL JSON 列可能为 Buffer / 字符串 / 已解析数组 — 统一解析为 JS 数组 */
@@ -515,6 +517,19 @@ async function applySettingsPayload(
     }
   }
 
+  if (Object.prototype.hasOwnProperty.call(filtered, 'member_inbox_copy_templates')) {
+    const raw = (filtered as Record<string, unknown>).member_inbox_copy_templates;
+    if (typeof raw === 'string') {
+      try {
+        (filtered as Record<string, unknown>).member_inbox_copy_templates = JSON.parse(raw);
+      } catch {
+        delete (filtered as Record<string, unknown>).member_inbox_copy_templates;
+      }
+    } else if (raw != null && typeof raw !== 'object') {
+      delete (filtered as Record<string, unknown>).member_inbox_copy_templates;
+    }
+  }
+
   /** 仅坐席列表生效：废弃全局统一链接，避免与会员端展示条数不一致 */
   if (Object.prototype.hasOwnProperty.call(filtered, 'customer_service_agents')) {
     filtered.customer_service_link = null;
@@ -690,6 +705,7 @@ export async function getMemberPortalSettingsForEmployee(
     member_inbox_notify_order_spin: row.member_inbox_notify_order_spin ?? true,
     member_inbox_notify_mall_redemption: row.member_inbox_notify_mall_redemption ?? true,
     member_inbox_notify_announcement: row.member_inbox_notify_announcement ?? true,
+    member_inbox_copy_templates: parseMemberInboxCopyTemplatesFromDb(row.member_inbox_copy_templates),
   };
   return {
     success: true,

@@ -979,7 +979,9 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
         remark: formData.remarkOrder,
       };
 
-      const orderResult = await addOrder(orderData, memberId, employee?.id, finalMemberCode);
+      const orderResult = await addOrder(orderData, memberId, employee?.id, finalMemberCode, {
+        meikaZone: calcId === "calc3",
+      });
 
       if (!orderResult.order) {
         showSubmissionError(t("创建订单失败，请重试", "Failed to create order, please retry"));
@@ -1475,7 +1477,6 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
               <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center border-b border-r border-blue-200/30 bg-blue-50/50 px-1 py-2 dark:bg-blue-950/20">
                 <span className="text-center text-sm font-bold tabular-nums leading-tight text-blue-600 dark:text-blue-400">
                   {formData.payUsdt ? profitCalculation.usdtProfitU : '0'}
-                  <span className="ml-0.5 align-baseline text-[10px] font-medium text-muted-foreground">USDT</span>
                 </span>
               </div>
               <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center border-b border-blue-200/30 bg-blue-50/50 px-1 py-2 dark:bg-blue-950/20">
@@ -1489,7 +1490,6 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
               <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center border-r border-purple-200/30 bg-purple-50/50 px-1 py-2 dark:bg-purple-950/20">
                 <span className="text-center text-sm font-bold tabular-nums leading-tight text-purple-600 dark:text-purple-400">
                   {payBtc ? profitCalculation.btcProfitU : '0'}
-                  <span className="ml-0.5 align-baseline text-[10px] font-medium text-muted-foreground">USDT</span>
                 </span>
               </div>
               <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center bg-purple-50/50 px-1 py-2 dark:bg-purple-950/20">

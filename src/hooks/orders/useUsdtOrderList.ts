@@ -1,5 +1,5 @@
 // USDT 订单查询 Hook - 从 useUsdtOrders 提取
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTenantView } from '@/contexts/TenantViewContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,7 +10,7 @@ import type { UsdtOrder, OrderFilters, UseUsdtOrdersOptions } from './types';
 import { PAGE_SIZE } from './types';
 
 export function useUsdtOrderList(options: UseUsdtOrdersOptions & { paused?: boolean } = {}) {
-  const { page = 1, pageSize = PAGE_SIZE, filters, paused } = options;
+  const { page = 1, pageSize = PAGE_SIZE, filters, paused, listVariant = 'standard', enabled = true } = options;
   const queryClient = useQueryClient();
   const { viewingTenantId } = useTenantView() || {};
   const { employee } = useAuth() || {};
@@ -21,16 +21,21 @@ export function useUsdtOrderList(options: UseUsdtOrdersOptions & { paused?: bool
     trackRender('useUsdtOrders-mount');
   }, []);
 
-  const queryKey = ['usdt-orders', effectiveTenantId, page, filters] as const;
-  useOrderRealtime('usdt-orders');
+  const queryKey = useMemo(() =>
+    listVariant === 'meika-usdt'
+      ? (['meika-usdt-orders', effectiveTenantId, page, filters] as const)
+      : (['usdt-orders', effectiveTenantId, page, filters] as const),
+    [listVariant, effectiveTenantId, page, filters]);
+  useOrderRealtime(listVariant === 'meika-usdt' ? 'meika-usdt-orders' : 'usdt-orders');
 
   const { data, isLoading: loading, isError, error } = useQuery({
     queryKey,
-    queryFn: () => fetchUsdtOrdersFromDb(effectiveTenantId, page, pageSize, filters, useMyTenantRpc),
-    refetchInterval: paused ? false : 30_000,
+    queryFn: () => fetchUsdtOrdersFromDb(effectiveTenantId, page, pageSize, filters, useMyTenantRpc, listVariant),
+    enabled,
+    refetchInterval: paused || !enabled ? false : 30_000,
     refetchIntervalInBackground: false,
     staleTime: 30_000,
-    refetchOnWindowFocus: !paused,
+    refetchOnWindowFocus: !paused && enabled,
   });
 
   const orders = data?.orders ?? [];
@@ -47,8 +52,8 @@ export function useUsdtOrderList(options: UseUsdtOrdersOptions & { paused?: bool
   );
 
   const fetchOrders = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
-  }, [queryClient]);
+    queryClient.invalidateQueries({ queryKey: [listVariant === 'meika-usdt' ? 'meika-usdt-orders' : 'usdt-orders'] });
+  }, [queryClient, listVariant]);
 
   return {
     orders,

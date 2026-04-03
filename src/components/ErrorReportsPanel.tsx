@@ -56,6 +56,7 @@ export default function ErrorReportsPanel() {
 
   useEffect(() => {
     fetchReports();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Classify all reports

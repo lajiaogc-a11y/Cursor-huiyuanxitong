@@ -19,7 +19,10 @@ async function runAll(): Promise<void> {
         (r.summary.lotteryLogs > 0 ||
           r.summary.checkIns > 0 ||
           r.summary.lotteryPointsLedger > 0 ||
-          r.summary.spinCredits > 0)
+          r.summary.spinCreditsOrder > 0 ||
+          r.summary.spinCreditsShare > 0 ||
+          r.summary.spinCreditsInvite > 0 ||
+          r.summary.spinCreditsOther > 0)
       ) {
         console.log(`[activity_data_retention] tenant ${tid}:`, r.summary);
       }

@@ -30,6 +30,22 @@ export async function getUsdtOrdersFullApi(tenantId?: string): Promise<ApiOrder[
   return Array.isArray(data) ? data : [];
 }
 
+/** 美卡专区 · 赛地/奈拉（仅汇率计算「美卡专区」台位提交的订单） */
+export async function getMeikaFiatOrdersFullApi(tenantId?: string): Promise<ApiOrder[]> {
+  const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : '';
+  const res = await apiGet<ApiOrder[] | ApiResponse<ApiOrder[]>>(`/api/orders/meika-fiat-full${q}`);
+  const data = unwrapApiData<ApiOrder[]>(res);
+  return Array.isArray(data) ? data : [];
+}
+
+/** 美卡专区 · USDT */
+export async function getMeikaUsdtOrdersFullApi(tenantId?: string): Promise<ApiOrder[]> {
+  const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : '';
+  const res = await apiGet<ApiOrder[] | ApiResponse<ApiOrder[]>>(`/api/orders/meika-usdt-full${q}`);
+  const data = unwrapApiData<ApiOrder[]>(res);
+  return Array.isArray(data) ? data : [];
+}
+
 /** 创建订单 */
 export async function createOrderApi(record: Record<string, unknown>): Promise<{ id: string; phone_number?: string; currency?: string; actual_payment?: number } | null> {
   const res = await apiPost<{ id: string; phone_number?: string; currency?: string; actual_payment?: number } | ApiResponse<{ id: string; phone_number?: string; currency?: string; actual_payment?: number }>>('/api/orders', record);

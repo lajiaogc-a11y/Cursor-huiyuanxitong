@@ -107,7 +107,7 @@ export async function draw(memberId: string): Promise<DrawResult> {
 
     const prizes = await queryConn<LotteryPrize>(
       conn,
-      'SELECT id, name, type, value, description, probability FROM lottery_prizes WHERE (tenant_id IS NULL OR tenant_id = ?) AND enabled = 1 ORDER BY sort_order ASC',
+      'SELECT id, name, type, value, description, probability FROM lottery_prizes WHERE (tenant_id IS NULL OR tenant_id = ?) AND enabled = 1 ORDER BY sort_order ASC LIMIT 8',
       [tenantId]
     );
     if (prizes.length === 0) {
@@ -253,7 +253,8 @@ export async function simulateLotteryDrawForTenant(tenantId: string | null): Pro
   if (settings && settings.enabled === 0) {
     return { ok: false, error: 'LOTTERY_DISABLED' };
   }
-  const prizes = await listEnabledPrizes(tenantId);
+  const allPrizes = await listEnabledPrizes(tenantId);
+  const prizes = allPrizes.slice(0, 8);
   if (prizes.length === 0) {
     return { ok: false, error: 'NO_PRIZES_CONFIGURED' };
   }

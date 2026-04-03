@@ -8,16 +8,23 @@ import { getSharedDataRepository, upsertSharedDataRepository } from './repositor
 
 export const ACTIVITY_DATA_RETENTION_STORE_KEY = 'activity_data_retention';
 
+/** 与会员系统「活动数据」五类一致：抽奖流水、签到、订单/分享/邀请次数；other 含签到发放的 check_in 等 */
+export interface ActivityDataRetentionLastSummary {
+  lotteryLogs: number;
+  checkIns: number;
+  lotteryPointsLedger: number;
+  spinCreditsOrder: number;
+  spinCreditsShare: number;
+  spinCreditsInvite: number;
+  /** check_in 及未归类 source */
+  spinCreditsOther: number;
+}
+
 export interface ActivityDataRetentionSettings {
   enabled: boolean;
   retentionDays: number;
   lastRunAt: string | null;
-  lastSummary: {
-    lotteryLogs: number;
-    checkIns: number;
-    lotteryPointsLedger: number;
-    spinCredits: number;
-  } | null;
+  lastSummary: ActivityDataRetentionLastSummary | null;
 }
 
 const DEFAULTS: ActivityDataRetentionSettings = {
@@ -41,13 +48,26 @@ function parseStored(raw: unknown): ActivityDataRetentionSettings {
     lastRunAt: typeof o.lastRunAt === 'string' ? o.lastRunAt : null,
     lastSummary:
       o.lastSummary != null && typeof o.lastSummary === 'object' && !Array.isArray(o.lastSummary)
-        ? {
-            lotteryLogs: Number((o.lastSummary as Record<string, unknown>).lotteryLogs) || 0,
-            checkIns: Number((o.lastSummary as Record<string, unknown>).checkIns) || 0,
-            lotteryPointsLedger:
-              Number((o.lastSummary as Record<string, unknown>).lotteryPointsLedger) || 0,
-            spinCredits: Number((o.lastSummary as Record<string, unknown>).spinCredits) || 0,
-          }
+        ? (() => {
+            const s = o.lastSummary as Record<string, unknown>;
+            const legacySpin = Number(s.spinCredits) || 0;
+            const hasNew =
+              s.spinCreditsOrder != null ||
+              s.spinCreditsShare != null ||
+              s.spinCreditsInvite != null ||
+              s.spinCreditsOther != null;
+            return {
+              lotteryLogs: Number(s.lotteryLogs) || 0,
+              checkIns: Number(s.checkIns) || 0,
+              lotteryPointsLedger: Number(s.lotteryPointsLedger) || 0,
+              spinCreditsOrder: Number(s.spinCreditsOrder) || 0,
+              spinCreditsShare: Number(s.spinCreditsShare) || 0,
+              spinCreditsInvite: Number(s.spinCreditsInvite) || 0,
+              spinCreditsOther: hasNew
+                ? Number(s.spinCreditsOther) || 0
+                : legacySpin,
+            };
+          })()
         : null,
   };
 }
@@ -77,7 +97,7 @@ export async function saveActivityDataRetentionSettingsRepository(
 async function persistAfterRun(
   tenantId: string,
   base: ActivityDataRetentionSettings,
-  summary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number; spinCredits: number },
+  summary: ActivityDataRetentionLastSummary,
 ): Promise<void> {
   const iso = new Date().toISOString();
   await upsertSharedDataRepository(tenantId, ACTIVITY_DATA_RETENTION_STORE_KEY, {
@@ -101,7 +121,7 @@ function cutoffDateStr(retentionDays: number): string {
 export async function purgeActivityDataByTenantRepository(
   tenantId: string,
   retentionDays: number,
-): Promise<{ lotteryLogs: number; checkIns: number; lotteryPointsLedger: number; spinCredits: number }> {
+): Promise<ActivityDataRetentionLastSummary> {
   const days = clampRetentionDays(retentionDays);
   const cutoff = cutoffDateStr(days);
 
@@ -132,11 +152,18 @@ export async function purgeActivityDataByTenantRepository(
     [tenantId, cutoff],
   );
 
-  // 抽奖次数记录（spin_credits: share/order/referral/checkin 等来源的抽奖次数发放记录）
-  const r4 = await execute(
-    `DELETE sc FROM spin_credits sc
+  const spinBase = `DELETE sc FROM spin_credits sc
      INNER JOIN members m ON m.id = sc.member_id
-     WHERE m.tenant_id <=> ? AND sc.created_at < ?`,
+     WHERE m.tenant_id <=> ? AND sc.created_at < ?`;
+  const r4o = await execute(`${spinBase} AND sc.source LIKE 'order_completed:%'`, [tenantId, cutoff]);
+  const r4s = await execute(`${spinBase} AND sc.source = 'share'`, [tenantId, cutoff]);
+  const r4i = await execute(
+    `${spinBase} AND sc.source IN ('referral','invite_welcome')`,
+    [tenantId, cutoff],
+  );
+  const r4x = await execute(
+    `${spinBase} AND sc.source NOT LIKE 'order_completed:%' AND sc.source <> 'share'
+     AND sc.source NOT IN ('referral','invite_welcome')`,
     [tenantId, cutoff],
   );
 
@@ -144,20 +171,31 @@ export async function purgeActivityDataByTenantRepository(
     lotteryPointsLedger: r1.affectedRows ?? 0,
     lotteryLogs: r2.affectedRows ?? 0,
     checkIns: r3.affectedRows ?? 0,
-    spinCredits: r4.affectedRows ?? 0,
+    spinCreditsOrder: r4o.affectedRows ?? 0,
+    spinCreditsShare: r4s.affectedRows ?? 0,
+    spinCreditsInvite: r4i.affectedRows ?? 0,
+    spinCreditsOther: r4x.affectedRows ?? 0,
   };
 }
 
 export async function runActivityDataRetentionForTenantRepository(tenantId: string): Promise<{
   ran: boolean;
-  summary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number; spinCredits: number };
+  summary: ActivityDataRetentionLastSummary;
   settings: ActivityDataRetentionSettings;
 }> {
   const settings = await getActivityDataRetentionSettingsRepository(tenantId);
   if (!settings.enabled || settings.retentionDays < 1) {
     return {
       ran: false,
-      summary: { lotteryLogs: 0, checkIns: 0, lotteryPointsLedger: 0, spinCredits: 0 },
+      summary: {
+        lotteryLogs: 0,
+        checkIns: 0,
+        lotteryPointsLedger: 0,
+        spinCreditsOrder: 0,
+        spinCreditsShare: 0,
+        spinCreditsInvite: 0,
+        spinCreditsOther: 0,
+      },
       settings,
     };
   }
@@ -169,13 +207,21 @@ export async function runActivityDataRetentionForTenantRepository(tenantId: stri
 
 /** 手动立即清理：按当前保留天数执行（与是否启用自动无关），并更新 lastRunAt */
 export async function runManualActivityDataPurgeRepository(tenantId: string): Promise<{
-  summary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number; spinCredits: number };
+  summary: ActivityDataRetentionLastSummary;
   settings: ActivityDataRetentionSettings;
 }> {
   const settings = await getActivityDataRetentionSettingsRepository(tenantId);
   if (settings.retentionDays < 1) {
     return {
-      summary: { lotteryLogs: 0, checkIns: 0, lotteryPointsLedger: 0, spinCredits: 0 },
+      summary: {
+        lotteryLogs: 0,
+        checkIns: 0,
+        lotteryPointsLedger: 0,
+        spinCreditsOrder: 0,
+        spinCreditsShare: 0,
+        spinCreditsInvite: 0,
+        spinCreditsOther: 0,
+      },
       settings,
     };
   }
@@ -190,7 +236,7 @@ export async function runManualActivityDataPurgeRepository(tenantId: string): Pr
  */
 export async function purgeAllActivityDataByTenantRepository(
   tenantId: string,
-): Promise<{ lotteryLogs: number; checkIns: number; lotteryPointsLedger: number; spinCredits: number }> {
+): Promise<ActivityDataRetentionLastSummary> {
   const r1 = await execute(
     `DELETE pl FROM points_ledger pl
      INNER JOIN members m ON m.id = pl.member_id
@@ -210,17 +256,25 @@ export async function purgeAllActivityDataByTenantRepository(
      WHERE m.tenant_id <=> ?`,
     [tenantId],
   );
-  const r4 = await execute(
-    `DELETE sc FROM spin_credits sc
+  const spinBase = `DELETE sc FROM spin_credits sc
      INNER JOIN members m ON m.id = sc.member_id
-     WHERE m.tenant_id <=> ?`,
+     WHERE m.tenant_id <=> ?`;
+  const r4o = await execute(`${spinBase} AND sc.source LIKE 'order_completed:%'`, [tenantId]);
+  const r4s = await execute(`${spinBase} AND sc.source = 'share'`, [tenantId]);
+  const r4i = await execute(`${spinBase} AND sc.source IN ('referral','invite_welcome')`, [tenantId]);
+  const r4x = await execute(
+    `${spinBase} AND sc.source NOT LIKE 'order_completed:%' AND sc.source <> 'share'
+     AND sc.source NOT IN ('referral','invite_welcome')`,
     [tenantId],
   );
   return {
     lotteryPointsLedger: r1.affectedRows ?? 0,
     lotteryLogs: r2.affectedRows ?? 0,
     checkIns: r3.affectedRows ?? 0,
-    spinCredits: r4.affectedRows ?? 0,
+    spinCreditsOrder: r4o.affectedRows ?? 0,
+    spinCreditsShare: r4s.affectedRows ?? 0,
+    spinCreditsInvite: r4i.affectedRows ?? 0,
+    spinCreditsOther: r4x.affectedRows ?? 0,
   };
 }
 

@@ -108,7 +108,7 @@ export default function Dashboard() {
     if (trendError && trendErrorDetail) {
       notify.error(t('仪表盘数据加载失败', 'Dashboard data load failed') + ': ' + (trendErrorDetail as Error)?.message);
     }
-  }, [trendError, trendErrorDetail]);
+  }, [trendError, trendErrorDetail, t]);
 
   // Manual refresh — 用 ref 存最新的 refetch 函数，避免 useCallback 依赖变化导致无限循环
   const refetchMembersRef = useRef(refetchMembers);

@@ -48,6 +48,10 @@ export default function MemberInvite() {
     () => Math.max(0, Math.floor(Number(portalSettings.invite_reward_spins ?? 0))),
     [portalSettings.invite_reward_spins],
   );
+  const dailyInviteRewardLimit = useMemo(
+    () => Math.max(0, Math.floor(Number(portalSettings.daily_invite_reward_limit ?? 0))),
+    [portalSettings.daily_invite_reward_limit],
+  );
 
   const loadToken = useCallback(() => {
     if (!member?.id) return;
@@ -116,13 +120,13 @@ export default function MemberInvite() {
 
   const shareWhatsApp = () => {
     const prefixText = prefix ? `${prefix}\n` : "";
-    const msg = `${prefixText}Join ${portalSettings.company_name || "FastGC"}! Register to get ${portalSettings.invite_reward_spins} free spins to win prizes! Click: ${inviteLink}`;
+    const msg = `${prefixText}Join ${portalSettings.company_name || "FastGC"}! Register to get ${inviteRewardSpins} free spins to win prizes! Click: ${inviteLink}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
   };
 
   const shareTelegram = () => {
     const prefixText = prefix ? `${prefix}\n` : "";
-    const msg = `${prefixText}Join ${portalSettings.company_name || "FastGC"}! Register to get ${portalSettings.invite_reward_spins} free spins to win prizes!`;
+    const msg = `${prefixText}Join ${portalSettings.company_name || "FastGC"}! Register to get ${inviteRewardSpins} free spins to win prizes!`;
     window.open(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
   };
 
@@ -134,7 +138,7 @@ export default function MemberInvite() {
       return;
     }
     const company = portalSettings.company_name || "FastGC";
-    const spins = portalSettings.invite_reward_spins;
+    const spins = inviteRewardSpins;
     const canvas = document.createElement("canvas");
     const W = 750;
     const H = 1000;
@@ -210,7 +214,7 @@ export default function MemberInvite() {
     };
     img.onerror = () => notify.error(t("无法生成图片", "Could not create image"));
     img.src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgData)))}`;
-  }, [inviteLink, portalSettings.company_name, portalSettings.invite_reward_spins, t]);
+  }, [inviteLink, portalSettings.company_name, inviteRewardSpins, t]);
 
   if (!member) return null;
   if (!portalSettings.enable_invite) {
@@ -278,7 +282,7 @@ export default function MemberInvite() {
     {
       step: "03",
       title: t("双方领取奖励", "Both get rewards"),
-      desc: t(`各得 ${portalSettings.invite_reward_spins} 次转盘`, `Each gets ${portalSettings.invite_reward_spins} wheel spins`),
+      desc: t(`各得 ${inviteRewardSpins} 次转盘`, `Each gets ${inviteRewardSpins} wheel spins`),
       color: "--pu-gold-deep",
       colorSoft: "--pu-gold-soft",
       emoji: "🎁",
@@ -508,9 +512,9 @@ export default function MemberInvite() {
           <ul className="m-0 space-y-2 p-0">
             {[
               t("好友通过你的链接注册后触发奖励", "Rewards trigger when a friend registers via your link"),
-              t(`双方各得 ${portalSettings.invite_reward_spins} 次免费转盘`, `Both sides get ${portalSettings.invite_reward_spins} free spins`),
-              portalSettings.daily_invite_reward_limit > 0
-                ? t(`每日邀请奖励上限：${portalSettings.daily_invite_reward_limit}`, `Daily invite reward cap: ${portalSettings.daily_invite_reward_limit}`)
+              t(`双方各得 ${inviteRewardSpins} 次免费转盘`, `Both sides get ${inviteRewardSpins} free spins`),
+              dailyInviteRewardLimit > 0
+                ? t(`每日邀请奖励上限：${dailyInviteRewardLimit}`, `Daily invite reward cap: ${dailyInviteRewardLimit}`)
                 : t("邀请次数不限", "No cap on invites"),
               t("注册完成后系统自动发放奖励", "Rewards are granted automatically after registration"),
               t(

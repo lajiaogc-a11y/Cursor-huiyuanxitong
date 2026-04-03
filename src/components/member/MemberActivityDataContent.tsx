@@ -618,6 +618,7 @@ export default function MemberActivityDataContent() {
         consumptionCount,
       };
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [members, orders, gifts, referrals, memberActivities, pointsLedgerData, pointsAccountsData, dateRange]);
 
   // 搜索过滤并按最新订单时间排序（最新的排在最上面）
@@ -1086,6 +1087,7 @@ export default function MemberActivityDataContent() {
     const handleExportEvent = () => handleExport();
     window.addEventListener('activity-export', handleExportEvent);
     return () => window.removeEventListener('activity-export', handleExportEvent);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activityData]);
 
   const showReferralDialog = (list: ReferralListItem[], memberPhone: string) => {
@@ -1231,6 +1233,7 @@ export default function MemberActivityDataContent() {
       window.removeEventListener('activity-refresh', handleActivityRefresh);
       window.removeEventListener('activity-gifts-updated', handleGiftsUpdated);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (activityDataLoading && orders.length === 0 && gifts.length === 0) {

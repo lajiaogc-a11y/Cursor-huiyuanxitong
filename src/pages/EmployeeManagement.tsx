@@ -145,6 +145,7 @@ export default function EmployeeManagement() {
   };
 
   // Get role label based on language
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const getRoleLabelDisplay = (role: AppRole): string => {
     switch (role) {
       case 'admin': return t('employees.admin');

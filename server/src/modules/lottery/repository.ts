@@ -117,10 +117,36 @@ export async function listLotteryLogs(memberId: string, limit = 50, offset = 0):
   );
 }
 
-export async function countAllLotteryLogs(tenantId: string | null): Promise<number> {
+export type LotteryLogsAdminFilter = {
+  phone?: string;
+  memberCode?: string;
+};
+
+function lotteryLogsMemberFilterSql(opts?: LotteryLogsAdminFilter): { clause: string; params: unknown[] } {
+  const p = opts?.phone?.trim();
+  const m = opts?.memberCode?.trim();
+  if (!p && !m) return { clause: '', params: [] };
+  const parts: string[] = [];
+  const params: unknown[] = [];
+  if (p) {
+    parts.push('m.phone_number LIKE ?');
+    params.push(`%${p}%`);
+  }
+  if (m) {
+    parts.push('(m.member_code LIKE ? OR CAST(m.id AS CHAR) LIKE ?)');
+    params.push(`%${m}%`, `%${m}%`);
+  }
+  return { clause: ` AND (${parts.join(' AND ')})`, params };
+}
+
+export async function countAllLotteryLogs(tenantId: string | null, opts?: LotteryLogsAdminFilter): Promise<number> {
+  const { clause, params } = lotteryLogsMemberFilterSql(opts);
   const r = await queryOne<{ cnt: number }>(
-    'SELECT COUNT(*) as cnt FROM lottery_logs WHERE tenant_id <=> ?',
-    [tenantId],
+    `SELECT COUNT(*) as cnt
+     FROM lottery_logs l
+     LEFT JOIN members m ON m.id = l.member_id
+     WHERE l.tenant_id <=> ?${clause}`,
+    [tenantId, ...params],
   );
   return r?.cnt ?? 0;
 }
@@ -131,9 +157,15 @@ export type LotteryLogAdminRow = LotteryLog & {
   member_code?: string | null;
 };
 
-export async function listAllLotteryLogs(tenantId: string | null, limit = 100, offset = 0): Promise<LotteryLogAdminRow[]> {
+export async function listAllLotteryLogs(
+  tenantId: string | null,
+  limit = 100,
+  offset = 0,
+  opts?: LotteryLogsAdminFilter,
+): Promise<LotteryLogAdminRow[]> {
   const lim = Math.min(2000, Math.max(1, limit));
   const off = Math.max(0, offset);
+  const { clause, params } = lotteryLogsMemberFilterSql(opts);
   return query<LotteryLogAdminRow>(
     `SELECT l.id, l.member_id, l.tenant_id, l.prize_id, l.prize_name, l.prize_type, l.prize_value, l.created_at,
             m.phone_number AS phone_number,
@@ -141,9 +173,9 @@ export async function listAllLotteryLogs(tenantId: string | null, limit = 100, o
             NULLIF(TRIM(m.member_code), '') AS member_code
      FROM lottery_logs l
      LEFT JOIN members m ON m.id = l.member_id
-     WHERE l.tenant_id <=> ?
+     WHERE l.tenant_id <=> ?${clause}
      ORDER BY l.created_at DESC LIMIT ? OFFSET ?`,
-    [tenantId, lim, off],
+    [tenantId, ...params, lim, off],
   );
 }
 

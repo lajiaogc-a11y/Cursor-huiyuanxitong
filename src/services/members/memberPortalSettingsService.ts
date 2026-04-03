@@ -122,6 +122,25 @@ export interface MemberPortalSettings {
   member_inbox_notify_mall_redemption: boolean;
   /** 门户公告发布同步至各会员收件箱 */
   member_inbox_notify_announcement: boolean;
+  /** 会员收件箱通知文案模板（空则服务端用内置默认 + 占位符填充） */
+  member_inbox_copy_templates: MemberInboxCopyTemplates;
+}
+
+/** 单条通知标题/正文模板（支持 {{占位符}}） */
+export interface MemberInboxCopyBlock {
+  titleZh: string;
+  titleEn: string;
+  bodyZh: string;
+  bodyEn: string;
+}
+
+export interface MemberInboxCopyTemplates {
+  trade: MemberInboxCopyBlock;
+  redemption: {
+    completed: MemberInboxCopyBlock;
+    rejected: MemberInboxCopyBlock;
+  };
+  announcement: MemberInboxCopyBlock;
 }
 
 export interface MemberPortalSettingsPayload {
@@ -153,6 +172,61 @@ export interface SpinWheelPrizeItem {
   hit_rate: number;
   image_url?: string | null;
   enabled?: boolean;
+}
+
+const EMPTY_INBOX_COPY_BLOCK: MemberInboxCopyBlock = {
+  titleZh: "",
+  titleEn: "",
+  bodyZh: "",
+  bodyEn: "",
+};
+
+export const DEFAULT_MEMBER_INBOX_COPY_TEMPLATES: MemberInboxCopyTemplates = {
+  trade: { ...EMPTY_INBOX_COPY_BLOCK },
+  redemption: {
+    completed: { ...EMPTY_INBOX_COPY_BLOCK },
+    rejected: { ...EMPTY_INBOX_COPY_BLOCK },
+  },
+  announcement: { ...EMPTY_INBOX_COPY_BLOCK },
+};
+
+function normalizeMemberInboxCopyBlock(raw: unknown): MemberInboxCopyBlock {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { ...EMPTY_INBOX_COPY_BLOCK };
+  }
+  const o = raw as Record<string, unknown>;
+  return {
+    titleZh: o.titleZh != null ? String(o.titleZh) : "",
+    titleEn: o.titleEn != null ? String(o.titleEn) : "",
+    bodyZh: o.bodyZh != null ? String(o.bodyZh) : "",
+    bodyEn: o.bodyEn != null ? String(o.bodyEn) : "",
+  };
+}
+
+function normalizeMemberInboxCopyTemplates(raw: unknown): MemberInboxCopyTemplates {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {
+      trade: { ...EMPTY_INBOX_COPY_BLOCK },
+      redemption: {
+        completed: { ...EMPTY_INBOX_COPY_BLOCK },
+        rejected: { ...EMPTY_INBOX_COPY_BLOCK },
+      },
+      announcement: { ...EMPTY_INBOX_COPY_BLOCK },
+    };
+  }
+  const r = raw as Record<string, unknown>;
+  const red =
+    r.redemption && typeof r.redemption === "object" && !Array.isArray(r.redemption)
+      ? (r.redemption as Record<string, unknown>)
+      : {};
+  return {
+    trade: normalizeMemberInboxCopyBlock(r.trade),
+    redemption: {
+      completed: normalizeMemberInboxCopyBlock(red.completed),
+      rejected: normalizeMemberInboxCopyBlock(red.rejected),
+    },
+    announcement: normalizeMemberInboxCopyBlock(r.announcement),
+  };
 }
 
 export const DEFAULT_SETTINGS: MemberPortalSettings = {
@@ -208,6 +282,7 @@ export const DEFAULT_SETTINGS: MemberPortalSettings = {
   member_inbox_notify_order_spin: true,
   member_inbox_notify_mall_redemption: true,
   member_inbox_notify_announcement: true,
+  member_inbox_copy_templates: DEFAULT_MEMBER_INBOX_COPY_TEMPLATES,
 };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -425,6 +500,7 @@ function normalizeSettings(raw: Record<string, unknown> = {}): MemberPortalSetti
       raw?.member_inbox_notify_announcement,
       DEFAULT_SETTINGS.member_inbox_notify_announcement,
     ),
+    member_inbox_copy_templates: normalizeMemberInboxCopyTemplates(raw?.member_inbox_copy_templates),
   };
 }
 
@@ -793,12 +869,15 @@ export interface PortalCheckInLogRow {
   created_at: string;
   nickname: string | null;
   phone_number: string | null;
+  member_code: string | null;
 }
 
 export async function adminListPortalCheckIns(options?: {
   limit?: number;
   offset?: number;
   tenantId?: string | null;
+  phone?: string;
+  memberCode?: string;
 }): Promise<{ rows: PortalCheckInLogRow[]; total: number }> {
   const limit = options?.limit ?? 50;
   const offset = options?.offset ?? 0;
@@ -806,6 +885,8 @@ export async function adminListPortalCheckIns(options?: {
   q.set("limit", String(limit));
   q.set("offset", String(offset));
   if (options?.tenantId) q.set("tenant_id", options.tenantId);
+  if (options?.phone?.trim()) q.set("phone", options.phone.trim());
+  if (options?.memberCode?.trim()) q.set("member_code", options.memberCode.trim());
   const r = await apiGet<{ success: boolean; check_ins?: PortalCheckInLogRow[]; total?: number }>(
     `/api/member-portal-settings/check-ins?${q.toString()}`,
   );
@@ -834,19 +915,29 @@ export type SpinCreditsLogRow = {
   created_at: string;
   phone_number: string | null;
   member_label: string | null;
+  member_code: string | null;
 };
+
+/** 与后端 spin-credits-log：订单完成 / 分享 / 邀请 */
+export type SpinCreditCategoryParam = "order" | "share" | "invite";
 
 export async function adminListSpinCreditsLog(options?: {
   limit?: number;
   offset?: number;
   tenantId?: string | null;
+  category: SpinCreditCategoryParam;
+  phone?: string;
+  memberCode?: string;
 }): Promise<{ rows: SpinCreditsLogRow[]; total: number }> {
   const limit = options?.limit ?? 50;
   const offset = options?.offset ?? 0;
   const q = new URLSearchParams();
   q.set("limit", String(limit));
   q.set("offset", String(offset));
+  q.set("category", options?.category ?? "order");
   if (options?.tenantId) q.set("tenant_id", options.tenantId);
+  if (options?.phone?.trim()) q.set("phone", options.phone.trim());
+  if (options?.memberCode?.trim()) q.set("member_code", options.memberCode.trim());
   const r = await apiGet<{ success: boolean; rows?: SpinCreditsLogRow[]; total?: number }>(
     `/api/member-portal-settings/spin-credits-log?${q.toString()}`,
   );

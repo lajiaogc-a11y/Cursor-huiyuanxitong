@@ -520,12 +520,22 @@ export async function tableDeleteController(req: AuthenticatedRequest, res: Resp
     const rows = await query(`SELECT * FROM \`${table}\` ${where}`, values);
 
     if (table === 'orders' && rows.length > 0) {
+      const orderIdsToClean: string[] = [];
       for (const row of rows as Record<string, unknown>[]) {
         const st = String(row.status ?? '').toLowerCase().trim();
         if (st === 'completed' && row.id) {
           try { await reverseActivityDataForOrder(String(row.id)); }
           catch (revErr) { console.error('[TableProxy] DELETE orders reverseActivityData:', revErr); }
         }
+        if (row.id) orderIdsToClean.push(String(row.id));
+      }
+      if (orderIdsToClean.length > 0) {
+        try {
+          await execute(
+            `DELETE FROM meika_zone_order_links WHERE order_id IN (${orderIdsToClean.map(() => '?').join(',')})`,
+            orderIdsToClean,
+          );
+        } catch { /* table may not exist yet */ }
       }
     }
 
@@ -2963,6 +2973,12 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
           );
           const ordersCount = (ordIns as ResultSetHeader).affectedRows ?? 0;
           if (ordersCount > 0) {
+            try {
+              await conn.query(
+                `DELETE ml FROM meika_zone_order_links ml INNER JOIN orders o ON o.id = ml.order_id WHERE ${orderWhere}`,
+                [retentionDays],
+              );
+            } catch { /* table may not exist yet */ }
             await conn.query(
               `DELETE o FROM orders o WHERE ${orderWhere}`,
               [retentionDays],

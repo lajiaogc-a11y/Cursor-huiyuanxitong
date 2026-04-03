@@ -2,7 +2,6 @@
  * 数据导出服务
  */
 
-import * as XLSX from 'xlsx';
 import { apiGet } from '@/api/client';
 import { getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getMyTenantMembersFull, getTenantOrdersFull, getTenantUsdtOrdersFull, getTenantMembersFull } from '@/services/tenantService';
 import { EXPORTABLE_TABLES } from './tableConfig';
@@ -197,6 +196,7 @@ export async function exportTable(
     const headers = tableConfig.columns.map(col => isEnglish ? col.labelEn : col.label);
 
     if (format === 'xlsx') {
+      const XLSX = await import('xlsx');
       const wsData = [
         headers,
         ...data.map(row =>

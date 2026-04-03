@@ -14,7 +14,7 @@ import { useUnreadCount } from "@/hooks/useKnowledge";
 import { usePendingAuditCount } from "@/hooks/usePendingAuditCount";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { getPlatformSettingsSubTabTitle } from "@/pages/PlatformSettings";
+import { getPlatformSettingsSubTabTitle } from "@/pages/platformSettingsTabConfig";
 
 function MobileContentSkeleton() {
   return (

@@ -140,8 +140,6 @@ function computeActivityGiftFieldChanges(
 // 从 Supabase 数据库加载活动赠送记录
 const loadActivityRecordsFromDB = async (tenantId?: string | null): Promise<ActivityRecord[]> => {
   try {
-    // 导入名称解析器
-    const { getEmployeeNameById } = await import('@/services/members/nameResolver');
     const activityData = await getActivityDataApi(tenantId);
 
     return (activityData.gifts || []).map((gift: any, index: number) => {

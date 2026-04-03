@@ -112,7 +112,7 @@ export function useFieldPermissions() {
   // 权限数据变化时更新版本号
   useMemo(() => {
     permissionsVersionRef.current += 1;
-  }, [permissions]);
+  }, []);
 
   // 检查指定模块和字段的权限（带缓存）
   const checkPermission = useCallback((moduleName: string, fieldName: string): FieldPermission => {

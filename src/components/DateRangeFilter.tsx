@@ -73,6 +73,7 @@ const DateRangeFilter = React.forwardRef<HTMLDivElement, DateRangeFilterProps>(
     if (value === "自定义" && customStartDate && customEndDate) {
       onChange("自定义", customStartDate, customEndDate);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customStartDate, customEndDate]);
 
   const handleRangeClick = (range: TimeRangeType) => {

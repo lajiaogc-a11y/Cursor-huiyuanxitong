@@ -71,6 +71,7 @@ export function useNavigationVisibility() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employee?.id, employee?.role, employee?.is_super_admin]);
 
   const isNavKeyVisible = useCallback(

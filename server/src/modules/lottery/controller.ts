@@ -100,7 +100,8 @@ export async function memberPrizesController(req: AuthenticatedRequest, res: Res
   }
   const tenantId = await getMemberTenantId(memberId);
   const { listEnabledPrizes } = await import('./repository.js');
-  const prizes = await listEnabledPrizes(tenantId);
+  const allPrizes = await listEnabledPrizes(tenantId);
+  const prizes = allPrizes.slice(0, 8);
   const settings = await getLotterySettings(tenantId);
   const enabled = !settings || settings.enabled !== 0;
   const ocEn = Number(settings?.order_completed_spin_enabled) === 1;
@@ -188,7 +189,16 @@ export async function adminListLogsController(req: AuthenticatedRequest, res: Re
   }
   const limit = Math.min(2000, Math.max(1, Number(req.query.limit) || 50));
   const offset = Math.max(0, Number(req.query.offset) || 0);
-  const [rawLogs, total] = await Promise.all([listAllLotteryLogs(tenantId, limit, offset), countAllLotteryLogs(tenantId)]);
+  const phone = typeof req.query.phone === 'string' ? req.query.phone : '';
+  const memberCode = typeof req.query.member_code === 'string' ? req.query.member_code : '';
+  const filter =
+    phone.trim() || memberCode.trim()
+      ? { phone: phone.trim() || undefined, memberCode: memberCode.trim() || undefined }
+      : undefined;
+  const [rawLogs, total] = await Promise.all([
+    listAllLotteryLogs(tenantId, limit, offset, filter),
+    countAllLotteryLogs(tenantId, filter),
+  ]);
   const logs = rawLogs.map((row) => ({
     id: String(row.id),
     member_id: String(row.member_id),

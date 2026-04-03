@@ -4,6 +4,7 @@
 import { apiGet, apiPost, apiDelete } from '@/api/client';
 import { logOperation } from './auditLogStore';
 import { pickBilingual } from '@/lib/appLocale';
+import { notifyDataMutation, broadcastMembersListStale } from '@/services/system/dataRefreshManager';
 
 function unwrapSingle<T>(data: unknown): T | null {
   if (data == null) return null;
@@ -212,10 +213,8 @@ export async function submitReferral(
       pickBilingual(`介绍人 ${referrerPhone} 推荐新会员 ${refereePhone}`, `Referrer ${referrerPhone} referred new member ${refereePhone}`)
     );
 
-    void import('@/services/system/dataRefreshManager').then(({ notifyDataMutation, broadcastMembersListStale }) => {
-      void notifyDataMutation({ table: 'members', operation: 'INSERT', source: 'mutation' });
-      broadcastMembersListStale();
-    });
+    void notifyDataMutation({ table: 'members', operation: 'INSERT', source: 'mutation' });
+    broadcastMembersListStale();
     
     return {
       success: true,
