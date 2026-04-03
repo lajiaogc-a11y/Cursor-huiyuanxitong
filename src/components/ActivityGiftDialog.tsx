@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ interface ActivityGiftDialogProps {
   onSuccess?: () => void;
 }
 
-export default function ActivityGiftDialog({ open, onOpenChange, onSuccess }: ActivityGiftDialogProps) {
+const ActivityGiftDialog = React.memo(function ActivityGiftDialog({ open, onOpenChange, onSuccess }: ActivityGiftDialogProps) {
   const { t } = useLanguage();
   const { currencies } = useCurrencies();
   const { employee } = useAuth();
@@ -435,4 +435,6 @@ export default function ActivityGiftDialog({ open, onOpenChange, onSuccess }: Ac
     </AlertDialog>
     </>
   );
-}
+});
+
+export default ActivityGiftDialog;

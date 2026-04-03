@@ -84,7 +84,7 @@ import { getMemberPointsSummary } from "@/services/points/pointsCalculationServi
 import { getMemberByPhoneForMyTenant } from "@/services/members/memberLookupService";
 import { getExchangeRateFormData, saveExchangeRateFormData, ExchangeRateFormData } from "@/stores/exchangeRateFormStore";
 import RateCalculator from "@/components/RateCalculator";
-import { getCalculatorFormData, CalculatorId } from "@/hooks/useCalculatorStore";
+import { getCalculatorFormData, CalculatorId, subscribeCalculatorChange } from "@/hooks/useCalculatorStore";
 import { getCopySettings, generateEnglishCopyText } from "@/components/CopySettingsTab";
 import { getRewardAmountByPointsAndCurrency } from "@/stores/activitySettingsStore";
 import { determineExchangeCurrency } from "@/services/finance/exchangeService";
@@ -757,15 +757,12 @@ export default function ExchangeRate() {
   const [cardValue, setCardValue] = useState("");
   const [cardRate, setCardRate] = useState("");
 
-  // 用于触发 cashSpecial 刷新的计数器
   const [cashSpecialRefresh, setCashSpecialRefresh] = useState(0);
-  
-  // 定期刷新 cashSpecial（每500ms检查一次当前计算器的cardRate）
+
   useEffect(() => {
-    const interval = setInterval(() => {
+    return subscribeCalculatorChange(() => {
       setCashSpecialRefresh(prev => prev + 1);
-    }, 500);
-    return () => clearInterval(interval);
+    });
   }, []);
 
   // 安全汇率值（null时使用0，防止计算错误）

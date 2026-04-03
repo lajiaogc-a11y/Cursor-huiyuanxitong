@@ -9,8 +9,8 @@ import { useOrderRealtime } from './useOrderRealtime';
 import type { Order, OrderFilters, UseOrdersOptions } from './types';
 import { PAGE_SIZE } from './types';
 
-export function useOrderList(options: UseOrdersOptions = {}) {
-  const { page = 1, pageSize = PAGE_SIZE, filters } = options;
+export function useOrderList(options: UseOrdersOptions & { paused?: boolean } = {}) {
+  const { page = 1, pageSize = PAGE_SIZE, filters, paused } = options;
   const queryClient = useQueryClient();
   const { viewingTenantId } = useTenantView() || {};
   const { employee } = useAuth() || {};
@@ -27,10 +27,10 @@ export function useOrderList(options: UseOrdersOptions = {}) {
   const { data, isLoading: loading, isError, error } = useQuery({
     queryKey,
     queryFn: () => fetchOrdersFromDb(effectiveTenantId, page, pageSize, filters, useMyTenantRpc),
-    refetchInterval: 30_000,
+    refetchInterval: paused ? false : 30_000,
     refetchIntervalInBackground: false,
     staleTime: 30_000,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: !paused,
   });
 
   const orders = data?.orders ?? [];

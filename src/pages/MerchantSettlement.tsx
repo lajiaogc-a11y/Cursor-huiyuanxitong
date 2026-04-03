@@ -512,8 +512,7 @@ export default function MerchantSettlement() {
       vendorSortMap.set(v.name, v.sort_order ?? 999);
     });
     
-    // 按商家管理中的 sort_order 排序
-    const sortedResults = results.sort((a, b) => {
+    const sortedResults = [...results].sort((a, b) => {
       const sortA = vendorSortMap.get(a.vendorName) ?? 999;
       const sortB = vendorSortMap.get(b.vendorName) ?? 999;
       return sortA - sortB;
@@ -550,8 +549,7 @@ export default function MerchantSettlement() {
       providerSortMap.set(p.name, p.sort_order ?? 999);
     });
     
-    // 按商家管理中的 sort_order 排序
-    const sortedResults = results.sort((a, b) => {
+    const sortedResults = [...results].sort((a, b) => {
       const sortA = providerSortMap.get(a.providerName) ?? 999;
       const sortB = providerSortMap.get(b.providerName) ?? 999;
       return sortA - sortB;

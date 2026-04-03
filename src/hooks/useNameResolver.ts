@@ -38,20 +38,29 @@ export function useNameResolver() {
   const [, forceUpdate] = useState({});
 
   useEffect(() => {
-    // 初始化
     if (!isReady()) {
       initNameResolver().then(() => {
         setReady(true);
       }).catch(console.error);
     }
 
-    // 订阅数据变更
+    let pending = false;
+    let rafId: number | undefined;
     const unsubscribe = subscribe(() => {
       setReady(isReady());
-      forceUpdate({});
+      if (!pending) {
+        pending = true;
+        rafId = requestAnimationFrame(() => {
+          pending = false;
+          forceUpdate({});
+        });
+      }
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      if (rafId !== undefined) cancelAnimationFrame(rafId);
+    };
   }, []);
 
   // 使用 useCallback 包装解析函数以保持引用稳定

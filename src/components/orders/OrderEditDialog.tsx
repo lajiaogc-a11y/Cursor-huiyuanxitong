@@ -1,4 +1,4 @@
-// 普通订单编辑弹窗 - 从 OrderManagement 提取，不修改业务逻辑
+import React from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
@@ -36,7 +36,7 @@ export interface OrderEditDialogProps {
   preferSubmitReview?: boolean;
 }
 
-export function OrderEditDialog(props: OrderEditDialogProps) {
+export const OrderEditDialog = React.memo(function OrderEditDialog(props: OrderEditDialogProps) {
   const {
     open,
     onOpenChange,
@@ -279,4 +279,4 @@ export function OrderEditDialog(props: OrderEditDialogProps) {
       ) : null}
     </DrawerDetail>
   );
-}
+});

@@ -1,4 +1,4 @@
-// USDT 订单编辑弹窗 - 从 OrderManagement 提取，不修改业务逻辑
+import React from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
@@ -37,7 +37,7 @@ export interface OrderUsdtEditDialogProps {
   preferSubmitReview?: boolean;
 }
 
-export function OrderUsdtEditDialog(props: OrderUsdtEditDialogProps) {
+export const OrderUsdtEditDialog = React.memo(function OrderUsdtEditDialog(props: OrderUsdtEditDialogProps) {
   const {
     open,
     onOpenChange,
@@ -271,4 +271,4 @@ export function OrderUsdtEditDialog(props: OrderUsdtEditDialogProps) {
       ) : null}
     </DrawerDetail>
   );
-}
+});

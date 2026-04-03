@@ -136,6 +136,13 @@ export function getCalculatorFormData(calcId: CalculatorId): CalculatorFormData 
   return formDataCache[calcId] || createEmptyForm();
 }
 
+const _calcSubscribers = new Set<() => void>();
+function notifyCalcSubscribers() { _calcSubscribers.forEach(fn => fn()); }
+export function subscribeCalculatorChange(cb: () => void): () => void {
+  _calcSubscribers.add(cb);
+  return () => { _calcSubscribers.delete(cb); };
+}
+
 // 保存指定计算器的表单数据
 export async function saveCalculatorFormData(calcId: CalculatorId, data: CalculatorFormData): Promise<void> {
   formDataCache[calcId] = data;
@@ -176,24 +183,21 @@ export function useCalculatorForm(calcId: CalculatorId) {
     field: K, 
     value: CalculatorFormData[K]
   ) => {
-    // 标记用户正在输入
     markInputActive();
     
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       
-      // 同步更新内存缓存（立即生效，避免跨组件读取时获取旧值）
       formDataCache[calcId] = newData;
+      notifyCalcSubscribers();
       
-      // 标记待保存数据
       pendingDataRef.current = newData;
       
-      // 防抖保存 - 使用增加的延迟
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
       saveTimeoutRef.current = setTimeout(() => {
-        pendingDataRef.current = null; // 保存完成，清除待保存标记
+        pendingDataRef.current = null;
         saveCalculatorFormData(calcId, newData).catch(console.error);
       }, AUTO_SAVE_DEBOUNCE_MS);
       
@@ -203,24 +207,21 @@ export function useCalculatorForm(calcId: CalculatorId) {
   
   // 批量更新字段 - 优化：标记输入活动状态
   const updateFields = useCallback((updates: Partial<CalculatorFormData>) => {
-    // 标记用户正在输入
     markInputActive();
     
     setFormData(prev => {
       const newData = { ...prev, ...updates };
       
-      // 同步更新内存缓存（立即生效）
       formDataCache[calcId] = newData;
+      notifyCalcSubscribers();
       
-      // 标记待保存数据
       pendingDataRef.current = newData;
       
-      // 防抖保存 - 使用增加的延迟
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
       saveTimeoutRef.current = setTimeout(() => {
-        pendingDataRef.current = null; // 保存完成，清除待保存标记
+        pendingDataRef.current = null;
         saveCalculatorFormData(calcId, newData).catch(console.error);
       }, AUTO_SAVE_DEBOUNCE_MS);
       

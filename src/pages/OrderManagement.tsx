@@ -366,19 +366,26 @@ export default function OrderManagement() {
     };
   }, [statusFilter, currencyFilter, vendorFilter, paymentProviderFilter, cardTypeFilter, salesPersonFilter, minProfit, maxProfit, selectedRange, dateRange, searchQuery, allEmployees]);
 
-  // 使用数据库 hooks - 服务端分页
+  const isAnyDialogOpen = !!(editingOrder || editingUsdtOrder);
+
+  // 使用数据库 hooks - 服务端分页；弹窗打开时暂停轮询避免 Select 卡顿
   const { orders, totalCount, isError: isOrdersError, updateOrder, cancelOrder, restoreOrder, deleteOrder, refetch: refetchOrders } = useOrders({
     page: currentPage,
     pageSize: PAGE_SIZE,
     filters: orderFilters,
+    paused: isAnyDialogOpen,
   });
   const { orders: usdtOrders, totalCount: usdtTotalCount, isError: isUsdtOrdersError, cancelOrder: cancelUsdtOrder, restoreOrder: restoreUsdtOrder, deleteOrder: deleteUsdtOrder, refetch: refetchUsdtOrders } = useUsdtOrders({
     page: currentUsdtPage,
     pageSize: PAGE_SIZE,
     filters: orderFilters,
+    paused: isAnyDialogOpen,
   });
 
   const { totalProfit: statsTotalProfit, usdtProfit: statsUsdtProfit, totalCardValue: statsTotalCardValue, tradingUsers: statsTradingUsers } = useOrderStats(orderFilters);
+
+  const isAnyDialogOpenRef = useRef(isAnyDialogOpen);
+  isAnyDialogOpenRef.current = isAnyDialogOpen;
 
   // 用 ref 存储 refetch 函数，避免 useEffect 依赖变化导致无限循环
   const refetchOrdersRef = useRef(refetchOrders);
@@ -503,9 +510,8 @@ export default function OrderManagement() {
       }, 300); // 300ms debounce
     };
     
-    // 仅用于刷新员工/商家辅助数据；订单数据由 React Query refetchInterval(30s) 负责轮询，避免双重轮询
     const auxPollTimer = setInterval(() => {
-      if (isUserTyping()) return;
+      if (isUserTyping() || isAnyDialogOpenRef.current) return;
       getActiveEmployees(effectiveTenantId).then((employees) => {
         setEmployeeNames(employees.map((e) => e.real_name));
         setAllEmployees(employees);
@@ -522,7 +528,7 @@ export default function OrderManagement() {
   }, [effectiveTenantId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 筛选下拉选项：使用商家管理数据（服务端分页后不从订单推导）
-  const uniqueSalesPersons = useMemo(() => employeeNames.sort(), [employeeNames]);
+  const uniqueSalesPersons = useMemo(() => [...employeeNames].sort(), [employeeNames]);
 
   // 处理日期范围变化
   const handleDateRangeChange = (range: TimeRangeType, start?: Date, end?: Date) => {

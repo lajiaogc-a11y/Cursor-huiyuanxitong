@@ -1197,8 +1197,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
         <div className="grid grid-cols-2 gap-2">
         {/* 卡片面值 */}
         <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/30">
-          <CardContent className="p-2 sm:p-3 space-y-1.5">
-            <Label className="text-[10px] sm:text-xs font-bold text-primary">{t("卡片面值", "Card Value")}</Label>
+          <CardContent className="p-2 sm:p-3 space-y-1">
             <div className="grid grid-cols-4 gap-1">
               {quickAmounts.slice(0, 8).map((amount, index) => (
                 editingAmountIndex === index ? (
@@ -1230,15 +1229,14 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
               onChange={(e) => updateField('cardValue', e.target.value)}
               onDoubleClick={(e) => { e.stopPropagation(); handleDoubleClick('cardValue'); }}
               placeholder={t("输入面值", "Enter value")}
-              className="h-10 sm:h-12 text-xl sm:text-2xl font-black text-center bg-background/90 border-primary/40 focus:border-primary"
+              className="h-9 sm:h-10 text-lg sm:text-xl font-black text-center bg-background/90 border-primary/40 focus:border-primary"
             />
           </CardContent>
         </Card>
 
         {/* 卡片汇率 */}
         <Card className="bg-gradient-to-br from-success/5 to-success/10 border-success/30">
-          <CardContent className="p-2 sm:p-3 space-y-1.5">
-            <Label className="text-[10px] sm:text-xs font-bold text-success">{t("卡片汇率", "Card Rate")}</Label>
+          <CardContent className="p-2 sm:p-3 space-y-1">
             <div className="grid grid-cols-4 gap-1">
               {quickRates.slice(0, 8).map((rate, index) => (
                 editingRateIndex === index ? (
@@ -1270,7 +1268,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
               onChange={(e) => updateField('cardRate', e.target.value)}
               onDoubleClick={(e) => { e.stopPropagation(); handleDoubleClick('cardRate'); }}
               placeholder={t("输入汇率", "Enter rate")}
-              className="h-10 sm:h-12 text-xl sm:text-2xl font-black text-center bg-background/90 border-success/40 focus:border-success"
+              className="h-9 sm:h-10 text-lg sm:text-xl font-black text-center bg-background/90 border-success/40 focus:border-success"
             />
           </CardContent>
         </Card>
@@ -1407,14 +1405,14 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
 
       {/* 第四行：支付信息(5/12) + 会员信息(7/12，含备注) */}
       <div className={`grid gap-2 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-12'}`}>
-        {/* 支付输入区域 - 5/12 */}
-        <Card className={isMobile ? "" : "xl:col-span-5 overflow-x-auto overflow-y-visible"}>
+        {/* 支付输入区域 - 4/12 */}
+        <Card className={isMobile ? "" : "xl:col-span-4 overflow-x-auto overflow-y-visible"}>
           <div className="bg-muted/50 px-3 py-1 border-b">
             <span className="text-xs font-bold text-foreground">{t("支付信息", "Payment Info")}</span>
           </div>
           <div className="divide-y divide-border/50">
             {/* 支付奈拉行 */}
-            <div className={`${isMobile ? 'p-2.5 space-y-1.5' : 'grid grid-cols-3'} bg-orange-50/50 dark:bg-orange-950/20`}>
+            <div className={`${isMobile ? 'p-2.5 space-y-1.5' : 'grid grid-cols-[1fr_auto_auto]'} bg-orange-50/50 dark:bg-orange-950/20`}>
               {isMobile ? (
                 <>
                   <Label className="text-xs text-orange-700 dark:text-orange-400 font-medium">{t("支付", "Pay")} {CURRENCIES.NGN.name}</Label>
@@ -1430,19 +1428,19 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
                 <Label className="text-[10px] text-orange-700 dark:text-orange-400 font-medium block mb-1">{t("支付", "Pay")} {CURRENCIES.NGN.name}</Label>
                 <Input value={formData.payNaira} onChange={(e) => handlePayNairaChange(e.target.value)} onDoubleClick={() => handleDoubleClick('payNaira')} placeholder={t("输入奈拉金额", "Enter NGN amount")} className="h-8 text-center font-bold text-sm bg-background border-orange-300/50" />
               </div>
-              <div className="p-2 border-r border-orange-200/30 flex flex-col items-center justify-center">
-                <span className="text-[10px] text-muted-foreground">{t("利润(RMB)", "Profit (RMB)")}</span>
-                <span className="text-lg font-bold text-success tabular-nums">{formData.payNaira ? profitCalculation.nairaProfitRMB : '0'}</span>
+              <div className="px-2 py-2 border-r border-orange-200/30 flex flex-col items-center justify-center min-w-[52px]">
+                <span className="text-[10px] text-muted-foreground">{t("利润", "Profit")}</span>
+                <span className="text-sm font-bold text-success tabular-nums">{formData.payNaira ? profitCalculation.nairaProfitRMB : '0'}</span>
               </div>
-              <div className="p-2 flex flex-col items-center justify-center">
+              <div className="px-2 py-2 flex flex-col items-center justify-center min-w-[44px]">
                 <span className="text-[10px] text-muted-foreground">{t("利率", "Rate")}</span>
-                <span className="text-lg font-bold text-orange-600 dark:text-orange-400 tabular-nums">{formData.payNaira ? profitCalculation.nairaRate + '%' : '0%'}</span>
+                <span className="text-sm font-bold text-orange-600 dark:text-orange-400 tabular-nums">{formData.payNaira ? profitCalculation.nairaRate + '%' : '0%'}</span>
               </div>
               </>
               )}
             </div>
             {/* 支付赛地行 */}
-            <div className={`${isMobile ? 'p-2.5 space-y-1.5' : 'grid grid-cols-3'} bg-emerald-50/50 dark:bg-emerald-950/20`}>
+            <div className={`${isMobile ? 'p-2.5 space-y-1.5' : 'grid grid-cols-[1fr_auto_auto]'} bg-emerald-50/50 dark:bg-emerald-950/20`}>
               {isMobile ? (
                 <>
                   <Label className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">{t("支付", "Pay")} {CURRENCIES.GHS.name}</Label>
@@ -1458,19 +1456,19 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
                 <Label className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium block mb-1">{t("支付", "Pay")} {CURRENCIES.GHS.name}</Label>
                 <Input value={formData.payCedi} onChange={(e) => handlePayCediChange(e.target.value)} onDoubleClick={() => handleDoubleClick('payCedi')} placeholder={t("输入赛地金额", "Enter GHS amount")} className="h-8 text-center font-bold text-sm bg-background border-emerald-300/50" />
               </div>
-              <div className="p-2 border-r border-emerald-200/30 flex flex-col items-center justify-center">
-                <span className="text-[10px] text-muted-foreground">{t("利润(RMB)", "Profit (RMB)")}</span>
-                <span className="text-lg font-bold text-success tabular-nums">{formData.payCedi ? profitCalculation.cediProfitRMB : '0'}</span>
+              <div className="px-2 py-2 border-r border-emerald-200/30 flex flex-col items-center justify-center min-w-[52px]">
+                <span className="text-[10px] text-muted-foreground">{t("利润", "Profit")}</span>
+                <span className="text-sm font-bold text-success tabular-nums">{formData.payCedi ? profitCalculation.cediProfitRMB : '0'}</span>
               </div>
-              <div className="p-2 flex flex-col items-center justify-center">
+              <div className="px-2 py-2 flex flex-col items-center justify-center min-w-[44px]">
                 <span className="text-[10px] text-muted-foreground">{t("利率", "Rate")}</span>
-                <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{formData.payCedi ? profitCalculation.cediRate + '%' : '0%'}</span>
+                <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{formData.payCedi ? profitCalculation.cediRate + '%' : '0%'}</span>
               </div>
               </>
               )}
             </div>
             {/* 支付USDT行 */}
-            <div className={`${isMobile ? 'p-2.5 space-y-1.5' : 'grid grid-cols-3'} bg-blue-50/50 dark:bg-blue-950/20`}>
+            <div className={`${isMobile ? 'p-2.5 space-y-1.5' : 'grid grid-cols-[1fr_auto_auto]'} bg-blue-50/50 dark:bg-blue-950/20`}>
               {isMobile ? (
                 <>
                   <Label className="text-xs text-blue-700 dark:text-blue-400 font-medium">{t("支付", "Pay")} {CURRENCIES.USDT.name}</Label>
@@ -1486,19 +1484,19 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
                 <Label className="text-[10px] text-blue-700 dark:text-blue-400 font-medium block mb-1">{t("支付", "Pay")} {CURRENCIES.USDT.name}</Label>
                 <Input value={formData.payUsdt} onChange={(e) => handlePayUsdtChange(e.target.value)} onDoubleClick={() => handleDoubleClick('payUsdt')} placeholder={t("双击清空", "Double-click to clear")} className="h-8 text-center font-bold text-sm bg-background border-blue-300/50" />
               </div>
-              <div className="p-2 border-r border-blue-200/30 flex flex-col items-center justify-center">
-                <span className="text-[10px] text-muted-foreground">{t("利润(U)", "Profit (U)")}</span>
-                <span className="text-lg font-bold text-blue-600 dark:text-blue-400 tabular-nums">{formData.payUsdt ? profitCalculation.usdtProfitU : '0'}</span>
+              <div className="px-2 py-2 border-r border-blue-200/30 flex flex-col items-center justify-center min-w-[52px]">
+                <span className="text-[10px] text-muted-foreground">{t("利润(U)", "Profit")}</span>
+                <span className="text-sm font-bold text-blue-600 dark:text-blue-400 tabular-nums">{formData.payUsdt ? profitCalculation.usdtProfitU : '0'}</span>
               </div>
-              <div className="p-2 flex flex-col items-center justify-center">
+              <div className="px-2 py-2 flex flex-col items-center justify-center min-w-[44px]">
                 <span className="text-[10px] text-muted-foreground">{t("利率", "Rate")}</span>
-                <span className="text-lg font-bold text-blue-600 dark:text-blue-400 tabular-nums">{formData.payUsdt ? profitCalculation.usdtRate + '%' : '0%'}</span>
+                <span className="text-sm font-bold text-blue-600 dark:text-blue-400 tabular-nums">{formData.payUsdt ? profitCalculation.usdtRate + '%' : '0%'}</span>
               </div>
               </>
               )}
             </div>
             {/* 支付BTC行 */}
-            <div className={`${isMobile ? 'p-2.5 space-y-1.5' : 'grid grid-cols-3'} bg-purple-50/50 dark:bg-purple-950/20`}>
+            <div className={`${isMobile ? 'p-2.5 space-y-1.5' : 'grid grid-cols-[1fr_auto_auto]'} bg-purple-50/50 dark:bg-purple-950/20`}>
               {isMobile ? (
                 <>
                   <div className="flex items-center gap-1">
@@ -1517,13 +1515,13 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
                 <Label className="text-[10px] text-purple-700 dark:text-purple-400 font-medium flex items-center gap-1 mb-1">{t("支付BTC", "Pay BTC")} <Lock className="h-2.5 w-2.5" /></Label>
                 <div className="h-8 flex items-center justify-center font-bold text-sm text-purple-700 dark:text-purple-300 bg-purple-100/50 dark:bg-purple-900/30 rounded border tabular-nums">{payBtc || '—'}</div>
               </div>
-              <div className="p-2 border-r border-purple-200/30 flex flex-col items-center justify-center">
-                <span className="text-[10px] text-muted-foreground">{t("利润(U)", "Profit (U)")}</span>
-                <span className="text-lg font-bold text-purple-600 dark:text-purple-400 tabular-nums">{payBtc ? profitCalculation.btcProfitU : '0'}</span>
+              <div className="px-2 py-2 border-r border-purple-200/30 flex flex-col items-center justify-center min-w-[52px]">
+                <span className="text-[10px] text-muted-foreground">{t("利润(U)", "Profit")}</span>
+                <span className="text-sm font-bold text-purple-600 dark:text-purple-400 tabular-nums">{payBtc ? profitCalculation.btcProfitU : '0'}</span>
               </div>
-              <div className="p-2 flex flex-col items-center justify-center">
+              <div className="px-2 py-2 flex flex-col items-center justify-center min-w-[44px]">
                 <span className="text-[10px] text-muted-foreground">{t("利率", "Rate")}</span>
-                <span className="text-lg font-bold text-purple-600 dark:text-purple-400 tabular-nums">{payBtc ? profitCalculation.btcRate + '%' : '0%'}</span>
+                <span className="text-sm font-bold text-purple-600 dark:text-purple-400 tabular-nums">{payBtc ? profitCalculation.btcRate + '%' : '0%'}</span>
               </div>
               </>
               )}
@@ -1531,12 +1529,12 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
           </div>
         </Card>
 
-        {/* 右侧区域 - 7/12 (必填信息 + 会员信息) */}
-        <div className={isMobile ? 'space-y-2' : 'xl:col-span-7 space-y-2'}>
+        {/* 右侧区域 - 8/12 (必填信息 + 会员信息) */}
+        <div className={isMobile ? 'space-y-2' : 'xl:col-span-8 space-y-2'}>
           {/* 必填信息 */}
           <Card className="border-warning/30">
             <CardContent className="p-2">
-              <div className={`grid gap-2 ${isMobile ? 'grid-cols-2' : 'grid-cols-3 xl:grid-cols-6'}`}>
+              <div className={`grid gap-x-2 gap-y-1.5 ${isMobile ? 'grid-cols-2' : 'grid-cols-3'}`}>
                 {/* 卡类型 */}
                 <div className="flex flex-col gap-0.5">
                   <Label className="text-[10px] text-muted-foreground">{t("卡类型", "Card Type")}</Label>
