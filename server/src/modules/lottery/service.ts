@@ -58,6 +58,8 @@ export interface DrawResult {
   budget_warning?: 'BUDGET_EXCEEDED' | 'BUDGET_LOW' | 'RTP_LIMIT_REACHED';
   /** Phase 3: 风控降级标记（结果被强制保底） */
   risk_downgraded?: boolean;
+  /** 幂等重放标记（request_id 已存在时返回原始结果） */
+  idempotent_replay?: boolean;
 }
 
 /** Phase 3: draw() 扩展参数 */
@@ -154,18 +156,32 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
     }
     try {
 
-    // ── 1. request_id 幂等（DB 级别） ──
+    // ── 1. request_id 幂等（DB 级别）：重复请求返回 success: true + 原始结果 ──
     if (requestId) {
-      const dup = await queryOneConn<{ id: string; prize_name: string; prize_type: string; prize_value: number }>(
+      const dup = await queryOneConn<{
+        id: string; prize_name: string; prize_type: string; prize_value: number;
+        reward_status: string | null; reward_points: number | null; fail_reason: string | null;
+      }>(
         conn,
-        'SELECT id, prize_name, prize_type, prize_value FROM lottery_logs WHERE request_id = ? LIMIT 1',
+        `SELECT id, prize_name, prize_type, prize_value, reward_status,
+                COALESCE(reward_points, 0) AS reward_points, fail_reason
+         FROM lottery_logs WHERE request_id = ? LIMIT 1`,
         [requestId],
       );
       if (dup) {
+        const quotaRow = await queryOneConn<{ remaining: number }>(
+          conn,
+          `SELECT COALESCE(lottery_spin_balance, 0) AS remaining
+           FROM member_activity WHERE member_id = ?`,
+          [memberId],
+        );
         return {
-          success: false,
-          error: 'DUPLICATE_REQUEST',
+          success: true,
           prize: { id: dup.id, name: dup.prize_name, type: dup.prize_type, value: dup.prize_value, description: null },
+          remaining: quotaRow?.remaining ?? 0,
+          reward_status: (dup.reward_status as DrawResult['reward_status']) ?? 'done',
+          reward_points: Number(dup.reward_points ?? 0),
+          idempotent_replay: true,
         };
       }
     }
