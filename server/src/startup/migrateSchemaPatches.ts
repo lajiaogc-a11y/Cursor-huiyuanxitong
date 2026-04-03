@@ -1378,5 +1378,34 @@ export async function migrateSchemaPatches(): Promise<void> {
   await addCol('member_portal_settings', 'poster_frame_id', "VARCHAR(20) NOT NULL DEFAULT 'gold' COMMENT '内置海报模板ID'");
   await addCol('member_portal_settings', 'poster_custom_bg_url', "VARCHAR(500) NULL COMMENT '自定义海报背景图URL'");
 
+  // ── points_log 字段补充（单一账本对齐） ──
+  await addCol('points_log', 'reference_id', "VARCHAR(36) NULL COMMENT '关联的订单ID/抽奖ID/活动ID'");
+  await addCol('points_log', 'balance_after', "DECIMAL(12,2) NULL COMMENT '变动后余额快照'");
+
+  // ── 数据修复：用 points_ledger SUM 校正 points_accounts.balance 偏移 ──
+  try {
+    const driftRows = await query<{ member_id: string; ledger_sum: number; acct_balance: number }>(
+      `SELECT pa.member_id,
+              COALESCE((SELECT SUM(amount) FROM points_ledger WHERE member_id = pa.member_id), 0) AS ledger_sum,
+              COALESCE(pa.balance, 0) AS acct_balance
+       FROM points_accounts pa
+       HAVING ABS(ledger_sum - acct_balance) > 0.01
+       LIMIT 500`
+    );
+    if (driftRows.length > 0) {
+      console.log(`[schema-patch] reconciling ${driftRows.length} drifted balances…`);
+      for (const r of driftRows) {
+        const corrected = Math.max(0, Number(r.ledger_sum));
+        await execute(
+          'UPDATE points_accounts SET balance = ?, updated_at = NOW(3) WHERE member_id = ?',
+          [corrected, r.member_id],
+        );
+      }
+      console.log(`[schema-patch] reconciled ${driftRows.length} balances.`);
+    }
+  } catch (e) {
+    console.warn('[schema-patch] balance reconciliation skipped:', e instanceof Error ? e.message : e);
+  }
+
   console.log('[schema-patch] done.');
 }

@@ -21,6 +21,7 @@ import {
 // Re-export for backwards compatibility with modules that import from tableProxy
 export { isTableProxyAllowed } from './tableConfig.js';
 import { applyPointsLedgerDeltaOnConn } from '../points/pointsLedgerAccount.js';
+import { addPoints, syncPointsLog } from '../points/pointsService.js';
 import { insertOperationLogRepository } from './repository.js';
 import { generateUniqueActivityGiftNumber } from '../../lib/giftNumber.js';
 import { ensureOrderNumberForInsert } from '../orders/orderNumber.js';
@@ -932,6 +933,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                 );
                 const [balRows] = await conn.query('SELECT COALESCE(balance,0) AS b FROM points_accounts WHERE id = ?', [acct.id]);
                 const balAfter = Number((balRows as { b?: unknown }[])[0]?.b ?? 0);
+                const confirmDesc = `商城兑换完成（${String(red.item_title || '商品')} ×${Math.max(1, Math.floor(Number(red.quantity ?? 1)))}，${cost} 积分）`;
                 await conn.query(
                   `INSERT INTO points_ledger (id, account_id, member_id, type, amount, balance_after, reference_type, reference_id, description, created_by, tenant_id, created_at)
                    VALUES (?, ?, ?, 'redeem_confirmed', 0, ?, 'mall_redemption_confirm', ?, ?, ?, ?, NOW(3))`,
@@ -941,11 +943,12 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                     String(red.member_id),
                     balAfter,
                     String(redemptionId),
-                    `商城兑换完成（${String(red.item_title || '商品')} ×${Math.max(1, Math.floor(Number(red.quantity ?? 1)))}，${cost} 积分）`,
+                    confirmDesc,
                     empId || null,
                     acct.tenant_id,
                   ],
                 );
+                await syncPointsLog(conn, String(red.member_id), -cost, 'redeem', confirmDesc, acct.tenant_id);
               }
             } else if (action === 'cancel') {
               const qty = Math.max(1, Math.floor(Number(red.quantity ?? 1)));
@@ -962,6 +965,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                 );
                 const [balRows] = await conn.query('SELECT COALESCE(balance,0) AS b FROM points_accounts WHERE id = ?', [acct.id]);
                 const afterBal = Number((balRows as { b?: unknown }[])[0]?.b ?? 0);
+                const cancelDesc = `商城兑换取消退回（${String(red.item_title || '商品')} ×${qty}，退回 ${cost} 积分${note ? `，说明: ${String(note)}` : ''}）`;
                 await conn.query(
                   `INSERT INTO points_ledger (id, account_id, member_id, type, amount, balance_after, reference_type, reference_id, description, created_by, tenant_id, created_at)
                    VALUES (?, ?, ?, 'redeem_cancelled', ?, ?, 'mall_redemption_cancel', ?, ?, ?, ?, NOW(3))`,
@@ -972,11 +976,12 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                     cost,
                     afterBal,
                     String(redemptionId),
-                    `商城兑换取消退回（${String(red.item_title || '商品')} ×${qty}，退回 ${cost} 积分${note ? `，说明: ${String(note)}` : ''}）`,
+                    cancelDesc,
                     empId || null,
                     acct.tenant_id,
                   ],
                 );
+                await syncPointsLog(conn, String(red.member_id), cost, 'refund', cancelDesc, acct.tenant_id);
               }
 
               if (mallItemIdRaw && /^[0-9a-f-]{36}$/i.test(mallItemIdRaw)) {
@@ -1002,6 +1007,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                   [cost, cost, acct.id],
                 );
                 const afterBal = Number(acct.balance) + cost;
+                const rejectDesc = `商城兑换驳回退回（${String(red.item_title || '商品')}，退回 ${cost} 积分${note ? `，说明: ${String(note)}` : ''}）`;
                 await conn.query(
                   `INSERT INTO points_ledger (id, account_id, member_id, type, amount, balance_after, reference_type, reference_id, description, created_by, tenant_id, created_at)
                    VALUES (?, ?, ?, 'redeem_rejected', ?, ?, 'mall_redemption_reject', ?, ?, ?, ?, NOW(3))`,
@@ -1012,21 +1018,20 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                     cost,
                     afterBal,
                     String(redemptionId),
-                    `商城兑换驳回退回（${String(red.item_title || '商品')}，退回 ${cost} 积分${note ? `，说明: ${String(note)}` : ''}）`,
+                    rejectDesc,
                     empId || null,
                     acct.tenant_id,
                   ],
                 );
+                await syncPointsLog(conn, String(red.member_id), cost, 'refund', rejectDesc, acct.tenant_id);
               } else if (cost > 0) {
-                await applyPointsLedgerDeltaOnConn(conn, {
-                  ledgerId: randomUUID(),
+                await addPoints(conn, {
                   memberId: String(red.member_id),
+                  amount: cost,
                   type: 'refund',
-                  delta: cost,
-                  description: `Refund: ${String(red.item_title || 'Rejected redemption')}`,
                   referenceType: 'redemption',
                   referenceId: String(redemptionId),
-                  createdBy: null,
+                  description: `Refund: ${String(red.item_title || 'Rejected redemption')}`,
                   extras: { tenant_id: memTenant ?? null },
                 });
               }
@@ -1604,6 +1609,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                 tenant_id: tenantIdForLedger,
               },
             });
+            await syncPointsLog(conn, p_member_id, -p_points_to_redeem, v_transaction_type, redemptionRemark, tenantIdForLedger);
 
             const giftId = randomUUID();
             giftIdOut = giftId;
@@ -2083,6 +2089,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                 acctRow.tenant_id ?? memberRow?.tenant_id ?? null,
               ],
             );
+            await syncPointsLog(conn, memberId, -cost, 'redeem', freezeDesc, acctRow.tenant_id ?? memberRow?.tenant_id ?? null);
 
             const snapPhone = memberRow?.phone_number != null ? String(memberRow.phone_number).trim().slice(0, 64) : null;
             await conn.query(

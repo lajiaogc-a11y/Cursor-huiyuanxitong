@@ -192,7 +192,7 @@ export class ErrorBoundary extends Component<Props, ErrorBoundaryState> {
               <p className="mt-4 text-[11px] text-[#64748B]">{messages.tip}</p>
               {this.state.error?.message?.includes("Content Security Policy") ? (
                 <p className="mt-3 max-w-md text-left text-xs text-[hsl(var(--pu-gold-soft)/0.9)]">
-                  {_t(
+                  {pickBilingual(
                     "疑似 CSP 拦截：请在 index.html 的 connect-src 中加入你的 API 域名，或查看 docs/CSP与白屏排查.md。",
                     "Likely CSP block: add your API origin to connect-src in index.html, or see docs/CSP与白屏排查.md.",
                   )}

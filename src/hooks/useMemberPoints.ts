@@ -12,7 +12,7 @@ export function useMemberPoints(memberId: string | undefined) {
       const result = await getMemberPointsRpc(memberId!);
       return {
         points: Number(result.points ?? 0),
-        frozen_points: Number((result as any).frozen_points ?? 0),
+        frozen_points: Number(result.frozen_points ?? 0),
       };
     },
     enabled: !!memberId,

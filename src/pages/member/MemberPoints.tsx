@@ -73,7 +73,7 @@ function normalizeMallItem(row: PointsMallItem): PointsMallItem {
   return {
     ...row,
     points_cost: num(row.points_cost, 0),
-    stock_remaining: row.stock_remaining == null ? 0 : num(row.stock_remaining, 0),
+    stock_remaining: row.stock_remaining == null ? -1 : num(row.stock_remaining, -1),
     per_order_limit: Math.max(1, num(row.per_order_limit, 1)),
     per_user_daily_limit: Math.max(0, num(row.per_user_daily_limit, 0)),
     per_user_lifetime_limit: Math.max(0, num(row.per_user_lifetime_limit, 0)),

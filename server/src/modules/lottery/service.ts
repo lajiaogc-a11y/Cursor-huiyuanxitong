@@ -18,7 +18,7 @@ import { randomUUID } from 'crypto';
 import type { PoolConnection } from 'mysql2/promise';
 import type { ResultSetHeader } from 'mysql2';
 import { buildMysqlUserLockName, mysqlGetLock, mysqlReleaseLock } from '../../lib/mysqlUserLock.js';
-import { applyPointsLedgerDeltaOnConn } from '../points/pointsLedgerAccount.js';
+import { addPoints } from '../points/pointsService.js';
 import { getEffectiveDailyFreeSpinsConn, getLotterySettings, listEnabledPrizes } from './repository.js';
 import { pickLotteryPrizeByConfiguredProbability, budgetAwarePrizePick, type BudgetPolicy } from './prizePick.js';
 import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
@@ -447,39 +447,18 @@ export async function fulfillRewardOnConn(
     return { status: 'pending', failReason: null };
   }
 
-  // auto 型：积分类自动发放
+  // auto 型：积分类自动发放 — 全部经由统一 pointsService，不再单独写 member_activity / points_log
   if (prizeType === 'points' && prizeValue > 0) {
     try {
-      await applyPointsLedgerDeltaOnConn(conn, {
-        ledgerId: randomUUID(),
+      await addPoints(conn, {
         memberId,
+        amount: prizeValue,
         type: 'lottery',
-        delta: prizeValue,
-        description: `幸运抽奖: ${prizeName}`,
         referenceType: 'lottery_log',
         referenceId: logId,
-        createdBy: null,
+        description: `幸运抽奖: ${prizeName}`,
         extras: { tenant_id: tenantId },
       });
-
-      const existing = await queryOneConn<{ id: string }>(
-        conn, 'SELECT id FROM member_activity WHERE member_id = ?', [memberId],
-      );
-      if (existing) {
-        await execConn(conn,
-          'UPDATE member_activity SET online_points = online_points + ?, updated_at = NOW() WHERE member_id = ?',
-          [prizeValue, memberId],
-        );
-      } else {
-        await execConn(conn,
-          'INSERT INTO member_activity (id, member_id, online_points) VALUES (UUID(), ?, ?)',
-          [memberId, prizeValue],
-        );
-      }
-      await execConn(conn,
-        'INSERT INTO points_log (id, member_id, tenant_id, `change`, type, category, remark) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [randomUUID(), memberId, tenantId, prizeValue, 'lottery', 'online_points', `幸运抽奖: ${prizeName}`],
-      );
       return { status: 'done', failReason: null };
     } catch (err) {
       const reason = `POINTS_GRANT_FAILED: ${err instanceof Error ? err.message : String(err)}`.slice(0, 500);

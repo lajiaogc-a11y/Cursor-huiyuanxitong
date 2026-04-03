@@ -49,12 +49,13 @@ export async function getMemberPointsRpc(memberId: string): Promise<MemberPoints
       return res.data ?? { success: false, points: 0 };
     }
     const data = await apiPost<any>(MEMBER_PORTAL_RPC_PATHS.MEMBER_GET_POINTS, { p_member_id: memberId });
-    const r = data as { success?: boolean; points?: number; balance?: number };
+    const r = data as { success?: boolean; points?: number; balance?: number; frozen_points?: number; total_points?: number };
     const pts = r?.success ? Number(r.points ?? r.balance ?? 0) : 0;
-    return { success: !!r?.success, points: pts };
+    const frozen = r?.success ? Number(r.frozen_points ?? 0) : 0;
+    return { success: !!r?.success, points: pts, frozen_points: frozen, total_points: pts + frozen };
   } catch (e) {
     console.error('[memberPointsRpcService] getMemberPoints error:', e);
-    return { success: false, points: 0 };
+    return { success: false, points: 0, frozen_points: 0, total_points: 0 };
   }
 }
 
