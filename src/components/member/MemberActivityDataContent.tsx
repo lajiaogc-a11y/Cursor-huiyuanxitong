@@ -1127,7 +1127,12 @@ export default function MemberActivityDataContent() {
       }
 
       // 从数据库获取最新积分数据
-      const summary = await getMemberPointsSummary(row.member.memberCode, row.member.phoneNumber);
+      const summary = await getMemberPointsSummary(
+        row.member.memberCode,
+        row.member.phoneNumber,
+        undefined,
+        row.member.id,
+      );
       const totalPoints = summary.remainingPoints;
       const referralPoints = summary.referralRewardPoints;
       const consumptionPoints = summary.consumptionReward;

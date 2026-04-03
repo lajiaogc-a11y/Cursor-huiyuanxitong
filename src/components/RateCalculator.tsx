@@ -182,9 +182,10 @@ export default function RateCalculator({
   const [redeemGiftRateInput, setRedeemGiftRateInput] = useState("");
   const [redeemPreviewData, setRedeemPreviewData] = useState<any>(null);
 
-  // 会员积分摘要（从数据库实时获取，与活动数据统一）
+  // 会员积分摘要（从数据库实时获取，与活动数据统一）；matchedMemberId 用于 order_count 与「活动数据 → 累积次数」同一条 member_activity 行
   const [memberPointsSummary, setMemberPointsSummary] = useState<MemberPointsSummary | null>(null);
   const [isLoadingPoints, setIsLoadingPoints] = useState(false);
+  const [matchedMemberId, setMatchedMemberId] = useState<string | null>(null);
 
   // 当电话号码或会员编号变化时，从数据库获取积分摘要
   useEffect(() => {
@@ -200,7 +201,7 @@ export default function RateCalculator({
       const POINTS_FETCH_MS = 25000;
       try {
         const summary = await Promise.race([
-          getMemberPointsSummary(formData.memberCode, formData.phoneNumber, memberLookupTenantId),
+          getMemberPointsSummary(formData.memberCode, formData.phoneNumber, memberLookupTenantId, matchedMemberId),
           new Promise<null>((_, reject) =>
             setTimeout(() => reject(new Error('POINTS_SUMMARY_TIMEOUT')), POINTS_FETCH_MS),
           ),
@@ -218,13 +219,13 @@ export default function RateCalculator({
       isMounted = false;
       clearTimeout(timeoutId);
     };
-  }, [formData.phoneNumber, formData.memberCode, memberLookupTenantId]);
+  }, [formData.phoneNumber, formData.memberCode, memberLookupTenantId, matchedMemberId]);
 
   // 监听积分变化事件
   useEffect(() => {
     const handlePointsUpdated = () => {
       if (formData.phoneNumber && formData.memberCode) {
-        getMemberPointsSummary(formData.memberCode, formData.phoneNumber, memberLookupTenantId)
+        getMemberPointsSummary(formData.memberCode, formData.phoneNumber, memberLookupTenantId, matchedMemberId)
           .then(setMemberPointsSummary)
           .catch(console.error);
       }
@@ -250,7 +251,7 @@ export default function RateCalculator({
       window.removeEventListener('points-updated', handlePointsUpdated);
       window.removeEventListener('data-refresh', onDataRefresh as EventListener);
     };
-  }, [formData.phoneNumber, formData.memberCode, memberLookupTenantId]);
+  }, [formData.phoneNumber, formData.memberCode, memberLookupTenantId, matchedMemberId]);
 
   const feeSettings = getFeeSettings();
   const usdtFeeNum = parseFloat(usdtFee) || 0;
@@ -392,6 +393,7 @@ export default function RateCalculator({
         if (dbMember) {
             const z = dbMember.member_level_zh?.trim();
             setMemberLevelZhHint(z || null);
+            setMatchedMemberId(dbMember.id);
             updateFields({
               memberCode: dbMember.member_code,
               memberLevel: dbMember.member_level || '',
@@ -405,6 +407,7 @@ export default function RateCalculator({
             notify.success(t(`已匹配到会员: ${dbMember.member_code}`, `Member matched: ${dbMember.member_code}`));
           } else {
             setMemberLevelZhHint(null);
+            setMatchedMemberId(null);
             const newMemberCode = generateMemberId();
             updateFields({
               memberCode: newMemberCode,
@@ -424,6 +427,7 @@ export default function RateCalculator({
       }, 300);
     } else {
       setMemberLevelZhHint(null);
+      setMatchedMemberId(null);
       updateFields({
         memberCode: "",
         memberLevel: "",
@@ -624,6 +628,7 @@ export default function RateCalculator({
         const dbMember = await getMemberByPhoneForMyTenant(formData.phoneNumber, memberLookupTenantId);
         if (dbMember) {
           existingMember = { id: dbMember.id, phoneNumber: dbMember.phone_number, memberCode: dbMember.member_code } as any;
+          setMatchedMemberId(dbMember.id);
         }
       } catch (e) {
         console.error('[RateCalculator] DB member lookup failed:', e);
@@ -722,7 +727,12 @@ export default function RateCalculator({
       
       // 重新获取积分摘要
       if (formData.memberCode && formData.phoneNumber) {
-        const summary = await getMemberPointsSummary(formData.memberCode, formData.phoneNumber, memberLookupTenantId);
+        const summary = await getMemberPointsSummary(
+          formData.memberCode,
+          formData.phoneNumber,
+          memberLookupTenantId,
+          matchedMemberId,
+        );
         setMemberPointsSummary(summary);
       }
       
@@ -753,7 +763,7 @@ export default function RateCalculator({
       // 🔧 性能优化：并行获取复制设置和积分数据（使用显式参数避免闭包问题）
       const [settingsModule, latestPointsSummary, activitySettingsData] = await Promise.all([
         import('@/components/CopySettingsTab').then(m => m.refreshCopySettings()),
-        getMemberPointsSummary(memberCode, phone, memberLookupTenantId),
+        getMemberPointsSummary(memberCode, phone, memberLookupTenantId, matchedMemberId),
         Promise.resolve(getActivitySettings()),
       ]);
       
@@ -1462,9 +1472,11 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
                 <Label className="mb-1 block text-[10px] font-medium text-blue-700 dark:text-blue-400">{t("支付", "Pay")} {CURRENCIES.USDT.name}</Label>
                 <Input value={formData.payUsdt} onChange={(e) => handlePayUsdtChange(e.target.value)} onDoubleClick={() => handleDoubleClick('payUsdt')} placeholder={t("双击清空", "Double-click to clear")} className={`${PAY_INPUT_DESKTOP_CLASS} border-blue-300/50`} />
               </div>
-              <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center gap-0.5 border-b border-r border-blue-200/30 bg-blue-50/50 px-1 py-2 dark:bg-blue-950/20">
-                <span className="text-[9px] leading-none text-muted-foreground">U</span>
-                <span className="text-sm font-bold tabular-nums whitespace-nowrap text-blue-600 dark:text-blue-400">{formData.payUsdt ? profitCalculation.usdtProfitU : '0'}</span>
+              <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center border-b border-r border-blue-200/30 bg-blue-50/50 px-1 py-2 dark:bg-blue-950/20">
+                <span className="text-center text-sm font-bold tabular-nums leading-tight text-blue-600 dark:text-blue-400">
+                  {formData.payUsdt ? profitCalculation.usdtProfitU : '0'}
+                  <span className="ml-0.5 align-baseline text-[10px] font-medium text-muted-foreground">USDT</span>
+                </span>
               </div>
               <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center border-b border-blue-200/30 bg-blue-50/50 px-1 py-2 dark:bg-blue-950/20">
                 <span className="text-sm font-bold tabular-nums whitespace-nowrap text-blue-600 dark:text-blue-400">{formData.payUsdt ? profitCalculation.usdtRate + '%' : '0%'}</span>
@@ -1474,9 +1486,11 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
                 <Label className="mb-1 flex items-center gap-1 text-[10px] font-medium text-purple-700 dark:text-purple-400">{t("支付BTC", "Pay BTC")} <Lock className="h-2.5 w-2.5" /></Label>
                 <div className="flex h-8 min-w-[10ch] items-center justify-center rounded border bg-purple-100/50 px-1 text-sm font-bold tabular-nums tracking-normal text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">{payBtc || '—'}</div>
               </div>
-              <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center gap-0.5 border-r border-purple-200/30 bg-purple-50/50 px-1 py-2 dark:bg-purple-950/20">
-                <span className="text-[9px] leading-none text-muted-foreground">U</span>
-                <span className="text-sm font-bold tabular-nums whitespace-nowrap text-purple-600 dark:text-purple-400">{payBtc ? profitCalculation.btcProfitU : '0'}</span>
+              <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center border-r border-purple-200/30 bg-purple-50/50 px-1 py-2 dark:bg-purple-950/20">
+                <span className="text-center text-sm font-bold tabular-nums leading-tight text-purple-600 dark:text-purple-400">
+                  {payBtc ? profitCalculation.btcProfitU : '0'}
+                  <span className="ml-0.5 align-baseline text-[10px] font-medium text-muted-foreground">USDT</span>
+                </span>
               </div>
               <div className="flex min-h-0 min-w-[7ch] flex-col items-center justify-center bg-purple-50/50 px-1 py-2 dark:bg-purple-950/20">
                 <span className="text-sm font-bold tabular-nums whitespace-nowrap text-purple-600 dark:text-purple-400">{payBtc ? profitCalculation.btcRate + '%' : '0%'}</span>
@@ -1757,7 +1771,15 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Label className="text-[10px] w-14 shrink-0 text-muted-foreground">{t("累积次数", "Order Count")}</Label>
+                  <Label
+                    className="text-[10px] w-14 shrink-0 text-muted-foreground"
+                    title={t(
+                      "与「会员管理 → 活动数据」中的累积次数相同，均来自 member_activity.order_count（有效已完成订单累计，删除/取消会回滚）。",
+                      "Same as Accumulated count in Member → Activity data: member_activity.order_count (completed orders; reverses on delete/cancel).",
+                    )}
+                  >
+                    {t("累积次数", "Order Count")}
+                  </Label>
                   <div className="h-6 flex-1 flex items-center justify-end px-2 bg-muted/50 rounded border text-sm font-medium tabular-nums">
                     {isLoadingPoints ? '...' : (memberPointsSummary?.orderCount || 0)} {t("次", "times")}
                   </div>

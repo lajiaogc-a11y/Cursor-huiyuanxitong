@@ -73,12 +73,14 @@ export interface MemberPointsSummary {
  * @param memberCode 会员编号
  * @param phoneNumber 电话号码
  * @param tenantId 预留（与数据表租户过滤扩展一致）
+ * @param memberId 若已知会员主键，优先按 member_id 读 member_activity，与「会员管理 → 活动数据」累积次数（permanentOrderCount）同源
  * @returns 积分摘要（剩余积分、消费奖励、推荐奖励）
  */
 export async function getMemberPointsSummary(
   memberCode: string,
   phoneNumber: string,
   _tenantId?: string | null,
+  memberId?: string | null,
 ): Promise<MemberPointsSummary> {
   try {
     const orClause = `member_code.eq.${memberCode},phone_number.eq.${phoneNumber}`;
@@ -86,6 +88,7 @@ export async function getMemberPointsSummary(
       `/api/data/table/points_ledger?select=*&or=${encodeURIComponent(orClause)}&status=${encodeURIComponent('in.(issued,reversed)')}`;
 
     const phoneQ = String(phoneNumber || '').trim();
+    const mid = String(memberId ?? '').trim();
     const accountsPath =
       phoneQ.length > 0
         ? `/api/data/table/points_accounts?select=balance,last_reset_time&or=${encodeURIComponent(
@@ -93,12 +96,29 @@ export async function getMemberPointsSummary(
           )}&limit=1`
         : `/api/data/table/points_accounts?select=balance,last_reset_time&member_code=eq.${encodeURIComponent(memberCode)}&limit=1`;
 
+    const activitySelect =
+      'order_count,total_accumulated_ngn,total_accumulated_ghs,total_accumulated_usdt';
+    const loadMemberActivity = async (): Promise<Record<string, unknown>[]> => {
+      if (mid) {
+        const byId = await apiGet<Record<string, unknown> | Record<string, unknown>[]>(
+          `/api/data/table/member_activity?select=${activitySelect}&member_id=eq.${encodeURIComponent(mid)}&limit=1`,
+        )
+          .then(asRowArray)
+          .catch(() => [] as Record<string, unknown>[]);
+        if (byId.length > 0) return byId;
+      }
+      if (phoneQ.length > 0) {
+        return apiGet<Record<string, unknown> | Record<string, unknown>[]>(
+          `/api/data/table/member_activity?select=${activitySelect}&phone_number=eq.${encodeURIComponent(phoneQ)}&limit=1`,
+        )
+          .then(asRowArray)
+          .catch(() => [] as Record<string, unknown>[]);
+      }
+      return [];
+    };
+
     const [activityRows, accountRows, pointsData] = await Promise.all([
-      phoneQ.length > 0
-        ? apiGet<Record<string, unknown> | Record<string, unknown>[]>(
-            `/api/data/table/member_activity?select=order_count,total_accumulated_ngn,total_accumulated_ghs,total_accumulated_usdt&phone_number=eq.${encodeURIComponent(phoneQ)}&limit=1`,
-          ).then(asRowArray).catch(() => [] as Record<string, unknown>[])
-        : Promise.resolve([] as Record<string, unknown>[]),
+      loadMemberActivity(),
       apiGet<
         { balance?: number | string | null; last_reset_time?: string | null } | { balance?: number | string | null; last_reset_time?: string | null }[]
       >(accountsPath)
