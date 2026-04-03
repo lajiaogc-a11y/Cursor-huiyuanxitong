@@ -38,9 +38,9 @@ import { MemberEmptyStateCta } from "@/components/member/MemberEmptyStateCta";
 import { useMemberSkeletonGate } from "@/hooks/useMemberSkeletonGate";
 import { memberPortalNetworkToastMessage } from "@/lib/memberPortalUx";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
-import { sumTodayEarnedFromLedger } from "@/lib/memberLedgerToday";
 import {
   getMemberPointsLedgerRpc,
+  getMemberTodayEarnedRpc,
   type MemberPointsLedgerRow,
 } from "@/services/points/memberPointsRpcService";
 import { formatMemberLedgerRowOrderDisplay } from "@/lib/memberLedgerIdDisplay";
@@ -508,10 +508,9 @@ export default function MemberPoints() {
     let cancelled = false;
     const fetchTodayEarned = async (showLoading: boolean) => {
       if (showLoading) setTodayEarnedLoading(true);
-      const r = await getMemberPointsLedgerRpc(member.id, "all", 200, 0);
+      const earned = await getMemberTodayEarnedRpc(member.id);
       if (cancelled) return;
-      if (r.success) setTodayEarned(sumTodayEarnedFromLedger(r.rows));
-      else setTodayEarned(0);
+      setTodayEarned(earned);
       setTodayEarnedLoading(false);
     };
     void fetchTodayEarned(true);

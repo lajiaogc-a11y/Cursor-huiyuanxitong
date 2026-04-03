@@ -43,8 +43,7 @@ import { resolveHomePointsBalanceFooter } from "@/lib/memberPortalBilingualHint"
 import { useMemberLocalAvatar } from "@/hooks/useMemberLocalAvatar";
 import { getMemberPortalDisplayName } from "@/lib/memberDisplayName";
 import { displayMemberLevelLabel } from "@/lib/memberLevelDisplay";
-import { getMemberPointsLedgerRpc } from "@/services/points/memberPointsRpcService";
-import { sumTodayEarnedFromLedger } from "@/lib/memberLedgerToday";
+import { getMemberTodayEarnedRpc } from "@/services/points/memberPointsRpcService";
 import { formatAnnouncementPublishedAt } from "@/lib/memberPortalAnnouncementDate";
 import { useMemberAnimatedCount } from "@/hooks/useMemberAnimatedCount";
 import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
@@ -365,10 +364,9 @@ export default function MemberDashboard() {
     let cancelled = false;
     setTodayEarnedLoading(true);
     void (async () => {
-      const r = await getMemberPointsLedgerRpc(member.id, "all", 200, 0);
+      const earned = await getMemberTodayEarnedRpc(member.id);
       if (cancelled) return;
-      if (r.success) setTodayEarned(sumTodayEarnedFromLedger(r.rows));
-      else setTodayEarned(0);
+      setTodayEarned(earned);
       setTodayEarnedLoading(false);
     })();
     return () => {
@@ -381,10 +379,9 @@ export default function MemberDashboard() {
     if (!member?.id || pullRefreshGen === 0) return;
     let cancelled = false;
     void (async () => {
-      const r = await getMemberPointsLedgerRpc(member.id, "all", 200, 0);
+      const earned = await getMemberTodayEarnedRpc(member.id);
       if (cancelled) return;
-      if (r.success) setTodayEarned(sumTodayEarnedFromLedger(r.rows));
-      else setTodayEarned(0);
+      setTodayEarned(earned);
     })();
     return () => {
       cancelled = true;

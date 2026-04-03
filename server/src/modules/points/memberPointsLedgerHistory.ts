@@ -123,3 +123,28 @@ export async function listMemberPointsLedgerHistory(
 
   return { rows, total };
 }
+
+/**
+ * Server-side SUM of positive points earned today (Beijing timezone),
+ * with no row-count limit — accurate for any activity level.
+ */
+export async function sumMemberTodayEarnedPoints(memberId: string): Promise<number> {
+  const now = new Date();
+  const todayStart = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
+  todayStart.setHours(0, 0, 0, 0);
+  const todayStartSql = toMySqlDatetime(todayStart);
+
+  const row = await queryOne<{ s: number | string | null }>(
+    `SELECT COALESCE(SUM(CASE WHEN pl.amount > 0 THEN pl.amount ELSE pl.points_earned END), 0) AS s
+     FROM points_ledger pl
+     WHERE pl.member_id = ?
+       AND pl.created_at >= ?
+       AND (COALESCE(pl.amount, 0) > 0 OR COALESCE(pl.points_earned, 0) > 0)
+       AND LOWER(COALESCE(pl.status, 'issued')) = 'issued'
+       AND LOWER(COALESCE(pl.reference_type, '')) NOT LIKE 'mall_redemption%'
+       AND LOWER(COALESCE(pl.type, '')) NOT LIKE 'redeem%'
+       AND LOWER(COALESCE(pl.transaction_type, '')) NOT IN ('redemption')`,
+    [memberId, todayStartSql],
+  );
+  return Math.round(Number(row?.s ?? 0) * 100) / 100;
+}

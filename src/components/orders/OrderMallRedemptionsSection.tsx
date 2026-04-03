@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, RotateCcw } from "lucide-react";
+import { Loader2, RotateCcw, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { notify } from "@/lib/notifyHub";
 import { showServiceErrorToast } from "@/services/serviceErrorToast";
+import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 import { ResolvableMediaThumb } from "@/components/ResolvableMediaThumb";
 import {
   listMyPointsMallRedemptionOrders,
@@ -96,6 +97,8 @@ export interface OrderMallRedemptionsSectionProps {
   refreshNonce?: number;
   /** 外部跳转高亮某条兑换（如右下角通知「前往订单」） */
   highlightRedemptionId?: string | null;
+  /** 是否允许当前员工完成/驳回订单（角色校验） */
+  canProcessOrders?: boolean;
   t: (zh: string, en: string) => string;
 }
 
@@ -107,6 +110,7 @@ export function OrderMallRedemptionsSection({
   isMobile,
   refreshNonce = 0,
   highlightRedemptionId = null,
+  canProcessOrders = false,
   t,
 }: OrderMallRedemptionsSectionProps) {
   const [orders, setOrders] = useState<PointsMallRedemptionOrder[]>([]);
@@ -202,6 +206,9 @@ export function OrderMallRedemptionsSection({
           : t("订单已驳回并已退回积分", "Order rejected and points refunded"),
       );
       await load();
+      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+      notifyDataMutation({ table: 'points_accounts', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+      notifyDataMutation({ table: 'redemptions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
     } catch (e: unknown) {
       showServiceErrorToast(e, t, "订单处理失败", "Order processing failed");
     } finally {
@@ -223,9 +230,22 @@ export function OrderMallRedemptionsSection({
 
   if (!tenantId) {
     return (
-      <p className="text-sm text-muted-foreground py-6 text-center">
-        {t("请选择租户后查看商城订单。", "Select a tenant to view mall orders.")}
-      </p>
+      <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+        <div className="rounded-full bg-muted p-3">
+          <Building2 className="h-8 w-8 text-muted-foreground/60" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">
+            {t("未选择租户", "No tenant selected")}
+          </p>
+          <p className="text-xs text-muted-foreground max-w-[280px]">
+            {t(
+              "请在页面顶部的租户切换器中选择一个租户，即可查看该租户的商城兑换订单。",
+              "Select a tenant from the tenant switcher at the top of the page to view their mall redemption orders.",
+            )}
+          </p>
+        </div>
+      </div>
     );
   }
 
@@ -289,7 +309,7 @@ export function OrderMallRedemptionsSection({
                   <MobileCardRow label={t("时间", "Time")} value={formatBeijingTime(o.created_at)} />
                   <MobileCardRow label={t("经手人", "Handler")} value={displayStr(o.handler_name, "—")} />
                 </MobileCardCollapsible>
-                {o.status === "pending" && (
+                {o.status === "pending" && canProcessOrders && (
                   <div className="flex gap-2 pt-1">
                     <Button
                       type="button"
@@ -389,7 +409,7 @@ export function OrderMallRedemptionsSection({
                         {displayStr(o.handler_name, "—")}
                       </TableCell>
                       <TableCell className="text-right px-1.5 sticky right-0 z-10 bg-background shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.15)]">
-                        {o.status === "pending" ? (
+                        {o.status === "pending" && canProcessOrders ? (
                           <div className="flex justify-end gap-1 flex-wrap">
                             <Button
                               type="button"

@@ -2215,6 +2215,12 @@ export default function OrderManagement() {
                 isMobile={isMobile}
                 refreshNonce={mallOrdersRefreshNonce}
                 highlightRedemptionId={mallHighlightId}
+                canProcessOrders={
+                  isAdmin ||
+                  currentEmployee?.role === "manager" ||
+                  !!currentEmployee?.is_super_admin ||
+                  !!currentEmployee?.is_platform_super_admin
+                }
                 t={t}
               />
             </TabsContent>
@@ -2278,37 +2284,31 @@ export default function OrderManagement() {
                 : t("确认批量处理", "Confirm batch process")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {orderBatchDialog?.mode === "delete" ? (
-                orderBatchDialog.tab === "normal" || orderBatchDialog.tab === "meika-fiat" ? (
-                  <>
-                    {t(
+              {orderBatchDialog ? (
+                orderBatchDialog.mode === "delete" ? (
+                  orderBatchDialog.tab === "normal" || orderBatchDialog.tab === "meika-fiat" ? (
+                    t(
                       `将删除所选的 ${orderBatchDialog.tab === "meika-fiat" ? selectedMeikaFiatDbIds.size : selectedNormalDbIds.size} 条订单，确定继续？`,
                       `Delete ${orderBatchDialog.tab === "meika-fiat" ? selectedMeikaFiatDbIds.size : selectedNormalDbIds.size} selected order(s)?`,
-                    )}
-                  </>
-                ) : (
-                  <>
-                    {t(
+                    )
+                  ) : (
+                    t(
                       `将删除所选的 ${orderBatchDialog.tab === "meika-usdt" ? selectedMeikaUsdtDbIds.size : selectedUsdtDbIds.size} 条 USDT 订单，确定继续？`,
                       `Delete ${orderBatchDialog.tab === "meika-usdt" ? selectedMeikaUsdtDbIds.size : selectedUsdtDbIds.size} selected USDT order(s)?`,
-                    )}
-                  </>
-                )
-              ) : orderBatchDialog?.tab === "normal" || orderBatchDialog?.tab === "meika-fiat" ? (
-                <>
-                  {t(
+                    )
+                  )
+                ) : orderBatchDialog.tab === "normal" || orderBatchDialog.tab === "meika-fiat" ? (
+                  t(
                     `将把 ${orderBatchDialog.tab === "meika-fiat" ? meikaFiatBatchCancelCount : normalBatchCancelCount} 条「已完成」订单取消，确定继续？`,
                     `Cancel ${orderBatchDialog.tab === "meika-fiat" ? meikaFiatBatchCancelCount : normalBatchCancelCount} completed order(s)?`,
-                  )}
-                </>
-              ) : (
-                <>
-                  {t(
+                  )
+                ) : (
+                  t(
                     `将把 ${orderBatchDialog.tab === "meika-usdt" ? meikaUsdtBatchCancelCount : usdtBatchCancelCount} 条「已完成」USDT 订单取消，确定继续？`,
                     `Cancel ${orderBatchDialog.tab === "meika-usdt" ? meikaUsdtBatchCancelCount : usdtBatchCancelCount} completed USDT order(s)?`,
-                  )}
-                </>
-              )}
+                  )
+                )
+              ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

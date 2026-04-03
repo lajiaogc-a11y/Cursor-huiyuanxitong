@@ -820,6 +820,16 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
           result = { success: false, error: 'EMPLOYEE_ONLY' };
           break;
         }
+        const mallProcessRole = req.user?.role;
+        const canProcessMall =
+          mallProcessRole === 'admin' ||
+          mallProcessRole === 'manager' ||
+          !!req.user?.is_super_admin ||
+          !!req.user?.is_platform_super_admin;
+        if (!canProcessMall) {
+          result = { success: false, error: 'FORBIDDEN_ROLE' };
+          break;
+        }
         const redemptionId = params.p_redemption_id;
         const action = params.p_action;
         const note = params.p_note || null;
@@ -1342,6 +1352,18 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
           Number.isFinite(offset) ? offset : 0
         );
         result = { success: true, rows, total };
+        break;
+      }
+
+      case 'member_sum_today_earned': {
+        const memberId = effectiveMemberIdForRpc(req, params);
+        if (!memberId) {
+          result = { success: false, error: 'UNAUTHORIZED', earned: 0 };
+          break;
+        }
+        const { sumMemberTodayEarnedPoints } = await import('../points/memberPointsLedgerHistory.js');
+        const earned = await sumMemberTodayEarnedPoints(memberId);
+        result = { success: true, earned };
         break;
       }
 

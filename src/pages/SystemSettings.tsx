@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense, useMemo } from "react";
+import { useEffect, useCallback, lazy, Suspense, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -86,6 +86,7 @@ export default function SystemSettings() {
   const isMobile = useIsMobile();
   const { isNavKeyVisible, loaded: navPermLoaded } = useNavigationVisibility();
   const isAdmin = employee?.role === "admin" || !!employee?.is_super_admin || !!employee?.is_platform_super_admin;
+  const isManager = employee?.role === "manager";
 
   const canSeeMemberLevels =
     !!employee?.is_platform_super_admin || !navPermLoaded || isNavKeyVisible("member_promotion");
@@ -95,17 +96,27 @@ export default function SystemSettings() {
     [canSeeMemberLevels],
   );
 
+  const canAccessTab = useCallback(
+    (tab: string) => {
+      if (!ADMIN_TABS.includes(tab)) return true;
+      if (isAdmin) return true;
+      if (isManager && tab === "permission") return true;
+      return false;
+    },
+    [isAdmin, isManager],
+  );
+
   const tabFromUrl = SETTINGS_TAB_MAP[searchParams.get("tab") || ""] || "fee";
-  let activeTab = !isAdmin && ADMIN_TABS.includes(tabFromUrl) ? "data" : tabFromUrl;
+  let activeTab = !canAccessTab(tabFromUrl) ? "data" : tabFromUrl;
   if (activeTab === "member-levels" && !canSeeMemberLevels) {
     activeTab = "fee";
   }
 
   useEffect(() => {
-    if (!isAdmin && ADMIN_TABS.includes(tabFromUrl)) {
+    if (!canAccessTab(tabFromUrl)) {
       navigate("/staff/settings?tab=data", { replace: true });
     }
-  }, [isAdmin, tabFromUrl, navigate]);
+  }, [canAccessTab, tabFromUrl, navigate]);
 
   useEffect(() => {
     if (!navPermLoaded) return;
@@ -136,7 +147,10 @@ export default function SystemSettings() {
     "version-update": t("版本更新", "Version update"),
   };
 
-  const visibleTabs = [...tabOrder, ...(isAdmin ? ADMIN_TABS : [])];
+  const visibleTabs = useMemo(
+    () => [...tabOrder, ...ADMIN_TABS.filter((tab) => canAccessTab(tab))],
+    [tabOrder, canAccessTab],
+  );
 
   const ActiveComp = TAB_COMPONENTS[activeTab];
 

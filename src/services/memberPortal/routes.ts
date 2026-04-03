@@ -45,5 +45,6 @@ export const MEMBER_PORTAL_RPC_PATHS = {
   MEMBER_GET_POINTS: "/api/data/rpc/member_get_points",
   MEMBER_GET_POINTS_BREAKDOWN: "/api/data/rpc/member_get_points_breakdown",
   MEMBER_LIST_POINTS_LEDGER: "/api/data/rpc/member_list_points_ledger",
+  MEMBER_SUM_TODAY_EARNED: "/api/data/rpc/member_sum_today_earned",
   MEMBER_GET_SPIN_QUOTA: "/api/data/rpc/member_get_spin_quota",
 } as const;

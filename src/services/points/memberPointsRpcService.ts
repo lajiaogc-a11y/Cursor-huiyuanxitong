@@ -163,6 +163,19 @@ export async function getMemberPointsLedgerRpc(
   }
 }
 
+/** Server-side SUM of today's earned points — no row-count cap */
+export async function getMemberTodayEarnedRpc(memberId: string): Promise<number> {
+  try {
+    const data = await apiPost<{ success?: boolean; earned?: number }>(
+      MEMBER_PORTAL_RPC_PATHS.MEMBER_SUM_TODAY_EARNED,
+      { p_member_id: memberId },
+    );
+    return data?.success ? Math.max(0, Number(data.earned ?? 0)) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 /** 获取会员抽奖剩余次数 */
 export async function getMemberSpinQuotaRpc(memberId: string): Promise<MemberSpinQuotaResult> {
   try {
