@@ -15,6 +15,18 @@ import {
   adminListLogsController,
   adminGetSettingsController,
   adminSaveSettingsController,
+  adminPendingRewardsController,
+  adminRetryFailedRewardsController,
+  adminConfirmRewardController,
+  adminManualRetryRewardController,
+  adminSimulateCurrentController,
+  adminSimulatePreviewController,
+  adminSnapshotController,
+  adminReconcileAllController,
+  adminRunTaskController,
+  adminTaskHistoryController,
+  adminSchedulerController,
+  adminOperationalStatsController,
 } from './controller.js';
 import { spinSimFeedController } from './spinFakeFeedController.js';
 import { adminGetSimFakeSettingsController, adminSaveSimFakeSettingsController } from './simFakeAdminController.js';
@@ -56,5 +68,25 @@ router.post('/admin/simulation-settings', authMiddleware, requireEmployee, requi
 router.get('/admin/simulation-feed', authMiddleware, requireEmployee, adminListSimulationFeedController);
 router.get('/admin/simulation-hour-runs', authMiddleware, requireEmployee, adminListSpinFakeHourRunsController);
 router.post('/admin/simulation-cron-start', authMiddleware, requireEmployee, requireAdminRole, adminStartSpinFakeCronController);
+
+// Phase 4: 奖励补偿管理
+router.get('/admin/pending-rewards', authMiddleware, requireEmployee, adminPendingRewardsController);
+router.post('/admin/retry-failed-rewards', authMiddleware, requireEmployee, requireAdminRole, adminRetryFailedRewardsController);
+router.post('/admin/confirm-reward', authMiddleware, requireEmployee, requireAdminRole, adminConfirmRewardController);
+router.post('/admin/manual-retry-reward', authMiddleware, requireEmployee, requireAdminRole, adminManualRetryRewardController);
+
+// Phase 5: 模拟抽奖与运营预览
+router.get('/admin/simulate', authMiddleware, requireEmployee, adminSimulateCurrentController);
+router.post('/admin/simulate-preview', authMiddleware, requireEmployee, adminSimulatePreviewController);
+router.get('/admin/snapshot', authMiddleware, requireEmployee, adminSnapshotController);
+
+// Phase 6: 恢复与补偿任务
+router.post('/admin/reconcile-all', authMiddleware, requireEmployee, requireAdminRole, adminReconcileAllController);
+router.post('/admin/run-task', authMiddleware, requireEmployee, requireAdminRole, adminRunTaskController);
+router.get('/admin/task-history', authMiddleware, requireEmployee, adminTaskHistoryController);
+router.post('/admin/scheduler', authMiddleware, requireEmployee, requireAdminRole, adminSchedulerController);
+
+// Phase 7: 运营仪表盘
+router.get('/admin/operational-stats', authMiddleware, requireEmployee, adminOperationalStatsController);
 
 export default router;

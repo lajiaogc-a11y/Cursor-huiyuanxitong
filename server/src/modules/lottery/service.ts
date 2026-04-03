@@ -1,5 +1,17 @@
 /**
- * 抽奖系统核心业务逻辑（事务保护版）
+ * 抽奖系统核心业务逻辑（事务保护版 — Phase 1 ~ Phase 4）
+ *
+ * Phase 1：幂等、库存、reward_status 追踪
+ * Phase 2：预算 / 返奖率控制
+ * Phase 3：风控最小版
+ * Phase 4：统一中奖副作用落库
+ *   - lottery_logs 增加 prize_cost / reward_type，形成完整审计链路
+ *   - 奖励发放抽取为独立的 fulfillRewardOnConn()，可被补偿任务复用
+ *   - reward_type 分类：auto(积分自动发) / manual(custom 需人工) / none(无需发放)
+ *   - custom 奖品不再静默标记 done，而是保留 pending 等待人工确认
+ *   - 补偿任务可读取 failed 记录并重试
+ *
+ * 不变项：事务边界、MySQL GET_LOCK 用户锁、加权随机算法（prizePick.ts）。
  */
 import { withTransaction } from '../../database/index.js';
 import { randomUUID } from 'crypto';
@@ -8,13 +20,14 @@ import type { ResultSetHeader } from 'mysql2';
 import { buildMysqlUserLockName, mysqlGetLock, mysqlReleaseLock } from '../../lib/mysqlUserLock.js';
 import { applyPointsLedgerDeltaOnConn } from '../points/pointsLedgerAccount.js';
 import { getEffectiveDailyFreeSpinsConn, getLotterySettings, listEnabledPrizes } from './repository.js';
-import { pickLotteryPrizeByConfiguredProbability } from './prizePick.js';
+import { pickLotteryPrizeByConfiguredProbability, budgetAwarePrizePick, type BudgetPolicy } from './prizePick.js';
 import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
 import { syncLotteryQuotaDayAndLoadConn } from './spinBalanceAccount.js';
+import { evaluateDrawRisk, loadRiskThresholds, type RiskResult } from './riskControl.js';
 
+// ── 内存防抖（仍保留作为热路径快速拦截，DB UNIQUE INDEX 是真正保障）──
 const recentDraws = new Map<string, number>();
 const DRAW_IDEMPOTENCY_WINDOW_MS = 2000;
-
 setInterval(() => {
   const now = Date.now();
   for (const [key, ts] of recentDraws) {
@@ -22,7 +35,7 @@ setInterval(() => {
   }
 }, 10_000);
 
-interface DrawResult {
+export interface DrawResult {
   success: boolean;
   prize?: {
     id: string;
@@ -33,6 +46,21 @@ interface DrawResult {
   };
   remaining?: number;
   error?: string;
+  /** Phase 1: 奖励发放状态 */
+  reward_status?: 'pending' | 'done' | 'failed';
+  /** Phase 1: 失败原因（仅 reward_status=failed） */
+  fail_reason?: string;
+  /** Phase 2: 预算/RTP 警告码（抽奖成功时可附带，表示结果受到预算约束） */
+  budget_warning?: 'BUDGET_EXCEEDED' | 'BUDGET_LOW' | 'RTP_LIMIT_REACHED';
+  /** Phase 3: 风控降级标记（结果被强制保底） */
+  risk_downgraded?: boolean;
+}
+
+/** Phase 3: draw() 扩展参数 */
+export interface DrawOptions {
+  requestId?: string;
+  clientIp?: string | null;
+  deviceFingerprint?: string | null;
 }
 
 interface LotteryPrize {
@@ -42,6 +70,10 @@ interface LotteryPrize {
   value: number;
   description: string | null;
   probability: number;
+  stock_enabled?: number;
+  stock_total?: number;
+  stock_used?: number;
+  prize_cost?: number;
 }
 
 async function queryConn<T = any>(conn: PoolConnection, sql: string, params?: any[]): Promise<T[]> {
@@ -60,18 +92,55 @@ async function execConn(conn: PoolConnection, sql: string, params?: any[]): Prom
 
 /**
  * 核心抽奖流程 — 全部在单个数据库事务内完成：
- * 1. 查次数（FOR UPDATE 锁定行防并发）
- * 2. 获取奖品 + 校验概率
- * 3. 随机命中
- * 4. 写抽奖日志（同时也是次数扣减的凭据）
- * 5. 积分类奖品：加分 + 写积分流水
- * 6. 提交事务
+ *  1. 幂等检查（request_id DB 唯一索引）
+ *  2. 加载租户 + 全局开关
+ *  3. 每日预算自动重置 + RTP 有效预算计算
+ *  4. deny 策略前置拦截 / RTP 前置拦截
+ *  5. 次数配额
+ *  6. 获取奖品 → 预算感知抽奖 (budgetAwarePrizePick)
+ *  7. 库存原子扣减
+ *  8. 扣减配额
+ *  9. 写抽奖日志 reward_status='pending'
+ * 10. 积分类奖品发放 → 更新 reward_status
+ * 11. 事务内更新 daily_reward_used
+ * 12. 提交事务
  */
-export async function draw(memberId: string): Promise<DrawResult> {
-  const lastOk = recentDraws.get(memberId);
-  if (lastOk && Date.now() - lastOk < DRAW_IDEMPOTENCY_WINDOW_MS) {
-    return { success: false, error: 'DUPLICATE_REQUEST' };
+export async function draw(memberId: string, requestIdOrOpts?: string | DrawOptions): Promise<DrawResult> {
+  const opts: DrawOptions = typeof requestIdOrOpts === 'string'
+    ? { requestId: requestIdOrOpts }
+    : requestIdOrOpts ?? {};
+  const { requestId, clientIp, deviceFingerprint } = opts;
+
+  // 快速内存防抖（非幂等保障，仅优化热路径）
+  if (!requestId) {
+    const lastOk = recentDraws.get(memberId);
+    if (lastOk && Date.now() - lastOk < DRAW_IDEMPOTENCY_WINDOW_MS) {
+      return { success: false, error: 'DUPLICATE_REQUEST' };
+    }
   }
+
+  // ── Phase 3: 风控前置评估（在事务之外，不持锁） ──
+  let riskResult: RiskResult | null = null;
+  try {
+    const { queryOne: qo } = await import('../../database/index.js');
+    const memberTenantRow = await qo<{ tenant_id: string | null }>(
+      'SELECT tenant_id FROM members WHERE id = ?', [memberId],
+    );
+    const preflightTenantId = memberTenantRow?.tenant_id ?? null;
+    const thresholds = await loadRiskThresholds(preflightTenantId);
+    if (thresholds.enabled) {
+      riskResult = await evaluateDrawRisk(
+        { memberId, tenantId: preflightTenantId, clientIp: clientIp ?? null, deviceFingerprint: deviceFingerprint ?? null },
+        thresholds,
+      );
+      if (riskResult.verdict === 'block') {
+        return { success: false, error: 'RISK_BLOCKED' };
+      }
+    }
+  } catch (e) {
+    console.error('[lottery/riskControl] preflight error (non-fatal):', e);
+  }
+  const riskDowngrade = riskResult?.verdict === 'downgrade';
 
   const result = await withTransaction(async (conn) => {
     const drawLock = buildMysqlUserLockName('lottery_draw', memberId);
@@ -80,15 +149,45 @@ export async function draw(memberId: string): Promise<DrawResult> {
       return { success: false, error: 'DUPLICATE_REQUEST' as const };
     }
     try {
+
+    // ── 1. request_id 幂等（DB 级别） ──
+    if (requestId) {
+      const dup = await queryOneConn<{ id: string; prize_name: string; prize_type: string; prize_value: number }>(
+        conn,
+        'SELECT id, prize_name, prize_type, prize_value FROM lottery_logs WHERE request_id = ? LIMIT 1',
+        [requestId],
+      );
+      if (dup) {
+        return {
+          success: false,
+          error: 'DUPLICATE_REQUEST',
+          prize: { id: dup.id, name: dup.prize_name, type: dup.prize_type, value: dup.prize_value, description: null },
+        };
+      }
+    }
+
+    // ── 2. 租户 + 全局开关 + 预算 / RTP 设置 ──
     const memberRow = await queryOneConn<{ tenant_id: string | null }>(
       conn, 'SELECT tenant_id FROM members WHERE id = ? FOR UPDATE', [memberId]
     );
     const tenantId = memberRow?.tenant_id ?? null;
 
-    // 0. 检查抽奖全局开关
-    const settingsRow = await queryOneConn<{ enabled: number }>(
+    const settingsRow = await queryOneConn<{
+      enabled: number;
+      daily_reward_budget: number;
+      daily_reward_used: number;
+      daily_reward_reset_date: string | null;
+      target_rtp: number;
+      budget_policy: string;
+    }>(
       conn,
-      'SELECT enabled FROM lottery_settings WHERE tenant_id <=> ?',
+      `SELECT enabled,
+              COALESCE(daily_reward_budget, 0) AS daily_reward_budget,
+              COALESCE(daily_reward_used, 0) AS daily_reward_used,
+              daily_reward_reset_date,
+              COALESCE(target_rtp, 0) AS target_rtp,
+              COALESCE(budget_policy, 'downgrade') AS budget_policy
+       FROM lottery_settings WHERE tenant_id <=> ?`,
       [tenantId],
     );
     if (settingsRow && settingsRow.enabled === 0) {
@@ -96,7 +195,44 @@ export async function draw(memberId: string): Promise<DrawResult> {
     }
 
     const today = getShanghaiDateString();
-    const dayStart = `${today} 00:00:00`;
+
+    // ── 3. 每日预算自动重置 ──
+    let budgetUsed = Number(settingsRow?.daily_reward_used ?? 0);
+    const rawBudgetCap = Number(settingsRow?.daily_reward_budget ?? 0);
+    const targetRtp = Number(settingsRow?.target_rtp ?? 0);
+    const policy = parseBudgetPolicy(settingsRow?.budget_policy);
+
+    if (settingsRow && settingsRow.daily_reward_reset_date !== today && rawBudgetCap > 0) {
+      await execConn(conn,
+        'UPDATE lottery_settings SET daily_reward_used = 0, daily_reward_reset_date = ? WHERE tenant_id <=> ?',
+        [today, tenantId],
+      );
+      budgetUsed = 0;
+    }
+
+    // RTP 有效预算：target_rtp 是一个 0~100 的百分比，收紧实际可用上限
+    // 例如 budget=1000, target_rtp=80 → effectiveCap=800
+    const effectiveBudgetCap = rawBudgetCap > 0 && targetRtp > 0
+      ? Math.min(rawBudgetCap, rawBudgetCap * targetRtp / 100)
+      : rawBudgetCap;
+    const budgetRemaining = effectiveBudgetCap > 0 ? effectiveBudgetCap - budgetUsed : Infinity;
+    const budgetEnabled = effectiveBudgetCap > 0;
+
+    // ── 4. deny 策略 / RTP 前置拦截 ──
+    if (budgetEnabled) {
+      // RTP 超限检查：budgetUsed 已经 >= 有效预算
+      if (targetRtp > 0 && rawBudgetCap > 0 && budgetUsed >= effectiveBudgetCap && effectiveBudgetCap < rawBudgetCap) {
+        if (policy === 'deny') {
+          return { success: false, error: 'RTP_LIMIT_REACHED' };
+        }
+        // downgrade / fallback 继续执行，但 budgetRemaining ≤ 0 会被 budgetAwarePrizePick 处理
+      }
+      if (budgetRemaining <= 0 && policy === 'deny') {
+        return { success: false, error: 'BUDGET_EXCEEDED' };
+      }
+    }
+
+    // ── 5. 次数配额 ──
     const dailyFree = await getEffectiveDailyFreeSpinsConn(conn, tenantId);
     const quotaSnap = await syncLotteryQuotaDayAndLoadConn(conn, memberId, today, dailyFree);
     const freeRemaining = Math.max(0, dailyFree - quotaSnap.freeDrawsUsed);
@@ -105,22 +241,73 @@ export async function draw(memberId: string): Promise<DrawResult> {
       return { success: false, error: 'NO_SPIN_QUOTA', remaining: 0 };
     }
 
+    // ── 6. 获取奖品 → 预算感知抽奖 ──
     const prizes = await queryConn<LotteryPrize>(
       conn,
-      'SELECT id, name, type, value, description, probability FROM lottery_prizes WHERE (tenant_id IS NULL OR tenant_id = ?) AND enabled = 1 ORDER BY sort_order ASC LIMIT 8',
+      `SELECT id, name, type, value, description, probability,
+              COALESCE(stock_enabled, 0) AS stock_enabled,
+              COALESCE(stock_total, -1) AS stock_total,
+              COALESCE(stock_used, 0) AS stock_used,
+              COALESCE(prize_cost, 0) AS prize_cost
+       FROM lottery_prizes
+       WHERE (tenant_id IS NULL OR tenant_id = ?) AND enabled = 1
+       ORDER BY sort_order ASC LIMIT 8`,
       [tenantId]
     );
     if (prizes.length === 0) {
       return { success: false, error: 'NO_PRIZES_CONFIGURED' };
     }
 
+    const nonePrize = prizes.find((p) => p.type === 'none');
     let hit: LotteryPrize;
-    try {
-      hit = pickLotteryPrizeByConfiguredProbability(prizes);
-    } catch {
-      return { success: false, error: 'PROBABILITY_SUM_NOT_100' };
+    let budgetWarning: DrawResult['budget_warning'];
+
+    // Phase 3: 风控降级 → 直接强制保底
+    if (riskDowngrade && nonePrize) {
+      hit = nonePrize;
+    } else if (budgetEnabled) {
+      // Phase 2: 使用预算感知抽奖
+      const pickResult = budgetAwarePrizePick(prizes, {
+        budgetRemaining,
+        budgetCap: effectiveBudgetCap,
+        policy,
+      });
+      if (!pickResult) {
+        return { success: false, error: 'BUDGET_EXCEEDED' };
+      }
+      hit = pickResult.prize;
+      if (pickResult.budgetWarning) {
+        budgetWarning = pickResult.budgetWarning;
+      }
+      if (targetRtp > 0 && budgetUsed >= effectiveBudgetCap && effectiveBudgetCap < rawBudgetCap) {
+        budgetWarning = 'RTP_LIMIT_REACHED';
+      }
+    } else {
+      // 无预算限制，使用原始加权随机
+      try {
+        hit = pickLotteryPrizeByConfiguredProbability(prizes);
+      } catch {
+        return { success: false, error: 'PROBABILITY_SUM_NOT_100' };
+      }
     }
 
+    // ── 7. 库存检查 + 原子扣减 ──
+    if (hit.type !== 'none' && Number(hit.stock_enabled) === 1 && Number(hit.stock_total) >= 0) {
+      // 先检查快照（Phase 1 逻辑保留）
+      if (Number(hit.stock_used) >= Number(hit.stock_total)) {
+        if (nonePrize) hit = nonePrize;
+      } else {
+        const [stockRes] = await conn.query(
+          'UPDATE lottery_prizes SET stock_used = stock_used + 1 WHERE id = ? AND stock_used < stock_total',
+          [hit.id],
+        );
+        if (Number((stockRes as ResultSetHeader).affectedRows) !== 1) {
+          if (nonePrize) hit = nonePrize;
+        }
+      }
+    }
+
+    // ── 8. 扣减配额 ──
     let newRemaining = 0;
     if (freeRemaining > 0) {
       await execConn(
@@ -142,46 +329,41 @@ export async function draw(memberId: string): Promise<DrawResult> {
       newRemaining = Math.max(0, dailyFree - quotaSnap.freeDrawsUsed) + (quotaSnap.balance - 1);
     }
 
-    // 写抽奖日志（次数已在 member_activity 扣减）
+    // ── 9. 写抽奖日志（Phase 4: 含 prize_cost / reward_type，初始 reward_status='pending'） ──
     const logId = randomUUID();
+    const finalCost = Number(hit.prize_cost ?? 0);
+    const rewardType = classifyRewardType(hit);
     await execConn(conn,
-      `INSERT INTO lottery_logs (id, member_id, tenant_id, prize_id, prize_name, prize_type, prize_value)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [logId, memberId, tenantId, hit.id, hit.name, hit.type, hit.value]
+      `INSERT INTO lottery_logs
+        (id, member_id, tenant_id, prize_id, prize_name, prize_type, prize_value,
+         request_id, reward_status, reward_type, prize_cost, client_ip, device_fingerprint)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
+      [logId, memberId, tenantId, hit.id, hit.name, hit.type, hit.value,
+       requestId ?? null, rewardType, finalCost, clientIp ?? null, deviceFingerprint ?? null]
     );
 
-    // 6. 积分奖品：points_accounts + points_ledger（account_id 等硬约束）+ member_activity
-    if (hit.type === 'points' && hit.value > 0) {
-      await applyPointsLedgerDeltaOnConn(conn, {
-        ledgerId: randomUUID(),
-        memberId,
-        type: 'lottery',
-        delta: hit.value,
-        description: `幸运抽奖: ${hit.name}`,
-        referenceType: 'lottery_log',
-        referenceId: logId,
-        createdBy: null,
-        extras: { tenant_id: tenantId },
-      });
+    // ── 10. 奖励发放（Phase 4: 统一走 fulfillRewardOnConn） ──
+    const reward = await fulfillRewardOnConn(conn, {
+      logId,
+      memberId,
+      tenantId,
+      prizeType: hit.type,
+      prizeName: hit.name,
+      prizeValue: hit.value,
+      rewardType,
+    });
 
-      // member_activity — legacy online_points tracker
-      const existing = await queryOneConn<{ id: string }>(
-        conn, 'SELECT id FROM member_activity WHERE member_id = ?', [memberId]
-      );
-      if (existing) {
-        await execConn(conn,
-          'UPDATE member_activity SET online_points = online_points + ?, updated_at = NOW() WHERE member_id = ?',
-          [hit.value, memberId]
-        );
-      } else {
-        await execConn(conn,
-          'INSERT INTO member_activity (id, member_id, online_points) VALUES (UUID(), ?, ?)',
-          [memberId, hit.value]
-        );
-      }
+    // ── 11. 更新 reward_status + retry_count ──
+    await execConn(conn,
+      'UPDATE lottery_logs SET reward_status = ?, fail_reason = ?, retry_count = COALESCE(retry_count, 0) + ? WHERE id = ?',
+      [reward.status, reward.failReason, 0, logId],
+    );
+
+    // ── 12. 事务内更新每日预算消耗 ──
+    if (budgetEnabled && finalCost > 0 && reward.status === 'done') {
       await execConn(conn,
-        'INSERT INTO points_log (id, member_id, tenant_id, `change`, type, category, remark) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [randomUUID(), memberId, tenantId, hit.value, 'lottery', 'online_points', `幸运抽奖: ${hit.name}`]
+        'UPDATE lottery_settings SET daily_reward_used = COALESCE(daily_reward_used, 0) + ? WHERE tenant_id <=> ?',
+        [finalCost, tenantId],
       );
     }
 
@@ -195,6 +377,10 @@ export async function draw(memberId: string): Promise<DrawResult> {
         description: hit.description,
       },
       remaining: newRemaining,
+      reward_status: reward.status,
+      fail_reason: reward.failReason ?? undefined,
+      budget_warning: budgetWarning,
+      risk_downgraded: riskDowngrade || undefined,
     };
     } finally {
       await mysqlReleaseLock(conn, drawLock);
@@ -205,6 +391,104 @@ export async function draw(memberId: string): Promise<DrawResult> {
     recentDraws.set(memberId, Date.now());
   }
   return result;
+}
+
+function parseBudgetPolicy(raw: string | null | undefined): BudgetPolicy {
+  const v = String(raw ?? '').trim().toLowerCase();
+  if (v === 'deny' || v === 'fallback') return v;
+  return 'downgrade';
+}
+
+/* ──────────── Phase 4: 统一奖励发放 ──────────── */
+
+export type RewardType = 'auto' | 'manual' | 'none';
+
+function classifyRewardType(prize: { type: string; value: number }): RewardType {
+  if (prize.type === 'none') return 'none';
+  if (prize.type === 'custom') return 'manual';
+  return 'auto';
+}
+
+export interface FulfillRewardArgs {
+  logId: string;
+  memberId: string;
+  tenantId: string | null;
+  prizeType: string;
+  prizeName: string;
+  prizeValue: number;
+  rewardType: RewardType;
+}
+
+export interface FulfillRewardResult {
+  status: 'pending' | 'done' | 'failed';
+  failReason: string | null;
+}
+
+/**
+ * 在事务连接上执行奖励发放。可被 draw() 和补偿任务复用。
+ *
+ * - none  → 直接 done（无需发放）
+ * - auto  → 发积分 → done / failed
+ * - manual → 保持 pending（等待人工确认）
+ */
+export async function fulfillRewardOnConn(
+  conn: PoolConnection,
+  args: FulfillRewardArgs,
+): Promise<FulfillRewardResult> {
+  const { logId, memberId, tenantId, prizeType, prizeName, prizeValue, rewardType } = args;
+
+  // none 型：无需任何发放
+  if (rewardType === 'none') {
+    return { status: 'done', failReason: null };
+  }
+
+  // manual 型（custom 奖品）：保持 pending，等待后台人工操作
+  if (rewardType === 'manual') {
+    return { status: 'pending', failReason: null };
+  }
+
+  // auto 型：积分类自动发放
+  if (prizeType === 'points' && prizeValue > 0) {
+    try {
+      await applyPointsLedgerDeltaOnConn(conn, {
+        ledgerId: randomUUID(),
+        memberId,
+        type: 'lottery',
+        delta: prizeValue,
+        description: `幸运抽奖: ${prizeName}`,
+        referenceType: 'lottery_log',
+        referenceId: logId,
+        createdBy: null,
+        extras: { tenant_id: tenantId },
+      });
+
+      const existing = await queryOneConn<{ id: string }>(
+        conn, 'SELECT id FROM member_activity WHERE member_id = ?', [memberId],
+      );
+      if (existing) {
+        await execConn(conn,
+          'UPDATE member_activity SET online_points = online_points + ?, updated_at = NOW() WHERE member_id = ?',
+          [prizeValue, memberId],
+        );
+      } else {
+        await execConn(conn,
+          'INSERT INTO member_activity (id, member_id, online_points) VALUES (UUID(), ?, ?)',
+          [memberId, prizeValue],
+        );
+      }
+      await execConn(conn,
+        'INSERT INTO points_log (id, member_id, tenant_id, `change`, type, category, remark) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [randomUUID(), memberId, tenantId, prizeValue, 'lottery', 'online_points', `幸运抽奖: ${prizeName}`],
+      );
+      return { status: 'done', failReason: null };
+    } catch (err) {
+      const reason = `POINTS_GRANT_FAILED: ${err instanceof Error ? err.message : String(err)}`.slice(0, 500);
+      return { status: 'failed', failReason: reason };
+    }
+  }
+
+  // auto 但 value=0 或未知 type → 无实际发放
+  return { status: 'done', failReason: null };
 }
 
 export async function getQuota(memberId: string) {

@@ -159,6 +159,7 @@ export default function MemberSpin() {
   const [spinning, setSpinning] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [result, setResult] = useState<DrawResult["prize"] | null>(null);
+  const [lastDrawMeta, setLastDrawMeta] = useState<{ budget_warning?: string; risk_downgraded?: boolean } | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [prizes, setPrizes] = useState<LotteryPrize[]>(cached?.prizes ?? []);
   const [remaining, setRemaining] = useState(cached?.remaining ?? 0);
@@ -360,6 +361,12 @@ export default function MemberSpin() {
             notifyError(t("未配置奖品，请联系客服。", "No prizes configured, please contact support."));
           else if (r.error === "DUPLICATE_REQUEST")
             notifyInfo(t("请勿重复点击", "Please do not tap repeatedly."));
+          else if (r.error === "BUDGET_EXCEEDED")
+            notifyError(t("今日奖池已发放完毕，请明天再来！", "Today's prize pool is exhausted. Come back tomorrow!"));
+          else if (r.error === "RTP_LIMIT_REACHED")
+            notifyError(t("今日奖池已达上限，请明天再来！", "Today's prize pool has reached its limit. Come back tomorrow!"));
+          else if (r.error === "RISK_BLOCKED")
+            notifyError(t("操作过于频繁，请稍后再试。", "Too many requests. Please try again later."));
           else notifyError(r.error || t("抽奖失败", "Spin failed"));
           void getLotteryQuota(member.id)
             .then(applyQuota)
@@ -371,6 +378,7 @@ export default function MemberSpin() {
         }
         const prize = r.prize!;
         if (typeof r.remaining === "number") setRemaining(r.remaining);
+        setLastDrawMeta({ budget_warning: r.budget_warning, risk_downgraded: r.risk_downgraded });
 
         let targetIdx = prizes.findIndex((p) => p.id === prize.id);
         if (targetIdx < 0) {
@@ -523,7 +531,11 @@ export default function MemberSpin() {
           {t("感谢参与！", "Thanks for playing!")}
         </p>
         <p className="m-0 text-[13px] text-[hsl(var(--pu-m-text-dim)/0.8)]">
-          {t("下次好运！", "Better luck next time!")}
+          {lastDrawMeta?.risk_downgraded
+            ? t("操作频率较高，请稍后再试可获得更好奖品。", "High activity detected. Try again later for better rewards.")
+            : lastDrawMeta?.budget_warning === "BUDGET_EXCEEDED" || lastDrawMeta?.budget_warning === "RTP_LIMIT_REACHED"
+              ? t("今日奖池接近上限，明天会有更多惊喜！", "Today's prizes are running low. More surprises tomorrow!")
+              : t("下次好运！", "Better luck next time!")}
         </p>
       </div>
     );
@@ -649,17 +661,21 @@ export default function MemberSpin() {
                     type="button"
                     variant="ghost"
                     loading={spinning}
+                    disabled={spinning || remaining <= 0}
                     className={cn(
                       "btn-spin relative !flex !h-full !min-h-0 !w-full !min-w-0 flex-col touch-manipulation items-center justify-center gap-1 rounded-[inherit] border-0 bg-transparent p-0 text-inherit shadow-none outline-none transition-opacity duration-150 hover:bg-transparent focus-visible:ring-2 focus-visible:ring-[hsl(var(--pu-gold))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pu-m-surface))] [&_svg]:text-white",
-                      spinning ? "cursor-wait opacity-80" : "cursor-pointer",
+                      spinning ? "cursor-wait opacity-80" : remaining <= 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer",
                       "motion-reduce:transition-none",
                     )}
                     onClick={() => void handleSpin()}
                     aria-busy={spinning}
+                    aria-disabled={remaining <= 0}
                     aria-label={
                       spinning
                         ? t("抽奖进行中…", "Spinning…")
-                        : t("抽奖", "Draw")
+                        : remaining <= 0
+                          ? t("次数不足", "No draws left")
+                          : t("抽奖", "Draw")
                     }
                   >
                     {!spinning ? (

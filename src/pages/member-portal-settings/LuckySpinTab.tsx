@@ -33,6 +33,7 @@ import {
   type LotterySettings,
 } from '@/services/lottery/lotteryService';
 import { SectionTitle } from './shared';
+import LotteryOperationalDashboard from './LotteryOperationalDashboard';
 
 /** 允许输入过程中的「12.」等中间态，避免受控 number 立刻 parse 掉小数点 */
 const DECIMAL_TYPING_RE = /^\d*\.?\d*$/;
@@ -120,6 +121,9 @@ export default function LuckySpinTab({
 
   return (
     <div className="space-y-10">
+      {/* ── 0) 运营仪表盘 ── */}
+      <LotteryOperationalDashboard />
+
       {/* ── A) 抽奖设置 ── */}
       <Card>
         <CardContent className="pt-5 space-y-4">

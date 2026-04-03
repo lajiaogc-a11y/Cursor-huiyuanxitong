@@ -1298,5 +1298,54 @@ export async function migrateSchemaPatches(): Promise<void> {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   );
 
+  // ── Phase 1 抽奖系统安全加固 ──
+
+  // lottery_logs: 幂等 request_id + 奖励追踪
+  await addCol('lottery_logs', 'request_id', "VARCHAR(64) NULL COMMENT '客户端幂等键'");
+  await addCol('lottery_logs', 'reward_status', "VARCHAR(16) NOT NULL DEFAULT 'done' COMMENT 'pending|done|failed'");
+  await addCol('lottery_logs', 'retry_count', "TINYINT NOT NULL DEFAULT 0");
+  await addCol('lottery_logs', 'fail_reason', "VARCHAR(500) NULL");
+  try {
+    await execute(`CREATE UNIQUE INDEX uk_lottery_logs_request_id ON lottery_logs (request_id)`);
+  } catch { /* index already exists */ }
+
+  // lottery_prizes: 库存控制字段
+  await addCol('lottery_prizes', 'stock_total', "INT NOT NULL DEFAULT -1 COMMENT '-1=不限库存'");
+  await addCol('lottery_prizes', 'stock_used', "INT NOT NULL DEFAULT 0");
+  await addCol('lottery_prizes', 'stock_enabled', "TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否启用库存控制'");
+  await addCol('lottery_prizes', 'daily_stock_limit', "INT NOT NULL DEFAULT -1 COMMENT '-1=不限每日'");
+  await addCol('lottery_prizes', 'prize_cost', "DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT '发奖成本，用于RTP/预算计算'");
+
+  // lottery_settings: 预算 / RTP / 风控基础字段
+  await addCol('lottery_settings', 'daily_reward_budget', "DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT '每日发奖预算（0=不限）'");
+  await addCol('lottery_settings', 'daily_reward_used', "DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT '今日已用预算'");
+  await addCol('lottery_settings', 'daily_reward_reset_date', "DATE NULL COMMENT '预算已重置的日期'");
+  await addCol('lottery_settings', 'target_rtp', "DECIMAL(6,2) NOT NULL DEFAULT 0 COMMENT '目标返奖率(%，0=不限)'");
+  await addCol('lottery_settings', 'risk_control_enabled', "TINYINT(1) NOT NULL DEFAULT 0");
+
+  // ── Phase 2 预算 / 返奖率控制 ──
+  await addCol('lottery_settings', 'budget_policy', "VARCHAR(16) NOT NULL DEFAULT 'downgrade' COMMENT 'deny=预算耗尽禁抽 downgrade=压权降级 fallback=仅保底奖池'");
+
+  // ── Phase 3 风控最小版 ──
+
+  // lottery_logs: 记录抽奖来源 IP 和设备指纹（用于事后审计 + 频控查询）
+  await addCol('lottery_logs', 'client_ip', "VARCHAR(45) NULL COMMENT '抽奖时的客户端 IP'");
+  await addCol('lottery_logs', 'device_fingerprint', "VARCHAR(128) NULL COMMENT '客户端设备指纹'");
+  try { await execute('CREATE INDEX idx_lottery_logs_ip_created ON lottery_logs (client_ip, created_at)'); } catch { /* exists */ }
+
+  // lottery_settings: 风控阈值（租户级可配）
+  await addCol('lottery_settings', 'risk_account_daily_limit', "INT NOT NULL DEFAULT 0 COMMENT '单账号每日抽奖上限（0=不限，超出 RISK_BLOCKED）'");
+  await addCol('lottery_settings', 'risk_account_burst_limit', "INT NOT NULL DEFAULT 0 COMMENT '单账号 60s 内抽奖上限（0=不限）'");
+  await addCol('lottery_settings', 'risk_ip_daily_limit', "INT NOT NULL DEFAULT 0 COMMENT '同 IP 每日抽奖上限（0=不限）'");
+  await addCol('lottery_settings', 'risk_ip_burst_limit', "INT NOT NULL DEFAULT 0 COMMENT '同 IP 60s 内抽奖上限（0=不限）'");
+  await addCol('lottery_settings', 'risk_high_score_threshold', "INT NOT NULL DEFAULT 0 COMMENT '风险分阈值，>=此值强制保底（0=不启用）'");
+
+  // ── Phase 4 统一中奖副作用落库 ──
+
+  // lottery_logs: 记录每次抽奖的奖品成本和奖励类型，便于事后审计 + 补偿重试
+  await addCol('lottery_logs', 'prize_cost', "DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT '本次抽奖的奖品成本（快照，不依赖 join lottery_prizes）'");
+  await addCol('lottery_logs', 'reward_type', "VARCHAR(32) NOT NULL DEFAULT 'auto' COMMENT 'auto=自动发放(积分等) manual=需人工确认(custom) none=无需发放'");
+  try { await execute('CREATE INDEX idx_lottery_logs_reward_pending ON lottery_logs (reward_status, reward_type, created_at)'); } catch { /* exists */ }
+
   console.log('[schema-patch] done.');
 }

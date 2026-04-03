@@ -23,12 +23,24 @@ export interface LotteryPrize {
   enabled?: boolean;
 }
 
+export type RewardType = 'auto' | 'manual' | 'none';
+
 export interface LotteryLog {
   id: string;
   member_id: string;
   prize_name: string;
   prize_type: string;
   prize_value: number;
+  /** Phase 4: 奖品成本（快照） */
+  prize_cost?: number;
+  /** Phase 4: 奖励发放状态 */
+  reward_status?: 'pending' | 'done' | 'failed';
+  /** Phase 4: 奖励类型 auto=自动 manual=人工 none=无需 */
+  reward_type?: RewardType;
+  /** Phase 4: 重试次数 */
+  retry_count?: number;
+  /** Phase 4: 失败原因 */
+  fail_reason?: string | null;
   created_at: string;
   nickname?: string | null;
   phone_number?: string | null;
@@ -46,6 +58,11 @@ export interface DrawResult {
   };
   remaining?: number;
   error?: string;
+  reward_status?: 'pending' | 'done' | 'failed';
+  fail_reason?: string;
+  budget_warning?: 'BUDGET_EXCEEDED' | 'BUDGET_LOW' | 'RTP_LIMIT_REACHED';
+  /** Phase 3: 风控降级（结果被强制保底） */
+  risk_downgraded?: boolean;
 }
 
 export interface QuotaResult {
@@ -56,6 +73,8 @@ export interface QuotaResult {
   used_today: number;
 }
 
+export type BudgetPolicy = 'deny' | 'downgrade' | 'fallback';
+
 export interface LotterySettings {
   daily_free_spins: number;
   enabled: boolean;
@@ -64,13 +83,34 @@ export interface LotterySettings {
   /** 每有一笔订单标记为完成时，为会员增加抽奖次数（与 staff 订单状态一致） */
   order_completed_spin_enabled?: boolean;
   order_completed_spin_amount?: number;
+  /** Phase 2: 每日发奖预算（0=不限） */
+  daily_reward_budget?: number;
+  /** Phase 2: 今日已消耗预算（只读） */
+  daily_reward_used?: number;
+  /** Phase 2: 目标返奖率(%，0=不限，在预算基础上再收紧有效上限） */
+  target_rtp?: number;
+  /** Phase 2: 预算策略 deny=耗尽拒抽 downgrade=压权降级 fallback=仅保底 */
+  budget_policy?: BudgetPolicy;
+  /** Phase 3: 是否启用风控 */
+  risk_control_enabled?: boolean;
+  /** Phase 3: 单账号每日抽奖上限（0=不限） */
+  risk_account_daily_limit?: number;
+  /** Phase 3: 单账号 60s 内抽奖上限（0=不限） */
+  risk_account_burst_limit?: number;
+  /** Phase 3: 同 IP 每日抽奖上限（0=不限） */
+  risk_ip_daily_limit?: number;
+  /** Phase 3: 同 IP 60s 内抽奖上限（0=不限） */
+  risk_ip_burst_limit?: number;
+  /** Phase 3: 风险分阈值（>=此值强制保底，0=不启用） */
+  risk_high_score_threshold?: number;
 }
 
 /* ──── 会员端 API ──── */
 
 export async function lotteryDraw(memberId: string): Promise<DrawResult> {
+  const request_id = crypto.randomUUID();
   return safeActionCall(
-    () => apiPost<DrawResult>(MEMBER_LOTTERY_PATHS.DRAW, { member_id: memberId }),
+    () => apiPost<DrawResult>(MEMBER_LOTTERY_PATHS.DRAW, { member_id: memberId, request_id }),
     "lotteryDraw",
   );
 }
@@ -206,13 +246,34 @@ export async function adminGetLotterySettings(): Promise<LotterySettings> {
         probability_notice?: string | null;
         order_completed_spin_enabled?: boolean;
         order_completed_spin_amount?: number;
+        daily_reward_budget?: number;
+        daily_reward_used?: number;
+        target_rtp?: number;
+        budget_policy?: string;
+        risk_control_enabled?: boolean;
+        risk_account_daily_limit?: number;
+        risk_account_burst_limit?: number;
+        risk_ip_daily_limit?: number;
+        risk_ip_burst_limit?: number;
+        risk_high_score_threshold?: number;
       }>('/api/lottery/admin/settings');
+      const bp = String(r?.budget_policy ?? 'downgrade').toLowerCase();
       return {
         daily_free_spins: r?.daily_free_spins ?? 1,
         enabled: r?.enabled !== false,
         probability_notice: r?.probability_notice ?? null,
         order_completed_spin_enabled: r?.order_completed_spin_enabled === true,
         order_completed_spin_amount: Math.max(0, Math.floor(Number(r?.order_completed_spin_amount) || 0)),
+        daily_reward_budget: Math.max(0, Number(r?.daily_reward_budget) || 0),
+        daily_reward_used: Math.max(0, Number(r?.daily_reward_used) || 0),
+        target_rtp: Math.max(0, Math.min(100, Number(r?.target_rtp) || 0)),
+        budget_policy: (bp === 'deny' || bp === 'fallback' ? bp : 'downgrade') as BudgetPolicy,
+        risk_control_enabled: r?.risk_control_enabled === true,
+        risk_account_daily_limit: Math.max(0, Number(r?.risk_account_daily_limit) || 0),
+        risk_account_burst_limit: Math.max(0, Number(r?.risk_account_burst_limit) || 0),
+        risk_ip_daily_limit: Math.max(0, Number(r?.risk_ip_daily_limit) || 0),
+        risk_ip_burst_limit: Math.max(0, Number(r?.risk_ip_burst_limit) || 0),
+        risk_high_score_threshold: Math.max(0, Number(r?.risk_high_score_threshold) || 0),
       };
     },
     {
@@ -221,6 +282,16 @@ export async function adminGetLotterySettings(): Promise<LotterySettings> {
       probability_notice: null,
       order_completed_spin_enabled: false,
       order_completed_spin_amount: 1,
+      daily_reward_budget: 0,
+      daily_reward_used: 0,
+      target_rtp: 0,
+      budget_policy: 'downgrade' as BudgetPolicy,
+      risk_control_enabled: false,
+      risk_account_daily_limit: 0,
+      risk_account_burst_limit: 0,
+      risk_ip_daily_limit: 0,
+      risk_ip_burst_limit: 0,
+      risk_high_score_threshold: 0,
     },
     "adminGetLotterySettings",
   );
@@ -397,4 +468,378 @@ export async function adminStartSimulationCron(tenantId: string): Promise<{ cron
     {},
   );
   return { cron_fake_anchor_at: r?.cron_fake_anchor_at ?? null };
+}
+
+/* ──── Phase 4: 奖励补偿管理 API ──── */
+
+export interface PendingRewardRow {
+  id: string;
+  member_id: string;
+  tenant_id: string | null;
+  prize_name: string;
+  prize_type: string;
+  prize_value: number;
+  prize_cost: number;
+  reward_status: string;
+  reward_type: RewardType;
+  retry_count: number;
+  fail_reason: string | null;
+  created_at: string;
+}
+
+export async function adminListPendingRewards(opts?: {
+  status?: 'failed' | 'pending';
+  limit?: number;
+  offset?: number;
+}): Promise<{ rows: PendingRewardRow[]; total: number }> {
+  const qs = new URLSearchParams();
+  if (opts?.status) qs.set('status', opts.status);
+  if (opts?.limit) qs.set('limit', String(opts.limit));
+  if (opts?.offset) qs.set('offset', String(opts.offset));
+  return safeCall(
+    async () => {
+      const r = await apiGetAsStaff<{ success: boolean; rows: PendingRewardRow[]; total: number }>(
+        `/api/lottery/admin/pending-rewards?${qs.toString()}`,
+      );
+      return { rows: r?.rows ?? [], total: r?.total ?? 0 };
+    },
+    { rows: [], total: 0 },
+    'adminListPendingRewards',
+  );
+}
+
+export interface RetryBatchResult {
+  attempted: number;
+  succeeded: number;
+  stillFailed: number;
+  skipped: number;
+}
+
+export async function adminRetryFailedRewards(batchSize = 20): Promise<RetryBatchResult> {
+  return safeActionCall(
+    () => apiPostAsStaff<RetryBatchResult & { success: boolean }>(
+      '/api/lottery/admin/retry-failed-rewards',
+      { batch_size: batchSize },
+    ),
+    'adminRetryFailedRewards',
+  ) as Promise<RetryBatchResult>;
+}
+
+export async function adminConfirmReward(
+  logId: string,
+  action: 'done' | 'failed',
+  reason?: string,
+): Promise<void> {
+  await apiPostAsStaff('/api/lottery/admin/confirm-reward', { log_id: logId, action, reason });
+}
+
+export async function adminManualRetryReward(logId: string): Promise<{ new_status?: string }> {
+  const r = await apiPostAsStaff<{ success: boolean; new_status?: string }>(
+    '/api/lottery/admin/manual-retry-reward',
+    { log_id: logId },
+  );
+  return { new_status: r?.new_status };
+}
+
+/* ──── Phase 5: 模拟抽奖与运营预览 API ──── */
+
+export interface SimPrizeResult {
+  id: string;
+  name: string;
+  type: string;
+  probability: number;
+  prize_cost: number;
+  hits: number;
+  hit_rate: number;
+  total_cost: number;
+  avg_cost_per_draw: number;
+  stock_total: number;
+  stock_used_before: number;
+  stock_depleted_at_round?: number;
+}
+
+export interface SimulationResult {
+  rounds: number;
+  prizes: SimPrizeResult[];
+  total_cost: number;
+  avg_cost_per_round: number;
+  estimated_rtp: number;
+  budget_exhausted_at_round: number | null;
+  budget_remaining: number;
+  warnings: string[];
+}
+
+export interface TenantSnapshot {
+  prizes: Array<{
+    id: string;
+    name: string;
+    type: string;
+    probability: number;
+    prize_cost: number;
+    stock_total: number;
+    stock_used: number;
+    stock_enabled: number;
+  }>;
+  daily_reward_budget: number;
+  daily_reward_used: number;
+  budget_remaining: number;
+  target_rtp: number;
+  budget_policy: BudgetPolicy;
+  effective_budget_cap: number;
+}
+
+export interface SimulateCurrentResult extends SimulationResult {
+  snapshot: TenantSnapshot;
+}
+
+/** 用当前 DB 配置跑 Monte Carlo 模拟（默认 10,000 轮） */
+export async function adminSimulateCurrent(rounds = 10_000): Promise<SimulateCurrentResult | null> {
+  return safeCall(
+    async () => {
+      const r = await apiGetAsStaff<SimulateCurrentResult & { success: boolean }>(
+        `/api/lottery/admin/simulate?rounds=${rounds}`,
+      );
+      return r?.success ? r : null;
+    },
+    null,
+    'adminSimulateCurrent',
+  );
+}
+
+export interface SimulatePreviewInput {
+  prizes: Array<{
+    id?: string;
+    name: string;
+    type: string;
+    value: number;
+    probability: number;
+    prize_cost?: number;
+    stock_enabled?: number;
+    stock_total?: number;
+    stock_used?: number;
+  }>;
+  daily_reward_budget?: number;
+  daily_reward_used?: number;
+  target_rtp?: number;
+  budget_policy?: string;
+  rounds?: number;
+}
+
+/** 保存前预览：用前端传入的候选配置跑模拟 */
+export async function adminSimulatePreview(input: SimulatePreviewInput): Promise<SimulationResult | null> {
+  return safeCall(
+    async () => {
+      const r = await apiPostAsStaff<SimulationResult & { success: boolean }>(
+        '/api/lottery/admin/simulate-preview',
+        input,
+      );
+      return r?.success ? r : null;
+    },
+    null,
+    'adminSimulatePreview',
+  );
+}
+
+/** 获取租户当前抽奖状态快照（概率分布 / 库存 / 预算余额） */
+export async function adminGetSnapshot(): Promise<TenantSnapshot | null> {
+  return safeCall(
+    async () => {
+      const r = await apiGetAsStaff<TenantSnapshot & { success: boolean }>(
+        '/api/lottery/admin/snapshot',
+      );
+      return r?.success ? r : null;
+    },
+    null,
+    'adminGetSnapshot',
+  );
+}
+
+/* ──── Phase 6: 恢复与补偿任务 API ──── */
+
+export type ReconcileTaskType = 'reward_retry' | 'stock_reconcile' | 'budget_reconcile' | 'idempotency_repair';
+
+export interface StockDrift {
+  prize_id: string;
+  prize_name: string;
+  stock_used_in_prize: number;
+  actual_wins: number;
+  drift: number;
+  auto_fixed: boolean;
+}
+
+export interface StockReconcileResult {
+  checked: number;
+  drifts: StockDrift[];
+  fixed: number;
+  skipped: number;
+}
+
+export interface BudgetDrift {
+  tenant_id: string | null;
+  daily_reward_used_in_settings: number;
+  actual_cost_today: number;
+  drift: number;
+  auto_fixed: boolean;
+}
+
+export interface BudgetReconcileResult {
+  tenant_id: string | null;
+  date: string;
+  drift: BudgetDrift | null;
+  ok: boolean;
+}
+
+export interface IdempotencyRepairResult {
+  backfilled: number;
+  duplicates_found: number;
+  duplicates_marked: number;
+}
+
+export interface ReconcileAllResult {
+  stock: StockReconcileResult;
+  budget: BudgetReconcileResult;
+  idempotency: IdempotencyRepairResult;
+  reward_retry: RetryBatchResult | null;
+  timestamp: string;
+  warnings: string[];
+}
+
+export interface TaskRunRecord {
+  id: string;
+  type: ReconcileTaskType;
+  tenant_id: string | null;
+  started_at: string;
+  finished_at: string;
+  duration_ms: number;
+  success: boolean;
+  summary: string;
+  detail: unknown;
+}
+
+/** 一键执行全部校正 */
+export async function adminReconcileAll(opts?: {
+  auto_fix?: boolean;
+  include_reward_retry?: boolean;
+}): Promise<ReconcileAllResult | null> {
+  return safeCall(
+    async () => {
+      const r = await apiPostAsStaff<ReconcileAllResult & { success: boolean }>(
+        '/api/lottery/admin/reconcile-all',
+        { auto_fix: opts?.auto_fix ?? true, include_reward_retry: opts?.include_reward_retry ?? true },
+      );
+      return r?.success ? r : null;
+    },
+    null,
+    'adminReconcileAll',
+  );
+}
+
+/** 单独触发某个校正任务 */
+export async function adminRunTask(
+  task: ReconcileTaskType,
+  autoFix = true,
+): Promise<TaskRunRecord | null> {
+  return safeCall(
+    async () => {
+      const r = await apiPostAsStaff<{ success: boolean; record: TaskRunRecord }>(
+        '/api/lottery/admin/run-task',
+        { task, auto_fix: autoFix },
+      );
+      return r?.success ? r.record : null;
+    },
+    null,
+    'adminRunTask',
+  );
+}
+
+/** 查询任务运行历史 */
+export async function adminGetTaskHistory(opts?: {
+  type?: ReconcileTaskType;
+  limit?: number;
+}): Promise<{ history: TaskRunRecord[]; last_runs: Record<string, TaskRunRecord | null> }> {
+  const qs = new URLSearchParams();
+  if (opts?.type) qs.set('type', opts.type);
+  if (opts?.limit) qs.set('limit', String(opts.limit));
+  return safeCall(
+    async () => {
+      const r = await apiGetAsStaff<{
+        success: boolean;
+        history: TaskRunRecord[];
+        last_runs: Record<string, TaskRunRecord | null>;
+      }>(`/api/lottery/admin/task-history?${qs.toString()}`);
+      return { history: r?.history ?? [], last_runs: r?.last_runs ?? {} };
+    },
+    { history: [], last_runs: {} },
+    'adminGetTaskHistory',
+  );
+}
+
+/** 调度器控制（启动 / 停止 / 状态查询） */
+export async function adminSchedulerControl(
+  action?: 'start' | 'stop',
+): Promise<{ running: boolean }> {
+  return safeCall(
+    async () => {
+      const r = await apiPostAsStaff<{ success: boolean; running: boolean }>(
+        '/api/lottery/admin/scheduler',
+        action ? { action } : {},
+      );
+      return { running: r?.running ?? false };
+    },
+    { running: false },
+    'adminSchedulerControl',
+  );
+}
+
+/* ──── Phase 7: 运营仪表盘 API ──── */
+
+export interface OperationalStatsStockItem {
+  id: string;
+  name: string;
+  type: string;
+  stock_enabled: boolean;
+  stock_total: number;
+  stock_used: number;
+  stock_remaining: number;
+}
+
+export interface OperationalStats {
+  date: string;
+  budget: {
+    daily_budget: number;
+    daily_used: number;
+    daily_remaining: number;
+    effective_cap: number;
+    target_rtp: number;
+    actual_rtp: number;
+    budget_policy: BudgetPolicy;
+  };
+  today: {
+    draws: number;
+    cost: number;
+    winners: number;
+    points_awarded: number;
+    avg_cost_per_draw: number;
+  };
+  stock: OperationalStatsStockItem[];
+  risk: {
+    enabled: boolean;
+    blocked_today: number;
+    failed_rewards: number;
+    pending_rewards: number;
+  };
+}
+
+/** 获取运营仪表盘统计数据 */
+export async function adminGetOperationalStats(): Promise<OperationalStats | null> {
+  return safeCall(
+    async () => {
+      const r = await apiGetAsStaff<OperationalStats & { success: boolean }>(
+        '/api/lottery/admin/operational-stats',
+      );
+      return r?.success ? r : null;
+    },
+    null,
+    'adminGetOperationalStats',
+  );
 }

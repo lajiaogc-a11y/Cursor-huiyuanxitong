@@ -1189,7 +1189,10 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
           result = { success: false, error: 'INVALID_PARAMS' };
           break;
         }
-        const dr = await draw(memberId);
+        const rpcRequestId = typeof params?.request_id === 'string' ? params.request_id.trim() : undefined;
+        const rpcIp = (req.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || null;
+        const rpcFp = typeof params?.device_fingerprint === 'string' ? params.device_fingerprint.slice(0, 128) : null;
+        const dr = await draw(memberId, { requestId: rpcRequestId || undefined, clientIp: rpcIp, deviceFingerprint: rpcFp });
         if (!dr.success) {
           result = {
             success: false,

@@ -32,6 +32,11 @@ export interface LotteryPrize {
   image_url: string | null;
   sort_order: number;
   enabled: boolean;
+  stock_total: number;
+  stock_used: number;
+  stock_enabled: number;
+  daily_stock_limit: number;
+  prize_cost: number;
 }
 
 export async function listPrizes(tenantId: string | null): Promise<LotteryPrize[]> {
@@ -85,6 +90,12 @@ export interface LotteryLog {
   prize_type: string;
   prize_value: number;
   created_at: string;
+  request_id?: string | null;
+  reward_status?: string;
+  reward_type?: string;
+  prize_cost?: number;
+  retry_count?: number;
+  fail_reason?: string | null;
 }
 
 export async function insertLotteryLog(
@@ -168,6 +179,11 @@ export async function listAllLotteryLogs(
   const { clause, params } = lotteryLogsMemberFilterSql(opts);
   return query<LotteryLogAdminRow>(
     `SELECT l.id, l.member_id, l.tenant_id, l.prize_id, l.prize_name, l.prize_type, l.prize_value, l.created_at,
+            COALESCE(l.reward_status, 'done') AS reward_status,
+            COALESCE(l.reward_type, 'auto') AS reward_type,
+            COALESCE(l.prize_cost, 0) AS prize_cost,
+            COALESCE(l.retry_count, 0) AS retry_count,
+            l.fail_reason,
             m.phone_number AS phone_number,
             NULLIF(TRIM(m.nickname), '') AS nickname,
             NULLIF(TRIM(m.member_code), '') AS member_code
@@ -282,22 +298,58 @@ export async function getSpinCredits(memberId: string): Promise<number> {
   return r?.total ?? 0;
 }
 
+export type BudgetPolicyValue = 'deny' | 'downgrade' | 'fallback';
+
 export type LotterySettingsRow = {
   daily_free_spins: number;
   enabled: number;
   probability_notice: string | null;
   order_completed_spin_enabled: number;
   order_completed_spin_amount: number;
+  daily_reward_budget: number;
+  daily_reward_used: number;
+  daily_reward_reset_date: string | null;
+  target_rtp: number;
+  risk_control_enabled: number;
+  budget_policy: BudgetPolicyValue;
+  risk_account_daily_limit: number;
+  risk_account_burst_limit: number;
+  risk_ip_daily_limit: number;
+  risk_ip_burst_limit: number;
+  risk_high_score_threshold: number;
 };
 
 export async function getLotterySettings(tenantId: string | null) {
   return queryOne<LotterySettingsRow>(
     `SELECT daily_free_spins, enabled, probability_notice,
             COALESCE(order_completed_spin_enabled, 0) AS order_completed_spin_enabled,
-            COALESCE(order_completed_spin_amount, 1) AS order_completed_spin_amount
+            COALESCE(order_completed_spin_amount, 1) AS order_completed_spin_amount,
+            COALESCE(daily_reward_budget, 0) AS daily_reward_budget,
+            COALESCE(daily_reward_used, 0) AS daily_reward_used,
+            daily_reward_reset_date,
+            COALESCE(target_rtp, 0) AS target_rtp,
+            COALESCE(risk_control_enabled, 0) AS risk_control_enabled,
+            COALESCE(budget_policy, 'downgrade') AS budget_policy,
+            COALESCE(risk_account_daily_limit, 0) AS risk_account_daily_limit,
+            COALESCE(risk_account_burst_limit, 0) AS risk_account_burst_limit,
+            COALESCE(risk_ip_daily_limit, 0) AS risk_ip_daily_limit,
+            COALESCE(risk_ip_burst_limit, 0) AS risk_ip_burst_limit,
+            COALESCE(risk_high_score_threshold, 0) AS risk_high_score_threshold
      FROM lottery_settings WHERE tenant_id <=> ?`,
     [tenantId],
   );
+}
+
+export interface BudgetSettingsPatch {
+  daily_reward_budget?: number;
+  target_rtp?: number;
+  budget_policy?: BudgetPolicyValue;
+  risk_control_enabled?: boolean;
+  risk_account_daily_limit?: number;
+  risk_account_burst_limit?: number;
+  risk_ip_daily_limit?: number;
+  risk_ip_burst_limit?: number;
+  risk_high_score_threshold?: number;
 }
 
 export async function upsertLotterySettings(
@@ -306,6 +358,7 @@ export async function upsertLotterySettings(
   enabled: boolean,
   probabilityNotice?: string | null,
   orderSpin?: { enabled: boolean; amount: number } | undefined,
+  budgetPatch?: BudgetSettingsPatch,
 ): Promise<void> {
   const existing = await queryOne<{ id: string }>(
     'SELECT id FROM lottery_settings WHERE tenant_id <=> ?', [tenantId]
@@ -316,6 +369,13 @@ export async function upsertLotterySettings(
       : probabilityNotice == null || String(probabilityNotice).trim() === ''
         ? null
         : String(probabilityNotice).trim();
+
+  const validPolicy = (v: unknown): BudgetPolicyValue => {
+    const s = String(v ?? '').trim().toLowerCase();
+    if (s === 'deny' || s === 'fallback') return s;
+    return 'downgrade';
+  };
+
   if (existing) {
     const sets: string[] = ['daily_free_spins = ?', 'enabled = ?'];
     const vals: unknown[] = [dailyFreeSpins, enabled ? 1 : 0];
@@ -327,15 +387,66 @@ export async function upsertLotterySettings(
       sets.push('order_completed_spin_enabled = ?', 'order_completed_spin_amount = ?');
       vals.push(orderSpin.enabled ? 1 : 0, Math.max(0, Math.floor(Number(orderSpin.amount) || 0)));
     }
+    if (budgetPatch) {
+      if (budgetPatch.daily_reward_budget !== undefined) {
+        sets.push('daily_reward_budget = ?');
+        vals.push(Math.max(0, Number(budgetPatch.daily_reward_budget) || 0));
+      }
+      if (budgetPatch.target_rtp !== undefined) {
+        sets.push('target_rtp = ?');
+        vals.push(Math.max(0, Math.min(100, Number(budgetPatch.target_rtp) || 0)));
+      }
+      if (budgetPatch.budget_policy !== undefined) {
+        sets.push('budget_policy = ?');
+        vals.push(validPolicy(budgetPatch.budget_policy));
+      }
+      if (budgetPatch.risk_control_enabled !== undefined) {
+        sets.push('risk_control_enabled = ?');
+        vals.push(budgetPatch.risk_control_enabled ? 1 : 0);
+      }
+      if (budgetPatch.risk_account_daily_limit !== undefined) {
+        sets.push('risk_account_daily_limit = ?');
+        vals.push(Math.max(0, Math.floor(Number(budgetPatch.risk_account_daily_limit) || 0)));
+      }
+      if (budgetPatch.risk_account_burst_limit !== undefined) {
+        sets.push('risk_account_burst_limit = ?');
+        vals.push(Math.max(0, Math.floor(Number(budgetPatch.risk_account_burst_limit) || 0)));
+      }
+      if (budgetPatch.risk_ip_daily_limit !== undefined) {
+        sets.push('risk_ip_daily_limit = ?');
+        vals.push(Math.max(0, Math.floor(Number(budgetPatch.risk_ip_daily_limit) || 0)));
+      }
+      if (budgetPatch.risk_ip_burst_limit !== undefined) {
+        sets.push('risk_ip_burst_limit = ?');
+        vals.push(Math.max(0, Math.floor(Number(budgetPatch.risk_ip_burst_limit) || 0)));
+      }
+      if (budgetPatch.risk_high_score_threshold !== undefined) {
+        sets.push('risk_high_score_threshold = ?');
+        vals.push(Math.max(0, Math.floor(Number(budgetPatch.risk_high_score_threshold) || 0)));
+      }
+    }
     vals.push(tenantId);
     await execute(`UPDATE lottery_settings SET ${sets.join(', ')} WHERE tenant_id <=> ?`, vals);
   } else {
     const ocEn = orderSpin !== undefined ? (orderSpin.enabled ? 1 : 0) : 0;
     const ocAmt =
       orderSpin !== undefined ? Math.max(0, Math.floor(Number(orderSpin.amount) || 0)) : 1;
+    const budgetVal = Math.max(0, Number(budgetPatch?.daily_reward_budget) || 0);
+    const rtpVal = Math.max(0, Math.min(100, Number(budgetPatch?.target_rtp) || 0));
+    const policyVal = validPolicy(budgetPatch?.budget_policy);
+    const riskVal = budgetPatch?.risk_control_enabled ? 1 : 0;
+    const riskAccDaily = Math.max(0, Math.floor(Number(budgetPatch?.risk_account_daily_limit) || 0));
+    const riskAccBurst = Math.max(0, Math.floor(Number(budgetPatch?.risk_account_burst_limit) || 0));
+    const riskIpDaily = Math.max(0, Math.floor(Number(budgetPatch?.risk_ip_daily_limit) || 0));
+    const riskIpBurst = Math.max(0, Math.floor(Number(budgetPatch?.risk_ip_burst_limit) || 0));
+    const riskThreshold = Math.max(0, Math.floor(Number(budgetPatch?.risk_high_score_threshold) || 0));
     await execute(
-      `INSERT INTO lottery_settings (id, tenant_id, daily_free_spins, enabled, probability_notice, order_completed_spin_enabled, order_completed_spin_amount)
-       VALUES (UUID(), ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO lottery_settings (id, tenant_id, daily_free_spins, enabled, probability_notice,
+                                      order_completed_spin_enabled, order_completed_spin_amount,
+                                      daily_reward_budget, target_rtp, budget_policy, risk_control_enabled,
+                                      risk_account_daily_limit, risk_account_burst_limit,
+                                      risk_ip_daily_limit, risk_ip_burst_limit, risk_high_score_threshold)
+       VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         tenantId,
         dailyFreeSpins,
@@ -343,6 +454,15 @@ export async function upsertLotterySettings(
         noticeVal === undefined ? null : noticeVal,
         ocEn,
         ocAmt,
+        budgetVal,
+        rtpVal,
+        policyVal,
+        riskVal,
+        riskAccDaily,
+        riskAccBurst,
+        riskIpDaily,
+        riskIpBurst,
+        riskThreshold,
       ],
     );
   }
