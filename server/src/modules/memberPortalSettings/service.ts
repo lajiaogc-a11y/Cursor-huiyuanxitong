@@ -10,7 +10,7 @@ import {
   DEFAULT_TERMS_EN,
   DEFAULT_TERMS_ZH,
 } from './legalDefaults.js';
-import { parseMemberInboxCopyTemplatesFromDb } from '../memberInboxNotifications/copyTemplates.js';
+import { parseMemberInboxCopyTemplatesFromDb, fillMemberInboxCopyDefaults } from '../memberInboxNotifications/copyTemplates.js';
 
 export interface CreateVersionResult {
   success: boolean;
@@ -713,7 +713,7 @@ export async function getMemberPortalSettingsForEmployee(
     member_inbox_notify_order_spin: row.member_inbox_notify_order_spin ?? true,
     member_inbox_notify_mall_redemption: row.member_inbox_notify_mall_redemption ?? true,
     member_inbox_notify_announcement: row.member_inbox_notify_announcement ?? true,
-    member_inbox_copy_templates: parseMemberInboxCopyTemplatesFromDb(row.member_inbox_copy_templates),
+    member_inbox_copy_templates: fillMemberInboxCopyDefaults(parseMemberInboxCopyTemplatesFromDb(row.member_inbox_copy_templates)),
     poster_headline_zh: row.poster_headline_zh ?? '',
     poster_headline_en: row.poster_headline_en ?? '',
     poster_subtext_zh: row.poster_subtext_zh ?? '',

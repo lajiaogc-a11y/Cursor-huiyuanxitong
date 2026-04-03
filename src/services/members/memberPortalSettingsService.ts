@@ -187,21 +187,31 @@ export interface SpinWheelPrizeItem {
   enabled?: boolean;
 }
 
-const EMPTY_INBOX_COPY_BLOCK: MemberInboxCopyBlock = {
-  titleZh: "",
-  titleEn: "",
-  bodyZh: "",
-  bodyEn: "",
+export const DEFAULT_MEMBER_INBOX_COPY_TEMPLATES: MemberInboxCopyTemplates = {
+  trade: {
+    titleZh: "交易完成",
+    titleEn: "Trade completed",
+    bodyZh: "恭喜您交易成功，获得 {{spins}} 次转盘抽奖机会！",
+    bodyEn: "Congratulations! Your trade was completed — you earned {{spins}} wheel spin(s).",
+  },
+  redemption: {
+    completed: {
+      titleZh: "兑换已完成",
+      titleEn: "Redemption completed",
+      bodyZh: "您兑换的「{{item}}」×{{qty}} 已处理完成。{{points_hint}}",
+      bodyEn: 'Your redemption for "{{item}}" ×{{qty}} has been completed. {{points_hint}}',
+    },
+    rejected: {
+      titleZh: "兑换已驳回",
+      titleEn: "Redemption rejected",
+      bodyZh: "您兑换的「{{item}}」已被驳回。{{points_hint}}{{note_line}}",
+      bodyEn: 'Your redemption for "{{item}}" was rejected. {{points_hint}}{{note_line}}',
+    },
+  },
+  announcement: { titleZh: "", titleEn: "", bodyZh: "", bodyEn: "" },
 };
 
-export const DEFAULT_MEMBER_INBOX_COPY_TEMPLATES: MemberInboxCopyTemplates = {
-  trade: { ...EMPTY_INBOX_COPY_BLOCK },
-  redemption: {
-    completed: { ...EMPTY_INBOX_COPY_BLOCK },
-    rejected: { ...EMPTY_INBOX_COPY_BLOCK },
-  },
-  announcement: { ...EMPTY_INBOX_COPY_BLOCK },
-};
+const EMPTY_INBOX_COPY_BLOCK: MemberInboxCopyBlock = { titleZh: "", titleEn: "", bodyZh: "", bodyEn: "" };
 
 function normalizeMemberInboxCopyBlock(raw: unknown): MemberInboxCopyBlock {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {

@@ -51,6 +51,41 @@ const DEFAULT_ANNOUNCEMENT: Required<MemberInboxCopyBlock> = {
   bodyEn: '{{contentEn}}',
 };
 
+/**
+ * 为管理端返回完整模板状态：空字段填入系统默认值，方便管理员查看和编辑。
+ */
+export function fillMemberInboxCopyDefaults(
+  tpl: MemberInboxCopyTemplatesState,
+): MemberInboxCopyTemplatesState {
+  const f = (user: string | undefined, def: string) => {
+    const s = String(user ?? '').trim();
+    return s.length > 0 ? s : def;
+  };
+  return {
+    trade: {
+      titleZh: f(tpl.trade?.titleZh, DEFAULT_TRADE.titleZh),
+      titleEn: f(tpl.trade?.titleEn, DEFAULT_TRADE.titleEn),
+      bodyZh: f(tpl.trade?.bodyZh, DEFAULT_TRADE.bodyZh),
+      bodyEn: f(tpl.trade?.bodyEn, DEFAULT_TRADE.bodyEn),
+    },
+    redemption: {
+      completed: {
+        titleZh: f(tpl.redemption?.completed?.titleZh, DEFAULT_RED_COMPLETED.titleZh),
+        titleEn: f(tpl.redemption?.completed?.titleEn, DEFAULT_RED_COMPLETED.titleEn),
+        bodyZh: f(tpl.redemption?.completed?.bodyZh, DEFAULT_RED_COMPLETED.bodyZh),
+        bodyEn: f(tpl.redemption?.completed?.bodyEn, DEFAULT_RED_COMPLETED.bodyEn),
+      },
+      rejected: {
+        titleZh: f(tpl.redemption?.rejected?.titleZh, DEFAULT_RED_REJECTED.titleZh),
+        titleEn: f(tpl.redemption?.rejected?.titleEn, DEFAULT_RED_REJECTED.titleEn),
+        bodyZh: f(tpl.redemption?.rejected?.bodyZh, DEFAULT_RED_REJECTED.bodyZh),
+        bodyEn: f(tpl.redemption?.rejected?.bodyEn, DEFAULT_RED_REJECTED.bodyEn),
+      },
+    },
+    announcement: tpl.announcement,
+  };
+}
+
 function parseJsonObject(raw: unknown): Record<string, unknown> | null {
   if (raw == null) return null;
   let v: unknown = raw;
