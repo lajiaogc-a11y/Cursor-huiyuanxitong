@@ -1,10 +1,10 @@
 // ============= Audit Records Hook - react-query Migration =============
 // react-query 缓存确保页面切换不重复请求
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
-import { apiGet, apiPatch } from '@/api/client';
+import { apiGet, apiPatch, ApiError } from '@/api/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
 import { notify } from "@/lib/notifyHub";
@@ -367,11 +367,14 @@ async function fetchPendingAuditCount(tenantId?: string | null): Promise<number>
 
 export function useAuditRecords(params?: AuditRecordsFetchParams) {
   const { employee } = useAuth();
-  const { viewingTenantId } = useTenantView() || {};
+  const { viewingTenantId, viewingTenantName } = useTenantView() || {};
   const queryClient = useQueryClient();
   const { t } = useLanguage();
+  /** 同一条记录防连点 / 并行双次提交 */
+  const auditInFlightRef = useRef<Set<string>>(new Set());
+  /** 与登录日志一致：平台超管仅当「从租户管理进入某租户」(有 viewingTenantName) 时按该租户筛；否则全站 */
   const effectiveTenantId = employee?.is_platform_super_admin
-    ? (viewingTenantId || null)
+    ? (viewingTenantName?.trim() ? viewingTenantId : null)
     : (viewingTenantId || employee?.tenant_id || null);
 
   const { data, isLoading: loading } = useQuery({
@@ -394,6 +397,8 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
 
   const approveRecord = useCallback(async (recordId: string): Promise<boolean> => {
     if (!employee) return false;
+    if (auditInFlightRef.current.has(recordId)) return false;
+    auditInFlightRef.current.add(recordId);
 
     try {
       const record = await apiGet<{
@@ -518,6 +523,17 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
         );
       } catch (auditError) {
         console.error('Failed to update audit record:', auditError);
+        if (auditError instanceof ApiError && auditError.statusCode === 409) {
+          notify.error(
+            t(
+              '该记录已被他人处理或状态已变。请刷新列表；若业务数据已变更请以列表为准。',
+              'This record was already processed. Refresh the list; if data changed, trust the latest list.',
+            ),
+          );
+          await queryClient.invalidateQueries({ queryKey: ['audit-records'] });
+          await queryClient.invalidateQueries({ queryKey: ['audit-pending-count'] });
+          return false;
+        }
         notify.error(t('更新审核状态失败', 'Failed to update audit status'));
         return false;
       }
@@ -553,11 +569,15 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
       console.error('Error approving record:', err);
       notify.error(t('处理失败', 'Processing failed'));
       return false;
+    } finally {
+      auditInFlightRef.current.delete(recordId);
     }
   }, [employee, queryClient, t]);
 
   const rejectRecord = useCallback(async (recordId: string, reason: string): Promise<boolean> => {
     if (!employee) return false;
+    if (auditInFlightRef.current.has(recordId)) return false;
+    auditInFlightRef.current.add(recordId);
 
     try {
       try {
@@ -574,6 +594,17 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
         );
       } catch (error) {
         console.error('Failed to reject audit record:', error);
+        if (error instanceof ApiError && error.statusCode === 409) {
+          notify.error(
+            t(
+              '该记录已被他人处理，请刷新列表。',
+              'This record was already processed. Please refresh.',
+            ),
+          );
+          await queryClient.invalidateQueries({ queryKey: ['audit-records'] });
+          await queryClient.invalidateQueries({ queryKey: ['audit-pending-count'] });
+          return false;
+        }
         notify.error(t('拒绝审核失败', 'Failed to reject audit'));
         return false;
       }
@@ -587,6 +618,8 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
       console.error('Error rejecting record:', err);
       notify.error(t('处理失败', 'Processing failed'));
       return false;
+    } finally {
+      auditInFlightRef.current.delete(recordId);
     }
   }, [employee, queryClient, t]);
 

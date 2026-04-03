@@ -16,8 +16,8 @@ import {
   History, Save, FileDown,
   RotateCcw, ChevronRight, RefreshCw, ChevronUp, ChevronDown,
   Home, ShoppingBag, Star, Info,
-  Dices, ScrollText, Link2, Headphones, BarChart3, Coins,
-  Globe2, Database, LogIn, Scale,
+  Dices, Link2, Headphones, BarChart3, Coins,
+  Globe2, LogIn, Scale,
   ClipboardList, Users, Bell,
 } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
@@ -80,13 +80,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { AdminOperationLogsTab } from "./member-portal/AdminOperationLogsTab";
 import {
   portalSettingsEmptyShellClass,
   portalSettingsEmptyIconWrapClass,
 } from "./member-portal/shared";
 import { WebsiteDataTab } from "./member-portal-settings/WebsiteDataTab";
-import { DataManagementTab } from "./member-portal-settings/DataManagementTab";
 import { ActivityDataTab } from "./member-portal-settings/ActivityDataTab";
 import { InviteSimulationSettingsTab } from "./member-portal-settings/InviteSimulationSettingsTab";
 import { FrontendSettingsTab } from "./member-portal-settings/FrontendSettingsTab";
@@ -493,10 +491,8 @@ const TABS = [
   { key: "customer_service", label: "客服设置", labelEn: "Customer Service", icon: Headphones },
   { key: "member_inbox", label: "会员通知", labelEn: "Member inbox", icon: Bell },
   { key: "website_data", label: "网站数据", labelEn: "Site analytics", icon: Globe2 },
-  { key: "data_management", label: "数据管理", labelEn: "Data cleanup", icon: Database },
   { key: "legal_policies", label: "条款与隐私", labelEn: "Terms & Privacy", icon: Scale },
   { key: "publish",  label: "发布管理", labelEn: "Publishing",   icon: History },
-  { key: "logs",     label: "操作日志", labelEn: "Member Logs",  icon: ScrollText },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
@@ -595,6 +591,14 @@ export default function MemberPortalSettingsPage() {
 
   useEffect(() => {
     if (!tabKeyParam) return;
+    if (tabKeyParam === "data_management") {
+      navigate("/staff/settings?tab=data&dataDeleteFocus=1", { replace: true });
+      return;
+    }
+    if (tabKeyParam === "logs") {
+      navigate("/staff/operation-logs?tab=member", { replace: true });
+      return;
+    }
     if (!MEMBER_PORTAL_TAB_KEY_SET.has(tabKeyParam)) {
       navigate("/staff/member-portal/login", { replace: true });
       return;
@@ -2371,9 +2375,7 @@ export default function MemberPortalSettingsPage() {
         )}
 
         {/* ════ 活动数据：抽奖流水 / 签到流水（本租户全量）══════════════════════════ */}
-        {activeTab === "activity_data" && (
-          <ActivityDataTab tenantId={tenantId} canManage={canEdit} />
-        )}
+        {activeTab === "activity_data" && <ActivityDataTab tenantId={tenantId} />}
 
         {activeTab === "invite_simulation" && (
           <InviteSimulationSettingsTab tenantId={tenantId} canManage={canEdit} />
@@ -2382,11 +2384,6 @@ export default function MemberPortalSettingsPage() {
         {/* ════ 网站数据（本租户会员全量）════════════════════════════════════════ */}
         {activeTab === "website_data" && (
           <WebsiteDataTab tenantId={tenantId} canManage={canEdit} />
-        )}
-
-        {/* ════ 数据管理（闲置邀请会员清理）════════════════════════════════════════ */}
-        {activeTab === "data_management" && (
-          <DataManagementTab tenantId={tenantId} canManage={canEdit} />
         )}
 
         {/* ════ 积分商城 ════════════════════════════════════════════════════ */}
@@ -3119,9 +3116,6 @@ export default function MemberPortalSettingsPage() {
             </Card>
           </div>
         )}
-
-        {/* ════ 操作日志 ════════════════════════════════════════════════════ */}
-        {activeTab === "logs" && <AdminOperationLogsTab t={t} />}
 
         </div>
 

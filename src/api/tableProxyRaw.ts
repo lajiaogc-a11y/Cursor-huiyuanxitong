@@ -13,7 +13,7 @@ export async function fetchTableSelectRaw(
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const token = resolveBearerTokenForPath(path);
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(url, { headers });
+  const res = await fetch(url, { headers, cache: 'no-store' });
   const json = (await res.json().catch(() => ({}))) as {
     data?: unknown;
     count?: number | null;

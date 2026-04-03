@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +19,7 @@ import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { isProductionLocked } from "@/stores/productionLockStore";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenantView } from "@/contexts/TenantViewContext";
 import { logOperation } from "@/stores/auditLogStore";
 import { queryClient } from "@/lib/queryClient";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
@@ -25,9 +27,16 @@ import {
   DataManagementDeleteDialog,
   type DeleteBulkSelections,
 } from "@/components/DataManagementDeleteDialog";
+import { MemberPortalInviteMemberCleanupPanel } from "@/components/MemberPortalInviteMemberCleanupPanel";
+import { ActivityDataRetentionPanel } from "@/components/ActivityDataRetentionPanel";
+import { Separator } from "@/components/ui/separator";
+
 export default function DataManagementTab() {
   const { t } = useLanguage();
   const { employee } = useAuth();
+  const { viewingTenantId } = useTenantView() || {};
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tenantIdForCleanup = viewingTenantId || employee?.tenant_id || null;
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
@@ -80,6 +89,14 @@ export default function DataManagementTab() {
     setProductionLocked(isProductionLocked());
   }, []);
 
+  useEffect(() => {
+    if (searchParams.get("dataDeleteFocus") !== "1") return;
+    setActiveTab("deleteData");
+    const next = new URLSearchParams(searchParams);
+    next.delete("dataDeleteFocus");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   // 删除数据函数 - 通过 Backend API 执行（adminApiService.bulkDeleteApi）
   const handleDeleteData = async () => {
     if (!deletePassword) {
@@ -115,6 +132,8 @@ export default function DataManagementTab() {
       const warnings = result?.warnings ?? [];
       const totalCount = deletedSummary.reduce((acc: number, s: { count: number }) => acc + s.count, 0);
       const hasOrdersOrMembers = deletedSummary.some((s: { table: string }) => s.table === '订单' || s.table === '会员');
+      const hasOrders = deletedSummary.some((s: { table: string }) => s.table === '订单');
+      const hasMembers = deletedSummary.some((s: { table: string }) => s.table === '会员');
       
       // ===== 记录批量删除操作日志 =====
       if (deletedSummary.length > 0) {
@@ -149,11 +168,17 @@ export default function DataManagementTab() {
         queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
         queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-        if (hasOrdersOrMembers) {
-          queryClient.invalidateQueries({ queryKey: ['orders'] });
-          queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
-          queryClient.invalidateQueries({ queryKey: ['order-stats'] });
+        if (hasOrders) {
+          void queryClient.invalidateQueries({ queryKey: ['orders'] });
+          void queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
+          void queryClient.invalidateQueries({ queryKey: ['order-stats'] });
           notifyDataMutation({ table: 'orders', operation: 'DELETE', source: 'manual' }).catch(console.error);
+        }
+        if (hasMembers) {
+          void queryClient.invalidateQueries({ queryKey: ['members'] });
+          void queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
+          void queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
+          notifyDataMutation({ table: 'members', operation: 'DELETE', source: 'manual' }).catch(console.error);
         }
         if (deleteSelections.merchantSettlement?.balanceChangeLogs) {
           queryClient.invalidateQueries({ queryKey: ['merchant-settlement'] });
@@ -179,6 +204,12 @@ export default function DataManagementTab() {
         }
         if (deleteSelections.auditRecords) {
           queryClient.invalidateQueries({ queryKey: ['audit-records'] });
+        }
+        if (deleteSelections.operationLogs) {
+          queryClient.invalidateQueries({ queryKey: ['operation-logs'] });
+        }
+        if (deleteSelections.loginLogs) {
+          queryClient.invalidateQueries({ queryKey: ['login-logs'] });
         }
       }
 
@@ -281,30 +312,43 @@ export default function DataManagementTab() {
 
       {/* 权限设置Tab已移除，权限设置在系统设置里单独的权限设置Tab中 */}
 
-      {/* 数据删除 */}
+      {/* 数据删除：会员门户清理 + 活动保留 + 全站批量删除 */}
       <TabsContent value="deleteData">
-        <div className="space-y-4">
+        <div className="space-y-8">
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              {t(
+                "与会员系统、活动数据相关的清理能力已集中于此，便于统一管理与审计。",
+                "Member portal and activity cleanups are centralized here for consistent governance.",
+              )}
+            </p>
+          </div>
+
+          <MemberPortalInviteMemberCleanupPanel tenantId={tenantIdForCleanup} />
+
+          <Separator className="my-2" />
+
+          <ActivityDataRetentionPanel tenantId={tenantIdForCleanup} />
+
+          <Separator className="my-2" />
+
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg flex items-center gap-2 text-destructive">
                 <Trash2 className="h-5 w-5" />
-                {t("数据删除", "Delete Data")}
+                {t("批量删除业务数据", "Bulk delete business data")}
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
                 {t(
-                  "选择要删除的数据类型，支持按时间保留或全部删除",
-                  "Select data types to delete, with options to retain by time or delete all"
+                  "按模块勾选订单、会员、交班、结算、日志等；支持按时间保留或全部删除。需管理员密码。",
+                  "Select modules (orders, members, shifts, settlement, logs, etc.); retain by age or delete all. Admin password required.",
                 )}
               </p>
             </CardHeader>
             <CardContent>
-              <Button 
-                variant="destructive" 
-                className="gap-2"
-                onClick={() => setIsDeleteDialogOpen(true)}
-              >
+              <Button variant="destructive" className="gap-2" onClick={() => setIsDeleteDialogOpen(true)}>
                 <Trash2 className="h-4 w-4" />
-                {t("打开删除数据对话框", "Open Delete Data Dialog")}
+                {t("打开批量删除对话框", "Open bulk delete dialog")}
               </Button>
             </CardContent>
           </Card>

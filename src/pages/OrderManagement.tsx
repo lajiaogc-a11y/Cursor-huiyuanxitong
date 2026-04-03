@@ -396,10 +396,12 @@ export default function OrderManagement() {
   deleteUsdtOrderRef.current = deleteUsdtOrder;
 
   // 右下角商城兑换通知「前往订单」：?tab=mall&highlightMall=<redemptionId>
+  // 审核中心「积分兑换待审核」：?tab=mall&mallStatus=pending
   useEffect(() => {
     const tab = searchParams.get("tab");
     const raw = searchParams.get("highlightMall");
-    if (tab !== "mall" && !raw) return;
+    const ms = searchParams.get("mallStatus");
+    if (tab !== "mall" && !raw && !ms) return;
     if (tab === "mall") setActiveTab("mall");
     if (raw) {
       try {
@@ -408,10 +410,15 @@ export default function OrderManagement() {
         setMallHighlightId(String(raw).trim() || null);
       }
     }
+    if (ms === "pending" || ms === "completed" || ms === "rejected" || ms === "all") {
+      setMallStatusFilter(ms);
+      setActiveTab("mall");
+    }
     setMallOrdersRefreshNonce((n) => n + 1);
     const next = new URLSearchParams(searchParams);
     next.delete("tab");
     next.delete("highlightMall");
+    next.delete("mallStatus");
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 

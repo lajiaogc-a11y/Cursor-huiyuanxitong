@@ -221,8 +221,8 @@ describe('getTableTier — 表访问分级', () => {
     expect(getTableTier('points_ledger')).toBe('standard');
   });
 
-  it('returns read_only for log/audit tables', () => {
-    expect(getTableTier('audit_records')).toBe('read_only');
+  it('returns read_only for log tables (audit_records uses audit_workflow)', () => {
+    expect(getTableTier('audit_records')).toBe('audit_workflow');
     expect(getTableTier('employee_login_logs')).toBe('read_only');
     expect(getTableTier('member_operation_logs')).toBe('read_only');
     expect(getTableTier('operation_logs')).toBe('read_only');

@@ -20,7 +20,14 @@ const CopySettingsTab = lazy(() => import("@/components/CopySettingsTab"));
 const CurrencySettingsTab = lazy(() => import("@/components/CurrencySettingsTab"));
 const PermissionSettingsTab = lazy(() => import("@/components/PermissionSettingsTab"));
 const GiftDistributionSettingsTab = lazy(() => import("@/components/GiftDistributionSettingsTab"));
-const ApiManagementTabLazy = lazy(() => import("@/components/ApiManagementTab").then(m => ({ default: m.ApiManagementTab })));
+const ApiManagementTabLazy = lazy(async () => {
+  const { ApiManagementTab } = await import("@/components/ApiManagementTab");
+  return {
+    default: function TenantApiManagementTab() {
+      return <ApiManagementTab scope="tenant" />;
+    },
+  };
+});
 const TenantSettingsOverview = lazy(() => import("@/components/TenantSettingsOverview"));
 const InvitationCodeManagement = lazy(() => import("@/components/InvitationCodeManagement"));
 const TenantStaffLoginIpTab = lazy(() => import("@/components/TenantStaffLoginIpTab"));

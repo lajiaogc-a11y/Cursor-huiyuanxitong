@@ -147,6 +147,13 @@ export default function MemberWallet() {
     <div className="m-page-bg relative min-h-screen pb-24">
       <BackHeader title={t("我的钱包", "My wallet")} />
 
+      <div className="mx-5 mt-3 flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2">
+        <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden />
+        <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+          {t("充提流水及统计为演示数据，可用余额已接入后端", "Transaction history & stats are demo data; available balance is live")}
+        </span>
+      </div>
+
       <div className="relative overflow-hidden">
         <MemberPageAmbientOrbs />
         <div className="relative z-[1] px-5 pb-6 pt-8">

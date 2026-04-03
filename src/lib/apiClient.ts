@@ -327,6 +327,8 @@ async function request<T>(
     headers:
       authMode === 'staff-only' ? await getStaffOnlyAuthHeaders() : await getAuthHeaders(path),
     ...fetchInit,
+    /** 避免浏览器 HTTP 缓存把动态 API GET 当成静态资源，导致刷新/多标签数据陈旧 */
+    cache: fetchInit?.cache ?? 'no-store',
   };
   if (body !== undefined && method !== 'GET') {
     options.body = JSON.stringify(body);

@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { TablePageSkeleton } from "@/components/skeletons/TablePageSkeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,11 +28,17 @@ import { MobileFilterBar } from "@/components/ui/mobile-filter-bar";
 import { useLoginLogs } from "@/hooks/useLoginLogs";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { PageHeader, PageActions, FilterBar, KPIGrid, ErrorState } from "@/components/common";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MemberLoginLogsTab } from "@/pages/member-portal/MemberLoginLogsTab";
 
-export default function LoginLogs() {
-  trackRender('LoginLogs');
+function loginLogsTabFromSearch(sp: URLSearchParams): "staff" | "member" {
+  return sp.get("tab") === "member" ? "member" : "staff";
+}
 
-  const { t, language } = useLanguage();
+function StaffLoginLogsPanel({ enabled, language }: { enabled: boolean; language: string }) {
+  trackRender("StaffLoginLogsPanel");
+
+  const { t } = useLanguage();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
@@ -48,7 +55,7 @@ export default function LoginLogs() {
     totalPages: serverTotalPages,
     pageSize,
     effectiveTenantId,
-  } = useLoginLogs(language);
+  } = useLoginLogs(language, { enabled });
   const isPlatformSuperAdmin = !!currentEmployee?.is_platform_super_admin;
   const platformScopedToEnteredTenant = isPlatformSuperAdmin && !!viewingTenantName?.trim();
   const [searchTerm, setSearchTerm] = useState("");
@@ -167,8 +174,8 @@ export default function LoginLogs() {
 
       <PageHeader
         description={t(
-          "查看员工登录成功与失败记录、IP 与浏览器信息；数据为服务端分页。",
-          "View staff login success/failure, IP, and browser info; data is server-paginated.",
+          "员工后台登录审计（employee_login_logs）：成功/失败、IP、浏览器；服务端分页。与会员端登录表无关。",
+          "Staff sign-in audit (employee_login_logs): success/failure, IP, browser; server-paged. Separate from member login logs.",
         )}
         actions={
           !useCompactLayout ? (
@@ -344,6 +351,54 @@ export default function LoginLogs() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+export default function LoginLogs() {
+  trackRender("LoginLogs");
+  const { t, language } = useLanguage();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => loginLogsTabFromSearch(searchParams));
+
+  useEffect(() => {
+    setActiveTab(loginLogsTabFromSearch(searchParams));
+  }, [searchParams]);
+
+  const handleLoginLogsTabChange = (value: string) => {
+    const next = value === "member" ? "member" : "staff";
+    setActiveTab(next);
+    setSearchParams(
+      (prev) => {
+        const n = new URLSearchParams(prev);
+        if (next === "staff") n.delete("tab");
+        else n.set("tab", next);
+        return n;
+      },
+      { replace: true },
+    );
+  };
+
+  return (
+    <div className="flex h-full flex-col gap-4">
+      <Tabs value={activeTab} onValueChange={handleLoginLogsTabChange} className="flex h-full flex-col gap-2">
+        <TabsList className="flex h-auto min-h-9 shrink-0 flex-wrap gap-1">
+          <TabsTrigger value="staff">{t("员工端登录", "Staff sign-in")}</TabsTrigger>
+          <TabsTrigger value="member">{t("会员端登录", "Member sign-in")}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="staff" className="mt-0 flex flex-1 flex-col gap-4">
+          <StaffLoginLogsPanel enabled={activeTab === "staff"} language={language} />
+        </TabsContent>
+        <TabsContent value="member" className="mt-0 flex flex-1 flex-col gap-4">
+          <PageHeader
+            description={t(
+              "会员在门户登录成功时写入 member_login_logs（不含失败尝试）；与「员工端登录」完全独立，亦非会员系统「登录设置」配置页。",
+              "Successful member portal sign-ins (member_login_logs). No failed attempts. Separate from staff logs and from the member portal login branding settings.",
+            )}
+          />
+          <MemberLoginLogsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

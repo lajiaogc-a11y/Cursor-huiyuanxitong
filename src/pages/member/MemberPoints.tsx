@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { getMallCache, clearMallCatalogCache } from "@/lib/mallCatalogCache";
+export { clearMallCatalogCache };
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
@@ -406,7 +408,7 @@ function MemberRedemptionHistoryFeed({
   );
 }
 
-const _mallCache = new Map<string, PointsMallItem[]>();
+const _mallCache = getMallCache() as Map<string, PointsMallItem[]>;
 
 export default function MemberPoints() {
   const { member } = useMemberAuth();

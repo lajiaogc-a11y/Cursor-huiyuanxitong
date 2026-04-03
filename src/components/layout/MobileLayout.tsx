@@ -14,6 +14,7 @@ import { useUnreadCount } from "@/hooks/useKnowledge";
 import { usePendingAuditCount } from "@/hooks/usePendingAuditCount";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { getPlatformSettingsSubTabTitle } from "@/pages/PlatformSettings";
 
 function MobileContentSkeleton() {
   return (
@@ -119,6 +120,15 @@ const tabPageTitles: Record<string, Record<string, { zh: string; en: string }>> 
     "staff-login-ip": { zh: "登录IP限制", en: "Login IP allowlist" },
     "version-update": { zh: "版本更新", en: "Version update" },
   },
+  "/staff/operation-logs": {
+    logs: { zh: "后台审计", en: "Backend audit" },
+    errors: { zh: "前端异常", en: "Frontend errors" },
+    member: { zh: "会员端日志", en: "Member activity" },
+  },
+  "/staff/login-logs": {
+    staff: { zh: "员工端登录", en: "Staff sign-in" },
+    member: { zh: "会员端登录", en: "Member sign-in" },
+  },
 };
 
 const primaryPaths = new Set([
@@ -160,13 +170,19 @@ export function MobileLayout({ children }: MobileLayoutProps) {
     "/staff/members": "members",
     "/staff/merchants": "cards",
     "/staff/settings": "fee",
+    "/staff/operation-logs": "logs",
+    "/staff/login-logs": "staff",
   };
   const pathForTitle = location.pathname.startsWith("/staff/member-portal") ? "/staff/member-portal" : location.pathname;
   const effectiveTab = tab || defaultTab[pathForTitle] || "";
   const tabTitles = tabPageTitles[pathForTitle];
-  const pageTitle = (tabTitles && effectiveTab && tabTitles[effectiveTab])
-    ? tabTitles[effectiveTab]
-    : (pageTitles[pathForTitle] || { zh: "GC会员系统", en: "GC Member System" });
+  const adminSettingsMatch = location.pathname.match(/^\/staff\/admin\/settings\/([^/]+)/);
+  const platformSubTitle = adminSettingsMatch ? getPlatformSettingsSubTabTitle(adminSettingsMatch[1]) : undefined;
+  const pageTitle = platformSubTitle
+    ? platformSubTitle
+    : (tabTitles && effectiveTab && tabTitles[effectiveTab])
+      ? tabTitles[effectiveTab]
+      : (pageTitles[pathForTitle] || { zh: "GC会员系统", en: "GC Member System" });
   const isPrimary = primaryPaths.has(location.pathname);
 
   return (

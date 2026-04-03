@@ -5,5 +5,5 @@ export function warmupApiHealth(): void {
   const base = (import.meta.env.VITE_API_BASE as string | undefined)?.trim() ?? "";
   if (!base) return;
   const url = `${base.replace(/\/$/, "")}/health`;
-  fetch(url, { mode: "cors" }).catch((err) => { console.warn('[apiWarmup] health ping failed:', err); });
+  fetch(url, { mode: "cors", cache: "no-store" }).catch((err) => { console.warn('[apiWarmup] health ping failed:', err); });
 }

@@ -29,6 +29,7 @@ export async function downloadMysqlDump(
   onProgress?.('请求备份…');
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
   });
   if (!res.ok) {
     let msg = res.statusText;

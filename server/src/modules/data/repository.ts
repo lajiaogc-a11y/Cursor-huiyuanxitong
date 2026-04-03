@@ -1214,15 +1214,18 @@ export async function listAuditRecordsRepository(params: {
 }
 
 export async function countPendingAuditRecordsRepository(tenantId?: string | null): Promise<number> {
-  if (!tenantId || String(tenantId).trim() === '') {
-    // 无租户上下文时不统计全平台待审核，否则平台超管/未选租户视角会出现成千上万条，与「待办」语义不符
-    return 0;
+  const tid = tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : '';
+  if (tid) {
+    const rows = await query<{ count: number }>(
+      `SELECT COUNT(*) AS count FROM audit_records WHERE status = 'pending' AND submitter_id IN (SELECT id FROM employees WHERE tenant_id = ?)`,
+      [tid],
+    );
+    return Number(rows[0]?.count ?? 0);
   }
-  const rows = await query<{ count: number }>(
-    `SELECT COUNT(*) AS count FROM audit_records WHERE status = 'pending' AND submitter_id IN (SELECT id FROM employees WHERE tenant_id = ?)`,
-    [tenantId]
+  const rowsAll = await query<{ count: number }>(
+    `SELECT COUNT(*) AS count FROM audit_records WHERE status = 'pending'`,
   );
-  return Number(rows[0]?.count ?? 0);
+  return Number(rowsAll[0]?.count ?? 0);
 }
 
 let _rpTableFixed = false;

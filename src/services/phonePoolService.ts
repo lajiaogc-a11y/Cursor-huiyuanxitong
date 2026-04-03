@@ -244,7 +244,7 @@ export async function checkPhoneExtractHealth(tenantId: string): Promise<PhoneEx
 
   async function probe(path: string): Promise<{ ok: boolean; message: string }> {
     try {
-      const r = await fetch(`${base}${path}`, { headers });
+      const r = await fetch(`${base}${path}`, { headers, cache: 'no-store' });
       const j = (await r.json().catch(() => ({}))) as {
         success?: boolean;
         message?: string;
@@ -278,7 +278,7 @@ export async function checkPhoneExtractHealth(tenantId: string): Promise<PhoneEx
   items.push({ key: "extract_records_api", ok: rec.ok, message: rec.message });
 
   try {
-    const hr = await fetch(`${base}/api/phone-pool/health`, { headers });
+    const hr = await fetch(`${base}/api/phone-pool/health`, { headers, cache: 'no-store' });
     const hj = (await hr.json().catch(() => ({}))) as {
       success?: boolean;
       data?: { tableExists?: boolean; phoneColumn?: string; missingColumns?: string[] };

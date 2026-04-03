@@ -23,6 +23,16 @@ import Login2FATab from "@/components/Login2FATab";
 import TenantQuotaTab from "@/components/TenantQuotaTab";
 import DataMigrationToolsTab from "@/components/DataMigrationToolsTab";
 const AdminDeviceWhitelistTab = lazy(() => import("@/components/AdminDeviceWhitelistTab"));
+const OpenApiManagementTabLazy = lazy(async () => {
+  const { ApiManagementTab } = await import("@/components/ApiManagementTab");
+  return {
+    default: function PlatformOpenApiTab() {
+      return <ApiManagementTab scope="platform" />;
+    },
+  };
+});
+const PlatformOperationLogsLazy = lazy(() => import("@/pages/OperationLogs"));
+const PlatformLoginLogsLazy = lazy(() => import("@/pages/LoginLogs"));
 
 function TabSkeleton() {
   return (
@@ -45,12 +55,27 @@ const tabContentMap: Record<string, React.ReactNode> = {
   "data-archive": <Suspense fallback={<TabSkeleton />}><DataArchiveTab /></Suspense>,
   "data-backup": <DataBackupTab />,
   "data-repair": <DataRepairTab />,
+  "operation-logs": (
+    <Suspense fallback={<TabSkeleton />}>
+      <PlatformOperationLogsLazy />
+    </Suspense>
+  ),
+  "login-logs": (
+    <Suspense fallback={<TabSkeleton />}>
+      <PlatformLoginLogsLazy />
+    </Suspense>
+  ),
   "feature-flags": <FeatureFlagsTab />,
   "maintenance-mode": <MaintenanceModeTab />,
   "announcements": <AnnouncementsTab />,
   "login-2fa": <Login2FATab />,
   "tenant-quota": <TenantQuotaTab />,
   "data-migration-tools": <DataMigrationToolsTab />,
+  "open-api": (
+    <Suspense fallback={<TabSkeleton />}>
+      <OpenApiManagementTabLazy />
+    </Suspense>
+  ),
   "device-whitelist": <Suspense fallback={<TabSkeleton />}><AdminDeviceWhitelistTab /></Suspense>,
 };
 
@@ -63,14 +88,22 @@ const SETTINGS_TABS = [
   { key: "data-archive", zh: "数据归档", en: "Data Archive" },
   { key: "data-backup", zh: "数据备份", en: "Data Backup" },
   { key: "data-repair", zh: "数据修复", en: "Data Repair" },
+  { key: "operation-logs", zh: "操作日志", en: "Operation Logs" },
+  { key: "login-logs", zh: "登录日志", en: "Login Logs" },
   { key: "feature-flags", zh: "功能开关", en: "Feature Flags" },
   { key: "maintenance-mode", zh: "维护模式", en: "Maintenance Mode" },
   { key: "announcements", zh: "公告/站内信", en: "Announcements" },
   { key: "login-2fa", zh: "登录2FA", en: "Login 2FA" },
   { key: "tenant-quota", zh: "租户配额", en: "Tenant Quota" },
   { key: "data-migration-tools", zh: "数据迁移工具", en: "Data Migration Tools" },
+  { key: "open-api", zh: "开放 API", en: "Open API" },
   { key: "device-whitelist", zh: "设备白名单登录", en: "Device whitelist login" },
 ] as const;
+
+export function getPlatformSettingsSubTabTitle(tabKey: string): { zh: string; en: string } | undefined {
+  const item = SETTINGS_TABS.find((x) => x.key === tabKey);
+  return item ? { zh: item.zh, en: item.en } : undefined;
+}
 
 export default function PlatformSettings() {
   const { t } = useLanguage();

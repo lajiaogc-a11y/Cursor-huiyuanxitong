@@ -99,6 +99,13 @@ import { formatBeijingTime } from "@/lib/beijingTime";
 import { saveSharedData, loadSharedData } from "@/services/finance/sharedDataService";
 import { PageHeader, KPIGrid, ErrorState } from "@/components/common";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
+import { AdminOperationLogsTab } from "@/pages/member-portal/AdminOperationLogsTab";
+
+function operationLogsTabFromSearch(sp: URLSearchParams): "logs" | "errors" | "member" {
+  const v = sp.get("tab");
+  if (v === "errors" || v === "member") return v;
+  return "logs";
+}
 
 // Legacy support
 export interface OperationLog {
@@ -134,9 +141,26 @@ export default function OperationLogs() {
   const { t, language } = useLanguage();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
-  const [searchParams] = useSearchParams();
-  const defaultTab = searchParams.get("tab") === "errors" ? "errors" : "logs";
-  const [activeTab, setActiveTab] = useState(defaultTab);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => operationLogsTabFromSearch(searchParams));
+
+  useEffect(() => {
+    setActiveTab(operationLogsTabFromSearch(searchParams));
+  }, [searchParams]);
+
+  const handleOperationLogsTabChange = (value: string) => {
+    const next = value === "errors" || value === "member" ? value : "logs";
+    setActiveTab(next);
+    setSearchParams(
+      (prev) => {
+        const n = new URLSearchParams(prev);
+        if (next === "logs") n.delete("tab");
+        else n.set("tab", next);
+        return n;
+      },
+      { replace: true },
+    );
+  };
   const useCompactLayout = isMobile || isTablet;
   const queryClient = useQueryClient();
   const exportConfirm = useExportConfirm();
@@ -183,6 +207,7 @@ export default function OperationLogs() {
     },
     refetchOnMount: 'always',
     retry: 3,
+    enabled: activeTab === "logs",
   });
   const isAdmin = () => {
     return userIsAdmin;
@@ -256,6 +281,9 @@ export default function OperationLogs() {
       // 根据模块执行恢复 - 通过后端 API
       switch (log.module) {
         case 'member_management': {
+          void queryClient.invalidateQueries({ queryKey: ['members'] });
+          void queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
+          void queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
           // 检查记录是否还存在
           const currentMember = await getMemberRow(String(log.objectId ?? ""));
           
@@ -312,6 +340,7 @@ export default function OperationLogs() {
           break;
         }
         case 'employee_management': {
+          void queryClient.invalidateQueries({ queryKey: ['employees-management'] });
           const currentEmployee = await getEmployeeRow(String(log.objectId ?? ""));
           
           const restoreData = { ...log.beforeData };
@@ -344,45 +373,58 @@ export default function OperationLogs() {
           break;
         }
         case 'activity_gift': {
-          // 通过后端 API 执行活动赠送恢复
           await restoreActivityGiftFromAudit(restoreAuditBody);
           
+          void queryClient.invalidateQueries({ queryKey: ['activity-records'] });
+          void queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
+          void queryClient.invalidateQueries({ queryKey: ['points-ledger'] });
           notifyDataMutation({ table: 'activity_gifts', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           break;
         }
         case 'card_management': {
           await restoreCardFromAudit(restoreAuditBody);
+          void queryClient.invalidateQueries({ queryKey: ['vendors'] });
+          void queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           break;
         }
         case 'vendor_management': {
           await restoreVendorFromAudit(restoreAuditBody);
+          void queryClient.invalidateQueries({ queryKey: ['vendors'] });
+          void queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           break;
         }
         case 'provider_management': {
           await restorePaymentProviderFromAudit(restoreAuditBody);
+          void queryClient.invalidateQueries({ queryKey: ['vendors'] });
+          void queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           break;
         }
         case 'activity_type': {
           await restoreActivityTypeFromAudit(restoreAuditBody);
+          void queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           break;
         }
         case 'currency_settings': {
           await restoreCurrencyFromAudit(restoreAuditBody);
+          void queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           break;
         }
         case 'customer_source': {
           await restoreCustomerSourceFromAudit(restoreAuditBody);
+          void queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           break;
         }
         case 'referral': {
           await restoreReferralFromAudit(restoreAuditBody);
+          void queryClient.invalidateQueries({ queryKey: ['referral-relations'] });
           break;
         }
         case 'system_settings': {
           const currentData = await loadSharedData(log.objectId as any);
           await saveSharedData(log.objectId as any, log.beforeData);
           
+          void queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           logOperation('system_settings', 'restore', log.objectId, currentData, log.beforeData,
             `恢复系统设置: ${log.objectDescription || log.objectId}`);
           break;
@@ -656,6 +698,8 @@ export default function OperationLogs() {
               return;
             }
           }
+          void queryClient.invalidateQueries({ queryKey: ['merchant-settlement'] });
+          void queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           break;
         }
         default:
@@ -837,50 +881,63 @@ export default function OperationLogs() {
     );
   };
 
-  if (isErrorLogs) {
-    return (
-      <div className="flex flex-col gap-4 py-8">
-        <ErrorState
-          title={t("操作日志加载失败", "Operation logs failed to load")}
-          description={t("请确保后端服务已启动后重试。", "Ensure the backend is running, then retry.")}
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-fit"
-          onClick={() => queryClient.invalidateQueries({ queryKey: ["operation-logs"] })}
-        >
-          <RefreshCw className="mr-2 h-4 w-4" />
-          {t("重试", "Retry")}
-        </Button>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return <TablePageSkeleton />;
-  }
-
   return (
     <div className="flex flex-col h-full gap-4">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-        <TabsList className="shrink-0 w-fit">
-          <TabsTrigger value="logs">{t("操作日志", "Operation Logs")}</TabsTrigger>
-          <TabsTrigger value="errors">{t("异常报告", "Error Reports")}</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={handleOperationLogsTabChange} className="flex flex-col h-full">
+        <TabsList className="shrink-0 flex flex-wrap gap-1 h-auto min-h-9">
+          <TabsTrigger value="logs">{t("后台审计", "Backend audit")}</TabsTrigger>
+          <TabsTrigger value="errors">{t("前端异常", "Frontend errors")}</TabsTrigger>
+          <TabsTrigger value="member">{t("会员端日志", "Member activity")}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="errors" className="flex-1 mt-4">
+        <TabsContent value="errors" className="flex-1 mt-4 space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {t(
+              "来自浏览器与员工端运行时的异常上报（error_reports），与后台审计表相互独立。",
+              "Client-side error reports (error_reports), separate from server audit logs.",
+            )}
+          </p>
           <Suspense fallback={<TablePageSkeleton />}>
             <ErrorReportsPanel />
           </Suspense>
         </TabsContent>
 
+        <TabsContent value="member" className="flex-1 mt-4 space-y-3">
+          <PageHeader
+            description={t(
+              "会员在门户内的行为流水（member_operation_logs），与员工后台审计分离。",
+              "Member-facing activity (member_operation_logs), separate from staff audit logs.",
+            )}
+          />
+          <AdminOperationLogsTab />
+        </TabsContent>
+
         <TabsContent value="logs" className="mt-0 flex flex-1 flex-col gap-4">
+          {isErrorLogs ? (
+            <div className="flex flex-col gap-4 py-8">
+              <ErrorState
+                title={t("操作日志加载失败", "Operation logs failed to load")}
+                description={t("请确保后端服务已启动后重试。", "Ensure the backend is running, then retry.")}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                onClick={() => queryClient.invalidateQueries({ queryKey: ["operation-logs"] })}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {t("重试", "Retry")}
+              </Button>
+            </div>
+          ) : loading ? (
+            <TablePageSkeleton />
+          ) : (
+          <>
           <div className="shrink-0 space-y-3">
             <PageHeader
               description={t(
-                "审计追踪：按时间与模块筛选，可导出；管理员可查看详情并恢复部分变更。",
-                "Audit trail: filter by time and module, export; admins can open details and restore some changes.",
+                "员工后台操作审计（operation_logs）：按时间与模块筛选，可导出；管理员可查看详情并恢复部分变更。",
+                "Staff audit trail (operation_logs): filter by time and module, export; admins can open details and restore some changes.",
               )}
             />
             <KPIGrid items={logKpiItems} />
@@ -1732,6 +1789,8 @@ export default function OperationLogs() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+          </>
+          )}
         </TabsContent>
       </Tabs>
       <ExportConfirmDialog

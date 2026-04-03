@@ -3,14 +3,18 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTenantView } from '@/contexts/TenantViewContext';
 import { getPendingAuditCountApi } from '@/services/staff/dataApi';
 
 export function usePendingAuditCount() {
   const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const { employee } = useAuth();
+  const { viewingTenantId, viewingTenantName } = useTenantView() || {};
 
-  const tenantId = employee?.is_platform_super_admin ? null : (employee?.tenant_id ?? null);
+  const tenantId = employee?.is_platform_super_admin
+    ? (viewingTenantName?.trim() ? viewingTenantId : null)
+    : (employee?.tenant_id ?? null);
 
   const fetchPendingCount = useCallback(async () => {
     try {

@@ -459,7 +459,10 @@ const [editFormData, setEditFormData] = useState({
             `删除活动赠送: ${recordToDelete.phone} - ${recordToDelete.currency} ${recordToDelete.amount}`
           );
 
-          await queryClient.invalidateQueries({ queryKey: ['activity-records'] });
+          void queryClient.invalidateQueries({ queryKey: ['activity-records'] });
+          void queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
+          void queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
+          void queryClient.invalidateQueries({ queryKey: ['points-ledger'] });
           notifyDataMutation({ table: 'activity_gifts', operation: 'DELETE', source: 'manual' }).catch(console.error);
           notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           const restoredPoints = result.restored_points || 0;
@@ -576,7 +579,10 @@ const [editFormData, setEditFormData] = useState({
           }
         }
         
-        await queryClient.invalidateQueries({ queryKey: ['activity-records'] });
+        void queryClient.invalidateQueries({ queryKey: ['activity-records'] });
+        void queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
+        void queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
+        void queryClient.invalidateQueries({ queryKey: ['points-ledger'] });
         notifyDataMutation({ table: 'activity_gifts', operation: 'UPDATE', source: 'manual' }).catch(console.error);
         notify.success(t("已更新", "Updated"));
       } else {

@@ -21,6 +21,7 @@ import {
 // Re-export for backwards compatibility with modules that import from tableProxy
 export { isTableProxyAllowed } from './tableConfig.js';
 import { applyPointsLedgerDeltaOnConn } from '../points/pointsLedgerAccount.js';
+import { insertOperationLogRepository } from './repository.js';
 import { generateUniqueActivityGiftNumber } from '../../lib/giftNumber.js';
 import { ensureOrderNumberForInsert } from '../orders/orderNumber.js';
 import { draw, getQuota } from '../lottery/service.js';
@@ -155,6 +156,12 @@ export async function tableInsertController(req: AuthenticatedRequest, res: Resp
   const tier = getTableTier(table);
   if (!tier) { rejectTableAccess(res, table, `Table '${table}' not allowed`); return; }
   if (tier === 'read_only') { rejectTableAccess(res, table, `Table '${table}' is read-only`); return; }
+  if (tier === 'audit_workflow') {
+    if (req.user?.type !== 'employee' || !req.user.id) {
+      rejectTableAccess(res, table, `Table '${table}' requires an employee session`);
+      return;
+    }
+  }
   if (tier === 'admin_only' && !isAdminUser(req)) { rejectTableAccess(res, table, `Table '${table}' requires admin access`); return; }
   if (blockMemberTableProxy(req, res)) return;
   if (blockPlatformSuperStaffInvitationCodes(req, res, table)) return;
@@ -172,6 +179,16 @@ export async function tableInsertController(req: AuthenticatedRequest, res: Resp
 
       // 应用列名映射（前端列名 → 数据库实际列名）
       row = mapBodyColumns(table, row);
+
+      if (table === 'audit_records') {
+        row.status = 'pending';
+        if (req.user?.type === 'employee' && req.user.id) {
+          row.submitter_id = req.user.id;
+        }
+        if (req.user?.type === 'employee' && req.user.tenant_id && !req.user.is_platform_super_admin) {
+          row.tenant_id = req.user.tenant_id;
+        }
+      }
 
       if (table === 'notifications' && req.user?.type === 'employee' && req.user.id) {
         if (!req.user.is_platform_super_admin && !req.user.is_super_admin) {
@@ -340,6 +357,12 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
   const tier = getTableTier(table);
   if (!tier) { rejectTableAccess(res, table, `Table '${table}' not allowed`); return; }
   if (tier === 'read_only') { rejectTableAccess(res, table, `Table '${table}' is read-only`); return; }
+  if (tier === 'audit_workflow') {
+    if (req.user?.type !== 'employee' || !req.user.id) {
+      rejectTableAccess(res, table, `Table '${table}' requires an employee session`);
+      return;
+    }
+  }
   if (tier === 'admin_only' && !isAdminUser(req)) { rejectTableAccess(res, table, `Table '${table}' requires admin access`); return; }
   if (blockMemberTableProxy(req, res)) return;
   if (blockPlatformSuperStaffInvitationCodes(req, res, table)) return;
@@ -356,7 +379,21 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
 
   try {
     // 应用列名映射（前端列名 → 数据库实际列名）
-    const mappedData = mapBodyColumns(table, updateData);
+    let mappedData = mapBodyColumns(table, updateData) as Record<string, unknown>;
+    let auditCasPending = false;
+    if (table === 'audit_records') {
+      const ALLOWED = new Set(['status', 'reviewer_id', 'review_time', 'review_comment']);
+      mappedData = Object.fromEntries(Object.entries(mappedData).filter(([k]) => ALLOWED.has(k)));
+      if (Object.keys(mappedData).length === 0) {
+        res.status(400).json({ data: null, error: { message: 'No allowed fields to update on audit_records' } });
+        return;
+      }
+      const st = mappedData.status != null ? String(mappedData.status).toLowerCase().trim() : '';
+      if (st === 'approved' || st === 'rejected') {
+        auditCasPending = true;
+      }
+      mappedData.reviewer_id = req.user!.id;
+    }
     const cols = Object.keys(mappedData);
     const setClauses = cols.map(c => `\`${c}\` = ?`).join(', ');
     const setValues = cols.map(c => {
@@ -366,20 +403,42 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
       return toMySqlDatetime(v);
     });
 
+    let whereExec = where;
+    if (table === 'audit_records' && auditCasPending) {
+      if (!whereExec?.trim()) {
+        res.status(400).json({ data: null, error: { message: 'UPDATE audit_records requires a row filter (e.g. id=eq.*)' } });
+        return;
+      }
+      whereExec = `${whereExec} AND \`status\` = 'pending'`;
+    }
+
     let preCompletedOrders: { id: string; status: unknown; member_id: unknown; tenant_id: unknown }[] | null = null;
     if (
       table === 'orders' &&
       mappedData.status !== undefined &&
       String(mappedData.status ?? '').toLowerCase().trim() === 'completed' &&
-      where
+      whereExec
     ) {
       preCompletedOrders = await query(
-        `SELECT id, status, member_id, tenant_id FROM \`orders\` ${where}`,
+        `SELECT id, status, member_id, tenant_id FROM \`orders\` ${whereExec}`,
         filterValues,
       );
     }
 
-    await execute(`UPDATE \`${table}\` SET ${setClauses} ${where}`, [...setValues, ...filterValues]);
+    const updHeader = await execute(
+      `UPDATE \`${table}\` SET ${setClauses} ${whereExec}`,
+      [...setValues, ...filterValues],
+    );
+    if (table === 'audit_records' && auditCasPending && (updHeader.affectedRows ?? 0) === 0) {
+      res.status(409).json({
+        data: null,
+        error: {
+          message: 'Record is not pending or was already processed',
+          code: 'AUDIT_NOT_PENDING',
+        },
+      });
+      return;
+    }
 
     if (preCompletedOrders && preCompletedOrders.length > 0) {
       for (const row of preCompletedOrders) {
@@ -408,7 +467,7 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
     }
 
     // 回查更新后的行
-    const rows = await query(`SELECT * FROM \`${table}\` ${where}`, filterValues);
+    const rows = await query(`SELECT * FROM \`${table}\` ${whereExec}`, filterValues);
     res.json({ data: rows.length === 1 ? rows[0] : rows, error: null });
   } catch (e) {
     console.error(`[TableProxy] UPDATE ${table} error:`, e);
@@ -423,6 +482,10 @@ export async function tableDeleteController(req: AuthenticatedRequest, res: Resp
   const tier = getTableTier(table);
   if (!tier) { rejectTableAccess(res, table, `Table '${table}' not allowed`); return; }
   if (tier === 'read_only') { rejectTableAccess(res, table, `Table '${table}' is read-only`); return; }
+  if (tier === 'audit_workflow') {
+    rejectTableAccess(res, table, `Table '${table}' cannot be deleted via table proxy`);
+    return;
+  }
   if (tier === 'admin_only' && !isAdminUser(req)) { rejectTableAccess(res, table, `Table '${table}' requires admin access`); return; }
   if (blockMemberTableProxy(req, res)) return;
   if (blockPlatformSuperStaffInvitationCodes(req, res, table)) return;
@@ -893,6 +956,20 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
             };
           });
           result = { success: true, status: newStatus };
+
+          insertOperationLogRepository({
+            operator_id: empId || null,
+            operator_account: processedName || 'employee',
+            operator_role: req.user?.role ?? 'employee',
+            module: 'points_redemption',
+            operation_type: action === 'complete' ? 'status_change' : 'reject',
+            object_id: String(redemptionId),
+            object_description: `商城兑换${action === 'complete' ? '完成' : '驳回'}: ${mallRedemptionNotifyRef.payload?.itemTitle ?? '商品'}`,
+            before_data: { status: 'pending' },
+            after_data: { status: newStatus, note },
+            ip_address: req.ip ?? null,
+          }).catch(err => console.error('[RPC] mall redemption operation log:', err));
+
           const mallPayload = mallRedemptionNotifyRef.payload;
           if (mallPayload?.tenantId && mallPayload.memberId) {
             try {
@@ -2038,6 +2115,49 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
         break;
       }
 
+      case 'admin_list_member_login_logs': {
+        if (!assertRpcEmployee(req)) {
+          result = { success: false, error: 'FORBIDDEN', logs: [], total: 0 };
+          break;
+        }
+        const limitMl = Math.min(parseInt(params.p_limit) || 100, 500);
+        const offsetMl = parseInt(params.p_offset) || 0;
+        const searchMl = String(params.p_search || '').trim();
+        const dateFromMl = String(params.p_date_from || '').trim();
+        let whereMl = '1=1';
+        const valsMl: unknown[] = [];
+        if (searchMl) {
+          whereMl +=
+            ' AND (m.phone_number LIKE ? OR m.member_code LIKE ? OR m.nickname LIKE ? OR CAST(l.member_id AS CHAR) LIKE ?)';
+          const like = `%${searchMl}%`;
+          valsMl.push(like, like, like, like);
+        }
+        if (dateFromMl) {
+          whereMl += ' AND l.login_at >= ?';
+          valsMl.push(toMySqlDatetime(dateFromMl));
+        }
+        if (!req.user?.is_platform_super_admin && req.user?.tenant_id) {
+          whereMl += ' AND (l.tenant_id <=> ?)';
+          valsMl.push(req.user.tenant_id);
+        }
+        const logsMl = await query(
+          `SELECT l.id, l.tenant_id, l.member_id, l.login_at,
+                  m.phone_number, m.member_code, m.nickname
+           FROM member_login_logs l
+           LEFT JOIN members m ON m.id = l.member_id
+           WHERE ${whereMl} ORDER BY l.login_at DESC LIMIT ? OFFSET ?`,
+          [...valsMl, limitMl, offsetMl],
+        );
+        const countRowMl = await queryOne<{ cnt: number }>(
+          `SELECT COUNT(*) as cnt FROM member_login_logs l
+           LEFT JOIN members m ON m.id = l.member_id
+           WHERE ${whereMl}`,
+          valsMl,
+        );
+        result = { success: true, logs: logsMl, total: countRowMl?.cnt ?? 0 };
+        break;
+      }
+
       case 'admin_get_member_referrals': {
         if (!assertRpcEmployee(req)) {
           result = { success: false, error: 'FORBIDDEN', referrals: [] };
@@ -2662,16 +2782,14 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
       }
 
       case 'get_api_daily_stats': {
-        if (req.user?.type === 'member' || !userId) {
+        const u = req.user;
+        if (!u || u.type === 'member' || !userId) {
           result = [];
           break;
         }
-        const empApi = await queryOne<{ role: string; is_super_admin: number | null }>(
-          `SELECT role, is_super_admin FROM employees WHERE id = ? LIMIT 1`,
-          [userId],
-        );
         const canViewApiStats =
-          !!empApi && (empApi.role === 'admin' || !!empApi.is_super_admin);
+          u.type === 'employee' &&
+          (u.role === 'admin' || !!u.is_super_admin || !!u.is_platform_super_admin);
         if (!canViewApiStats) {
           result = [];
           break;
@@ -2719,16 +2837,14 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
       }
 
       case 'get_api_endpoint_stats': {
-        if (req.user?.type === 'member' || !userId) {
+        const uEp = req.user;
+        if (!uEp || uEp.type === 'member' || !userId) {
           result = [];
           break;
         }
-        const empEp = await queryOne<{ role: string; is_super_admin: number | null }>(
-          `SELECT role, is_super_admin FROM employees WHERE id = ? LIMIT 1`,
-          [userId],
-        );
         const canViewEp =
-          !!empEp && (empEp.role === 'admin' || !!empEp.is_super_admin);
+          uEp.type === 'employee' &&
+          (uEp.role === 'admin' || !!uEp.is_super_admin || !!uEp.is_platform_super_admin);
         if (!canViewEp) {
           result = [];
           break;

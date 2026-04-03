@@ -17,6 +17,9 @@ import {
   HardDrive,
   Wrench,
   Smartphone,
+  Key,
+  History,
+  LogIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -29,6 +32,9 @@ const PLATFORM_SETTINGS_CHILDREN = [
   { path: "/staff/admin/settings/data-archive", icon: Archive, labelZh: "数据归档", labelEn: "Data Archive" },
   { path: "/staff/admin/settings/data-backup", icon: HardDrive, labelZh: "数据备份", labelEn: "Data Backup" },
   { path: "/staff/admin/settings/data-repair", icon: Wrench, labelZh: "数据修复", labelEn: "Data Repair" },
+  { path: "/staff/admin/settings/operation-logs", icon: History, labelZh: "操作日志", labelEn: "Operation Logs" },
+  { path: "/staff/admin/settings/login-logs", icon: LogIn, labelZh: "登录日志", labelEn: "Login Logs" },
+  { path: "/staff/admin/settings/open-api", icon: Key, labelZh: "开放 API", labelEn: "Open API" },
   { path: "/staff/admin/settings/device-whitelist", icon: Smartphone, labelZh: "设备白名单登录", labelEn: "Device whitelist login" },
 ];
 

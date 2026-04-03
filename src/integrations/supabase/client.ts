@@ -22,6 +22,7 @@ async function apiFetch(path: string, options?: RequestInit) {
   const res = await fetch(url, {
     ...options,
     headers: { ...getAuthHeadersForPath(path), ...options?.headers },
+    cache: options?.cache ?? 'no-store',
   });
   return res;
 }

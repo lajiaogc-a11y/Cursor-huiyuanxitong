@@ -41,3 +41,22 @@ export async function adminListMemberOperationLogs(
 ): Promise<AdminListMemberOperationLogsResult> {
   return apiPost<AdminListMemberOperationLogsResult>("/api/data/rpc/admin_list_member_operation_logs", params);
 }
+
+export type AdminListMemberLoginLogsParams = {
+  p_search?: string;
+  p_date_from?: string;
+  p_limit: number;
+  p_offset: number;
+};
+
+export type AdminListMemberLoginLogsResult = {
+  success?: boolean;
+  logs?: unknown[];
+  total?: number;
+};
+
+export async function adminListMemberLoginLogs(
+  params: AdminListMemberLoginLogsParams,
+): Promise<AdminListMemberLoginLogsResult> {
+  return apiPost<AdminListMemberLoginLogsResult>("/api/data/rpc/admin_list_member_login_logs", params);
+}

@@ -7,10 +7,11 @@ import type { AuthenticatedRequest } from '../../middlewares/auth.js';
 import { resolveAccessScope } from '../../security/accessScope.js';
 
 // ─── TableProxy 白名单分级 ───────────────────────────────────────────
-// read_only   — 仅允许 SELECT；日志/归档/审计表，前端不应写入
-// standard    — SELECT + INSERT + UPDATE + DELETE；普通业务表
-// admin_only  — 仅 admin / super_admin / platform_super_admin 可访问全部操作
-export type TableTier = 'read_only' | 'standard' | 'admin_only';
+// read_only      — 仅允许 SELECT；日志/归档表，前端不应写入
+// audit_workflow — 仅 audit_records：员工可 INSERT 待审、UPDATE 审批字段，禁止 DELETE（防篡改审计链）
+// standard       — SELECT + INSERT + UPDATE + DELETE；普通业务表
+// admin_only     — 仅 admin / super_admin / platform_super_admin 可访问全部操作
+export type TableTier = 'read_only' | 'audit_workflow' | 'standard' | 'admin_only';
 
 export const TABLE_TIERS = new Map<string, TableTier>([
   // ── admin_only: 高敏感表 ──
@@ -25,7 +26,7 @@ export const TABLE_TIERS = new Map<string, TableTier>([
   ['employee_permissions',     'admin_only'],
 
   // ── read_only: 日志/审计/归档/版本历史 ──
-  ['audit_records',                   'read_only'],
+  ['audit_records',                   'audit_workflow'],
   ['employee_login_logs',             'read_only'],
   ['system_logs',                     'read_only'],
   ['api_request_logs',                'read_only'],
@@ -245,6 +246,19 @@ export function mergeEmployeeAccessScope(
   values: unknown[],
 ): { where: string; values: unknown[] } {
   let out = mergeEmployeeTenantScope(req, table, where, values);
+
+  /** 审核记录：租户员工仅能读写「本租户员工提交」的行，避免串租户猜 ID */
+  if (table === 'audit_records' && req.user?.type === 'employee' && !req.user.is_platform_super_admin) {
+    const tid = req.user.tenant_id ?? null;
+    if (tid) {
+      const clause = '`submitter_id` IN (SELECT `id` FROM `employees` WHERE `tenant_id` <=> ?)';
+      const nextValues = [...out.values, tid];
+      out = {
+        where: out.where?.trim() ? `${out.where} AND (${clause})` : `WHERE (${clause})`,
+        values: nextValues,
+      };
+    }
+  }
 
   if (table === 'web_vitals' && req.user?.type === 'employee' && !req.user.is_platform_super_admin) {
     const tid = req.user.tenant_id ?? null;

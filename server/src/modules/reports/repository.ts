@@ -29,7 +29,7 @@ export async function getDashboardStatsRepository(
   const auditParams: any[] = tenantId ? [tenantId] : [];
   const auditSql = tenantId
     ? "SELECT COUNT(*) as count FROM audit_records WHERE status = 'pending' AND submitter_id IN (SELECT id FROM employees WHERE tenant_id = ?)"
-    : "SELECT 0 as count";
+    : "SELECT COUNT(*) as count FROM audit_records WHERE status = 'pending'";
 
   const [empRes, ordersRes, auditsRes] = await Promise.all([
     query<{ count: number }>(empSql, empParams),

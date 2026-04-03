@@ -1,29 +1,14 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
 import { CompactTableSkeleton } from "@/components/skeletons/TablePageSkeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import type { LucideIcon } from "lucide-react";
-import { RefreshCw, CalendarClock, Dices, Star } from "lucide-react";
-import { notify } from "@/lib/notifyHub";
+import { RefreshCw, CalendarClock, Dices, Star, Settings2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useAuth } from "@/contexts/AuthContext";
-import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   MobileCardList,
@@ -33,11 +18,6 @@ import {
 } from "@/components/ui/mobile-data-card";
 import { adminListPortalCheckIns, type PortalCheckInLogRow } from "@/services/members/memberPortalSettingsService";
 import { adminGetLotteryLogs, type LotteryLog } from "@/services/lottery/lotteryService";
-import {
-  getActivityDataRetentionApi,
-  putActivityDataRetentionApi,
-  postActivityDataRetentionRunApi,
-} from "@/services/staff/dataApi/activityDataRetention";
 import { cn } from "@/lib/utils";
 import {
   PaginationBar,
@@ -128,17 +108,11 @@ function AdminDataEmptyState({
 
 interface ActivityDataTabProps {
   tenantId: string | null;
-  canManage: boolean;
 }
 
-export function ActivityDataTab({ tenantId, canManage }: ActivityDataTabProps) {
+export function ActivityDataTab({ tenantId }: ActivityDataTabProps) {
   const { t } = useLanguage();
-  const { employee } = useAuth();
-  const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
   const isMobile = useIsMobile();
-  const canConfigureActivityRetention =
-    !!(employee?.role === "admin" || employee?.is_super_admin || employee?.is_platform_super_admin) &&
-    !isPlatformAdminReadonlyView;
 
   const [activityDataSub, setActivityDataSub] = useState<"lottery" | "checkin">("lottery");
   const [lotteryLogs, setLotteryLogs] = useState<LotteryLog[]>([]);
@@ -149,16 +123,6 @@ export function ActivityDataTab({ tenantId, canManage }: ActivityDataTabProps) {
   const [checkInTotal, setCheckInTotal] = useState(0);
   const [checkInPage, setCheckInPage] = useState(1);
   const [checkInLoading, setCheckInLoading] = useState(false);
-  const [retentionEnabled, setRetentionEnabled] = useState(false);
-  const [retentionDaysInput, setRetentionDaysInput] = useState("365");
-  const [retentionMeta, setRetentionMeta] = useState<{
-    lastRunAt: string | null;
-    lastSummary: { lotteryLogs: number; checkIns: number; lotteryPointsLedger: number } | null;
-  }>({ lastRunAt: null, lastSummary: null });
-  const [retentionLoading, setRetentionLoading] = useState(false);
-  const [retentionSaving, setRetentionSaving] = useState(false);
-  const [retentionRunning, setRetentionRunning] = useState(false);
-  const [retentionRunConfirmOpen, setRetentionRunConfirmOpen] = useState(false);
 
   const loadLotteryLogsPage = useCallback(async (page: number) => {
     if (!tenantId) {
@@ -215,192 +179,33 @@ export function ActivityDataTab({ tenantId, canManage }: ActivityDataTabProps) {
     void loadCheckInsPage(1);
   }, [activityDataSub, loadCheckInsPage]);
 
-  useEffect(() => {
-    if (!tenantId) return;
-    let cancelled = false;
-    setRetentionLoading(true);
-    void getActivityDataRetentionApi(tenantId)
-      .then((s) => {
-        if (cancelled) return;
-        setRetentionEnabled(!!s.enabled);
-        setRetentionDaysInput(String(s.retentionDays ?? 365));
-        setRetentionMeta({ lastRunAt: s.lastRunAt ?? null, lastSummary: s.lastSummary ?? null });
-      })
-      .catch(() => {
-        if (!cancelled) notify.error(t("加载保留策略失败", "Failed to load retention settings"));
-      })
-      .finally(() => {
-        if (!cancelled) setRetentionLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantId, t]);
-
-  const handleSaveActivityDataRetention = async () => {
-    if (!tenantId || !canConfigureActivityRetention) return;
-    const days = Math.min(3650, Math.max(1, Math.floor(Number(retentionDaysInput) || 0)));
-    if (!Number.isFinite(days) || days < 1) {
-      notify.error(t("保留天数须为 1～3650", "Retention days must be 1–3650"));
-      return;
-    }
-    setRetentionSaving(true);
-    try {
-      const s = await putActivityDataRetentionApi(tenantId, {
-        enabled: retentionEnabled,
-        retentionDays: days,
-      });
-      setRetentionEnabled(!!s.enabled);
-      setRetentionDaysInput(String(s.retentionDays));
-      setRetentionMeta({ lastRunAt: s.lastRunAt ?? null, lastSummary: s.lastSummary ?? null });
-      notify.success(t("已保存", "Saved"));
-    } catch {
-      notify.error(t("保存失败", "Save failed"));
-    } finally {
-      setRetentionSaving(false);
-    }
-  };
-
-  const handleRunActivityDataRetentionNow = async () => {
-    if (!tenantId || !canConfigureActivityRetention) return;
-    setRetentionRunning(true);
-    try {
-      const r = await postActivityDataRetentionRunApi(tenantId);
-      setRetentionMeta({
-        lastRunAt: r.settings.lastRunAt ?? null,
-        lastSummary: r.settings.lastSummary ?? null,
-      });
-      notify.success(
-        t(
-          `已清理：抽奖 ${r.summary.lotteryLogs} 条，签到 ${r.summary.checkIns} 条，抽奖积分流水 ${r.summary.lotteryPointsLedger} 条`,
-          `Cleaned: ${r.summary.lotteryLogs} lottery rows, ${r.summary.checkIns} check-ins, ${r.summary.lotteryPointsLedger} lottery ledger rows`,
-        ),
-      );
-      await Promise.all([loadLotteryLogsPage(lotteryLogsPage), loadCheckInsPage(checkInPage)]);
-    } catch {
-      notify.error(t("清理失败", "Cleanup failed"));
-    } finally {
-      setRetentionRunning(false);
-    }
-  };
-
   // ─── JSX ───
 
   return (
     <div className="space-y-6">
       <p className="text-xs text-muted-foreground -mb-1 border-l-2 border-primary/30 pl-2 leading-relaxed">
         {t(
-          "统计口径：本页为抽奖记录、签到流水及保留期清理（保留期任务仍会清理过期的抽奖类积分流水，此处不再单独展示该流水列表）。邀请榜假用户与抽奖假昵称池在顶部「邀请与模拟」。",
-          "Lottery logs, check-ins, and retention cleanup (expired lottery-type points_ledger rows are still purged by retention; that ledger is no longer listed here). Invite fakes and ticker nicknames live under Invite & simulation.",
+          "统计口径：本页为抽奖记录、签到流水。超过保留期的明细清理（抽奖/签到/抽奖类积分流水）已统一在「系统设置 → 数据管理 → 数据删除」中配置与执行。邀请榜假用户与抽奖假昵称池在「邀请与模拟」。",
+          "Lottery logs and check-ins on this page. Retention cleanup for old lottery/check-in/lottery-ledger rows is under System Settings → Data Management → Delete data. Invite fakes and ticker nicknames: Invite & simulation.",
         )}
       </p>
 
-      {tenantId && (
-        <Card>
-          <CardHeader className="py-3 pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <CalendarClock className="h-4 w-4 text-muted-foreground" />
-              {t("活动数据保留", "Activity data retention")}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground font-normal mt-1">
-              {t(
-                "仅清理超过保留期的明细：抽奖流水、签到流水、抽奖类积分流水（不含消费/推荐积分、活动赠送、订单）。启用后服务端每 24 小时自动执行一次。",
-                "Deletes rows older than the retention period: lottery logs, check-in logs, and lottery-type points_ledger rows only (not consumption/referral points, activity gifts, or orders). When enabled, the server runs cleanup every 24 hours.",
-              )}
-            </p>
-          </CardHeader>
-          <CardContent className="pt-0 space-y-4">
-            {retentionLoading ? (
-              <div
-                className="space-y-4 py-1"
-                role="status"
-                aria-busy="true"
-                aria-label={t("加载中…", "Loading…")}
-              >
-                <div className="flex flex-wrap items-center gap-4">
-                  <Skeleton className="h-6 w-11 rounded-full" />
-                  <Skeleton className="h-4 w-40 max-w-[min(100%,280px)]" />
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-9 w-24" />
-                  <Skeleton className="h-4 w-28" />
-                </div>
-                <Skeleton className="h-3 w-full max-w-lg" />
-                <div className="flex flex-wrap gap-2">
-                  <Skeleton className="h-9 w-28" />
-                  <Skeleton className="h-9 w-36" />
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="portal-activity-retention-enabled"
-                      checked={retentionEnabled}
-                      onCheckedChange={(v) => setRetentionEnabled(v === true)}
-                      disabled={!canConfigureActivityRetention}
-                    />
-                    <Label htmlFor="portal-activity-retention-enabled" className="text-sm cursor-pointer">
-                      {t("启用自动清理", "Enable automatic cleanup")}
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Label htmlFor="portal-retention-days" className="text-sm whitespace-nowrap">
-                      {t("保留最近", "Keep last")}
-                    </Label>
-                    <Input
-                      id="portal-retention-days"
-                      type="number"
-                      min={1}
-                      max={3650}
-                      className="w-24 h-9"
-                      value={retentionDaysInput}
-                      onChange={(e) => setRetentionDaysInput(e.target.value)}
-                      disabled={!canConfigureActivityRetention}
-                    />
-                    <span className="text-sm text-muted-foreground">{t("天的数据", "days of data")}</span>
-                  </div>
-                </div>
-                {retentionMeta.lastRunAt && (
-                  <p className="text-xs text-muted-foreground">
-                    {t("上次执行", "Last run")}: {formatBeijingTime(retentionMeta.lastRunAt)}
-                    {retentionMeta.lastSummary && (
-                      <>
-                        {" "}
-                        — {t("抽奖", "Lottery")} {retentionMeta.lastSummary.lotteryLogs},{" "}
-                        {t("签到", "Check-in")} {retentionMeta.lastSummary.checkIns},{" "}
-                        {t("抽奖积分流水", "Lottery ledger")} {retentionMeta.lastSummary.lotteryPointsLedger}
-                      </>
-                    )}
-                  </p>
-                )}
-                {canConfigureActivityRetention && (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="default"
-                      disabled={retentionSaving}
-                      onClick={() => void handleSaveActivityDataRetention()}
-                    >
-                      {retentionSaving ? t("保存中…", "Saving…") : t("保存设置", "Save settings")}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={retentionRunning}
-                      onClick={() => setRetentionRunConfirmOpen(true)}
-                    >
-                      {retentionRunning ? t("执行中…", "Running…") : t("立即按保留期清理", "Clean up now")}
-                    </Button>
-                  </div>
-                )}
-              </>
+      <Alert className="border-amber-500/25 bg-amber-500/[0.06]">
+        <Settings2 className="h-4 w-4 text-amber-700 dark:text-amber-400" />
+        <AlertDescription className="text-xs text-muted-foreground flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <span>
+            {t(
+              "活动数据保留与按保留期清理已迁至系统设置，与其它删除能力集中管理。",
+              "Activity data retention and cleanup moved to System Settings with other deletion tools.",
             )}
-          </CardContent>
-        </Card>
-      )}
+          </span>
+          <Button variant="outline" size="sm" className="shrink-0 w-fit" asChild>
+            <Link to="/staff/settings?tab=data&dataDeleteFocus=1">
+              {t("打开数据删除", "Open delete data")}
+            </Link>
+          </Button>
+        </AlertDescription>
+      </Alert>
 
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:gap-8">
         <nav
@@ -641,32 +446,6 @@ export function ActivityDataTab({ tenantId, canManage }: ActivityDataTabProps) {
       )}
         </div>
       </div>
-
-      <AlertDialog open={retentionRunConfirmOpen} onOpenChange={setRetentionRunConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("立即按保留期清理？", "Clean up expired activity data now?")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(
-                "将永久删除超过保留天数的抽奖流水、签到流水与抽奖类积分流水，此操作不可撤销。确定继续？",
-                "Permanently deletes lottery logs, check-in logs, and lottery-type points ledger rows older than your retention period. This cannot be undone. Continue?",
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                setRetentionRunConfirmOpen(false);
-                void handleRunActivityDataRetentionNow();
-              }}
-            >
-              {t("确认清理", "Confirm cleanup")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

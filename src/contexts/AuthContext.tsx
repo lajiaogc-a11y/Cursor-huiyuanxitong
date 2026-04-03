@@ -45,7 +45,7 @@ function isProductionEnvironment(): boolean {
 // 获取客户端IP地址（走后端 API，不再直连 Supabase Edge Function）
 async function getClientIp(): Promise<string | null> {
   try {
-    const res = await fetch('/api/auth/client-ip');
+    const res = await fetch('/api/auth/client-ip', { cache: 'no-store' });
     const data = await res.json();
     return data.ip || null;
   } catch (err) {
@@ -74,7 +74,7 @@ async function checkIpAccess(): Promise<IpValidationResult> {
     const base = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
     const path = '/api/data/settings/ip-country-check';
     const url = base ? `${base}${path}` : path;
-    const response = await fetch(url, { credentials: 'include' });
+    const response = await fetch(url, { credentials: 'include', cache: 'no-store' });
     const json = (await response.json()) as { data?: IpValidationResult; success?: boolean };
     const data = json?.data ?? (json as unknown as IpValidationResult);
     if (data?.skipped) {

@@ -298,6 +298,7 @@ export default function MemberSettings() {
       if (!r?.success) throw new Error(r?.error || t("失败", "Failed"));
       await refreshMember();
       broadcastMembersListStale();
+      void queryClient.invalidateQueries({ queryKey: memberQueryKeys.profile(member.id) });
       void notifyDataMutation({ table: "members", operation: "UPDATE", source: "mutation" });
       notify.success(t("昵称已更新", "Nickname updated"));
       setExpandedSection(null);

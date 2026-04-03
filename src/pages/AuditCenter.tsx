@@ -19,7 +19,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { Textarea } from "@/components/ui/textarea";
-import { RefreshCw, Check, X, Settings, Search, Loader2, Info } from "lucide-react";
+import { Link } from "react-router-dom";
+import { RefreshCw, Check, X, Settings, Search, Loader2, Info, Globe, ShoppingBag } from "lucide-react";
 import DataFieldPermissionsPanel from "@/components/DataFieldPermissionsPanel";
 import { notify } from "@/lib/notifyHub";
 import DateRangeFilter from "@/components/DateRangeFilter";
@@ -295,6 +296,43 @@ export default function AuditCenter() {
             )}
           </span>
         </div>
+
+        <Alert className="mt-3 border-muted">
+          <AlertDescription className="text-xs sm:text-sm text-muted-foreground space-y-2">
+            <p className="font-medium text-foreground">
+              {t("本页「待审核」数据来源", "What this page’s pending list covers")}
+            </p>
+            <p>
+              {t(
+                "下列记录来自「审核设置」中勾选的订单 / 会员 / 活动赠送等字段变更，写入 audit_records 后在此通过或驳回。",
+                "Items here are field-level changes (orders, members, activity gifts, etc.) that your Audit Settings send into audit_records for approve/reject.",
+              )}
+            </p>
+            <p>
+              {t(
+                "以下审核不在本列表中，请到对应模块处理：会员门户配置版本发布（发布管理中的提交/审批）；积分商城兑换单（订单管理 → 积分兑换，状态待处理）。",
+                "These approvals are not in this list: member portal publishing (Publishing tab submit/approve); points mall redemptions (Orders → Points Mall, pending status).",
+              )}
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button variant="outline" size="sm" className="h-8" asChild>
+                <Link to="/staff/member-portal/publish" className="inline-flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5" />
+                  {t("会员门户 · 发布管理", "Member portal · Publishing")}
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" className="h-8" asChild>
+                <Link
+                  to="/staff/orders?tab=mall&mallStatus=pending"
+                  className="inline-flex items-center gap-1.5"
+                >
+                  <ShoppingBag className="h-3.5 w-3.5" />
+                  {t("订单 · 积分兑换待处理", "Orders · Points mall pending")}
+                </Link>
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
       </Card>
 
       <Card>

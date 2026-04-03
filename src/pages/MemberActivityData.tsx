@@ -572,7 +572,9 @@ export default function MemberActivityData() {
     if (result.success) {
       notify.success(t(`兑换成功！已兑换 ${result.redeemedPoints} 积分，获得 ${rewardAmount} ${preferredCurrency}`, `Redemption successful! Redeemed ${result.redeemedPoints} points, received ${rewardAmount} ${preferredCurrency}`));
       setIsRedeemDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
+      void queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
+      void queryClient.invalidateQueries({ queryKey: ['points-ledger'] });
+      void queryClient.invalidateQueries({ queryKey: ['activity-records'] });
     } else {
       notify.error(result.message || t("兑换失败", "Redemption failed"));
     }
@@ -622,7 +624,8 @@ export default function MemberActivityData() {
     }
     
     setIsPointsDialogOpen(false);
-    queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
+    void queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
+    void queryClient.invalidateQueries({ queryKey: ['points-ledger'] });
   };
 
   // 导出数据

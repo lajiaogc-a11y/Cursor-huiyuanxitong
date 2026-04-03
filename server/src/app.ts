@@ -177,6 +177,15 @@ app.post('/api/csp-report', express.json({ type: ['application/json', 'applicati
 import { ipAccessControlMiddleware } from './middlewares/ipAccessControl.js';
 app.use('/api', ipAccessControlMiddleware);
 
+/**
+ * 动态 API 默认禁止 HTTP 缓存，避免浏览器或反向代理把带鉴权的 JSON 当作可复用响应缓存，
+ * 导致「操作后刷新 / 多设备」看到旧数据。个别路由可再 set Header 覆盖（如上传 immutable 静态资源）。
+ */
+app.use('/api', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'private, no-store');
+  next();
+});
+
 // 统一 API 路由（wrapRouterAsync 自动为所有 async handler 添加错误捕获）
 app.use('/api/auth', wrapRouterAsync(authRoutes));
 app.use('/api/members', wrapRouterAsync(membersRoutes));

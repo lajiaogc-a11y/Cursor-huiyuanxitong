@@ -48,7 +48,11 @@ async function fetchLoginLogs(tenantId?: string | null, page = 1, pageSize = PAG
   return { logs, total: result.total, page: result.page, pageSize: result.page_size };
 }
 
-export function useLoginLogs(_language: string = 'zh') {
+export function useLoginLogs(
+  _language: string = 'zh',
+  options?: { enabled?: boolean },
+) {
+  const enabled = options?.enabled !== false;
   const queryClient = useQueryClient();
   const backfillTriggeredRef = useRef(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -77,6 +81,7 @@ export function useLoginLogs(_language: string = 'zh') {
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 3,
+    enabled,
   });
 
   const logs = data?.logs ?? [];
@@ -94,6 +99,7 @@ export function useLoginLogs(_language: string = 'zh') {
   }, [totalLogs, currentPage]);
 
   useEffect(() => {
+    if (!enabled) return;
     if (backfillTriggeredRef.current || logs.length === 0) return;
     const hasMissing = logs.some(l => l.ip_address && !l.ip_location);
     if (!hasMissing) return;
@@ -103,7 +109,7 @@ export function useLoginLogs(_language: string = 'zh') {
         setTimeout(() => refetchLogs(), 2000);
       })
       .catch(() => { /* best effort */ });
-  }, [logs, refetchLogs]);
+  }, [enabled, logs, refetchLogs]);
 
   useEffect(() => {
     const handler = () => {

@@ -11,6 +11,7 @@ import {
   getPointOrder,
   getMemberFrozenPoints,
 } from './pointOrderService.js';
+import { insertOperationLogRepository } from '../data/repository.js';
 
 function validationError(res: Response, message: string): void {
   res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message } });
@@ -74,6 +75,20 @@ export async function approvePointOrderController(req: AuthenticatedRequest, res
       orderId,
       reviewerId: req.user?.id,
     });
+
+    insertOperationLogRepository({
+      operator_id: req.user?.id ?? null,
+      operator_account: req.user?.username ?? req.user?.real_name ?? 'unknown',
+      operator_role: req.user?.role ?? 'employee',
+      module: 'points_redemption',
+      operation_type: 'status_change',
+      object_id: orderId,
+      object_description: `积分兑换订单通过: ${order.product_name} ×${order.quantity}`,
+      before_data: { status: 'pending' },
+      after_data: { status: 'success', reviewed_by: req.user?.id },
+      ip_address: req.ip ?? null,
+    }).catch(err => console.error('[point-order] operation log failed:', err));
+
     res.json({ success: true, data: order });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -105,6 +120,20 @@ export async function rejectPointOrderController(req: AuthenticatedRequest, res:
       reviewerId: req.user?.id,
       reason,
     });
+
+    insertOperationLogRepository({
+      operator_id: req.user?.id ?? null,
+      operator_account: req.user?.username ?? req.user?.real_name ?? 'unknown',
+      operator_role: req.user?.role ?? 'employee',
+      module: 'points_redemption',
+      operation_type: 'reject',
+      object_id: orderId,
+      object_description: `积分兑换订单拒绝: ${order.product_name} ×${order.quantity}${reason ? ` (${reason})` : ''}`,
+      before_data: { status: 'pending' },
+      after_data: { status: 'rejected', reject_reason: reason ?? null, reviewed_by: req.user?.id },
+      ip_address: req.ip ?? null,
+    }).catch(err => console.error('[point-order] operation log failed:', err));
+
     res.json({ success: true, data: order });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);

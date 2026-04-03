@@ -19,6 +19,7 @@ export async function fetchBtcPriceViaApi(signal?: AbortSignal): Promise<FetchBt
   const res = await fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     signal: signal ?? AbortSignal.timeout(12000),
+    cache: 'no-store',
   });
   if (!res.ok) return { success: false };
   const data = (await res.json()) as { success?: boolean; price?: number; source?: string };

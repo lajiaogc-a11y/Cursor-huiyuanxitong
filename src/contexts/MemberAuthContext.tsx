@@ -17,6 +17,7 @@ import {
 import { clearMemberPortalSettingsBrowserCaches } from '@/lib/memberPortalBrowserCache';
 import { queryClient } from '@/lib/queryClient';
 import { memberQueryKeys } from '@/lib/memberQueryKeys';
+import { clearMallCatalogCache } from '@/lib/mallCatalogCache';
 
 export interface MemberInfo {
   id: string;
@@ -143,6 +144,7 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
       if (!e.newValue) {
         setMember(null);
         saveSession(null);
+        clearMallCatalogCache();
         bumpAuth();
       }
     };
@@ -155,6 +157,7 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
       const result = await memberSignIn(phone, password);
       if (!result.success) return { success: false, message: result.message, code: result.code };
       if (result.member && result.token) {
+        clearMallCatalogCache();
         setMember(result.member);
         saveSession(result.member);
         setMemberAccessToken(result.token);
@@ -177,6 +180,7 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
     clearMemberAccessToken();
     bumpAuth();
     clearMemberPortalSettingsBrowserCaches();
+    clearMallCatalogCache();
     try { localStorage.removeItem("member_saved_credentials"); } catch { /* storage unavailable */ }
     queryClient.removeQueries({ queryKey: [...memberQueryKeys.all] });
   }, [bumpAuth]);

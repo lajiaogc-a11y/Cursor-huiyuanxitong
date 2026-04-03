@@ -9,7 +9,7 @@ export async function fetchTableCountExact(tableName: string): Promise<number> {
     const token = resolveBearerTokenForPath(path);
     const headers: Record<string, string> = { Accept: 'application/json' };
     if (token) headers.Authorization = `Bearer ${token}`;
-    const res = await fetch(url, { headers });
+    const res = await fetch(url, { headers, cache: 'no-store' });
     const json = (await res.json().catch(() => ({}))) as { count?: number };
     if (!res.ok) return 0;
     return typeof json.count === 'number' ? json.count : 0;

@@ -841,10 +841,11 @@ export async function getShiftHandoversController(req: AuthenticatedRequest, res
 export async function getAuditRecordsController(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const isPlatform = !!req.user?.is_platform_super_admin;
-    const queryTenantId = req.query.tenant_id as string | undefined;
-    const tenantId = isPlatform && queryTenantId
-      ? queryTenantId
-      : (req.user?.tenant_id ?? null);
+    const queryTenantIdRaw = req.query.tenant_id;
+    const queryTenantId =
+      typeof queryTenantIdRaw === 'string' && queryTenantIdRaw.trim() ? queryTenantIdRaw.trim() : '';
+    /** 平台超管：显式传 tenant_id 则按租户筛选；不传则全站（与登录日志等平台列表一致） */
+    const tenantId = isPlatform ? (queryTenantId || null) : (req.user?.tenant_id ?? null);
     const page = parseInt(String(req.query.page || 1), 10);
     const pageSize = parseInt(String(req.query.pageSize || 50), 10);
     const status = req.query.status as string | undefined;
@@ -868,10 +869,10 @@ export async function getAuditRecordsController(req: AuthenticatedRequest, res: 
 export async function getPendingAuditCountController(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const isPlatform = !!req.user?.is_platform_super_admin;
-    const queryTenantId = req.query.tenant_id as string | undefined;
-    const tenantId = isPlatform && queryTenantId
-      ? queryTenantId
-      : (req.user?.tenant_id ?? null);
+    const queryTenantIdRaw = req.query.tenant_id;
+    const queryTenantId =
+      typeof queryTenantIdRaw === 'string' && queryTenantIdRaw.trim() ? queryTenantIdRaw.trim() : '';
+    const tenantId = isPlatform ? (queryTenantId || null) : (req.user?.tenant_id ?? null);
     const count = await countPendingAuditRecordsRepository(tenantId);
     res.json({ success: true, data: { count } });
   } catch (e) {

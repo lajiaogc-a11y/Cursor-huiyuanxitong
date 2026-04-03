@@ -20,13 +20,15 @@ import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
 import { useExportConfirm } from "@/hooks/useExportConfirm";
 import { formatBeijingTime } from "@/lib/beijingTime";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
-  DATE_RANGES, type DateRangeKey, type PortalT,
+  DATE_RANGES, type DateRangeKey,
   ACTION_MAP, getActionLabel, getActionBadgeClass,
   getDateRangeSql, PaginationBar, StatCard, MemberPortalLogsEmpty,
 } from "./shared";
 
-export function AdminOperationLogsTab({ t }: { t: PortalT }) {
+export function AdminOperationLogsTab() {
+  const { t } = useLanguage();
   const exportConfirm = useExportConfirm();
   const logMobile = useIsMobile();
   const [logs, setLogs] = useState<any[]>([]);

@@ -33,6 +33,7 @@ import { useLayout } from "@/contexts/LayoutContext";
 import { useIsLgUp } from "@/hooks/use-mobile";
 import { useUnreadCount } from "@/hooks/useKnowledge";
 import { useTenantView } from "@/contexts/TenantViewContext";
+import { getPlatformSettingsSubTabTitle } from "@/pages/PlatformSettings";
 import { updateEmployee, ROLE_LABELS, getRoleLabel } from "@/stores/employeeStore";
 import PerformanceDashboard from "@/components/PerformanceDashboard";
 import { NotificationCenter } from "@/components/NotificationCenter";
@@ -102,6 +103,15 @@ const TAB_PAGE_TITLES: Record<string, Record<string, { zh: string; en: string }>
     "staff-login-ip": { zh: "登录IP限制", en: "Login IP allowlist" },
     "version-update": { zh: "版本更新", en: "Version update" },
   },
+  "/staff/operation-logs": {
+    logs: { zh: "后台审计", en: "Backend audit" },
+    errors: { zh: "前端异常", en: "Frontend errors" },
+    member: { zh: "会员端日志", en: "Member activity" },
+  },
+  "/staff/login-logs": {
+    staff: { zh: "员工端登录", en: "Staff sign-in" },
+    member: { zh: "会员端登录", en: "Member sign-in" },
+  },
 };
 
 export function Header() {
@@ -130,12 +140,19 @@ export function Header() {
     if (location.pathname.startsWith("/staff/member-portal")) {
       return t("会员系统", "Member Portal");
     }
+    const adminSub = location.pathname.match(/^\/staff\/admin\/settings\/([^/]+)/);
+    if (adminSub) {
+      const st = getPlatformSettingsSubTabTitle(adminSub[1]);
+      if (st) return t(st.zh, st.en);
+    }
     const tabTitles = TAB_PAGE_TITLES[location.pathname];
     const tab = searchParams.get("tab") || "";
     const defaultTab: Record<string, string> = {
       "/staff/members": "members",
       "/staff/merchants": "cards",
       "/staff/settings": "fee",
+      "/staff/operation-logs": "logs",
+      "/staff/login-logs": "staff",
     };
     const effectiveTab = tab || defaultTab[location.pathname] || "";
     if (tabTitles && effectiveTab && tabTitles[effectiveTab]) {

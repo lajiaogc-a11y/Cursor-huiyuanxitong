@@ -29,22 +29,30 @@ import {
   runMemberPortalDataCleanup,
 } from "@/services/members/memberPortalAnalyticsService";
 
-interface DataManagementTabProps {
+export interface MemberPortalInviteMemberCleanupPanelProps {
   tenantId: string | null;
-  canManage: boolean;
 }
 
-export function DataManagementTab({ tenantId }: DataManagementTabProps) {
+/**
+ * 邀请注册会员闲置清理（规则 + 预览 + 立即执行）。
+ * 统一放在系统设置「数据管理 → 数据删除」中，与全站批量删除并列。
+ */
+export function MemberPortalInviteMemberCleanupPanel({ tenantId }: MemberPortalInviteMemberCleanupPanelProps) {
   const { t } = useLanguage();
   const { employee } = useAuth();
   const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
   const canPublish = employee?.role === "admin" || !!employee?.is_super_admin;
 
-  const blockReadonly = useCallback((actionZh: string, actionEn?: string) => {
-    if (!isPlatformAdminReadonlyView) return false;
-    notify.error(t(`平台总管理查看租户时为只读，无法${actionZh}`, `Read-only in platform admin tenant view: cannot ${actionEn || actionZh}`));
-    return true;
-  }, [isPlatformAdminReadonlyView, t]);
+  const blockReadonly = useCallback(
+    (actionZh: string, actionEn?: string) => {
+      if (!isPlatformAdminReadonlyView) return false;
+      notify.error(
+        t(`平台总管理查看租户时为只读，无法${actionZh}`, `Read-only in platform admin tenant view: cannot ${actionEn || actionZh}`),
+      );
+      return true;
+    },
+    [isPlatformAdminReadonlyView, t],
+  );
 
   const [cleanupEnabled, setCleanupEnabled] = useState(false);
   const [cleanupNoTradeM, setCleanupNoTradeM] = useState("");
@@ -78,7 +86,7 @@ export function DataManagementTab({ tenantId }: DataManagementTabProps) {
       } catch (e: unknown) {
         if (gen !== cleanupLoadGen.current) return;
         if (attempt < MAX_RETRIES) {
-          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
           continue;
         }
         setCleanupRulesLoadFailed(true);
@@ -102,9 +110,7 @@ export function DataManagementTab({ tenantId }: DataManagementTabProps) {
     setCleanupRunning(true);
     try {
       const r = await runMemberPortalDataCleanup(tenantId);
-      notify.success(
-        `${t("已清理人数", "Purged")}: ${r.purged} · ${t("符合条件人数", "Eligible")}: ${r.matched}`,
-      );
+      notify.success(`${t("已清理人数", "Purged")}: ${r.purged} · ${t("符合条件人数", "Eligible")}: ${r.matched}`);
       setCleanupPreviewCount(null);
     } catch (e: unknown) {
       showServiceErrorToast(e, t, "执行失败", "Run failed");
@@ -113,9 +119,28 @@ export function DataManagementTab({ tenantId }: DataManagementTabProps) {
     }
   }, [tenantId, t]);
 
+  if (!tenantId) {
+    return (
+      <Alert>
+        <AlertDescription className="text-sm text-muted-foreground">
+          {t("请先进入租户视图或确保已登录租户，以配置邀请会员清理规则。", "Select a tenant or sign in as tenant staff to configure invite-member cleanup.")}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <Alert className="border-sky-500/30 bg-sky-500/[0.06] text-foreground -mb-2">
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <h3 className="text-base font-semibold">{t("邀请会员闲置清理", "Invite-member idle purge")}</h3>
+        <p className="text-sm text-muted-foreground">
+          {t(
+            "原「会员系统 → 数据管理」功能，已并入此处统一维护。",
+            "Formerly under Member Portal → Data cleanup; centralized here.",
+          )}
+        </p>
+      </div>
+      <Alert className="border-sky-500/30 bg-sky-500/[0.06] text-foreground">
         <Info className="h-4 w-4 text-sky-600 dark:text-sky-400" />
         <AlertDescription className="text-xs text-muted-foreground">
           {t(
@@ -127,12 +152,7 @@ export function DataManagementTab({ tenantId }: DataManagementTabProps) {
       <Card>
         <CardContent className="pt-5 space-y-4">
           {cleanupLoading && (
-            <div
-              className="space-y-4"
-              role="status"
-              aria-busy="true"
-              aria-label={t("加载规则…", "Loading rules…")}
-            >
+            <div className="space-y-4" role="status" aria-busy="true" aria-label={t("加载规则…", "Loading rules…")}>
               <div className="flex items-center gap-3">
                 <Skeleton className="h-6 w-10 rounded-md" />
                 <Skeleton className="h-4 w-40" />
@@ -157,14 +177,7 @@ export function DataManagementTab({ tenantId }: DataManagementTabProps) {
                     "Failed to load rules. Retry, or ensure tenant view is selected after switching.",
                   )}
                 </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  disabled={!tenantId}
-                  onClick={() => void loadDataCleanupForm()}
-                >
+                <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => void loadDataCleanupForm()}>
                   <RefreshCw className="h-3.5 w-3.5 mr-1" />
                   {t("重试", "Retry")}
                 </Button>
