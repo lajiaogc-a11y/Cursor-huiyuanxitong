@@ -200,7 +200,7 @@ export default function MemberWallet() {
                   onClick={() => {
                     if (depositBusy) return;
                     setDepositBusy(true);
-                    notifyInfo(t("充值功能即将上线", "Deposit — coming soon"));
+                    notifyInfo("Deposit — coming soon");
                     window.setTimeout(() => setDepositBusy(false), 450);
                   }}
                 >
@@ -215,7 +215,7 @@ export default function MemberWallet() {
                   onClick={() => {
                     if (withdrawBusy) return;
                     setWithdrawBusy(true);
-                    notifyInfo(t("提现功能即将上线", "Withdraw — coming soon"));
+                    notifyInfo("Withdraw — coming soon");
                     window.setTimeout(() => setWithdrawBusy(false), 450);
                   }}
                 >

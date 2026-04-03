@@ -638,7 +638,7 @@ export default function MemberSettings() {
               <button
                 type="button"
                 className="member-settings-trigger"
-                onClick={() => notify.info(t("维护中", "Under maintenance"))}
+                onClick={() => notify.info("Under maintenance")}
               >
                 <div className="flex items-center gap-3">
                   <div
