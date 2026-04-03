@@ -43,6 +43,7 @@ import {
   Settings2,
   ImageOff,
   Loader2,
+  Lock,
 } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
 import { useAuth } from "@/contexts/AuthContext";
@@ -62,8 +63,8 @@ import {
   useKnowledgeArticles,
   useUnreadCount,
   useArticleReadStatus,
-  KnowledgeCategory,
-  KnowledgeArticle,
+  type KnowledgeCategory,
+  type KnowledgeArticle,
 } from "@/hooks/useKnowledge";
 import { seedKnowledgeCategories } from "@/services/staff/dataApi";
 
@@ -169,6 +170,7 @@ export default function KnowledgeBase() {
   const {
     articles,
     loading: articlesLoading,
+    fetchArticles,
     addArticle,
     updateArticle,
     deleteArticle,
@@ -384,10 +386,9 @@ export default function KnowledgeBase() {
     return s ? s : "—";
   };
 
-  /** 桌面端：文本·话术·图片同一套列宽 */
   const articleTableGridClass = canManage
-    ? "grid gap-x-2 gap-y-1 px-3 py-2 grid-cols-[2.25rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.15fr)_minmax(0,1fr)_4.75rem_minmax(10.5rem,1fr)]"
-    : "grid gap-x-2 gap-y-1 px-3 py-2 grid-cols-[2.25rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.15fr)_minmax(0,1fr)_4.75rem_minmax(7.5rem,1fr)]";
+    ? "grid gap-x-2 gap-y-1 px-3 py-2 grid-cols-[2rem_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_4.5rem_minmax(9rem,auto)]"
+    : "grid gap-x-2 gap-y-1 px-3 py-2 grid-cols-[2rem_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_4.5rem_minmax(6.5rem,auto)]";
 
   const renderTableHeader = () => (
     <div
@@ -625,11 +626,11 @@ export default function KnowledgeBase() {
                             </span>
                           )}
                           {category.visibility === 'private' && (
-                            <span className="text-[10px] opacity-70 shrink-0">&#128274;</span>
+                            <Lock className="h-3 w-3 opacity-70 shrink-0" aria-hidden />
                           )}
                         </button>
                         {canManage && isActive && (
-                          <div className="absolute -top-1 -right-1 flex gap-0.5 opacity-0 group-hover/cat:opacity-100 transition-opacity z-10">
+                          <div className="absolute -top-1 -right-1 flex gap-0.5 z-10">
                             <button
                               className="h-5 w-5 rounded-full bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600 shadow-sm"
                               onClick={(e) => { e.stopPropagation(); openEditCategory(category); }}
@@ -774,18 +775,18 @@ export default function KnowledgeBase() {
                         const unread = isArticleUnread(article);
                         const contentPreview =
                           contentType === "image" && !article.content?.trim()
-                            ? "—"
-                            : cellDash(article.content);
+                            ? null
+                            : article.content?.trim() || null;
                         return (
                           <div
                             key={article.id}
                             className={cn(
-                              "border rounded-lg p-3 bg-card hover:bg-muted/30 transition-colors",
+                              "border rounded-lg bg-card hover:bg-muted/30 transition-colors",
                               unread && "border-primary/40 bg-primary/[0.04]",
                             )}
                           >
                             <div
-                              className="cursor-pointer space-y-2"
+                              className="cursor-pointer p-3"
                               onClick={() => handleViewArticle(article)}
                               role="button"
                               tabIndex={0}
@@ -796,64 +797,50 @@ export default function KnowledgeBase() {
                                 }
                               }}
                             >
-                              <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground uppercase tracking-wide">
-                                <span className={cn("tabular-nums", unread && "text-primary font-semibold")}>
-                                  {t("序号", "No.")} {sequenceNumber}
+                              <div className="flex items-start gap-2">
+                                <span className={cn("shrink-0 mt-0.5 text-xs tabular-nums text-muted-foreground", unread && "text-primary font-semibold")}>
+                                  #{sequenceNumber}
                                 </span>
-                                <span className="tabular-nums normal-case">
-                                  {formatBeijingMonthDayShort(article.created_at, language === "zh" ? "zh-CN" : "en-US")}
-                                </span>
-                              </div>
-                              <div>
-                                <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">
-                                  {t("中文标题", "Title (ZH)")}
-                                </div>
-                                <div className="flex items-start gap-1.5 flex-wrap">
-                                  {unread && <span className="h-2 w-2 mt-1 shrink-0 rounded-full bg-primary" aria-hidden />}
-                                  <span className={cn("text-sm leading-snug line-clamp-2", unread && "font-semibold")}>
-                                    {article.title_zh}
-                                  </span>
-                                  {unread && (
-                                    <Badge variant="outline" className="h-5 px-1.5 text-[10px] border-primary/50 text-primary shrink-0">
-                                      {t("knowledge.unreadBadge")}
-                                    </Badge>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-start gap-1.5 mb-0.5">
+                                    {unread && <span className="h-2 w-2 mt-1.5 shrink-0 rounded-full bg-primary" aria-hidden />}
+                                    <span className={cn("text-sm leading-snug line-clamp-2 text-foreground", unread && "font-semibold")}>
+                                      {article.title_zh}
+                                    </span>
+                                    {unread && (
+                                      <Badge variant="outline" className="h-5 px-1.5 text-[10px] border-primary/50 text-primary shrink-0">
+                                        {t("knowledge.unreadBadge")}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {article.title_en && (
+                                    <p className="text-xs text-muted-foreground line-clamp-1 mb-1">{article.title_en}</p>
                                   )}
-                                </div>
-                              </div>
-                              <div>
-                                <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">
-                                  {t("英文标题", "Title (EN)")}
-                                </div>
-                                <p className="text-xs text-muted-foreground line-clamp-2">{cellDash(article.title_en)}</p>
-                              </div>
-                              <div>
-                                <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">
-                                  {t("knowledge.content")}
-                                </div>
-                                <p className="text-xs text-muted-foreground line-clamp-3">{contentPreview}</p>
-                              </div>
-                              <div>
-                                <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">
-                                  {t("描述", "Description")}
-                                </div>
-                                <div className="flex items-start gap-2">
-                                  {contentType === "image" && article.image_url ? (
-                                    <div className="w-10 h-8 shrink-0 rounded overflow-hidden border bg-muted/30">
-                                      <ResolvableMediaThumb
-                                        idKey={`kb-card-${article.id}`}
-                                        url={article.image_url}
-                                        frameClassName="w-full h-full object-cover"
-                                        tone="staff"
-                                      />
-                                    </div>
-                                  ) : null}
-                                  <p className="text-xs text-muted-foreground line-clamp-2 flex-1 min-w-0">
-                                    {cellDash(article.description)}
-                                  </p>
+                                  {contentPreview && (
+                                    <p className="text-xs text-muted-foreground/80 line-clamp-2 mb-1">{contentPreview}</p>
+                                  )}
+                                  <div className="flex items-center gap-2 mt-1.5">
+                                    {contentType === "image" && article.image_url ? (
+                                      <div className="w-10 h-8 shrink-0 rounded overflow-hidden border bg-muted/30">
+                                        <ResolvableMediaThumb
+                                          idKey={`kb-card-${article.id}`}
+                                          url={article.image_url}
+                                          frameClassName="w-full h-full object-cover"
+                                          tone="staff"
+                                        />
+                                      </div>
+                                    ) : null}
+                                    {article.description && (
+                                      <p className="text-[11px] text-muted-foreground/70 line-clamp-1 flex-1 min-w-0 italic">{article.description}</p>
+                                    )}
+                                    <span className="shrink-0 text-[10px] text-muted-foreground/60 tabular-nums ml-auto">
+                                      {formatBeijingMonthDayShort(article.created_at, language === "zh" ? "zh-CN" : "en-US")}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                            <div className="flex flex-wrap items-center justify-end gap-1 mt-2 pt-2 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex flex-wrap items-center justify-end gap-1 px-3 pb-2 pt-0" onClick={(e) => e.stopPropagation()}>
                               {(contentType === "text" || contentType === "phrase") && article.content?.trim() ? (
                                 <Button
                                   variant="outline"
@@ -890,15 +877,7 @@ export default function KnowledgeBase() {
                     </div>
                   ) : (
                     <div className="border rounded-lg overflow-x-auto bg-card relative min-h-[20rem]">
-                      {articlesLoading && (
-                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/60 backdrop-blur-[1px]">
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
-                            <span>{t('common.loading')}</span>
-                          </div>
-                        </div>
-                      )}
-                      <div className="min-w-[72rem]">
+                      <div className="min-w-[56rem]">
                         {renderTableHeader()}
                         <div className="divide-y divide-border/50">
                           {paginatedArticles.map((article, index) => (

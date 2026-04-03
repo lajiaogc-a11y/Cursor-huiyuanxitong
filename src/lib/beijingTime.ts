@@ -90,6 +90,25 @@ export function formatBeijingTime(dateStr: string | Date | null | undefined): st
   }
 }
 
+/** 日期 + 时分（列表常用：2026/01/05 14:30） */
+export function formatBeijingDateHM(dateStr: string | Date | null | undefined): string {
+  const date = parseBackendStoredDatetimeToDate(dateStr);
+  if (!date) return typeof dateStr === "string" ? dateStr : "";
+  try {
+    return new Intl.DateTimeFormat("zh-CN", {
+      timeZone: SHANGHAI,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date);
+  } catch {
+    return typeof dateStr === "string" ? dateStr : "";
+  }
+}
+
 /** 仅日期（员工端列表等） */
 export function formatBeijingDate(dateStr: string | Date | null | undefined): string {
   const date = parseBackendStoredDatetimeToDate(dateStr);

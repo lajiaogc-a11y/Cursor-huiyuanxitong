@@ -60,7 +60,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getDisplayPhone } from "@/lib/phoneMask";
 import { adminGetMemberReferrals, adminSetMemberInitialPassword } from "@/services/members/memberAdminRpcService";
 import { MEMBER_LEVELS } from "@/config/memberLevels";
-import { formatBeijingDate } from "@/lib/beijingTime";
+import { formatBeijingDateHM } from "@/lib/beijingTime";
 import { getMemberPortalDisplayName } from "@/lib/memberDisplayName";
 import { PageHeader, PageActions, FilterBar, KPIGrid } from "@/components/common";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
@@ -75,7 +75,7 @@ export default function MemberManagement() {
   trackRender('MemberManagement');
   
   const { t } = useLanguage();
-  const formatDate = (d: string) => formatBeijingDate(d);
+  const formatDate = (d: string) => formatBeijingDateHM(d);
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const { members, loading, updateMember, deleteMember, refetch } = useMembers();

@@ -47,7 +47,7 @@ import { useCustomerSources } from "@/stores/customerSourceStore";
 import { useCards } from "@/hooks/useMerchantConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { formatBeijingDate } from "@/lib/beijingTime";
+import { formatBeijingDateHM } from "@/lib/beijingTime";
 import { getDisplayPhone } from "@/lib/phoneMask";
 import { adminSetMemberInitialPassword } from "@/services/members/memberAdminRpcService";
 import { useAuditWorkflow } from "@/hooks/useAuditWorkflow";
@@ -603,7 +603,7 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
                     {canViewField('member_code') && (
                       <MobileCardRow
                         label={t("注册时间", "Registered")}
-                        value={member.createdAt ? formatBeijingDate(member.createdAt) : "-"}
+                        value={member.createdAt ? formatBeijingDateHM(member.createdAt) : "-"}
                       />
                     )}
                     {canViewField('currency_preferences') && Array.isArray(member.preferredCurrency) && member.preferredCurrency.length > 0 && (
@@ -755,7 +755,7 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
                       )}
                       {canViewField('member_code') && (
                         <TableCell className="text-center whitespace-nowrap px-1.5 text-muted-foreground text-xs tabular-nums">
-                          {member.createdAt ? formatBeijingDate(member.createdAt) : "-"}
+                          {member.createdAt ? formatBeijingDateHM(member.createdAt) : "-"}
                         </TableCell>
                       )}
                       {canViewField('referrer') && (

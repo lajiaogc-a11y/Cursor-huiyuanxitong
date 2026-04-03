@@ -30,7 +30,7 @@ export async function listTenantsController(req: AuthenticatedRequest, res: Resp
     res.json({ success: true, data: Array.isArray(data) ? data : [] });
   } catch (e) {
     console.error('[Tenants] list error:', e);
-    res.json({ success: true, data: [] });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load tenant list' } });
   }
 }
 

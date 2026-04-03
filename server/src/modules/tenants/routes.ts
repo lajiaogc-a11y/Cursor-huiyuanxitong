@@ -13,26 +13,34 @@ import {
   updateTenantController,
 } from './controller.js';
 
-// ─── Zod schemas ───────────────────────────────────────
+// ─── Zod schemas (field names match frontend camelCase) ─
 const createTenantBody = z.object({
-  name: z.string().min(1).max(200),
-  admin_username: z.string().min(1).max(100).optional(),
-  admin_password: z.string().min(6).max(200).optional(),
+  tenantCode: z.string().min(1).max(200),
+  tenantName: z.string().min(1).max(200),
+  adminUsername: z.string().min(1).max(100).optional(),
+  adminRealName: z.string().max(200).optional(),
+  adminPassword: z.string().min(6).max(200).optional(),
 });
 
 const updateTenantBody = z.object({
-  name: z.string().min(1).max(200).optional(),
-  status: z.enum(['active', 'disabled']).optional(),
+  tenantCode: z.string().min(1).max(200).optional(),
+  tenantName: z.string().min(1).max(200).optional(),
+  status: z.enum(['active', 'inactive', 'suspended', 'disabled']).optional(),
 });
 
 const setSuperAdminBody = z.object({
-  tenant_id: z.string().uuid(),
-  employee_id: z.string().uuid(),
+  employeeId: z.string().min(1),
 });
 
 const resetAdminPasswordBody = z.object({
-  new_password: z.string().min(6).max(200),
+  adminEmployeeId: z.string().nullable().optional(),
+  newPassword: z.string().min(6).max(200),
 });
+
+const deleteTenantBody = z.object({
+  force: z.boolean().optional(),
+  password: z.string().min(1),
+}).passthrough();
 
 const idParam = z.object({
   id: z.string().min(1),
@@ -44,5 +52,5 @@ router.post('/', authMiddleware, validate({ body: createTenantBody }), createTen
 router.post('/super-admin', authMiddleware, validate({ body: setSuperAdminBody }), setTenantSuperAdminController);
 router.patch('/:id', authMiddleware, validate({ params: idParam, body: updateTenantBody }), updateTenantController);
 router.post('/:id/reset-admin-password', authMiddleware, validate({ params: idParam, body: resetAdminPasswordBody }), resetTenantAdminPasswordController);
-router.post('/:id/delete', authMiddleware, validate({ params: idParam }), deleteTenantController);
+router.post('/:id/delete', authMiddleware, validate({ params: idParam, body: deleteTenantBody }), deleteTenantController);
 export default router;
