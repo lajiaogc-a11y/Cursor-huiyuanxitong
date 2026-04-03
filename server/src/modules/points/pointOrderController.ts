@@ -21,6 +21,19 @@ function businessError(res: Response, code: string, message: string, extra?: Rec
   res.status(400).json({ success: false, error: { code, message }, ...extra });
 }
 
+function assertReviewRole(req: AuthenticatedRequest, res: Response): boolean {
+  const role = req.user?.role;
+  const ok =
+    role === 'admin' ||
+    role === 'manager' ||
+    !!req.user?.is_super_admin ||
+    !!req.user?.is_platform_super_admin;
+  if (!ok) {
+    res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Only admin/manager can review point orders' } });
+  }
+  return ok;
+}
+
 // ── POST /api/points/orders — 创建兑换订单（冻结积分） ──
 
 export async function createPointOrderController(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -67,6 +80,7 @@ export async function createPointOrderController(req: AuthenticatedRequest, res:
 // ── POST /api/points/orders/:id/approve — 确认兑换 ──
 
 export async function approvePointOrderController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  if (!assertReviewRole(req, res)) return;
   try {
     const orderId = req.params.id;
     if (!orderId) return validationError(res, 'order id required');
@@ -109,6 +123,7 @@ export async function approvePointOrderController(req: AuthenticatedRequest, res
 // ── POST /api/points/orders/:id/reject — 拒绝兑换（退回积分） ──
 
 export async function rejectPointOrderController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  if (!assertReviewRole(req, res)) return;
   try {
     const orderId = req.params.id;
     if (!orderId) return validationError(res, 'order id required');

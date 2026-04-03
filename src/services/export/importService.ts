@@ -114,8 +114,11 @@ export async function importTableFromCSVWithProgress(
       result.imported = batchResult.imported;
       result.skipped = result.skipped + batchResult.skipped;
       result.errors = batchResult.errors;
+      if (batchResult.warnings.length > 0) {
+        result.errors.push(...batchResult.warnings.map((w) => `⚠ ${w}`));
+      }
       result.pointsCreated = batchResult.pointsCreated;
-      result.success = result.imported > 0;
+      result.success = result.imported > 0 && batchResult.errors.length === 0;
       return result;
     }
 
@@ -168,7 +171,7 @@ export async function importTableFromCSV(
       result.imported = batchResult.imported;
       result.skipped = result.skipped + batchResult.skipped;
       result.errors = batchResult.errors;
-      result.success = result.imported > 0;
+      result.success = result.imported > 0 && result.errors.length === 0;
       return result;
     }
 
@@ -177,7 +180,10 @@ export async function importTableFromCSV(
       result.imported = batchResult.imported;
       result.skipped = result.skipped + batchResult.skipped;
       result.errors = batchResult.errors;
-      result.success = result.imported > 0;
+      if (batchResult.warnings.length > 0) {
+        result.errors.push(...batchResult.warnings.map((w) => `⚠ ${w}`));
+      }
+      result.success = result.imported > 0 && batchResult.errors.length === 0;
       return result;
     }
 
@@ -231,7 +237,7 @@ export async function importTableFromCSV(
       }
     }
 
-    result.success = result.imported > 0;
+    result.success = result.imported > 0 && result.errors.length === 0;
     return result;
   } catch (error) {
     result.errors.push(String(error));
@@ -350,7 +356,7 @@ export async function importTableFromXLSX(
       result.imported = batchResult.imported;
       result.skipped = result.skipped + batchResult.skipped;
       result.errors = batchResult.errors;
-      result.success = result.imported > 0;
+      result.success = result.imported > 0 && result.errors.length === 0;
       return result;
     }
 
@@ -359,7 +365,10 @@ export async function importTableFromXLSX(
       result.imported = batchResult.imported;
       result.skipped = result.skipped + batchResult.skipped;
       result.errors = batchResult.errors;
-      result.success = result.imported > 0;
+      if (batchResult.warnings.length > 0) {
+        result.errors.push(...batchResult.warnings.map((w) => `⚠ ${w}`));
+      }
+      result.success = result.imported > 0 && batchResult.errors.length === 0;
       return result;
     }
 
@@ -413,7 +422,7 @@ export async function importTableFromXLSX(
       }
     }
 
-    result.success = result.imported > 0;
+    result.success = result.imported > 0 && result.errors.length === 0;
     return result;
   } catch (error) {
     result.errors.push(String(error));

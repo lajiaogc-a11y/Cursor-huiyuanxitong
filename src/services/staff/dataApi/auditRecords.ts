@@ -7,6 +7,7 @@ export async function getAuditRecordsApi(params?: {
   dateFrom?: string;
   dateTo?: string;
   tenantId?: string | null;
+  searchTerm?: string;
 }): Promise<{ records: any[]; totalCount: number }> {
   const q = new URLSearchParams();
   if (params?.page) q.set("page", String(params.page));
@@ -15,6 +16,7 @@ export async function getAuditRecordsApi(params?: {
   if (params?.dateFrom) q.set("dateFrom", params.dateFrom);
   if (params?.dateTo) q.set("dateTo", params.dateTo);
   if (params?.tenantId) q.set("tenant_id", params.tenantId);
+  if (params?.searchTerm) q.set("searchTerm", params.searchTerm);
   const res = await apiClient.get<unknown>(`/api/data/audit-records${q.toString() ? `?${q.toString()}` : ""}`);
   const raw = res as Record<string, unknown>;
   const data = raw?.data && typeof raw.data === "object" ? (raw.data as Record<string, unknown>) : raw;

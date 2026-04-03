@@ -252,12 +252,28 @@ export default function DataExportImportTab() {
     setIsExportingAll(false);
     setExportAllProgress({ current: 0, total: 0, tableName: '' });
     
-    notify.success(
-      t(
-        `全平台导出完成（Excel）: 成功 ${successCount} 个表，失败 ${errorCount} 个`,
-        `Excel export finished: ${successCount} succeeded, ${errorCount} failed`,
-      ),
-    );
+    if (errorCount === 0) {
+      notify.success(
+        t(
+          `全平台导出完成（Excel）: 成功 ${successCount} 个表`,
+          `Excel export finished: all ${successCount} tables exported`,
+        ),
+      );
+    } else if (successCount > 0) {
+      notify.warning(
+        t(
+          `全平台导出部分完成（Excel）: 成功 ${successCount} 个表，失败 ${errorCount} 个`,
+          `Excel export partially complete: ${successCount} succeeded, ${errorCount} failed`,
+        ),
+      );
+    } else {
+      notify.error(
+        t(
+          `全平台导出失败: ${errorCount} 个表导出失败`,
+          `Excel export failed: all ${errorCount} tables failed`,
+        ),
+      );
+    }
   };
 
   // 处理文件选择

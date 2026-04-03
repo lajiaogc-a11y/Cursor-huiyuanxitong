@@ -248,7 +248,8 @@ export async function getOperationLogsController(req: AuthenticatedRequest, res:
     const searchTerm = req.query.searchTerm as string | undefined;
     const dateStart = req.query.dateStart as string | undefined;
     const dateEnd = req.query.dateEnd as string | undefined;
-    const { data, count } = await listOperationLogsRepository({
+    const isExport = req.query.export === '1' || req.query.export === 'true';
+    const { data, count, distinctOperators, moduleCounts } = await listOperationLogsRepository({
       page,
       pageSize,
       module,
@@ -259,6 +260,7 @@ export async function getOperationLogsController(req: AuthenticatedRequest, res:
       dateStart,
       dateEnd,
       tenantId: tenantId || undefined,
+      export: isExport,
     });
 
     const logs = data.map((r) => ({
@@ -281,7 +283,7 @@ export async function getOperationLogsController(req: AuthenticatedRequest, res:
       restoredAt: r.restored_at,
     }));
 
-    res.json({ success: true, data: { logs, totalCount: count } });
+    res.json({ success: true, data: { logs, totalCount: count, distinctOperators, moduleCounts } });
   } catch (e) {
     console.error('[Data] getOperationLogs error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch operation logs' } });
@@ -852,6 +854,7 @@ export async function getAuditRecordsController(req: AuthenticatedRequest, res: 
     const status = req.query.status as string | undefined;
     const dateFrom = req.query.dateFrom as string | undefined;
     const dateTo = req.query.dateTo as string | undefined;
+    const searchTerm = req.query.searchTerm as string | undefined;
     const { data, count } = await listAuditRecordsRepository({
       page,
       pageSize,
@@ -859,6 +862,7 @@ export async function getAuditRecordsController(req: AuthenticatedRequest, res: 
       dateFrom,
       dateTo,
       tenantId,
+      searchTerm,
     });
     res.json({ success: true, data: { records: data, totalCount: count } });
   } catch (e) {

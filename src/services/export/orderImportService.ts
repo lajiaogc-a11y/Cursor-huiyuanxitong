@@ -38,8 +38,8 @@ export async function batchImportOrders(
   currentUserName?: string | null,
   onProgress?: ImportProgressCallback,
   skipPointsCreation: boolean = false
-): Promise<{ imported: number; skipped: number; errors: string[]; pointsCreated: number }> {
-  const result = { imported: 0, skipped: 0, errors: [] as string[], pointsCreated: 0 };
+): Promise<{ imported: number; skipped: number; errors: string[]; warnings: string[]; pointsCreated: number }> {
+  const result = { imported: 0, skipped: 0, errors: [] as string[], warnings: [] as string[], pointsCreated: 0 };
 
   if (records.length === 0) return result;
 
@@ -269,6 +269,7 @@ export async function batchImportOrders(
             }
           } catch (pointsError) {
             console.warn(`[ImportOrder] Failed to create points for order ${insertedOrder.id}:`, pointsError);
+            result.warnings.push(`行 ${i + 2}: 订单已创建，但积分发放失败 (Order created, points grant failed)`);
           }
         }
       }
@@ -291,6 +292,7 @@ export async function batchImportOrders(
           }
         } catch (activityError) {
           console.warn(`[ImportOrder] Failed to update member activity for order ${insertedOrder.id}:`, activityError);
+          result.warnings.push(`行 ${i + 2}: 订单已创建，但会员活动同步失败 (Order created, activity sync failed)`);
         }
       }
 
@@ -317,6 +319,7 @@ export async function batchImportOrders(
           }
         } catch (balanceError) {
           console.warn(`[ImportOrder] Failed to log balance change for order ${insertedOrder.id}:`, balanceError);
+          result.warnings.push(`行 ${i + 2}: 订单已创建，但余额变动记录失败 (Order created, balance log failed)`);
         }
       }
     } catch (error: any) {

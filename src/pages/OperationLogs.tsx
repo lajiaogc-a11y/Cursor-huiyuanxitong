@@ -230,41 +230,58 @@ export default function OperationLogs() {
     notify.success(t("日志已刷新", "Logs refreshed"));
   };
 
-  const handleExport = () => {
-    exportToCSV(filteredLogs, [
-      { key: 'timestamp', label: '时间', labelEn: 'Time', formatter: (v) => formatDateTimeForExport(v) },
-      { key: 'operatorAccount', label: '操作员', labelEn: 'Operator' },
-      { key: 'operatorRole', label: '角色', labelEn: 'Role' },
-      { key: 'module', label: '模块', labelEn: 'Module', formatter: (v) => getModuleName(v as ModuleType, language as 'zh' | 'en') },
-      { key: 'operationType', label: '操作类型', labelEn: 'Operation', formatter: (v) => getOperationName(v as OperationType, language as 'zh' | 'en') },
-      { key: 'objectId', label: '对象ID', labelEn: 'Object ID' },
-      { key: 'objectDescription', label: '描述', labelEn: 'Description' },
-      { key: 'isRestored', label: '已恢复', labelEn: 'Restored', formatter: (v) => v ? t('是', 'Yes') : t('否', 'No') },
-    ], t('操作审计日志', 'Audit Logs'), language === 'en');
-    notify.success(t("导出成功", "Export successful"));
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const allData = await fetchAuditLogsPage(1, 10000, {
+        module: moduleFilter,
+        operationType: operationFilter,
+        operatorAccount: operatorFilter,
+        restoreStatus: restoreStatusFilter,
+        searchTerm: searchTerm || undefined,
+        tenantId: effectiveTenantId,
+        dateRange: dateRange.start || dateRange.end ? { start: dateRange.start, end: dateRange.end } : undefined,
+      }, true);
+      exportToCSV(allData.logs, [
+        { key: 'timestamp', label: '时间', labelEn: 'Time', formatter: (v) => formatDateTimeForExport(v) },
+        { key: 'operatorAccount', label: '操作员', labelEn: 'Operator' },
+        { key: 'operatorRole', label: '角色', labelEn: 'Role' },
+        { key: 'module', label: '模块', labelEn: 'Module', formatter: (v) => getModuleName(v as ModuleType, language as 'zh' | 'en') },
+        { key: 'operationType', label: '操作类型', labelEn: 'Operation', formatter: (v) => getOperationName(v as OperationType, language as 'zh' | 'en') },
+        { key: 'objectId', label: '对象ID', labelEn: 'Object ID' },
+        { key: 'objectDescription', label: '描述', labelEn: 'Description' },
+        { key: 'isRestored', label: '已恢复', labelEn: 'Restored', formatter: (v) => v ? t('是', 'Yes') : t('否', 'No') },
+      ], t('操作审计日志', 'Audit Logs'), language === 'en');
+      notify.success(t(`已导出 ${allData.logs.length} 条记录`, `Exported ${allData.logs.length} records`));
+    } catch {
+      notify.error(t("导出失败", "Export failed"));
+    } finally {
+      setExporting(false);
+    }
   };
 
   const getDiffDisplay = (log: AuditLogEntry) => {
     return getObjectDiff(log.beforeData, log.afterData);
   };
 
-  const handleRestore = async (log: AuditLogEntry) => {
-    if (isRestoring) return; // 防重入
+  const handleRestore = async (log: AuditLogEntry, skipBusyGuard = false): Promise<boolean> => {
+    if (!skipBusyGuard && isRestoring) return false;
     
     if (!log.beforeData || !isRestorableModule(log.module)) {
       notify.error(t("此操作不支持恢复", "This operation cannot be restored"));
-      return;
+      return false;
     }
 
     // 撤回操作不可恢复
     if (String(log.objectDescription ?? '').includes('撤回')) {
       notify.error(t("撤回操作不可恢复", "Undo operations cannot be restored"));
-      return;
+      return false;
     }
 
     if (!userIsAdmin) {
       notify.error(t("只有管理员可以执行恢复操作", "Only admins can perform restore operations"));
-      return;
+      return false;
     }
 
     setIsRestoring(true);
@@ -442,7 +459,7 @@ export default function OperationLogs() {
           const beforeData = log.beforeData;
           if (!beforeData) {
             notify.error(t('无法恢复：缺少原始数据', 'Cannot restore: missing original data'));
-            return;
+            return false;
           }
           
           // Determine if this is a withdrawal (WD_) or recharge (RC_) by objectId
@@ -457,7 +474,7 @@ export default function OperationLogs() {
             
             if (!vendorName) {
               notify.error(t('无法恢复：无法确定卡商名称', 'Cannot restore: vendor name not found'));
-              return;
+              return false;
             }
             
             // Re-add the withdrawal
@@ -469,7 +486,7 @@ export default function OperationLogs() {
               const exists = settlement.withdrawals.some(w => String(w.id) === objectIdStr);
               if (exists) {
                 notify.error(t('该提款记录已存在，无需恢复', 'Withdrawal record already exists'));
-                return;
+                return false;
               }
               
               // Restore the record
@@ -500,7 +517,7 @@ export default function OperationLogs() {
             
             if (!providerName) {
               notify.error(t('无法恢复：无法确定代付商家名称', 'Cannot restore: provider name not found'));
-              return;
+              return false;
             }
             
             // Re-add the recharge
@@ -511,7 +528,7 @@ export default function OperationLogs() {
               const exists = settlement.recharges.some(r => String(r.id) === objectIdStr);
               if (exists) {
                 notify.error(t('该充值记录已存在，无需恢复', 'Recharge record already exists'));
-                return;
+                return false;
               }
               
               settlement.recharges.push(beforeData);
@@ -695,7 +712,7 @@ export default function OperationLogs() {
               notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
             } else {
               notify.error(t('此类型的商家结算操作暂不支持恢复', 'This type of settlement operation cannot be restored'));
-              return;
+              return false;
             }
           }
           void queryClient.invalidateQueries({ queryKey: ['merchant-settlement'] });
@@ -704,7 +721,7 @@ export default function OperationLogs() {
         }
         default:
           notify.error(t("此模块不支持恢复", "This module does not support restore"));
-          return;
+          return false;
       }
 
       const markedOk = await markLogAsRestored(log.id, employee?.id, effectiveTenantId);
@@ -722,9 +739,11 @@ export default function OperationLogs() {
         );
       }
       setRestoreConfirm(null);
+      return true;
     } catch (error: any) {
       console.error('恢复失败:', error);
       notify.error(t(`恢复失败: ${error?.message || '未知错误'}`, `Restore failed: ${error?.message || 'Unknown error'}`));
+      return false;
     } finally {
       setIsRestoring(false);
     }
@@ -835,12 +854,10 @@ export default function OperationLogs() {
     for (const logId of selectedLogs) {
       const log = filteredLogs.find(l => l.id === logId);
       if (log && canRestore(log)) {
-        try {
-          // 复用单个恢复逻辑
-          await handleRestore(log);
+        const ok = await handleRestore(log, true);
+        if (ok) {
           successCount++;
-        } catch (error) {
-          console.error(`批量恢复失败 (${logId}):`, error);
+        } else {
           failCount++;
         }
       }
@@ -962,9 +979,10 @@ export default function OperationLogs() {
                 variant="outline"
                 size="icon"
                 className="h-9 w-9 shrink-0 rounded-lg touch-manipulation"
+                disabled={exporting}
                 onClick={() => exportConfirm.requestExport(handleExport)}
               >
-                <Download className="h-4 w-4" />
+                {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               </Button>
             </div>
 
@@ -1151,9 +1169,9 @@ export default function OperationLogs() {
                 <RefreshCw className="h-4 w-4" />
                 <span className="ml-1">{t("刷新", "Refresh")}</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={() => exportConfirm.requestExport(handleExport)}>
-                <Download className="h-4 w-4" />
-                <span className="ml-1">{t("导出", "Export")}</span>
+              <Button variant="outline" size="sm" disabled={exporting} onClick={() => exportConfirm.requestExport(handleExport)}>
+                {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                <span className="ml-1">{exporting ? t("导出中…", "Exporting…") : t("导出", "Export")}</span>
               </Button>
             </div>
           </div>
@@ -1197,8 +1215,8 @@ export default function OperationLogs() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("全部操作人", "All Operators")}</SelectItem>
-                  {Array.from(new Set(filteredLogs.map(log => log.operatorAccount))).map((account) => (
-                    <SelectItem key={String(account ?? '')} value={String(account ?? '')}>{String(account ?? '')}</SelectItem>
+                  {(auditLogsPage?.distinctOperators ?? []).map((account) => (
+                    <SelectItem key={account} value={account}>{account}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -1234,7 +1252,7 @@ export default function OperationLogs() {
       </Card>
 
       {/* Module Coverage Dashboard */}
-      <ModuleCoverageDashboard logs={filteredLogs} />
+      <ModuleCoverageDashboard logs={filteredLogs} serverModuleCounts={auditLogsPage?.moduleCounts} totalCount={totalCount} />
 
       <Card>
         <CardHeader className="py-3 px-4">
@@ -1273,7 +1291,7 @@ export default function OperationLogs() {
                 </>
               )}
               <span className="text-sm font-normal text-muted-foreground">
-                {t("数据只允许追加，不允许修改或删除", "Data can only be appended, not modified or deleted")}
+                {t("日志仅追加不可删改；管理员可将数据恢复到修改前状态，恢复操作本身也会被记录", "Logs are append-only; admins can restore data to a prior state — each restore is also logged")}
               </span>
             </div>
           </div>

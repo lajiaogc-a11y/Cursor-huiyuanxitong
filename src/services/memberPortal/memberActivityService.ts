@@ -83,12 +83,38 @@ export async function fetchMemberInviteToken(memberId: string): Promise<string |
 export async function memberGetOrdersRows(memberId: string): Promise<unknown[]> {
   return safeCall(
     async () => {
-      const raw = await apiPost<unknown>(MEMBER_PORTAL_RPC_PATHS.MEMBER_GET_ORDERS, { p_member_id: memberId });
-      const rows = unwrapApiData<unknown[]>(raw);
-      return Array.isArray(rows) ? rows : [];
+      const raw = await apiPost<unknown>(MEMBER_PORTAL_RPC_PATHS.MEMBER_GET_ORDERS, { p_member_id: memberId, p_limit: 20, p_offset: 0 });
+      const d = unwrapApiData<unknown>(raw);
+      if (d && typeof d === "object" && Array.isArray((d as { rows?: unknown }).rows)) {
+        return (d as { rows: unknown[] }).rows;
+      }
+      return Array.isArray(d) ? d : [];
     },
     [],
     "memberGetOrdersRows",
+  );
+}
+
+export type MemberOrdersPage = { rows: unknown[]; total: number };
+
+export async function memberGetOrdersPage(memberId: string, limit = 20, offset = 0): Promise<MemberOrdersPage> {
+  return safeCall(
+    async () => {
+      const raw = await apiPost<unknown>(MEMBER_PORTAL_RPC_PATHS.MEMBER_GET_ORDERS, {
+        p_member_id: memberId,
+        p_limit: limit,
+        p_offset: offset,
+      });
+      const d = unwrapApiData<unknown>(raw);
+      if (d && typeof d === "object" && Array.isArray((d as { rows?: unknown }).rows)) {
+        const obj = d as { rows: unknown[]; total?: number };
+        return { rows: obj.rows, total: Number(obj.total ?? obj.rows.length) };
+      }
+      const arr = Array.isArray(d) ? d : [];
+      return { rows: arr, total: arr.length };
+    },
+    { rows: [], total: 0 },
+    "memberGetOrdersPage",
   );
 }
 

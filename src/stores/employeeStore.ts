@@ -301,14 +301,12 @@ export async function getEmployeeNameHistory(employeeId: string): Promise<NameHi
   }
 }
 
-// 删除员工（统一走后端 employees API，由后端处理权限与 FK 清理）
+// 删除员工（统一走后端 employees API，由后端通过 JWT 处理权限与 FK 清理）
 export async function deleteEmployee(
   id: string,
   lang: 'zh' | 'en' = 'zh',
-  options?: { isPlatformSuperAdmin?: boolean }
 ): Promise<{ success: boolean; error_code?: string }> {
   void lang;
-  void options;
   try {
     const ok = await deleteEmployeeApi(id);
     return ok ? { success: true } : { success: false, error_code: 'DELETE_FAILED' };

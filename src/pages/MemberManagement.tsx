@@ -209,6 +209,10 @@ export default function MemberManagement() {
   };
 
   const handleDelete = async (memberId: string) => {
+    if (!isAdmin) {
+      notify.error(t("仅管理员可执行此操作", "Only admins can perform this action"));
+      return;
+    }
     const success = await deleteMember(memberId);
     if (success) {
       notify.success(t('members.deleteSuccess'));
@@ -221,11 +225,19 @@ export default function MemberManagement() {
   };
 
   const handleOpenSetPassword = (member: Member) => {
+    if (!isAdmin) {
+      notify.error(t("仅管理员可执行此操作", "Only admins can perform this action"));
+      return;
+    }
     setSetPasswordMember(member);
     setSetPasswordValue("");
   };
 
   const handleCopyPassword = async (member: Member) => {
+    if (!isAdmin) {
+      notify.error(t("仅管理员可执行此操作", "Only admins can perform this action"));
+      return;
+    }
     const pwd = member.initialPassword;
     if (!pwd) {
       notify.error(t("该会员暂无初始密码", "No initial password set for this member"));
@@ -241,6 +253,10 @@ export default function MemberManagement() {
 
   const handleSetPasswordSubmit = async () => {
     if (!setPasswordMember) return;
+    if (!isAdmin) {
+      notify.error(t("仅管理员可执行此操作", "Only admins can perform this action"));
+      return;
+    }
     const pwd = setPasswordValue.trim();
     if (pwd.length < 6) {
       notify.error(t("密码至少6位", "Password must be at least 6 characters"));
@@ -474,21 +490,27 @@ export default function MemberManagement() {
                       <Button size="sm" variant="outline" className="flex-1 h-9 touch-manipulation" onClick={() => handleEdit(member)}>
                         <Pencil className="h-3 w-3 mr-1" />{t('编辑', 'Edit')}
                       </Button>
-                      <Button size="sm" variant="outline" className="h-9 w-9 touch-manipulation" onClick={() => handleOpenSetPassword(member)} title={t('设置密码', 'Set Password')}>
-                        <KeyRound className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-9 w-9 touch-manipulation" onClick={() => handleCopyPassword(member)} title={t('复制密码', 'Copy Password')}>
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="outline" className="h-9 w-9 text-destructive border-destructive/30 touch-manipulation"><Trash2 className="h-3.5 w-3.5" /></Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader><AlertDialogTitle>{t('members.confirmDelete')}</AlertDialogTitle><AlertDialogDescription>{t('members.deleteWarning')}</AlertDialogDescription></AlertDialogHeader>
-                          <AlertDialogFooter><AlertDialogCancel>{t('取消', 'Cancel')}</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(member.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{t('删除', 'Delete')}</AlertDialogAction></AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      {isAdmin && (
+                        <Button size="sm" variant="outline" className="h-9 w-9 touch-manipulation" onClick={() => handleOpenSetPassword(member)} title={t('设置密码', 'Set Password')}>
+                          <KeyRound className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {isAdmin && (
+                        <Button size="sm" variant="outline" className="h-9 w-9 touch-manipulation" onClick={() => handleCopyPassword(member)} title={t('复制密码', 'Copy Password')}>
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {isAdmin && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="outline" className="h-9 w-9 text-destructive border-destructive/30 touch-manipulation"><Trash2 className="h-3.5 w-3.5" /></Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader><AlertDialogTitle>{t('members.confirmDelete')}</AlertDialogTitle><AlertDialogDescription>{t('members.deleteWarning')}</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter><AlertDialogCancel>{t('取消', 'Cancel')}</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(member.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{t('删除', 'Delete')}</AlertDialogAction></AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </MobileCardActions>
                   </MobileCard>
                 ))}
@@ -678,32 +700,36 @@ export default function MemberManagement() {
                             </TooltipTrigger>
                             <TooltipContent side="top">{t("编辑", "Edit")}</TooltipContent>
                           </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => handleOpenSetPassword(member)}
-                              >
-                                <KeyRound className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">{t("设置密码", "Set password")}</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => handleCopyPassword(member)}
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">{t("复制密码", "Copy password")}</TooltipContent>
-                          </Tooltip>
+                          {isAdmin && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handleOpenSetPassword(member)}
+                                >
+                                  <KeyRound className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">{t("设置密码", "Set password")}</TooltipContent>
+                            </Tooltip>
+                          )}
+                          {isAdmin && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handleCopyPassword(member)}
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">{t("复制密码", "Copy password")}</TooltipContent>
+                            </Tooltip>
+                          )}
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
@@ -717,41 +743,43 @@ export default function MemberManagement() {
                             </TooltipTrigger>
                             <TooltipContent side="top">{t("查看推荐人", "View referrals")}</TooltipContent>
                           </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="inline-flex">
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-destructive hover:text-destructive"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>{t("members.confirmDelete")}</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        {t("members.deleteWarning")}
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => handleDelete(member.id)}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          {isAdmin && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex">
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:text-destructive"
                                       >
-                                        {t("删除", "Delete")}
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">{t("删除", "Delete")}</TooltipContent>
-                          </Tooltip>
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>{t("members.confirmDelete")}</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          {t("members.deleteWarning")}
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => handleDelete(member.id)}
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        >
+                                          {t("删除", "Delete")}
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">{t("删除", "Delete")}</TooltipContent>
+                            </Tooltip>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

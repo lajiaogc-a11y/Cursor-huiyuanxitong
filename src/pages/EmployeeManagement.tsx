@@ -459,9 +459,7 @@ export default function EmployeeManagement() {
     }
     setIsDeleting(true);
     try {
-      const result = await deleteEmployee(deletingEmployee.id, language as 'zh' | 'en', {
-        isPlatformSuperAdmin: currentEmployee?.is_platform_super_admin === true,
-      });
+      const result = await deleteEmployee(deletingEmployee.id, language as 'zh' | 'en');
       if (result.success) {
         logOperation('employee_management', 'delete', deletingEmployee.id, { username: deletingEmployee.username, real_name: deletingEmployee.real_name }, null, t(`删除员工: ${deletingEmployee.real_name}`, `Delete employee: ${deletingEmployee.real_name}`));
         notify.success(t("员工已删除", "Employee deleted"));

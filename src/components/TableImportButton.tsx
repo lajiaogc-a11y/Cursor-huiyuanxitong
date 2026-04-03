@@ -347,36 +347,40 @@ export default function TableImportButton({
             </div>
 
             {/* 导入结果 */}
-            {importResult && (
-              <div className={`p-3 rounded-lg border ${
-                importResult.success 
-                  ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' 
-                  : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'
-              }`}>
-                <p className="text-sm font-medium">
-                  {importResult.success 
-                    ? t('导入完成', 'Import completed')
-                    : t('导入失败', 'Import failed')
-                  }
-                </p>
-                <p className="text-xs mt-1">
-                  {t(
-                    `成功: ${importResult.imported}, 跳过: ${importResult.skipped}`,
-                    `Success: ${importResult.imported}, Skipped: ${importResult.skipped}`
-                  )}
-                </p>
-                {importResult.errors.length > 0 && (
-                  <ul className="text-xs text-red-600 mt-2 max-h-20 overflow-y-auto">
-                    {importResult.errors.slice(0, 5).map((err, i) => (
-                      <li key={i}>• {err}</li>
-                    ))}
-                    {importResult.errors.length > 5 && (
-                      <li>... {t(`还有 ${importResult.errors.length - 5} 个错误`, `${importResult.errors.length - 5} more errors`)}</li>
+            {importResult && (() => {
+              const isPartial = !importResult.success && importResult.imported > 0 && importResult.errors.length > 0;
+              const colorCls = importResult.success
+                ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800'
+                : isPartial
+                  ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800'
+                  : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800';
+              const title = importResult.success
+                ? t('导入完成', 'Import completed')
+                : isPartial
+                  ? t('部分导入成功', 'Partially imported')
+                  : t('导入失败', 'Import failed');
+              return (
+                <div className={`p-3 rounded-lg border ${colorCls}`}>
+                  <p className="text-sm font-medium">{title}</p>
+                  <p className="text-xs mt-1">
+                    {t(
+                      `成功: ${importResult.imported}, 跳过: ${importResult.skipped}, 失败: ${importResult.errors.length}`,
+                      `Success: ${importResult.imported}, Skipped: ${importResult.skipped}, Failed: ${importResult.errors.length}`,
                     )}
-                  </ul>
-                )}
-              </div>
-            )}
+                  </p>
+                  {importResult.errors.length > 0 && (
+                    <ul className="text-xs text-red-600 mt-2 max-h-20 overflow-y-auto">
+                      {importResult.errors.slice(0, 5).map((err, i) => (
+                        <li key={i}>• {err}</li>
+                      ))}
+                      {importResult.errors.length > 5 && (
+                        <li>... {t(`还有 ${importResult.errors.length - 5} 个错误`, `${importResult.errors.length - 5} more errors`)}</li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4 mt-4">

@@ -204,8 +204,9 @@ export interface AuditLogsPageFilters {
 export async function fetchAuditLogsPage(
   page: number,
   pageSize: number = PAGE_SIZE,
-  filters?: AuditLogsPageFilters
-): Promise<{ logs: AuditLogEntry[]; totalCount: number }> {
+  filters?: AuditLogsPageFilters,
+  isExport = false,
+): Promise<{ logs: AuditLogEntry[]; totalCount: number; distinctOperators: string[]; moduleCounts: Record<string, number> }> {
   try {
     // 优先使用 API（绕过 RLS，Supabase 客户端无 auth.uid() 导致 RLS 返回空）
     try {
@@ -227,6 +228,7 @@ export async function fetchAuditLogsPage(
               return end.toISOString();
             })()
           : undefined,
+        export: isExport,
       });
       const rawLogs = result.logs || [];
       const logs: AuditLogEntry[] = rawLogs.map((r: Record<string, unknown>) => {
@@ -256,7 +258,12 @@ export async function fetchAuditLogsPage(
           restoredAt: (row.restoredAt ?? row.restored_at) as string | undefined,
         };
       });
-      return { logs, totalCount: result.totalCount ?? 0 };
+      return {
+        logs,
+        totalCount: result.totalCount ?? 0,
+        distinctOperators: result.distinctOperators ?? [],
+        moduleCounts: result.moduleCounts ?? {},
+      };
     } catch (apiErr) {
       console.warn('[AuditLog] API fetch failed:', apiErr);
       if (typeof window !== 'undefined') {

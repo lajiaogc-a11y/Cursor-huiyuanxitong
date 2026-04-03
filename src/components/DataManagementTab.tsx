@@ -142,6 +142,7 @@ export default function DataManagementTab() {
       const hasMembers = deletedSummary.some((s: { table: string }) => s.table === '会员');
       
       // ===== 记录批量删除操作日志 =====
+      const isPartialSuccess = errors.length > 0 && totalCount > 0;
       if (deletedSummary.length > 0) {
         const summaryText = deletedSummary.map(s => `${s.table}: ${s.count}条`).join(', ');
         logOperation(
@@ -162,10 +163,14 @@ export default function DataManagementTab() {
               operationLogs: deleteSelections.operationLogs,
               loginLogs: deleteSelections.loginLogs,
               knowledgeData: deleteSelections.knowledgeData,
-            }
+            },
+            partial: isPartialSuccess,
+            errorCount: errors.length,
           },
-          { deletedSummary, totalCount },
-          `批量数据删除: 共删除 ${totalCount} 条记录 (${summaryText})`
+          { deletedSummary, totalCount, errors: isPartialSuccess ? errors : undefined },
+          isPartialSuccess
+            ? `批量数据删除（部分成功）: 删除 ${totalCount} 条，${errors.length} 项失败 (${summaryText})`
+            : `批量数据删除: 共删除 ${totalCount} 条记录 (${summaryText})`
         );
       }
       
@@ -235,7 +240,6 @@ export default function DataManagementTab() {
         }
       }
 
-      // 显示结果：致命错误（SQL 等）与「活动回滚」等非致命提示已分离；有数据删除成功时仍关闭对话框
       const errMsg = errors.slice(0, 3).join('; ') + (errors.length > 3 ? '...' : '');
       const warnMsg = warnings.slice(0, 3).join('; ') + (warnings.length > 3 ? '...' : '');
       if (errors.length > 0) {
@@ -243,12 +247,10 @@ export default function DataManagementTab() {
         if (totalCount > 0 || deletedSummary.length > 0) {
           notify.warning(
             t(
-              `已删除 ${totalCount} 条记录，但部分步骤失败：${errMsg}`,
-              `Deleted ${totalCount} records; some steps failed: ${errMsg}`
+              `已删除 ${totalCount} 条记录，但部分步骤失败：${errMsg}。请检查数据完整性后决定是否重试。`,
+              `Deleted ${totalCount} records; some steps failed: ${errMsg}. Review data integrity before retrying.`
             )
           );
-          setIsDeleteDialogOpen(false);
-          setDeletePassword("");
         } else {
           notify.error(t(`删除失败: ${errMsg}`, `Deletion failed: ${errMsg}`));
         }

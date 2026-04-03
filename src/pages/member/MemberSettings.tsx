@@ -1,4 +1,4 @@
-import { useState, useEffect, type CSSProperties } from "react";
+import { useState, useEffect, useCallback, type CSSProperties } from "react";
 import { useLocation, Navigate, Link } from "react-router-dom";
 import {
   User,
@@ -238,11 +238,21 @@ export default function MemberSettings() {
     refetchIntervalInBackground: false,
   });
 
-  const { data: ledgerPack, isLoading: ledgerLoading, isFetching: ledgerFetching } = useQuery({
+  const LEDGER_PAGE = 50;
+  const [ledgerAllRows, setLedgerAllRows] = useState<MemberPointsLedgerRow[]>([]);
+  const [ledgerTotalCount, setLedgerTotalCount] = useState(0);
+  const [ledgerLoadingMore, setLedgerLoadingMore] = useState(false);
+
+  const { isLoading: ledgerLoading, isFetching: ledgerFetching } = useQuery({
     queryKey: memberId ? memberQueryKeys.pointsLedger(memberId, ledgerCategory) : ["member", "pointsLedger", "__none"],
     queryFn: async () => {
       if (!memberId) return { success: false as const, rows: [] as MemberPointsLedgerRow[], total: 0 };
-      return getMemberPointsLedgerRpc(memberId, ledgerCategory, 100, 0);
+      const r = await getMemberPointsLedgerRpc(memberId, ledgerCategory, LEDGER_PAGE, 0);
+      if (r.success) {
+        setLedgerAllRows(r.rows);
+        setLedgerTotalCount(r.total);
+      }
+      return r;
     },
     enabled: !!memberId && expandedPointsLedger,
     staleTime: 20_000,
@@ -251,8 +261,23 @@ export default function MemberSettings() {
     refetchOnWindowFocus: true,
   });
 
-  const ledgerRows = ledgerPack?.success ? ledgerPack.rows : [];
-  const ledgerTotal = ledgerPack?.success ? ledgerPack.total : 0;
+  const loadMoreLedger = useCallback(async () => {
+    if (!memberId || ledgerLoadingMore || ledgerAllRows.length >= ledgerTotalCount) return;
+    setLedgerLoadingMore(true);
+    try {
+      const r = await getMemberPointsLedgerRpc(memberId, ledgerCategory, LEDGER_PAGE, ledgerAllRows.length);
+      if (r.success) {
+        setLedgerAllRows((prev) => [...prev, ...r.rows]);
+        setLedgerTotalCount(r.total);
+      }
+    } finally {
+      setLedgerLoadingMore(false);
+    }
+  }, [memberId, ledgerLoadingMore, ledgerAllRows.length, ledgerTotalCount, ledgerCategory]);
+
+  const ledgerRows = ledgerAllRows;
+  const ledgerTotal = ledgerTotalCount;
+  const hasMoreLedger = ledgerAllRows.length < ledgerTotalCount;
 
   const {
     breakdown: settingsPtsBreakdown,
@@ -867,9 +892,20 @@ export default function MemberSettings() {
                           />
                         ))}
                       </div>
-                      {ledgerTotal > ledgerRows.length ? (
+                      {hasMoreLedger ? (
+                        <button
+                          type="button"
+                          className="mx-auto mt-3 flex items-center gap-1.5 rounded-full bg-[hsl(var(--pu-m-surface)/0.35)] px-4 py-1.5 text-[11px] font-medium text-[hsl(var(--pu-m-text-dim))] transition-colors active:bg-[hsl(var(--pu-m-surface)/0.55)]"
+                          disabled={ledgerLoadingMore}
+                          onClick={() => void loadMoreLedger()}
+                        >
+                          {ledgerLoadingMore
+                            ? t("加载中…", "Loading…")
+                            : t(`加载更多（${ledgerRows.length}/${ledgerTotal}）`, `Load more (${ledgerRows.length}/${ledgerTotal})`)}
+                        </button>
+                      ) : ledgerTotal > 0 ? (
                         <p className="mb-0 mt-2.5 text-[11px] text-[hsl(var(--pu-m-text-dim)/0.5)]">
-                          {t(`共 ${ledgerTotal} 条，展示最近 ${ledgerRows.length} 条`, `${ledgerTotal} total, showing latest ${ledgerRows.length}`)}
+                          {t(`共 ${ledgerTotal} 条`, `${ledgerTotal} total`)}
                         </p>
                       ) : null}
                     </>

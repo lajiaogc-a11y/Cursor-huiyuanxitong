@@ -1269,7 +1269,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
       case 'member_get_orders': {
         const memberId = effectiveMemberIdForRpc(req, params);
         if (!memberId) {
-          result = [];
+          result = { rows: [], total: 0 };
           break;
         }
         const m = await queryOne<{ phone_number: string | null }>(
@@ -1277,8 +1277,17 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
           [memberId]
         );
         const phone = String(m?.phone_number ?? '').trim();
-        // 与员工端一致：按 member_id 或手机号关联；排除已删除订单
-        // 优先取 gift_cards JOIN 名称，其次取 orders.card_name 快照，避免会员端展示 UUID 或乱码
+        const ordLim = Math.min(200, Math.max(1, Math.floor(Number(params.p_limit) || 20)));
+        const ordOff = Math.max(0, Math.floor(Number(params.p_offset) || 0));
+
+        const countRow = await queryOne<{ n: number }>(
+          `SELECT COUNT(*) AS n FROM orders o
+           WHERE (o.member_id = ? OR (o.phone_number IS NOT NULL AND o.phone_number = ?))
+           AND COALESCE(o.is_deleted, 0) = 0`,
+          [memberId, phone],
+        );
+        const ordTotal = Math.max(0, Number(countRow?.n ?? 0));
+
         const orders = await query(
           `SELECT o.*,
                   o.card_type AS order_type,
@@ -1288,10 +1297,10 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
            WHERE (o.member_id = ? OR (o.phone_number IS NOT NULL AND o.phone_number = ?))
            AND COALESCE(o.is_deleted, 0) = 0
            ORDER BY o.created_at DESC
-           LIMIT 100`,
+           LIMIT ${ordLim} OFFSET ${ordOff}`,
           [memberId, phone]
         );
-        result = orders;
+        result = { rows: orders, total: ordTotal };
         break;
       }
 
@@ -2286,6 +2295,11 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
 
       case 'admin_set_member_initial_password': {
         if (!assertRpcEmployee(req)) {
+          result = { success: false, error: 'FORBIDDEN' };
+          break;
+        }
+        const isAdminRole = req.user?.role === 'admin' || !!req.user?.is_super_admin || !!req.user?.is_platform_super_admin;
+        if (!isAdminRole) {
           result = { success: false, error: 'FORBIDDEN' };
           break;
         }

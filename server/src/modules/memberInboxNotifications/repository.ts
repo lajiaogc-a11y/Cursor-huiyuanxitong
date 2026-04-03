@@ -104,17 +104,26 @@ export async function listMemberInbox(
   memberId: string,
   tenantId: string,
   limit: number,
-): Promise<MemberInboxListItem[]> {
+  offset = 0,
+): Promise<{ items: MemberInboxListItem[]; total: number }> {
   const lim = Math.min(Math.max(1, Math.floor(limit || 80)), 200);
+  const off = Math.max(0, Math.floor(offset || 0));
+
+  const countRow = await queryOne<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM member_inbox_notifications WHERE member_id = ? AND tenant_id = ?`,
+    [memberId, tenantId],
+  );
+  const total = Math.max(0, Math.floor(Number(countRow?.n ?? 0)));
+
   const rows = await query<MemberInboxRow>(
     `SELECT id, tenant_id, member_id, event_type, dedupe_key, title, body, category, link, metadata, is_read, created_at
      FROM member_inbox_notifications
      WHERE member_id = ? AND tenant_id = ?
      ORDER BY created_at DESC
-     LIMIT ${lim}`,
+     LIMIT ${lim} OFFSET ${off}`,
     [memberId, tenantId],
   );
-  return rows.map(mapRowToListItem);
+  return { items: rows.map(mapRowToListItem), total };
 }
 
 export async function markMemberInboxRead(

@@ -207,6 +207,7 @@ export interface AuditRecordsFetchParams {
   status?: 'pending' | 'approved' | 'rejected';
   dateFrom?: string;
   dateTo?: string;
+  searchTerm?: string;
 }
 
 // Standalone fetch function - 服务端分页，每页 50 条
@@ -221,6 +222,7 @@ async function fetchAuditRecordsFromDb(params?: AuditRecordsFetchParams, tenantI
     status: params?.status,
     dateFrom: params?.dateFrom,
     dateTo: params?.dateTo,
+    searchTerm: params?.searchTerm,
     tenantId,
   });
   const enrichedRecords: AuditRecord[] = (result.records || []) as AuditRecord[];
@@ -378,7 +380,7 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
     : (viewingTenantId || employee?.tenant_id || null);
 
   const { data, isLoading: loading } = useQuery({
-    queryKey: ['audit-records', effectiveTenantId ?? '', params?.page, params?.pageSize, params?.status, params?.dateFrom, params?.dateTo],
+    queryKey: ['audit-records', effectiveTenantId ?? '', params?.page, params?.pageSize, params?.status, params?.dateFrom, params?.dateTo, params?.searchTerm],
     queryFn: () => fetchAuditRecordsFromDb(params, effectiveTenantId),
     enabled: !!employee,
     staleTime: STALE_TIME_LIST_MS,
@@ -499,35 +501,25 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
         }
       }
 
-      const patchTable = targetTable === 'activity' ? 'activity_gifts' : targetTable;
-      try {
-        await apiPatch(`/api/data/table/${patchTable}?id=eq.${encodeURIComponent(targetId)}`, {
-          data: newData,
-        });
-      } catch (updateError) {
-        console.error('Failed to apply audit change:', updateError);
-        notify.error(t('应用修改失败', 'Failed to apply changes'));
-        return false;
-      }
-
+      // Mark audit record as approved FIRST to prevent the half-success window
+      // where business data is changed but the audit record stays "pending".
+      const reviewPayload = {
+        status: 'approved',
+        reviewer_id: employee.id,
+        review_time: new Date().toISOString(),
+      };
       try {
         await apiPatch<unknown>(
           `/api/data/table/audit_records?id=eq.${encodeURIComponent(recordId)}`,
-          {
-            data: {
-              status: 'approved',
-              reviewer_id: employee.id,
-              review_time: new Date().toISOString(),
-            },
-          }
+          { data: reviewPayload },
         );
       } catch (auditError) {
         console.error('Failed to update audit record:', auditError);
         if (auditError instanceof ApiError && auditError.statusCode === 409) {
           notify.error(
             t(
-              '该记录已被他人处理或状态已变。请刷新列表；若业务数据已变更请以列表为准。',
-              'This record was already processed. Refresh the list; if data changed, trust the latest list.',
+              '该记录已被他人处理或状态已变。请刷新列表。',
+              'This record was already processed. Refresh the list.',
             ),
           );
           await queryClient.invalidateQueries({ queryKey: ['audit-records'] });
@@ -535,6 +527,24 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
           return false;
         }
         notify.error(t('更新审核状态失败', 'Failed to update audit status'));
+        return false;
+      }
+
+      const patchTable = targetTable === 'activity' ? 'activity_gifts' : targetTable;
+      try {
+        await apiPatch(`/api/data/table/${patchTable}?id=eq.${encodeURIComponent(targetId)}`, {
+          data: newData,
+        });
+      } catch (updateError) {
+        console.error('Failed to apply audit change, reverting audit status:', updateError);
+        try {
+          await apiPatch<unknown>(
+            `/api/data/table/audit_records?id=eq.${encodeURIComponent(recordId)}`,
+            { data: { status: 'pending', reviewer_id: null, review_time: null } },
+          );
+        } catch { /* best-effort revert */ }
+        notify.error(t('应用修改失败，审核状态已回滚', 'Failed to apply changes, audit status reverted'));
+        await queryClient.invalidateQueries({ queryKey: ['audit-records'] });
         return false;
       }
 

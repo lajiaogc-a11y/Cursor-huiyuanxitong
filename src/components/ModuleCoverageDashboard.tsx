@@ -8,19 +8,24 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ModuleCoverageDashboardProps {
   logs: AuditLogEntry[];
+  serverModuleCounts?: Record<string, number>;
+  totalCount?: number;
 }
 
-export function ModuleCoverageDashboard({ logs }: ModuleCoverageDashboardProps) {
+export function ModuleCoverageDashboard({ logs, serverModuleCounts, totalCount }: ModuleCoverageDashboardProps) {
   const { t, language } = useLanguage();
   const [showInactive, setShowInactive] = useState(false);
 
   const moduleStats = useMemo(() => {
+    if (serverModuleCounts && Object.keys(serverModuleCounts).length > 0) return serverModuleCounts;
     const stats: Record<string, number> = {};
     logs.forEach(log => {
       stats[log.module] = (stats[log.module] || 0) + 1;
     });
     return stats;
-  }, [logs]);
+  }, [logs, serverModuleCounts]);
+
+  const effectiveTotal = totalCount ?? logs.length;
 
   const allModules = Object.keys(MODULE_NAMES) as ModuleType[];
   const totalModules = allModules.length;
@@ -38,7 +43,7 @@ export function ModuleCoverageDashboard({ logs }: ModuleCoverageDashboardProps) 
     return [...activeModules].sort((a, b) => (moduleStats[b] || 0) - (moduleStats[a] || 0));
   }, [activeModules, moduleStats]);
 
-  if (logs.length === 0) {
+  if (effectiveTotal === 0 && logs.length === 0) {
     return null;
   }
 
@@ -58,7 +63,7 @@ export function ModuleCoverageDashboard({ logs }: ModuleCoverageDashboardProps) 
               <FileText className="h-3.5 w-3.5" />
               <span className="text-xs">{t("总日志", "Total Logs")}</span>
             </div>
-            <div className="text-xl font-semibold tabular-nums">{logs.length.toLocaleString()}</div>
+            <div className="text-xl font-semibold tabular-nums">{effectiveTotal.toLocaleString()}</div>
           </div>
           <div className="rounded-lg border bg-muted/30 px-4 py-3 text-center">
             <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-0.5">
@@ -94,7 +99,7 @@ export function ModuleCoverageDashboard({ logs }: ModuleCoverageDashboardProps) 
           <div className="space-y-2">
             {sortedActiveModules.map((module) => {
               const count = moduleStats[module] || 0;
-              const pct = logs.length > 0 ? (count / logs.length) * 100 : 0;
+              const pct = effectiveTotal > 0 ? (count / effectiveTotal) * 100 : 0;
               const barWidth = (count / maxCount) * 100;
 
               return (

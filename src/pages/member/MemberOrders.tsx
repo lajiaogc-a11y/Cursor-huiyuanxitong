@@ -13,7 +13,7 @@ import { ROUTES } from "@/routes/constants";
 import "@/styles/member-portal.css";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
 import { MemberPageLoadingShell } from "@/components/member/MemberPageLoadingShell";
-import { memberGetOrdersRows } from "@/services/memberPortal/memberActivityService";
+import { memberGetOrdersPage } from "@/services/memberPortal/memberActivityService";
 import { mapDbRowToMemberPortalOrderView, type MemberPortalOrderView } from "@/hooks/orders/utils";
 import { memberQueryKeys } from "@/lib/memberQueryKeys";
 import { resolveCardName, tryRecoverMisdecodedUtf8 } from "@/services/members/nameResolver";
@@ -22,7 +22,7 @@ import { useMemberSkeletonGate } from "@/hooks/useMemberSkeletonGate";
 import { MemberEmptyStateCta } from "@/components/member/MemberEmptyStateCta";
 import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
 
-const PAGE_SIZE = 8;
+const ORDER_PAGE_SIZE = 20;
 
 type OrderStatusFilter = "all" | "completed" | "active";
 
@@ -31,18 +31,24 @@ export default function MemberOrders() {
   const { member } = useMemberAuth();
   const memberId = member?.id;
 
+  const [orders, setOrders] = useState<MemberPortalOrderView[]>([]);
+  const [ordersTotal, setOrdersTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const {
-    data: orders = [],
     isLoading,
     isError,
     refetch,
     isFetching,
   } = useQuery({
     queryKey: memberId ? memberQueryKeys.orders(memberId) : ["member", "orders", "__none"],
-    queryFn: async (): Promise<MemberPortalOrderView[]> => {
-      if (!memberId) return [];
-      const rows = await memberGetOrdersRows(memberId);
-      return rows.map((r) => mapDbRowToMemberPortalOrderView(r as Record<string, unknown>));
+    queryFn: async () => {
+      if (!memberId) return { rows: [] as MemberPortalOrderView[], total: 0 };
+      const { rows, total } = await memberGetOrdersPage(memberId, ORDER_PAGE_SIZE, 0);
+      const mapped = rows.map((r) => mapDbRowToMemberPortalOrderView(r as Record<string, unknown>));
+      setOrders(mapped);
+      setOrdersTotal(total);
+      return { rows: mapped, total };
     },
     enabled: !!memberId,
     staleTime: 30_000,
@@ -50,8 +56,6 @@ export default function MemberOrders() {
 
   const [activeFilter, setActiveFilter] = useState<OrderStatusFilter>("all");
   const [expandedId, setExpandedId] = useState<string | null>("__list__");
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [loadingMore, setLoadingMore] = useState(false);
 
   const statusFilters: Array<{ key: OrderStatusFilter; label: string }> = [
     { key: "all", label: t("全部", "All") },
@@ -59,21 +63,25 @@ export default function MemberOrders() {
     { key: "active", label: t("待处理", "Pending") },
   ];
 
-  const filteredAll =
+  const filtered =
     activeFilter === "all"
       ? orders
       : orders.filter((o) => (activeFilter === "completed" ? o.status === "completed" : o.status === "active"));
 
-  const filtered = filteredAll.slice(0, visibleCount);
-  const hasMore = visibleCount < filteredAll.length;
+  const hasMore = activeFilter === "all" && orders.length < ordersTotal;
 
-  const loadMore = useCallback(() => {
+  const loadMore = useCallback(async () => {
+    if (!memberId || loadingMore || orders.length >= ordersTotal) return;
     setLoadingMore(true);
-    window.setTimeout(() => {
-      setVisibleCount((v) => v + PAGE_SIZE);
+    try {
+      const { rows, total } = await memberGetOrdersPage(memberId, ORDER_PAGE_SIZE, orders.length);
+      const mapped = rows.map((r) => mapDbRowToMemberPortalOrderView(r as Record<string, unknown>));
+      setOrders((prev) => [...prev, ...mapped]);
+      setOrdersTotal(total);
+    } finally {
       setLoadingMore(false);
-    }, 280);
-  }, []);
+    }
+  }, [memberId, loadingMore, orders.length, ordersTotal]);
 
   useMemberPullRefreshSignal(() => {
     if (!memberId) return;
@@ -83,7 +91,6 @@ export default function MemberOrders() {
 
   const handleFilterChange = (key: OrderStatusFilter) => {
     setActiveFilter(key);
-    setVisibleCount(PAGE_SIZE);
   };
 
   if (isLoading) {
@@ -303,7 +310,7 @@ export default function MemberOrders() {
             {hasMore ? (
               <button
                 type="button"
-                onClick={loadMore}
+                onClick={() => void loadMore()}
                 disabled={loadingMore}
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.3)] bg-[hsl(var(--pu-m-surface)/0.5)] py-3 text-xs font-bold text-[hsl(var(--pu-m-text-dim))] transition-all motion-reduce:transition-none hover:bg-[hsl(var(--pu-m-surface)/0.7)] hover:text-[hsl(var(--pu-m-text))] active:scale-95 motion-reduce:active:scale-100 disabled:opacity-60"
               >
@@ -315,7 +322,7 @@ export default function MemberOrders() {
                 ) : (
                   <>
                     <ChevronDown className="h-4 w-4" aria-hidden />
-                    {t(`加载更多（剩余 ${filteredAll.length - visibleCount} 条）`, `Load more (${filteredAll.length - visibleCount} left)`)}
+                    {t(`加载更多（${orders.length}/${ordersTotal}）`, `Load more (${orders.length}/${ordersTotal})`)}
                   </>
                 )}
               </button>

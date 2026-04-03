@@ -28,9 +28,20 @@ function asUnread(raw: unknown): number {
   return 0;
 }
 
-export async function fetchMemberInboxNotifications(limit = 80): Promise<MemberInboxApiItem[]> {
-  const raw = await apiGet<unknown>(`/api/member-inbox/notifications?limit=${encodeURIComponent(String(limit))}`);
-  return asItems(raw);
+export type MemberInboxPage = { items: MemberInboxApiItem[]; total: number };
+
+function asTotal(raw: unknown): number {
+  if (raw && typeof raw === "object" && typeof (raw as { total?: unknown }).total === "number") {
+    return Math.max(0, Math.floor((raw as { total: number }).total));
+  }
+  return 0;
+}
+
+export async function fetchMemberInboxNotifications(limit = 40, offset = 0): Promise<MemberInboxPage> {
+  const raw = await apiGet<unknown>(
+    `/api/member-inbox/notifications?limit=${encodeURIComponent(String(limit))}&offset=${encodeURIComponent(String(offset))}`,
+  );
+  return { items: asItems(raw), total: asTotal(raw) };
 }
 
 export async function fetchMemberInboxUnreadCount(): Promise<number> {

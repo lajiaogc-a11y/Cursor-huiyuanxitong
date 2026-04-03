@@ -84,9 +84,9 @@ const SELECT_ALL_STATE: DeleteBulkSelections = {
   shiftData: { shiftHandovers: true, shiftReceivers: true },
   merchantSettlement: { balanceChangeLogs: true, initialBalances: true },
   referralRelations: false,
-  auditRecords: true,
-  operationLogs: true,
-  loginLogs: true,
+  auditRecords: false,
+  operationLogs: false,
+  loginLogs: false,
   knowledgeData: { categories: false, articles: false },
   preserveActivityData: true,
 };
@@ -488,13 +488,22 @@ function DeleteCategoryPanel({
             }
             label={t("推荐关系", "Referral Relations")}
           />
+          <div className="col-span-full mt-1 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 dark:border-amber-700 dark:bg-amber-950/30">
+            <p className="flex items-center gap-1.5 text-[10px] font-medium text-amber-800 dark:text-amber-300">
+              <AlertTriangle className="h-3 w-3 shrink-0" />
+              {t(
+                "以下为留痕数据，删除后无法恢复且影响审计追溯，「全选」不会默认勾选。",
+                "The following are audit trail data. Deletion is irreversible and affects traceability. \"Select All\" does not check these by default.",
+              )}
+            </p>
+          </div>
           <Row
             id="delete-audit-records"
             checked={deleteSelections.auditRecords}
             onCheckedChange={(checked) =>
               setDeleteSelections((prev) => ({ ...prev, auditRecords: checked }))
             }
-            label={t("审核记录", "Audit Records")}
+            label={t("⚠ 审核记录", "⚠ Audit Records")}
           />
           <Row
             id="delete-operation-logs"
@@ -502,7 +511,7 @@ function DeleteCategoryPanel({
             onCheckedChange={(checked) =>
               setDeleteSelections((prev) => ({ ...prev, operationLogs: checked }))
             }
-            label={t("操作日志", "Operation Logs")}
+            label={t("⚠ 操作日志", "⚠ Operation Logs")}
           />
           <Row
             id="delete-login-logs"
@@ -510,7 +519,7 @@ function DeleteCategoryPanel({
             onCheckedChange={(checked) =>
               setDeleteSelections((prev) => ({ ...prev, loginLogs: checked }))
             }
-            label={t("登录日志", "Login Logs")}
+            label={t("⚠ 登录日志", "⚠ Login Logs")}
           />
           <Row
             id="delete-knowledge-articles"

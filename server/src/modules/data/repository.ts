@@ -38,10 +38,16 @@ export interface OperationLogsQuery {
 }
 
 export async function listOperationLogsRepository(
-  q: OperationLogsQuery
-): Promise<{ data: OperationLogRow[]; count: number }> {
+  q: OperationLogsQuery & { export?: boolean }
+): Promise<{
+  data: OperationLogRow[];
+  count: number;
+  distinctOperators: string[];
+  moduleCounts: Record<string, number>;
+}> {
   const page = q.page ?? 1;
-  const pageSize = Math.min(q.pageSize ?? 50, 100);
+  const maxPage = q.export ? 10000 : 100;
+  const pageSize = Math.min(q.pageSize ?? 50, maxPage);
   const offset = (page - 1) * pageSize;
 
   const conditions: string[] = [];
@@ -82,15 +88,36 @@ export async function listOperationLogsRepository(
   }
 
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-  const countRows = await query<{ count: number }>(
-    `SELECT COUNT(*) AS count FROM operation_logs ${whereClause}`,
-    values
-  );
-  const rows = await query<OperationLogRow>(
-    `SELECT * FROM operation_logs ${whereClause} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
-    [...values, pageSize, offset]
-  );
-  return { data: rows, count: Number(countRows[0]?.count ?? 0) };
+
+  const [countRows, rows, opRows, modRows] = await Promise.all([
+    query<{ count: number }>(
+      `SELECT COUNT(*) AS count FROM operation_logs ${whereClause}`,
+      values,
+    ),
+    query<OperationLogRow>(
+      `SELECT * FROM operation_logs ${whereClause} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+      [...values, pageSize, offset],
+    ),
+    query<{ a: string }>(
+      `SELECT DISTINCT operator_account AS a FROM operation_logs ${whereClause} ORDER BY a`,
+      values,
+    ),
+    query<{ m: string; c: number }>(
+      `SELECT module AS m, COUNT(*) AS c FROM operation_logs ${whereClause} GROUP BY module`,
+      values,
+    ),
+  ]);
+
+  const distinctOperators = opRows.map((r) => r.a).filter(Boolean);
+  const moduleCounts: Record<string, number> = {};
+  for (const r of modRows) moduleCounts[r.m] = Number(r.c);
+
+  return {
+    data: rows,
+    count: Number(countRows[0]?.count ?? 0),
+    distinctOperators,
+    moduleCounts,
+  };
 }
 
 /**
@@ -1168,6 +1195,7 @@ export async function listAuditRecordsRepository(params: {
   dateFrom?: string;
   dateTo?: string;
   tenantId?: string | null;
+  searchTerm?: string;
 }): Promise<{ data: AuditRecordRow[]; count: number }> {
   const page = params.page ?? 1;
   const pageSize = Math.min(params.pageSize ?? 50, 100);
@@ -1190,6 +1218,11 @@ export async function listAuditRecordsRepository(params: {
   if (params.tenantId) {
     conditions.push(`ar.submitter_id IN (SELECT id FROM employees WHERE tenant_id = ?)`);
     values.push(params.tenantId);
+  }
+  if (params.searchTerm?.trim()) {
+    const term = `%${params.searchTerm.trim()}%`;
+    conditions.push(`(se.real_name LIKE ? OR ar.target_table LIKE ? OR ar.target_id LIKE ? OR CAST(ar.old_data AS CHAR) LIKE ? OR CAST(ar.new_data AS CHAR) LIKE ?)`);
+    values.push(term, term, term, term, term);
   }
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const countRows = await query<{ count: number }>(

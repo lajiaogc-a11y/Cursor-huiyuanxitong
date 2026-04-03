@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -103,10 +103,25 @@ export default function PermissionSettingsTab() {
     !!employee?.is_super_admin ||
     !!employee?.is_platform_super_admin;
 
+  const editableRoles = useMemo<PermissionRole[]>(() => {
+    if (employee?.is_super_admin || employee?.is_platform_super_admin) {
+      return ['staff', 'manager', 'admin', 'super_admin'];
+    }
+    if (employee?.role === 'admin') return ['staff', 'manager'];
+    if (employee?.role === 'manager') return ['staff'];
+    return [];
+  }, [employee?.role, employee?.is_super_admin, employee?.is_platform_super_admin]);
+
   useEffect(() => {
     if (!canAccessPermissionSettings) return;
     void fetchPermissions();
   }, [fetchPermissions, canAccessPermissionSettings]);
+
+  useEffect(() => {
+    if (editableRoles.length > 0 && !editableRoles.includes(selectedRole)) {
+      setSelectedRole(editableRoles[0]);
+    }
+  }, [editableRoles, selectedRole]);
 
   const getOrDefault = useCallback(
     (module: string, field: string): { can_view: boolean; can_edit: boolean; can_delete: boolean } => {
@@ -310,15 +325,14 @@ export default function PermissionSettingsTab() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="staff">{t('员工', 'Staff')}</SelectItem>
-                  <SelectItem value="manager">{t('主管', 'Manager')}</SelectItem>
-                  <SelectItem value="admin">{t('管理员', 'Admin')}</SelectItem>
-                  <SelectItem value="super_admin">{t('总管理员', 'Super Admin')}</SelectItem>
+                  {editableRoles.map((r) => (
+                    <SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             ) : (
               <div className="flex flex-wrap items-center gap-1 bg-muted rounded-lg p-1">
-                {(['staff', 'manager', 'admin', 'super_admin'] as PermissionRole[]).map((r) => (
+                {editableRoles.map((r) => (
                   <Button
                     key={r}
                     variant={selectedRole === r ? 'default' : 'ghost'}

@@ -924,27 +924,39 @@ export async function deleteMemberByIdRepository(
   try { await execute(`UPDATE orders SET member_id = NULL WHERE member_id = ?`, [memberId]); }
   catch (e: unknown) { errors.push(e instanceof Error ? e.message : String(e)); }
 
-  const fkCleanups: Array<{ sql: string }> = [
-    { sql: `DELETE FROM check_ins WHERE member_id = ?` },
-    { sql: `UPDATE gift_cards SET member_id = NULL WHERE member_id = ?` },
-    { sql: `UPDATE member_invites SET inviter_id = NULL WHERE inviter_id = ?` },
-    { sql: `UPDATE member_invites SET invitee_id = NULL WHERE invitee_id = ?` },
-    { sql: `DELETE FROM member_login_logs WHERE member_id = ?` },
-    { sql: `DELETE FROM member_transactions WHERE member_id = ?` },
-    { sql: `UPDATE phone_pool SET assigned_member_id = NULL WHERE assigned_member_id = ?` },
-    { sql: `DELETE FROM redemptions WHERE member_id = ?` },
-    { sql: `UPDATE referral_events SET referee_id = NULL WHERE referee_id = ?` },
-    { sql: `UPDATE referral_events SET referrer_id = NULL WHERE referrer_id = ?` },
-    { sql: `UPDATE referrals SET referee_id = NULL WHERE referee_id = ?` },
-    { sql: `UPDATE referrals SET referrer_id = NULL WHERE referrer_id = ?` },
-    { sql: `UPDATE referral_relations SET referrer_id = NULL WHERE referrer_id = ?` },
-    { sql: `UPDATE referral_relations SET referee_id = NULL WHERE referee_id = ?` },
-    { sql: `DELETE FROM risk_scores_legacy_by_member WHERE member_id = ?` },
-    { sql: `DELETE FROM spin_credits WHERE member_id = ?` },
-    { sql: `DELETE FROM spins WHERE member_id = ?` },
+  const fkCleanups: Array<{ sql: string; label: string }> = [
+    { sql: `DELETE FROM check_ins WHERE member_id = ?`, label: 'check_ins' },
+    { sql: `UPDATE gift_cards SET member_id = NULL WHERE member_id = ?`, label: 'gift_cards' },
+    { sql: `UPDATE member_invites SET inviter_id = NULL WHERE inviter_id = ?`, label: 'member_invites(inviter)' },
+    { sql: `UPDATE member_invites SET invitee_id = NULL WHERE invitee_id = ?`, label: 'member_invites(invitee)' },
+    { sql: `DELETE FROM member_login_logs WHERE member_id = ?`, label: 'member_login_logs' },
+    { sql: `DELETE FROM member_transactions WHERE member_id = ?`, label: 'member_transactions' },
+    { sql: `UPDATE phone_pool SET assigned_member_id = NULL WHERE assigned_member_id = ?`, label: 'phone_pool' },
+    { sql: `DELETE FROM redemptions WHERE member_id = ?`, label: 'redemptions' },
+    { sql: `UPDATE referral_events SET referee_id = NULL WHERE referee_id = ?`, label: 'referral_events(referee)' },
+    { sql: `UPDATE referral_events SET referrer_id = NULL WHERE referrer_id = ?`, label: 'referral_events(referrer)' },
+    { sql: `UPDATE referrals SET referee_id = NULL WHERE referee_id = ?`, label: 'referrals(referee)' },
+    { sql: `UPDATE referrals SET referrer_id = NULL WHERE referrer_id = ?`, label: 'referrals(referrer)' },
+    { sql: `UPDATE referral_relations SET referrer_id = NULL WHERE referrer_id = ?`, label: 'referral_relations(referrer)' },
+    { sql: `UPDATE referral_relations SET referee_id = NULL WHERE referee_id = ?`, label: 'referral_relations(referee)' },
+    { sql: `DELETE FROM risk_scores_legacy_by_member WHERE member_id = ?`, label: 'risk_scores' },
+    { sql: `DELETE FROM spin_credits WHERE member_id = ?`, label: 'spin_credits' },
+    { sql: `DELETE FROM spins WHERE member_id = ?`, label: 'spins' },
   ];
+  const fkWarnings: string[] = [];
   for (const fk of fkCleanups) {
-    try { await execute(fk.sql, [memberId]); } catch { /* safe to skip */ }
+    try {
+      await execute(fk.sql, [memberId]);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      fkWarnings.push(`${fk.label}: ${msg}`);
+    }
+  }
+
+  if (fkWarnings.length > 0) {
+    console.warn(`[deleteMember] FK cleanup warnings for ${memberId}:`, fkWarnings);
+    errors.push(`关联数据清理部分失败 (${fkWarnings.length}/${fkCleanups.length}): ${fkWarnings.slice(0, 3).join('; ')}${fkWarnings.length > 3 ? '...' : ''}`);
+    return { success: false, error: errors.join('; ') };
   }
 
   try {

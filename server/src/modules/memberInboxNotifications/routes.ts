@@ -32,14 +32,15 @@ router.get('/notifications', memberAuthMiddleware, async (req: MemberAuthenticat
     return;
   }
   const lim = Math.min(200, Math.max(1, parseInt(String(req.query.limit || '80'), 10) || 80));
+  const off = Math.max(0, parseInt(String(req.query.offset || '0'), 10) || 0);
   try {
     const policy = await getMemberInboxNotifyPolicy(tenantId);
     if (!policy.inboxEnabled) {
-      res.json({ success: true, items: [] });
+      res.json({ success: true, items: [], total: 0 });
       return;
     }
-    const items = await listMemberInbox(memberId, tenantId, lim);
-    res.json({ success: true, items });
+    const { items, total } = await listMemberInbox(memberId, tenantId, lim, off);
+    res.json({ success: true, items, total });
   } catch (e) {
     res.status(500).json({
       success: false,

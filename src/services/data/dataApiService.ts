@@ -22,6 +22,8 @@ export interface OperationLogsResult {
     restoredAt: string | null;
   }>;
   totalCount: number;
+  distinctOperators?: string[];
+  moduleCounts?: Record<string, number>;
 }
 
 export interface OperationLogsQuery {
@@ -35,6 +37,7 @@ export interface OperationLogsQuery {
   dateStart?: string;
   dateEnd?: string;
   tenantId?: string | null;
+  export?: boolean;
 }
 
 export async function getOperationLogsApi(query: OperationLogsQuery): Promise<OperationLogsResult> {
@@ -49,14 +52,17 @@ export async function getOperationLogsApi(query: OperationLogsQuery): Promise<Op
   if (query.dateStart) params.set('dateStart', query.dateStart);
   if (query.dateEnd) params.set('dateEnd', query.dateEnd);
   if (query.tenantId) params.set('tenant_id', query.tenantId);
+  if (query.export) params.set('export', '1');
   const q = params.toString();
   const res = await apiGet<unknown>(`/api/logs/audit${q ? `?${q}` : ''}`);
   const raw = res as Record<string, unknown>;
   const payload = raw?.data ?? raw;
   const p = (payload && typeof payload === 'object') ? payload as Record<string, unknown> : {};
   const logs = (Array.isArray(p?.logs) ? p.logs : p?.logs ?? []) as unknown[];
-  const totalCount = Number(p?.totalCount ?? p?.totalCount ?? 0) || 0;
-  return { logs: logs as OperationLogsResult['logs'], totalCount };
+  const totalCount = Number(p?.totalCount ?? 0) || 0;
+  const distinctOperators = Array.isArray(p?.distinctOperators) ? (p.distinctOperators as string[]) : [];
+  const moduleCounts = (p?.moduleCounts && typeof p.moduleCounts === 'object') ? (p.moduleCounts as Record<string, number>) : {};
+  return { logs: logs as OperationLogsResult['logs'], totalCount, distinctOperators, moduleCounts };
 }
 
 export async function getKnowledgeCategoriesApi(tenantId?: string | null): Promise<unknown[]> {

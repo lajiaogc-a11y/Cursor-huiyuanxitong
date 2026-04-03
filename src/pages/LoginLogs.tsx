@@ -13,8 +13,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, RefreshCw, CheckCircle, XCircle, MapPin, Info } from "lucide-react";
+import { Search, RefreshCw, CheckCircle, XCircle, MapPin, Info, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 import { notify } from "@/lib/notifyHub";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { useAuth } from "@/contexts/AuthContext";
@@ -140,10 +141,17 @@ function StaffLoginLogsPanel({ enabled, language }: { enabled: boolean; language
   return (
     <div className="flex h-full flex-col gap-4">
       {isPlatformSuperAdmin && (
-        <Alert className="shrink-0 border-primary/30 bg-muted/40">
-          <Info className="h-4 w-4" />
+        <Alert className={cn(
+          "shrink-0",
+          platformScopedToEnteredTenant
+            ? "border-primary/30 bg-muted/40"
+            : "border-amber-400 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30",
+        )}>
+          {platformScopedToEnteredTenant ? <Info className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
           <AlertTitle className="text-sm">
-            {t("使用说明（平台超管）", "Notes for platform super admins")}
+            {platformScopedToEnteredTenant
+              ? t("使用说明（平台超管）", "Notes for platform super admins")
+              : t("全站数据视角", "All-tenant data scope")}
           </AlertTitle>
           <AlertDescription className="mt-1.5 space-y-2 text-xs text-muted-foreground">
             <p>
@@ -152,7 +160,7 @@ function StaffLoginLogsPanel({ enabled, language }: { enabled: boolean; language
                 "After opening a tenant from Tenant Management, this page shows only that tenant’s staff logins; when you are not inside a tenant view, all staff login records are shown.",
               )}
             </p>
-            <p className="font-medium text-foreground">
+            <p className={cn("font-medium", platformScopedToEnteredTenant ? "text-foreground" : "text-amber-800 dark:text-amber-300")}>
               {platformScopedToEnteredTenant
                 ? language === "zh"
                   ? `当前数据范围：仅「${viewingTenantName ?? ""}」租户（tenant_id=${effectiveTenantId ?? ""}）`
@@ -168,6 +176,14 @@ function StaffLoginLogsPanel({ enabled, language }: { enabled: boolean; language
                 "A future filter for “platform tenant accounts only” can be added on request.",
               )}
             </p>
+          {!platformScopedToEnteredTenant && (
+              <p className="text-amber-700 dark:text-amber-400">
+                {t(
+                  "如需仅查看特定租户的日志，请先在「租户管理」中进入对应租户。",
+                  "To view logs for a specific tenant, first enter that tenant from Tenant Management.",
+                )}
+              </p>
+            )}
           </AlertDescription>
         </Alert>
       )}

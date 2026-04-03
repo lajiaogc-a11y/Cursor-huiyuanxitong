@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { trackRender } from "@/lib/performanceUtils";
 import { TablePageSkeleton } from "@/components/skeletons/TablePageSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +34,7 @@ import { logOperation } from "@/stores/auditLogStore";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuditRecords, LegacyAuditItem } from "@/hooks/useAuditRecords";
+import { useDebouncedValue } from "@/hooks/useDebounce";
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobileCardActions, MobilePagination, MobileEmptyState } from "@/components/ui/mobile-data-card";
 
@@ -79,12 +80,14 @@ export default function AuditCenter() {
   const dateFrom = dateRange.start ? dateRange.start.toISOString() : undefined;
   const dateTo = dateRange.end ? dateRange.end.toISOString() : undefined;
 
+  const debouncedSearch = useDebouncedValue(searchTerm, 400);
   const { legacyItems: auditItems, totalCount, pendingCount, loading: isLoading, refetch, approveRecord, rejectRecord, isAdmin: isAdminUser } = useAuditRecords({
     page: currentPage,
     pageSize,
     status: statusFilter,
     dateFrom,
     dateTo,
+    searchTerm: debouncedSearch || undefined,
   });
 
   // Helper function to get field label
@@ -120,7 +123,7 @@ export default function AuditCenter() {
   // Reset page when filters or pageSize change
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, searchTerm, selectedRange, pageSize]);
+  }, [activeTab, debouncedSearch, selectedRange, pageSize]);
 
   const handleRefresh = () => {
     refetch();
@@ -179,7 +182,10 @@ export default function AuditCenter() {
 
   const confirmReject = async () => {
     if (!selectedItem) return;
-    
+    if (!rejectReason.trim()) {
+      notify.error(t("请填写拒绝理由", "Please enter a rejection reason"));
+      return;
+    }
     await rejectRecord(selectedItem.id, rejectReason);
     setShowRejectDialog(false);
     setSelectedItem(null);
@@ -221,27 +227,9 @@ export default function AuditCenter() {
     }
   };
 
-  // 搜索过滤（客户端，仅对当前页数据）
-  const filteredItems = useMemo(() => {
-    if (!searchTerm) return auditItems;
-    const search = searchTerm.toLowerCase();
-    return auditItems.filter(item => {
-      const operator = item.operator?.toLowerCase() || '';
-      const module = item.module?.toLowerCase() || '';
-      const field = item.field?.toLowerCase() || '';
-      const oldValue = item.oldValue?.toLowerCase() || '';
-      const newValue = item.newValue?.toLowerCase() || '';
-      return (
-        operator.includes(search) ||
-        module.includes(search) ||
-        field.includes(search) ||
-        oldValue.includes(search) ||
-        newValue.includes(search)
-      );
-    });
-  }, [auditItems, searchTerm]);
+  // Server-side search: auditItems already filtered by the backend
+  const filteredItems = auditItems;
 
-  // 分页：服务端 totalCount，当前页展示 filteredItems
   const totalPages = Math.ceil(totalCount / pageSize);
   const paginatedItems = filteredItems;
 
@@ -640,7 +628,7 @@ export default function AuditCenter() {
             <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
               {t("取消", "Cancel")}
             </Button>
-            <Button variant="destructive" onClick={confirmReject}>
+            <Button variant="destructive" disabled={!rejectReason.trim()} onClick={confirmReject}>
               {t("确认拒绝", "Confirm Rejection")}
             </Button>
           </div>

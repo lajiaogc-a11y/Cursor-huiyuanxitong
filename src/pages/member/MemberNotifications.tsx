@@ -1,7 +1,7 @@
 /**
  * MemberNotifications — 收件箱数据来自 /api/member-inbox（门户公告同步 + 商城兑换结果等）。
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Bell,
+  Loader2,
   Megaphone,
   Gift,
   Sparkles,
@@ -104,9 +105,12 @@ export default function MemberNotifications() {
   const { refreshMember, member } = useMemberAuth();
   const { settings: portalSettings, loading: portalSettingsLoading } = useMemberPortalSettings(member?.id);
   const inboxEnabled = !!portalSettings.enable_member_inbox;
+  const NOTIF_PAGE_SIZE = 40;
   const [notifications, setNotifications] = useState<NotifItem[]>([]);
   const [activeFilter, setActiveFilter] = useState<(typeof FILTER_KEYS)[number]>("all");
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [notifTotal, setNotifTotal] = useState(0);
   const [deleteNotifId, setDeleteNotifId] = useState<string | null>(null);
   const [reloadGen, setReloadGen] = useState(0);
 
@@ -118,6 +122,7 @@ export default function MemberNotifications() {
   useEffect(() => {
     if (!member?.id) {
       setNotifications([]);
+      setNotifTotal(0);
       const tmr = window.setTimeout(() => setLoading(false), MEMBER_SKELETON_MIN_MS);
       return () => window.clearTimeout(tmr);
     }
@@ -126,6 +131,7 @@ export default function MemberNotifications() {
     }
     if (!inboxEnabled) {
       setNotifications([]);
+      setNotifTotal(0);
       setLoading(false);
       return;
     }
@@ -134,13 +140,15 @@ export default function MemberNotifications() {
     setLoading(true);
     void (async () => {
       try {
-        const items = await fetchMemberInboxNotifications(80);
+        const { items, total } = await fetchMemberInboxNotifications(NOTIF_PAGE_SIZE, 0);
         if (cancelled) return;
         setNotifications(items.map((it) => mapApiToNotif(it, language)));
+        setNotifTotal(total);
       } catch {
         if (!cancelled) {
           notify.error(t("加载失败", "Failed to load"));
           setNotifications([]);
+          setNotifTotal(0);
         }
       } finally {
         const rest = Math.max(0, MEMBER_SKELETON_MIN_MS - (Date.now() - started));
@@ -153,6 +161,22 @@ export default function MemberNotifications() {
       cancelled = true;
     };
   }, [member?.id, reloadGen, language, t, portalSettingsLoading, inboxEnabled]);
+
+  const loadMoreNotifications = useCallback(async () => {
+    if (loadingMore || notifications.length >= notifTotal) return;
+    setLoadingMore(true);
+    try {
+      const { items, total } = await fetchMemberInboxNotifications(NOTIF_PAGE_SIZE, notifications.length);
+      setNotifications((prev) => [...prev, ...items.map((it) => mapApiToNotif(it, language))]);
+      setNotifTotal(total);
+    } catch {
+      notify.error(t("加载更多失败", "Failed to load more"));
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, notifications.length, notifTotal, language, t]);
+
+  const hasMoreNotifications = notifications.length < notifTotal;
 
   useEffect(() => {
     if (member?.id && !portalSettingsLoading && !inboxEnabled) {
@@ -185,7 +209,8 @@ export default function MemberNotifications() {
   const markRead = (id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     void postMemberInboxMarkRead(id).catch(() => {
-      notify.error(t("同步失败", "Sync failed"));
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: false } : n)));
+      notify.error(t("标记已读失败，已回滚", "Mark-read failed, reverted"));
     });
   };
 
@@ -375,6 +400,20 @@ export default function MemberNotifications() {
             </div>
           );
         })}
+
+        {hasMoreNotifications && activeFilter === "all" && (
+          <button
+            type="button"
+            className="mx-auto mt-3 flex items-center gap-1.5 rounded-full bg-[hsl(var(--pu-m-surface)/0.35)] px-5 py-2 text-xs font-medium text-[hsl(var(--pu-m-text-dim))] transition-colors active:bg-[hsl(var(--pu-m-surface)/0.55)]"
+            disabled={loadingMore}
+            onClick={() => void loadMoreNotifications()}
+          >
+            {loadingMore ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            {loadingMore
+              ? t("加载中…", "Loading…")
+              : t(`加载更多（${notifications.length}/${notifTotal}）`, `Load more (${notifications.length}/${notifTotal})`)}
+          </button>
+        )}
 
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[hsl(var(--pu-m-surface-border)/0.45)] bg-[hsl(var(--pu-m-surface)/0.18)] px-4 py-14 text-center">

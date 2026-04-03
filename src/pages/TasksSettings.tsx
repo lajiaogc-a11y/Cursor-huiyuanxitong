@@ -217,7 +217,7 @@ export default function TasksSettings() {
         <CardHeader>
           <CardTitle>{t("已发布任务", "Published Tasks")}</CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            {t("删除记录即取消任务发布，任务将从汇率计算工作任务中消失", "Delete removes the task and it will disappear from the task list")}
+            {t("取消任务即停止发布，任务将从汇率计算工作任务中消失", "Cancelling a task unpublishes it and removes it from the task list")}
           </p>
         </CardHeader>
         <CardContent>
