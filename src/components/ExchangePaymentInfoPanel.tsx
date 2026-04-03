@@ -123,19 +123,19 @@ export function ExchangePaymentInfoPanel() {
               {t("提交订单后将在此显示，便于复制银行卡与支付金额。", "Rows appear after you submit an order.")}
             </p>
           ) : (
-            <div className="max-h-[280px] overflow-auto rounded-md border">
-              <table className="w-full text-sm">
+            <div className="max-h-[280px] overflow-x-auto overflow-y-auto rounded-md border">
+              <table className="w-full min-w-[300px] table-fixed text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50 text-left text-xs text-muted-foreground">
-                    <th className="px-2 py-2 font-medium">{t("电话", "Phone")}</th>
-                    <th className="px-2 py-2 font-medium w-[72px]">{t("复制", "Copy")}</th>
-                    <th className="px-2 py-2 font-medium min-w-[4.5rem]">{t("状态", "Status")}</th>
+                    <th className="w-[55%] px-2 py-2 font-medium">{t("电话", "Phone")}</th>
+                    <th className="w-[28%] px-2 py-2 font-medium">{t("复制", "Copy")}</th>
+                    <th className="w-[17%] px-2 py-2 font-medium">{t("状态", "Status")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.id} className="border-b border-border/60 last:border-0">
-                      <td className="px-2 py-1.5 align-middle break-all max-w-[140px]">{row.phone}</td>
+                      <td className="px-2 py-1.5 align-middle whitespace-nowrap font-mono text-xs tabular-nums">{row.phone}</td>
                       <td className="px-2 py-1.5 align-middle">
                         <Button
                           type="button"

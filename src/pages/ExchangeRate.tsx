@@ -1587,7 +1587,8 @@ export default function ExchangeRate() {
   };
 
   return (
-    <div className={cn("grid grid-cols-1 gap-4", showRightPanel ? "lg:grid-cols-[1fr_280px]" : "lg:grid-cols-1")}>
+    {/* 右侧工作栏宽度 420px = 原 280px 加宽 50%，便于付款信息表格等 */}
+    <div className={cn("grid grid-cols-1 gap-4", showRightPanel ? "lg:grid-cols-[1fr_420px]" : "lg:grid-cols-1")}>
       <div className="space-y-4 min-w-0">
       {/* 订单异常检测警告对话框 */}
       <AlertDialog open={showAnomalyDialog} onOpenChange={setShowAnomalyDialog}>
