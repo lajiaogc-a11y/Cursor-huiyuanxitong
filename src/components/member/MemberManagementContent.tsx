@@ -495,12 +495,12 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
     }
   };
 
-  // 格式化等级显示 - A/B/C/D 后加"级"，普通会员保持原样
+  // 格式化等级显示 - A/B/C/D 后加「级」/ Level，空则显示普通会员
   const formatLevelDisplay = (level: string) => {
     if (isStandardMemberLevel(level)) {
-      return `${level}级`;
+      return language === "zh" ? `${level}级` : `Level ${level}`;
     }
-    return level || "普通会员";
+    return level || t("普通会员", "Standard");
   };
 
   /** 员工端列表/详情：中文界面优先规则表中的中文名 */

@@ -446,7 +446,7 @@ export default function MemberLogin() {
     return slides.map((s) => {
       if (s.kind === "custom") {
         const src = (s.image_url || "").trim() ? resolveMemberMediaUrl(s.image_url) : "";
-        if (src) return { kind: "image", id: s.id, src, alt: s.title || s.body || "banner" };
+        if (src) return { kind: "image", id: s.id, src, alt: s.title || s.body || t("活动横幅", "Banner") };
         return {
           kind: "gradient",
           id: s.id,
@@ -456,7 +456,7 @@ export default function MemberLogin() {
       }
       return { kind: "gradient", id: s.id, background: s.bg, glow: s.glow };
     });
-  }, [slides, theme]);
+  }, [slides, theme, t]);
 
   const loginBannerBottomScrimStyle = useMemo(
     () => ({
@@ -561,7 +561,7 @@ export default function MemberLogin() {
         if (result.success) {
           if (rememberMe) saveAccount(values.phone.trim());
           else clearSavedAccount();
-          notify.success(result.message || t("登录成功", "Signed in successfully"));
+          notify.success(t("登录成功", "Signed in successfully"));
           setPanel(null);
           navigate(
             result.mustChangePassword ? ROUTES.MEMBER.FIRST_PASSWORD : ROUTES.MEMBER.DASHBOARD,
@@ -580,10 +580,7 @@ export default function MemberLogin() {
             case "VALIDATION_ERROR":
               return t("请填写手机号和密码", "Enter phone and password.");
             default:
-              return (
-                result.message ||
-                t("登录失败，请检查账号或密码", "Sign-in failed. Check your credentials.")
-              );
+              return t("登录失败，请检查账号或密码", "Sign-in failed. Check your credentials.");
           }
         })();
         notify.error(errText);
@@ -1095,7 +1092,7 @@ export default function MemberLogin() {
           <div className="flex-1" />
           <div className="flex items-center justify-center gap-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-4">
             {[
-              { icon: Shield, label: "SSL" },
+              { icon: Shield, label: t("SSL", "SSL") },
               { icon: Lock, label: t("加密", "Encrypted") },
               { icon: Sparkles, label: t("验证", "Verified") },
             ].map((b) => (

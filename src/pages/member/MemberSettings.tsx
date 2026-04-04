@@ -343,13 +343,13 @@ export default function MemberSettings() {
     try {
       const result = await setPassword(values.oldPwd, values.newPwd);
       if (result.success) {
-        notify.success(result.message);
+        notify.success(t("密码已更新", "Password updated"));
         setPwdOld("");
         setPwdNew("");
         setPwdConfirm("");
         setExpandedSection(null);
       }
-      else notify.error(result.message);
+      else notify.error(t("密码更新失败", "Failed to update password"));
     } finally { setSavingPwd(false); }
   };
 
@@ -638,7 +638,7 @@ export default function MemberSettings() {
               <button
                 type="button"
                 className="member-settings-trigger"
-                onClick={() => notify.info("Under maintenance")}
+                onClick={() => notify.info(t("维护中", "Under maintenance"))}
               >
                 <div className="flex items-center gap-3">
                   <div

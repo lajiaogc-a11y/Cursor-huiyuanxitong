@@ -28,7 +28,7 @@ type OrderStatusFilter = "all" | "completed" | "active";
 
 export default function MemberOrders() {
   const { t } = useLanguage();
-  const { member } = useMemberAuth();
+  const { member, refreshMember } = useMemberAuth();
   const memberId = member?.id;
 
   const [orders, setOrders] = useState<MemberPortalOrderView[]>([]);

@@ -137,19 +137,9 @@ function redeemFailureDetail(r: RedeemPointsMallItemResult, t: (zh: string, en: 
     case "INVALID_PARAMS":
       return t("请求无效，请关闭弹窗后重新打开。", "Invalid request. Close this dialog and open again.");
     case "REDEEM_FAILED":
-      return r.message?.trim()
-        ? t(`兑换失败：${r.message.trim()}`, `Redeem failed: ${r.message.trim()}`)
-        : t("兑换失败，请重试或联系客服。", "Redeem failed. Try again or contact support.");
+      return t("兑换失败，请重试或联系客服。", "Redeem failed. Try again or contact support.");
     default:
-      return r.message?.trim()
-        ? t(
-            `${r.error ? `${r.error}：` : ""}${r.message.trim()}`,
-            `${r.error ? `${r.error}: ` : ""}${r.message.trim()}`,
-          )
-        : t(
-            r.error ? `操作失败（${r.error}），请稍后重试。` : "兑换失败，请稍后重试。",
-            r.error ? `${r.error}. Try again later.` : "Redeem failed. Try again later.",
-          );
+      return t("兑换失败，请稍后重试。", "Redeem failed. Try again later.");
   }
 }
 
@@ -651,11 +641,8 @@ export default function MemberPoints() {
             );
           });
         setRedemptionsKey((k) => k + 1);
-      } catch (e: unknown) {
-        const msg =
-          e instanceof Error && e.message.trim()
-            ? e.message
-            : memberPortalNetworkToastMessage(t);
+      } catch {
+        const msg = memberPortalNetworkToastMessage(t);
         setRedeemError(msg);
         notify.error(msg);
       } finally {

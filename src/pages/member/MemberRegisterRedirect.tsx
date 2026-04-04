@@ -203,7 +203,7 @@ export default function MemberRegisterRedirect() {
           notify.error(t("注册失败，请重试", "Registration failed, please try again"));
         else if (r.error?.includes("invitee") || r.error?.includes("unique"))
           notify.error(t("该手机号已注册", "Phone already registered"));
-        else notify.error(r.error || t("注册失败", "Registration failed"));
+        else notify.error(t("注册失败，请重试", "Registration failed, please try again"));
         setLoading(false);
         return;
       }
@@ -211,9 +211,9 @@ export default function MemberRegisterRedirect() {
       notify.success(t("注册成功", "Registration successful!"));
     } catch (e: unknown) {
       if (e instanceof ApiError && e.statusCode === 429) {
-        notify.error(e.message || t("请求过于频繁，请稍后再试", "Too many attempts, please try again later"));
+        notify.error(t("请求过于频繁，请稍后再试", "Too many attempts, please try again later"));
       } else {
-        notify.error(e instanceof Error ? e.message : t("发生错误，请重试", "Something went wrong"));
+        notify.error(t("发生错误，请重试", "Something went wrong"));
       }
     } finally {
       setLoading(false);

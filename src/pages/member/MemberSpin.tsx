@@ -415,7 +415,7 @@ export default function MemberSpin() {
             notifyError(t("今日奖池已达上限，请明天再来！", "Today's prize pool has reached its limit. Come back tomorrow!"));
           else if (r.error === "RISK_BLOCKED")
             notifyError(t("操作过于频繁，请稍后再试。", "Too many requests. Please try again later."));
-          else notifyError(r.error || t("抽奖失败", "Spin failed"));
+          else notifyError(t("抽奖失败，请稍后再试。", "Spin failed. Please try again later."));
           void getLotteryQuota(member.id)
             .then(applyQuota)
             .catch(() => { /* fallback quota refresh is best-effort */ });
@@ -468,7 +468,10 @@ export default function MemberSpin() {
           if (prize.type === "points" || prize.type === "custom") {
             const localItem: SpinSimFeedItem = {
               id: `local:${Date.now()}`,
-              text: `Congratulations! You won (${prize.name || prize.type}) 🎁🎁🎁!`,
+              text: t(
+                `恭喜中奖！${prize.name || prize.type} 🎁🎁🎁`,
+                `Congratulations! You won (${prize.name || prize.type}) 🎁🎁🎁!`,
+              ),
               at: Date.now(),
             };
             applyFeedItems([localItem]);

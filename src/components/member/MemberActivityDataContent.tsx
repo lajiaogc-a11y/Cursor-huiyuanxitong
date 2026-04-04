@@ -1037,26 +1037,26 @@ export default function MemberActivityDataContent() {
   const handleExport = () => {
     const csvContent = [
       [
-        "电话号码",
-        "会员编号",
-        "会员名称",
-        "抽奖次数",
-        "消费次数",
-        "累积次数",
-        "累计利润",
-        "兑换奈拉",
-        "兑换赛地",
-        "兑换US",
-        "赠送奈拉",
-        "赠送赛地",
-        "赠送US",
-        "重置时间",
-        "推荐人数",
-        "下级次数",
-        "消费奖励",
-        "推广奖励",
-        "抽奖奖励",
-        "剩余积分",
+        t("电话号码", "Phone"),
+        t("会员编号", "Member Code"),
+        t("会员名称", "Member name"),
+        t("抽奖次数", "Lottery draws"),
+        t("消费次数", "Consumption count"),
+        t("累积次数", "Accumulated count"),
+        t("累计利润", "Total profit"),
+        t("兑换奈拉", "Redeem NGN"),
+        t("兑换赛地", "Redeem GHS"),
+        t("兑换US", "Redeem US"),
+        t("赠送奈拉", "Gift NGN"),
+        t("赠送赛地", "Gift GHS"),
+        t("赠送US", "Gift USDT"),
+        t("重置时间", "Reset Time"),
+        t("推荐人数", "Referrals"),
+        t("下级次数", "Sub. order count"),
+        t("消费奖励", "Consumption Reward"),
+        t("推广奖励", "Promo reward"),
+        t("抽奖奖励", "Lottery reward"),
+        t("剩余积分", "Remaining Points"),
       ].join(","),
       ...activityData.map((row) =>
         [
@@ -1105,7 +1105,7 @@ export default function MemberActivityDataContent() {
     window.addEventListener('activity-export', handleExportEvent);
     return () => window.removeEventListener('activity-export', handleExportEvent);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activityData]);
+  }, [activityData, t]);
 
   const showReferralDialog = (list: ReferralListItem[], memberPhone: string) => {
     setCurrentReferralList(list);
