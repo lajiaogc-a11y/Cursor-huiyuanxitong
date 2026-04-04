@@ -13,6 +13,7 @@ import {
   getPlatformBrandLogoUrl,
   mergePlatformBrandLogo,
 } from "@/lib/memberPortalPlatformBrandLogo";
+import { readMemberPortalSplashBootstrap } from "@/lib/memberPortalSplashCache";
 
 interface State {
   tenantId: string | null;
@@ -22,7 +23,10 @@ interface State {
 
 function mergeCachedPortalSettings(memberId: string): MemberPortalSettings {
   const cached = readMemberPortalSettingsCache(memberId);
-  return cached ? { ...DEFAULT_SETTINGS, ...cached } : DEFAULT_SETTINGS;
+  if (cached) return { ...DEFAULT_SETTINGS, ...cached };
+  const splash = readMemberPortalSplashBootstrap("");
+  if (splash?.logo_url) return { ...DEFAULT_SETTINGS, ...splash };
+  return DEFAULT_SETTINGS;
 }
 
 /**

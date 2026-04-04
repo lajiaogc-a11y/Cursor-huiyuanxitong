@@ -191,6 +191,7 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
     clearMemberPortalSettingsBrowserCaches();
     clearMallCatalogCache();
     try { localStorage.removeItem("member_saved_credentials"); } catch { /* storage unavailable */ }
+    try { sessionStorage.removeItem("member_splash_shown"); } catch { /* storage unavailable */ }
     queryClient.removeQueries({ queryKey: [...memberQueryKeys.all] });
     try { window.dispatchEvent(new CustomEvent('member:signout')); } catch { /* ignore */ }
   }, [bumpAuth]);

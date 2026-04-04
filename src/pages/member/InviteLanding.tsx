@@ -40,6 +40,7 @@ import { memberPortalLegalBody } from "@/lib/memberPortalLegalBody";
 import { memberPortalGoldCssVarsFromHex } from "@/utils/memberPortalGoldCssVars";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
 import { cn } from "@/lib/utils";
+import { readMemberPortalSplashBootstrap } from "@/lib/memberPortalSplashCache";
 import { parseMemberLoginBadge, MEMBER_LOGIN_BADGE_SLOT_COUNT } from "@/lib/memberLoginBadge";
 import { normalizeLoginBadgesField } from "@/services/members/memberPortalSettingsService";
 
@@ -96,11 +97,21 @@ export default function InviteLanding() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [brandName, setBrandName] = useState("Spin & Win");
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [brandName, setBrandName] = useState(() => {
+    const cached = readMemberPortalSplashBootstrap(code?.trim() || "");
+    return cached?.company_name || "Spin & Win";
+  });
+  const [logoUrl, setLogoUrl] = useState<string | null>(() => {
+    const cached = readMemberPortalSplashBootstrap(code?.trim() || "");
+    return cached?.logo_url ?? null;
+  });
   const [inviteReward, setInviteReward] = useState(3);
   const [inviteEnabled, setInviteEnabled] = useState(true);
-  const [themeColor, setThemeColor] = useState("#4d8cff");
+  const [themeColor, setThemeColor] = useState(() => {
+    const cached = readMemberPortalSplashBootstrap(code?.trim() || "");
+    const tc = String(cached?.theme_primary_color ?? "").trim();
+    return /^#[0-9A-Fa-f]{6}$/i.test(tc) ? tc : "#4d8cff";
+  });
   const [inviteTenantId, setInviteTenantId] = useState<string | null>(null);
   const [portalSettings, setPortalSettings] = useState<MemberPortalSettings | null>(null);
   const [agreeLegal, setAgreeLegal] = useState(false);

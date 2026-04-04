@@ -17,6 +17,7 @@ import {
 import { memberRegisterInit, validateInviteAndSubmit } from "@/services/memberPortal/memberActivityService";
 import { ApiError } from "@/lib/apiClient";
 import { seedPlatformBrandLogoFromSettings } from "@/lib/memberPortalPlatformBrandLogo";
+import { readMemberPortalSplashBootstrap } from "@/lib/memberPortalSplashCache";
 import { notify } from "@/lib/notifyHub";
 import {
   DEFAULT_SETTINGS,
@@ -97,7 +98,14 @@ export default function MemberRegisterRedirect() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [portalSettings, setPortalSettings] = useState<MemberPortalSettings>(DEFAULT_SETTINGS);
+  const [portalSettings, setPortalSettings] = useState<MemberPortalSettings>(() => {
+    const cached = readMemberPortalSplashBootstrap("");
+    return cached ? { ...DEFAULT_SETTINGS, ...cached } : DEFAULT_SETTINGS;
+  });
+  const [settingsLoaded, setSettingsLoaded] = useState(() => {
+    const cached = readMemberPortalSplashBootstrap("");
+    return Boolean(cached?.logo_url);
+  });
   const [defaultTenantId, setDefaultTenantId] = useState<string | null>(null);
   const [agreeLegal, setAgreeLegal] = useState(false);
   const [legalDoc, setLegalDoc] = useState<null | "terms" | "privacy">(null);
@@ -130,7 +138,9 @@ export default function MemberRegisterRedirect() {
           setDefaultTenantId(data.tenant_id ?? null);
         }
       } catch {
-        /* keep DEFAULT_SETTINGS */
+        /* keep cached or DEFAULT_SETTINGS */
+      } finally {
+        if (!cancelled) setSettingsLoaded(true);
       }
     })();
     return () => {
@@ -247,6 +257,17 @@ export default function MemberRegisterRedirect() {
 
   if (ref) {
     return <Navigate to={`/invite/${encodeURIComponent(ref)}`} replace />;
+  }
+
+  if (!settingsLoaded) {
+    return (
+      <div
+        className="member-login-premium-root member-portal-wrap flex min-h-dvh items-center justify-center"
+        style={{ ...portalRootStyle, background: "hsl(var(--pu-m-bg-1))" }}
+      >
+        <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--pu-gold))]" />
+      </div>
+    );
   }
 
   return (

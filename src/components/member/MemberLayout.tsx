@@ -115,9 +115,9 @@ export function MemberLayout({ children }: { children: ReactNode }) {
 
   const suspenseFallback =
     pathname === ROUTES.MEMBER.DASHBOARD ? <DashboardSkeleton /> : <MemberPageSkeleton />;
-  /** 每次进入会员壳层（含整页刷新、登录后）都走启动页，不再用 sessionStorage 跳过 */
-  const [splashDone, setSplashDone] = useState(false);
-  /** 当前路由对应页面 chunk 已预载，避免 Splash 关掉后仍闪 Suspense 骨架 */
+  const [splashDone, setSplashDone] = useState(() => {
+    try { return sessionStorage.getItem("member_splash_shown") === "1"; } catch { return false; }
+  });
   const [entryChunkReady, setEntryChunkReady] = useState(() => !member?.id);
 
   useLayoutEffect(() => {
@@ -171,6 +171,7 @@ export function MemberLayout({ children }: { children: ReactNode }) {
 
   const handleSplashComplete = () => {
     setSplashDone(true);
+    try { sessionStorage.setItem("member_splash_shown", "1"); } catch { /* quota */ }
   };
 
   const splashDismissReady =
