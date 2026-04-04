@@ -284,14 +284,14 @@ export async function grantReferralSpinsOnFirstLogin(memberId: string): Promise<
         'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
         [regEvent.referrer_id, rewardSpins, 'referral'],
       );
-      await incrementLotterySpinBalanceConn(conn, regEvent.referrer_id, rewardSpins);
+      await incrementLotterySpinBalanceConn(conn, regEvent.referrer_id, rewardSpins, 'referral');
     }
 
     await conn.query(
       'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
       [memberId, rewardSpins, 'invite_welcome'],
     );
-    await incrementLotterySpinBalanceConn(conn, memberId, rewardSpins);
+    await incrementLotterySpinBalanceConn(conn, memberId, rewardSpins, 'invite_welcome');
   });
 }
 

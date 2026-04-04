@@ -49,7 +49,7 @@ export async function ensureMemberActivityRowForLotteryConn(conn: PoolConnection
   );
 }
 
-export async function incrementLotterySpinBalanceConn(conn: PoolConnection, memberId: string, delta: number): Promise<void> {
+export async function incrementLotterySpinBalanceConn(conn: PoolConnection, memberId: string, delta: number, source?: string): Promise<void> {
   const d = Math.floor(Number(delta) || 0);
   if (d <= 0) return;
   await ensureMemberActivityRowForLotteryConn(conn, memberId);
@@ -58,6 +58,7 @@ export async function incrementLotterySpinBalanceConn(conn: PoolConnection, memb
     'UPDATE member_activity SET lottery_spin_balance = COALESCE(lottery_spin_balance, 0) + ?, updated_at = NOW(3) WHERE member_id = ?',
     [d, memberId],
   );
+  console.log(`[SpinCredit] member=${memberId} +${d} source=${source ?? 'unknown'} at=${new Date().toISOString()}`);
 }
 
 export type LotteryQuotaSnapshot = {

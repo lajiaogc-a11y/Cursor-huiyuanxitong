@@ -729,7 +729,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                   'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW())',
                   [memberId, creditAmount, 'check_in'],
                 );
-                await incrementLotterySpinBalanceConn(conn, memberId, creditAmount);
+                await incrementLotterySpinBalanceConn(conn, memberId, creditAmount, 'check_in');
               }
 
               return {
@@ -1345,7 +1345,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
               'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (?, ?, ?, ?, NOW())',
               [id, memberId, shareReward, 'share'],
             );
-            await incrementLotterySpinBalanceConn(conn, memberId, shareReward);
+            await incrementLotterySpinBalanceConn(conn, memberId, shareReward, 'share');
             const [sumAfter] = await conn.query(
               `SELECT COALESCE(SUM(amount), 0) AS total FROM spin_credits
                WHERE member_id = ? AND source = 'share'

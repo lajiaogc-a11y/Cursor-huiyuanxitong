@@ -314,6 +314,26 @@ export function usePointsLedger() {
       .filter(e => rt(e) === 'redemption' && absLedger(e) > 0)
       .reduce((sum, e) => sum + absLedger(e), 0);
 
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const todayEnd = todayStart + 86_400_000;
+    const isToday = (e: PointsLedgerEntry) => {
+      const ts = new Date(e.created_at).getTime();
+      return ts >= todayStart && ts < todayEnd;
+    };
+    const todayEntries = entries.filter(isToday);
+
+    const todayNetIssued = todayEntries.reduce((s, e) => s + e.points_earned, 0);
+    const todayLotteryNet = todayEntries
+      .filter(e => e.transaction_type === 'lottery')
+      .reduce((s, e) => s + e.points_earned, 0);
+    const todayOrderNet = todayEntries
+      .filter(e => {
+        const txn = e.transaction_type;
+        return txn === 'consumption' || txn === 'regular' || txn === 'usdt';
+      })
+      .reduce((s, e) => s + e.points_earned, 0);
+
     return {
       totalIssued,
       totalReversed,
@@ -322,6 +342,9 @@ export function usePointsLedger() {
       totalRecoveredIssued,
       totalMallRedeemPoints,
       totalStaffRedeemPoints,
+      todayNetIssued,
+      todayLotteryNet,
+      todayOrderNet,
     };
   };
 

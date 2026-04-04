@@ -513,7 +513,7 @@ export async function grantOrderCompletedSpinCredits(args: {
       'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
       [memberId, amount, source],
     );
-    await incrementLotterySpinBalanceConn(conn, memberId, amount);
+    await incrementLotterySpinBalanceConn(conn, memberId, amount, `order_completed:${args.orderId}`);
     return { granted: true, amount };
   });
 }

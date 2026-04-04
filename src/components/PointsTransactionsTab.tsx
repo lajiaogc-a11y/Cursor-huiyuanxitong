@@ -370,7 +370,37 @@ export default function PointsTransactionsTab({
 
   return (
     <div className="flex flex-col h-full">
-      {/* 统计卡片 */}
+      {/* Today stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-2 shrink-0">
+        <Card className="shadow-sm border-l-4 border-l-emerald-500">
+          <CardContent className="py-2.5 px-4">
+            <div className="text-xl font-bold text-emerald-600">{stats.todayNetIssued >= 0 ? '+' : ''}{stats.todayNetIssued.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">{t("今日净发放积分", "Today net points")}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
+              {t("今日实际发放（已扣除回收）", "Today's effective issuance (reversed deducted)")}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm border-l-4 border-l-amber-500">
+          <CardContent className="py-2.5 px-4">
+            <div className="text-xl font-bold text-amber-600">{stats.todayLotteryNet >= 0 ? '+' : ''}{stats.todayLotteryNet.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">{t("今日抽奖发放", "Today lottery points")}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
+              {t("抽奖奖品积分净额", "Lottery prize points (net)")}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm border-l-4 border-l-blue-500">
+          <CardContent className="py-2.5 px-4">
+            <div className="text-xl font-bold text-blue-600">{stats.todayOrderNet >= 0 ? '+' : ''}{stats.todayOrderNet.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">{t("今日订单发放", "Today order points")}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
+              {t("订单消费积分净额", "Order consumption points (net)")}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+      {/* Cumulative stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-3 shrink-0">
         <Card className="shadow-sm">
           <CardContent className="py-3 px-4">
