@@ -9,7 +9,7 @@ import { useMemberAnimatedCount } from "@/hooks/useMemberAnimatedCount";
 export interface MemberInviteHeroProps {
   /** 成功邀请注册人数（后端持久累计） */
   invitedSuccessCount: number;
-  /** 累计获得抽奖次数（invitedSuccessCount × invite_reward_spins） */
+  /** 累计获得抽奖次数（来自 spin_credits 历史记录，不受当前设置变动影响） */
   lifetimeRewardSpins: number;
   statsLoading: boolean;
   t: (zh: string, en: string) => string;

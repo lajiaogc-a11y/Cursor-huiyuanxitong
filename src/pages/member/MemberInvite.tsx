@@ -316,7 +316,7 @@ export default function MemberInvite() {
 
       <MemberInviteHero
         invitedSuccessCount={member.invite_success_lifetime_count ?? 0}
-        lifetimeRewardSpins={(member.invite_success_lifetime_count ?? 0) * inviteRewardSpins}
+        lifetimeRewardSpins={member.invite_lifetime_reward_spins ?? 0}
         statsLoading={!inviteStatsHydrated}
         t={t}
       />

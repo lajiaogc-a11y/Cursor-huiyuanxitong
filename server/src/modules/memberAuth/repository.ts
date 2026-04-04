@@ -29,6 +29,8 @@ export interface MemberInfo {
   must_change_password?: boolean;
   /** 成功邀请注册人数（members 表单调递增字段，清理 referrals 不减少） */
   invite_success_lifetime_count?: number;
+  /** 累计因邀请获得的抽奖次数（来自 spin_credits 历史记录，不随设置变动） */
+  invite_lifetime_reward_spins?: number;
   /** 累计获得积分奖励（流水删除不减少；兑换拒绝退回 redeem_rejected 不计入） */
   lifetime_reward_points_earned?: number;
   /** 晋级用累计积分（与 lifetime 同步递增，删除订单/流水不减少） */
@@ -48,6 +50,7 @@ export async function verifyMemberPasswordRepository(
     must_change_password: number | string | null;
     member_portal_first_login_done: number | string | null;
     invite_success_lifetime_count: number | string | null;
+    invite_lifetime_reward_spins: number | string | null;
     lifetime_reward_points_earned: number | string | null;
     total_points: number | string | null;
   }>(
@@ -55,6 +58,7 @@ export async function verifyMemberPasswordRepository(
             COALESCE(must_change_password, 0) AS must_change_password,
             COALESCE(member_portal_first_login_done, 0) AS member_portal_first_login_done,
             COALESCE(invite_success_lifetime_count, 0) AS invite_success_lifetime_count,
+            COALESCE((SELECT SUM(sc.amount) FROM spin_credits sc WHERE sc.member_id = members.id AND sc.source IN ('referral','invite_welcome')), 0) AS invite_lifetime_reward_spins,
             COALESCE(lifetime_reward_points_earned, 0) AS lifetime_reward_points_earned,
             COALESCE(total_points, 0) AS total_points
      FROM members WHERE phone_number = ? OR member_code = ? LIMIT 1`,
@@ -85,6 +89,7 @@ export async function verifyMemberPasswordRepository(
       avatar_url: row.avatar_url || null,
       must_change_password: memberEffectiveMustChangePassword(row.must_change_password, row.member_portal_first_login_done),
       invite_success_lifetime_count: Math.max(0, Math.floor(Number(row.invite_success_lifetime_count) || 0)),
+      invite_lifetime_reward_spins: Math.max(0, Math.floor(Number(row.invite_lifetime_reward_spins) || 0)),
       lifetime_reward_points_earned: Math.max(0, Number(row.lifetime_reward_points_earned) || 0),
       total_points: Math.max(0, Number(row.total_points) || 0),
     },
@@ -308,6 +313,7 @@ export async function getMemberInfoRepository(memberId: string): Promise<{ succe
     must_change_password: number | string | null;
     member_portal_first_login_done: number | string | null;
     invite_success_lifetime_count: number | string | null;
+    invite_lifetime_reward_spins: number | string | null;
     lifetime_reward_points_earned: number | string | null;
     total_points: number | string | null;
   }>(
@@ -315,6 +321,7 @@ export async function getMemberInfoRepository(memberId: string): Promise<{ succe
             COALESCE(must_change_password, 0) AS must_change_password,
             COALESCE(member_portal_first_login_done, 0) AS member_portal_first_login_done,
             COALESCE(invite_success_lifetime_count, 0) AS invite_success_lifetime_count,
+            COALESCE((SELECT SUM(sc.amount) FROM spin_credits sc WHERE sc.member_id = members.id AND sc.source IN ('referral','invite_welcome')), 0) AS invite_lifetime_reward_spins,
             COALESCE(lifetime_reward_points_earned, 0) AS lifetime_reward_points_earned,
             COALESCE(total_points, 0) AS total_points
      FROM members
@@ -340,6 +347,7 @@ export async function getMemberInfoRepository(memberId: string): Promise<{ succe
       avatar_url: row.avatar_url || null,
       must_change_password: memberEffectiveMustChangePassword(row.must_change_password, row.member_portal_first_login_done),
       invite_success_lifetime_count: Math.max(0, Math.floor(Number(row.invite_success_lifetime_count) || 0)),
+      invite_lifetime_reward_spins: Math.max(0, Math.floor(Number(row.invite_lifetime_reward_spins) || 0)),
       lifetime_reward_points_earned: Math.max(0, Number(row.lifetime_reward_points_earned) || 0),
       total_points: Math.max(0, Number(row.total_points) || 0),
     },

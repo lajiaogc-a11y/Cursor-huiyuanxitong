@@ -18,6 +18,8 @@ export interface MemberInfo {
   must_change_password?: boolean;
   /** 成功邀请注册人数（持久累计） */
   invite_success_lifetime_count?: number;
+  /** 累计因邀请获得的抽奖次数（来自 spin_credits 历史，不随设置变动） */
+  invite_lifetime_reward_spins?: number;
   /** 累计获得积分奖励（持久累计；与流水清理独立） */
   lifetime_reward_points_earned?: number;
   /** 晋级用累计积分（与正积分流水同步递增） */

@@ -34,6 +34,8 @@ export interface MemberInfo {
   /** 为 true 时须先完成改密才能进入会员业务页 */
   must_change_password?: boolean;
   invite_success_lifetime_count?: number;
+  /** 累计因邀请获得的抽奖次数（来自 spin_credits 历史，不随设置变动） */
+  invite_lifetime_reward_spins?: number;
   lifetime_reward_points_earned?: number;
   total_points?: number;
 }

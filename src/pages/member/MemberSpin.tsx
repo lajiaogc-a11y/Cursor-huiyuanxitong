@@ -655,56 +655,36 @@ export default function MemberSpin() {
       <div className="member-page-enter m-page-bg relative flex min-h-full flex-col pb-24 lg:mx-auto lg:w-full lg:max-w-[960px] lg:px-6 lg:py-6">
         <MemberPageAmbientOrbs />
         <div className="relative z-[1] flex min-h-full flex-col">
-        <div className="relative px-5 pb-4 pt-7">
-          <h1 className="flex items-center gap-2 text-xl font-extrabold text-[hsl(var(--pu-m-text))]">
-            <Star className="h-5 w-5 text-pu-rose-soft" aria-hidden />
-            {t("幸运抽奖", "Lucky draw")}
-          </h1>
-          <p className="mt-1.5 text-xs font-medium text-[hsl(var(--pu-m-text-dim))]">
-            {t("试试手气，赢取丰厚奖品", "Try your luck, win rich prizes")}
-          </p>
-        </div>
 
-        <div className="mb-6 px-5">
-          <div
-            className="m-glass relative flex items-center justify-between overflow-hidden rounded-2xl border border-pu-gold/20 p-5 shadow-sm"
-            style={{ borderColor: "hsl(var(--pu-gold) / 0.15)" }}
-          >
-            <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-r from-pu-gold/[0.05] to-pu-rose/[0.04]" />
-            <div className="relative min-w-0 pr-3">
-              <div className="text-sm font-bold text-pu-gold-soft/80">
-                {t("今日抽奖次数", "Today's draw quota")}
-              </div>
-              <div className="mt-0.5 text-2xl font-extrabold tabular-nums text-[hsl(var(--pu-m-text))]">
-                {quotaLoading ? (
-                  <span
-                    className="inline-block h-8 w-28 animate-pulse rounded-md bg-[hsl(var(--pu-m-surface)/0.38)] motion-reduce:animate-none"
-                    aria-hidden
-                  />
-                ) : quotaTotalToday > 0 ? (
-                  <>
-                    {remaining}
-                    <span className="text-sm font-bold text-[hsl(var(--pu-m-text-dim)/0.4)]">
-                      {" "}
-                      / {quotaTotalToday}
-                    </span>
-                  </>
-                ) : (
-                  <span className="tabular-nums">{remaining}</span>
+        {/* ── Header: title + inline quota ── */}
+        <div className="relative flex items-center justify-between px-5 pb-3 pt-7">
+          <div className="min-w-0">
+            <h1 className="flex items-center gap-2 text-lg font-extrabold text-[hsl(var(--pu-m-text))]">
+              <Star className="h-5 w-5 text-pu-rose-soft" aria-hidden />
+              {t("幸运抽奖", "Lucky draw")}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border border-pu-gold/20 bg-[hsl(var(--pu-m-surface)/0.4)] px-3.5 py-1.5">
+            <Trophy className="h-4 w-4 text-pu-gold-soft" strokeWidth={2} aria-hidden />
+            {quotaLoading ? (
+              <span className="inline-block h-5 w-12 animate-pulse rounded bg-[hsl(var(--pu-m-surface)/0.4)] motion-reduce:animate-none" aria-hidden />
+            ) : (
+              <span className="text-sm font-extrabold tabular-nums text-[hsl(var(--pu-m-text))]">
+                {remaining}
+                {quotaTotalToday > 0 && (
+                  <span className="font-bold text-[hsl(var(--pu-m-text-dim)/0.4)]"> / {quotaTotalToday}</span>
                 )}
-              </div>
-            </div>
-            <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-pu-gold/15 ring-1 ring-inset ring-pu-gold/20">
-              <Trophy className="h-6 w-6 text-pu-gold-soft" strokeWidth={1.75} aria-hidden />
-            </div>
+              </span>
+            )}
           </div>
         </div>
 
-        {simFeedDisplayItems.length > 0 ? (
-          <div className="mb-5 px-5">
+        {/* ── Winner feed marquee ── */}
+        {simFeedDisplayItems.length > 0 && (
+          <div className="mb-4 px-5">
             <div
               className={cn(
-                "member-spin-sim-feed relative cursor-pointer overflow-hidden rounded-2xl border border-pu-gold/15 bg-[hsl(var(--pu-m-surface)/0.35)] py-2.5 select-none touch-manipulation",
+                "member-spin-sim-feed relative cursor-pointer overflow-hidden rounded-xl bg-[hsl(var(--pu-m-surface)/0.3)] py-2 select-none touch-manipulation",
                 simFeedClickPaused && "member-spin-sim-feed--click-paused",
               )}
               role="status"
@@ -721,42 +701,33 @@ export default function MemberSpin() {
                   {[0, 1].map((copyIdx) => (
                     <span key={copyIdx} className="inline-flex shrink-0 items-center">
                       {simFeedDisplayItems.map((it, i) => (
-                        <span
-                          key={`${it.id}-${i}`}
-                          className="inline-flex shrink-0 items-center"
-                        >
-                          {i > 0 ? (
-                            <span
-                              className="mx-3 inline-block h-3.5 w-px shrink-0 rounded-full bg-[hsl(var(--pu-m-text)/0.28)] opacity-85"
-                              aria-hidden
-                            />
-                          ) : null}
-                          <span className="whitespace-nowrap px-2 py-1 text-[11px] font-medium text-[hsl(var(--pu-m-text-dim)/0.88)]">
+                        <span key={`${it.id}-${i}`} className="inline-flex shrink-0 items-center">
+                          {i > 0 && (
+                            <span className="mx-2.5 inline-block h-3 w-px shrink-0 rounded-full bg-[hsl(var(--pu-m-text)/0.2)]" aria-hidden />
+                          )}
+                          <span className="whitespace-nowrap px-1.5 py-0.5 text-[11px] font-medium text-[hsl(var(--pu-m-text-dim)/0.85)]">
                             {normalizeSpinSimFeedLineForMember(it.text)}
                           </span>
                         </span>
                       ))}
-                      <span
-                        className="mx-3 inline-block h-3.5 w-px shrink-0 rounded-full bg-[hsl(var(--pu-m-text)/0.28)] opacity-85"
-                        aria-hidden
-                      />
+                      <span className="mx-2.5 inline-block h-3 w-px shrink-0 rounded-full bg-[hsl(var(--pu-m-text)/0.2)]" aria-hidden />
                     </span>
                   ))}
                 </div>
               </div>
             </div>
           </div>
-        ) : null}
+        )}
 
-        <main className="relative mx-auto w-full max-w-md flex-1 space-y-7 px-5 lg:max-w-lg">
-          <div id="member-spin-wheel" className="mb-7 scroll-mt-24">
-            <div
-              className="relative m-glass overflow-hidden rounded-2xl border border-pu-gold/20 p-5 shadow-sm"
-              style={{ borderColor: "hsl(var(--pu-gold) / 0.15)" }}
-            >
-              <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-r from-pu-gold/[0.05] to-pu-rose/[0.04]" />
+        {/* ── Main content area ── */}
+        <main className="relative mx-auto w-full max-w-md flex-1 space-y-5 px-5 lg:max-w-lg">
+
+          {/* ── Spin Grid ── */}
+          <div id="member-spin-wheel" className="scroll-mt-24">
+            <div className="relative m-glass overflow-hidden rounded-2xl border border-pu-gold/15 p-4 shadow-sm">
+              <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.04] to-transparent" />
               <div
-                className="relative grid aspect-square w-full grid-cols-3 grid-rows-3 gap-3"
+                className="relative grid aspect-square w-full grid-cols-3 grid-rows-3 gap-2.5"
                 role="group"
                 aria-label={t("转盘九宫格", "Spin wheel grid")}
               >
@@ -770,7 +741,7 @@ export default function MemberSpin() {
                     loading={spinning}
                     disabled={spinning || remaining <= 0}
                     className={cn(
-                      "btn-spin relative !flex !h-full !min-h-0 !w-full !min-w-0 flex-col touch-manipulation items-center justify-center gap-1 rounded-[inherit] border-0 bg-transparent p-0 text-inherit shadow-none outline-none transition-opacity duration-150 hover:bg-transparent focus-visible:ring-2 focus-visible:ring-[hsl(var(--pu-gold))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pu-m-surface))] [&_svg]:text-white",
+                      "btn-spin relative !flex !h-full !min-h-0 !w-full !min-w-0 flex-col touch-manipulation items-center justify-center gap-0.5 rounded-xl border-0 bg-transparent p-0 text-inherit shadow-none outline-none transition-opacity duration-150 hover:bg-transparent focus-visible:ring-2 focus-visible:ring-[hsl(var(--pu-gold))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pu-m-surface))] [&_svg]:text-white",
                       spinning ? "cursor-wait opacity-80" : remaining <= 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer",
                       "motion-reduce:transition-none",
                     )}
@@ -785,20 +756,16 @@ export default function MemberSpin() {
                           : t("抽奖", "Draw")
                     }
                   >
-                    {!spinning ? (
+                    {!spinning && (
                       <span className="pointer-events-none absolute inset-0 rounded-[inherit] spin-ring" />
-                    ) : null}
-                    {!spinning ? (
-                      <Sparkles
-                        size={24}
-                        className="text-white drop-shadow-[0_1px_2px_rgb(0_0_0_/_0.25)]"
-                        aria-hidden
-                      />
-                    ) : null}
+                    )}
+                    {!spinning && (
+                      <Sparkles size={22} className="text-white drop-shadow-[0_1px_2px_rgb(0_0_0_/_0.25)]" aria-hidden />
+                    )}
                     <span className="text-sm font-extrabold text-white [text-shadow:0_1px_2px_rgb(0_0_0_/_0.2)]">
                       {spinning ? t("抽奖中", "Spinning") : t("抽奖", "Draw")}
                     </span>
-                    <span className="text-[10px] font-bold text-[hsl(0_0%_100%_/_0.82)]">
+                    <span className="text-[10px] font-bold text-[hsl(0_0%_100%_/_0.78)]">
                       {t(`剩余 ${remaining} 次`, `${remaining} left`)}
                     </span>
                   </LoadingButton>
@@ -814,14 +781,9 @@ export default function MemberSpin() {
                 return (
                   <div
                     key={cellIdx}
-                    className={cn(
-                      SPIN_PRIZE_CELL_FRAME,
-                      "items-center justify-center",
-                    )}
-                    style={{ borderColor: "hsl(var(--pu-gold) / 0.10)" }}
+                    className={cn(SPIN_PRIZE_CELL_FRAME, "items-center justify-center rounded-xl")}
                   >
-                    <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.03] to-transparent" />
-                    <Star className="relative z-10 h-4 w-4 text-[hsl(var(--pu-m-text-dim)/0.18)]" aria-hidden />
+                    <Star className="relative z-10 h-4 w-4 text-[hsl(var(--pu-m-text-dim)/0.15)]" aria-hidden />
                   </div>
                 );
               }
@@ -832,44 +794,43 @@ export default function MemberSpin() {
               const tier = prizeDisplayTier(prize);
 
               const highlightClass = isActive
-                ? "ring-2 ring-pu-gold scale-[1.04] shadow-pu-glow-gold"
+                ? "ring-2 ring-pu-gold scale-[1.03] shadow-pu-glow-gold"
                 : isWinner
-                  ? "ring-2 ring-pu-gold scale-105 shadow-pu-glow-gold"
-                  : "motion-safe:hover:scale-[1.02]";
+                  ? "ring-2 ring-pu-gold scale-[1.05] shadow-pu-glow-gold"
+                  : "motion-safe:hover:scale-[1.01]";
 
               return (
                 <div
                   key={cellIdx}
                   className={cn(
                     SPIN_PRIZE_CELL_FRAME,
-                    "flex flex-col items-center justify-center gap-1 p-2 transition-all duration-150 motion-reduce:transition-none",
+                    "flex flex-col items-center justify-center gap-0.5 rounded-xl p-1.5 transition-all duration-150 motion-reduce:transition-none",
                     highlightClass,
                   )}
-                  style={{ borderColor: "hsl(var(--pu-gold) / 0.15)" }}
                 >
-                  <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.06] to-pu-rose/[0.04]" />
+                  <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.04] to-transparent" />
                   {isActive && (
-                    <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.14] to-transparent" />
+                    <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.12] to-transparent" />
                   )}
                   {isWinner && (
-                    <div className="pointer-events-none absolute inset-0 animate-pulse rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.18] to-pu-rose/[0.06] motion-reduce:animate-none" />
+                    <div className="pointer-events-none absolute inset-0 animate-pulse rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.15] to-pu-rose/[0.05] motion-reduce:animate-none" />
                   )}
                   <div className={cn(
-                    "relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset",
+                    "relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset",
                     prizeTierBadgeBg(tier),
                   )}>
                     {prize.type === "points" ? (
-                      <Star className={cn("h-3.5 w-3.5", prizeTierIconColor(tier))} strokeWidth={2} aria-hidden />
+                      <Star className={cn("h-3 w-3", prizeTierIconColor(tier))} strokeWidth={2} aria-hidden />
                     ) : prize.type === "none" ? (
-                      <Sparkles className={cn("h-3.5 w-3.5", prizeTierIconColor(tier))} strokeWidth={2} aria-hidden />
+                      <Sparkles className={cn("h-3 w-3", prizeTierIconColor(tier))} strokeWidth={2} aria-hidden />
                     ) : (
-                      <Gift className={cn("h-3.5 w-3.5", prizeTierIconColor(tier))} strokeWidth={2} aria-hidden />
+                      <Gift className={cn("h-3 w-3", prizeTierIconColor(tier))} strokeWidth={2} aria-hidden />
                     )}
                   </div>
                   <span
                     className={cn(
-                      "relative z-10 line-clamp-2 w-full max-w-full px-0.5 text-center text-[11px] font-bold leading-tight tabular-nums",
-                      isActive ? "text-pu-gold-soft" : "text-[hsl(var(--pu-m-text)/0.88)]",
+                      "relative z-10 line-clamp-2 w-full max-w-full px-0.5 text-center text-[10px] font-bold leading-tight tabular-nums",
+                      isActive ? "text-pu-gold-soft" : "text-[hsl(var(--pu-m-text)/0.85)]",
                     )}
                   >
                     {wheelMain}
@@ -880,102 +841,92 @@ export default function MemberSpin() {
             </div>
 
             {remaining > 0 && !spinning && (
-              <p className="relative mt-3 text-center text-[12px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.72)]">
-                {t("再试一次，更大惊喜等你！🎁", "Try again for a bigger reward! 🎁")}
+              <p className="relative mt-2.5 text-center text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.65)]">
+                {t("再试一次，更大惊喜等你！", "Try again for a bigger reward!")}
               </p>
             )}
-
             {remaining <= 0 && !spinning && (
-              <p className="relative mt-3 text-center text-[12px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.55)]">
+              <p className="relative mt-2.5 text-center text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.5)]">
                 {t("签到、邀请或分享可获取更多次数", "Check in, invite friends or share to earn more spins")}
               </p>
             )}
             </div>
           </div>
 
-          <div className="mb-7">
-            <Collapsible open={prizesPanelOpen} onOpenChange={setPrizesPanelOpen}>
-              <CollapsibleTrigger
-                type="button"
-                className="flex w-full items-center justify-between rounded-xl py-2 text-left text-xs font-bold text-[hsl(var(--pu-m-text-dim))] outline-none transition-colors hover:text-[hsl(var(--pu-m-text)/0.92)] focus-visible:ring-2 focus-visible:ring-pu-gold/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pu-m-surface))]"
-                aria-expanded={prizesPanelOpen}
-              >
-                <span className="flex items-center gap-1.5">
-                  <Info className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-                  {t("活动奖品", "Prizes")}
-                </span>
-                <ChevronDown
-                  className={cn(
-                    "h-3.5 w-3.5 shrink-0 opacity-70 transition-transform duration-200",
-                    prizesPanelOpen && "rotate-180",
-                  )}
-                  aria-hidden
-                />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="overflow-hidden">
-                <div className="m-glass mt-1.5 rounded-2xl border border-pu-gold/12 p-4 shadow-sm">
-                  {probabilityNotice ? (
-                    <p className="mb-3 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-[hsl(var(--pu-m-text)/0.88)]">
-                      {probabilityNotice}
+          {/* ── Prizes list (collapsible) ── */}
+          <Collapsible open={prizesPanelOpen} onOpenChange={setPrizesPanelOpen}>
+            <CollapsibleTrigger
+              type="button"
+              className="flex w-full items-center justify-between rounded-lg px-1 py-1.5 text-left text-xs font-bold text-[hsl(var(--pu-m-text-dim)/0.8)] outline-none transition-colors hover:text-[hsl(var(--pu-m-text)/0.92)] focus-visible:ring-2 focus-visible:ring-pu-gold/40"
+              aria-expanded={prizesPanelOpen}
+            >
+              <span className="flex items-center gap-1.5">
+                <Info className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
+                {t("活动奖品", "Prizes")}
+              </span>
+              <ChevronDown
+                className={cn("h-3.5 w-3.5 shrink-0 opacity-60 transition-transform duration-200", prizesPanelOpen && "rotate-180")}
+                aria-hidden
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="overflow-hidden">
+              <div className="mt-1 rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.12)] bg-[hsl(var(--pu-m-surface)/0.3)] p-3.5">
+                {probabilityNotice && (
+                  <p className="mb-2.5 whitespace-pre-wrap break-words text-[11px] leading-relaxed text-[hsl(var(--pu-m-text)/0.8)]">
+                    {probabilityNotice}
+                  </p>
+                )}
+                <div className="space-y-2">
+                  {prizes.length === 0 ? (
+                    <p className="text-center text-[11px] text-[hsl(var(--pu-m-text-dim)/0.6)]">
+                      {t("未配置转盘奖品", "No wheel prizes configured")}
                     </p>
-                  ) : null}
-                  <div className="space-y-2.5">
-                    {prizes.length === 0 ? (
-                      <p className="text-center text-[12px] text-[hsl(var(--pu-m-text-dim)/0.72)]">
-                        {t("未配置转盘奖品", "No wheel prizes configured")}
-                      </p>
-                    ) : (
-                      prizes.map((p) => {
-                        const probLabel = formatPrizeListDisplayProbability(p);
-                        return (
-                          <div
-                            key={p.id ?? `${p.name}-${p.sort_order}`}
-                            className="flex items-start justify-between gap-3 text-xs font-medium text-[hsl(var(--pu-m-text)/0.9)]"
-                          >
-                            <span className="min-w-0 flex-1 break-words leading-snug">
-                              {spinWheelPrizeMainText(t, p)}
+                  ) : (
+                    prizes.map((p) => {
+                      const probLabel = formatPrizeListDisplayProbability(p);
+                      return (
+                        <div
+                          key={p.id ?? `${p.name}-${p.sort_order}`}
+                          className="flex items-center justify-between gap-3 text-xs text-[hsl(var(--pu-m-text)/0.88)]"
+                        >
+                          <span className="min-w-0 flex-1 truncate font-medium">
+                            {spinWheelPrizeMainText(t, p)}
+                          </span>
+                          {probLabel && (
+                            <span className="shrink-0 tabular-nums text-[11px] text-[hsl(var(--pu-m-text-dim)/0.6)]">
+                              {probLabel}
                             </span>
-                            {probLabel ? (
-                              <span
-                                className="shrink-0 tabular-nums text-[11px] font-semibold text-[hsl(var(--pu-m-text-dim)/0.8)]"
-                                title={t("中奖概率（公示）", "Published odds")}
-                              >
-                                {probLabel}
-                              </span>
-                            ) : null}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
-          <section className="mb-7" aria-labelledby="member-spin-history-heading">
-            <div className="mb-3 flex items-center gap-2">
-              <History className="h-4 w-4 text-[hsl(var(--pu-m-text-dim))]" strokeWidth={2} aria-hidden />
-              <h2 id="member-spin-history-heading" className="m-0 text-base font-extrabold text-[hsl(var(--pu-m-text))]">
+          {/* ── Spin history ── */}
+          <section aria-labelledby="member-spin-history-heading">
+            <div className="mb-2 flex items-center gap-2 px-1">
+              <History className="h-3.5 w-3.5 text-[hsl(var(--pu-m-text-dim)/0.7)]" strokeWidth={2} aria-hidden />
+              <h2 id="member-spin-history-heading" className="m-0 text-sm font-extrabold text-[hsl(var(--pu-m-text))]">
                 {t("抽奖记录", "Spin history")}
               </h2>
-              {lotteryLogsOnly.length > 0 ? (
-                <span className="ml-auto text-[11px] tabular-nums text-[hsl(var(--pu-m-text-dim)/0.5)]">
+              {lotteryLogsOnly.length > 0 && (
+                <span className="ml-auto text-[10px] tabular-nums text-[hsl(var(--pu-m-text-dim)/0.45)]">
                   {logsTotal > SPIN_LOG_LIMIT
-                    ? t(
-                        `显示最近 ${SPIN_LOG_LIMIT} 条（共 ${logsTotal} 条）`,
-                        `Latest ${SPIN_LOG_LIMIT} of ${logsTotal}`,
-                      )
-                    : t(`${lotteryLogsOnly.length} 条`, `${lotteryLogsOnly.length}`)}
+                    ? t(`最近 ${SPIN_LOG_LIMIT} 条 / ${logsTotal}`, `${SPIN_LOG_LIMIT} / ${logsTotal}`)
+                    : `${lotteryLogsOnly.length}`}
                 </span>
-              ) : null}
+              )}
             </div>
 
-            <div id="member-spin-history-panel" className="m-glass rounded-2xl border border-pu-gold/12 px-4 shadow-sm">
+            <div id="member-spin-history-panel" className="rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.12)] bg-[hsl(var(--pu-m-surface)/0.3)] px-3.5">
             {lotteryLogsOnly.length === 0 ? (
-              <div className="px-2 py-10 text-center">
+              <div className="px-2 py-8 text-center">
                 <p className="text-sm font-semibold text-[hsl(var(--pu-m-text))]">{t("暂无抽奖记录", "No spin records yet")}</p>
-                <p className="mt-1.5 text-[11px] text-[hsl(var(--pu-m-text-dim)/0.65)]">
+                <p className="mt-1 text-[11px] text-[hsl(var(--pu-m-text-dim)/0.6)]">
                   {t("转动转盘后记录将出现在此", "Spin the wheel to see results here")}
                 </p>
                 <MemberEmptyStateCta
@@ -988,51 +939,49 @@ export default function MemberSpin() {
                 {visibleLogs.map((log) => (
                   <div
                     key={log.id}
-                    className="flex items-center gap-3 border-b border-[hsl(var(--pu-m-surface-border)/0.15)] py-3.5 last:border-0"
+                    className="flex items-center gap-2.5 border-b border-[hsl(var(--pu-m-surface-border)/0.1)] py-3 last:border-0"
                   >
-                    <span className="text-lg" aria-hidden>
+                    <span className="text-base shrink-0" aria-hidden>
                       {spinLogEmoji(log.prize_type)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className={cn("truncate text-sm font-bold", spinLogTitleClass(log.prize_type))}>
+                      <div className={cn("truncate text-[13px] font-bold", spinLogTitleClass(log.prize_type))}>
                         {log.prize_name}
-                        {log.prize_type === "points" && (log.reward_points ?? log.prize_value) > 0 ? (
-                          <span className="ml-1.5 tabular-nums text-pu-gold-soft">+{log.reward_points ?? log.prize_value}</span>
-                        ) : null}
-                        {log.reward_status === "failed" ? (
-                          <span className="ml-1.5 text-[11px] font-medium text-red-400">{t("(发放中)", "(processing)")}</span>
-                        ) : log.reward_status === "pending" && log.reward_type === "manual" ? (
-                          <span className="ml-1.5 text-[11px] font-medium text-amber-400">{t("(待处理)", "(pending)")}</span>
-                        ) : null}
+                        {log.prize_type === "points" && (log.reward_points ?? log.prize_value) > 0 && (
+                          <span className="ml-1 tabular-nums text-pu-gold-soft">+{log.reward_points ?? log.prize_value}</span>
+                        )}
+                        {log.reward_status === "failed" && (
+                          <span className="ml-1 text-[10px] font-medium text-red-400">{t("(发放中)", "(processing)")}</span>
+                        )}
+                        {log.reward_status === "pending" && log.reward_type === "manual" && (
+                          <span className="ml-1 text-[10px] font-medium text-amber-400">{t("(待处理)", "(pending)")}</span>
+                        )}
                       </div>
-                      <div className="mt-0.5 text-[11px] font-medium text-[hsl(var(--pu-m-text-dim))]">
+                      <div className="mt-0.5 text-[10px] font-medium text-[hsl(var(--pu-m-text-dim)/0.55)]">
                         {formatMemberLocalTime(log.created_at)}
                       </div>
                     </div>
                   </div>
                 ))}
 
-                {lotteryLogsOnly.length > 3 ? (
+                {lotteryLogsOnly.length > 3 && (
                   <button
                     type="button"
                     onClick={() => setHistoryOpen(!historyOpen)}
                     aria-expanded={historyOpen}
                     aria-controls="member-spin-history-panel"
-                    className="flex min-h-[44px] w-full items-center justify-center gap-2 py-3 text-[13px] font-semibold text-[hsl(var(--pu-m-text-dim)/0.75)] touch-manipulation transition hover:text-[hsl(var(--pu-m-text))]"
+                    className="flex min-h-[40px] w-full items-center justify-center gap-1.5 py-2.5 text-[12px] font-semibold text-[hsl(var(--pu-m-text-dim)/0.65)] touch-manipulation transition hover:text-[hsl(var(--pu-m-text))]"
                   >
                     {historyOpen
                       ? t("收起", "Show less")
                       : t(`展开全部 ${lotteryLogsOnly.length} 条`, `Show all ${lotteryLogsOnly.length}`)}
                     <ChevronDown
-                      size={16}
-                      className={cn(
-                        "transition-transform duration-200 motion-reduce:transition-none",
-                        historyOpen && "rotate-180",
-                      )}
+                      size={14}
+                      className={cn("transition-transform duration-200 motion-reduce:transition-none", historyOpen && "rotate-180")}
                       aria-hidden
                     />
                   </button>
-                ) : null}
+                )}
               </>
             )}
             </div>
@@ -1045,8 +994,8 @@ export default function MemberSpin() {
           variant="member"
           title={
             <span className="inline-flex items-center gap-2">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-pu-gold/35 bg-gradient-to-br from-pu-gold/25 to-pu-gold/[0.06] shadow-md">
-                <Trophy className="text-pu-gold-soft" size={18} strokeWidth={2.2} aria-hidden />
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-pu-gold/30 bg-gradient-to-br from-pu-gold/20 to-pu-gold/[0.05]">
+                <Trophy className="text-pu-gold-soft" size={16} strokeWidth={2.2} aria-hidden />
               </span>
               {t("抽奖结果", "Spin result")}
             </span>
@@ -1062,23 +1011,23 @@ export default function MemberSpin() {
         >
           <div className="space-y-4">
             {resultModalContent()}
-            <div className="flex flex-col gap-2.5 border-t border-pu-gold/12 pt-4">
+            <div className="flex flex-col gap-2.5 border-t border-pu-gold/10 pt-4">
               {remaining > 0 && (
                 <Button
                   type="button"
-                  className="btn-glow h-11 w-full rounded-xl border-0 text-[15px] font-bold text-[hsl(var(--pu-primary-foreground))] shadow-[0_4px_14px_hsl(var(--pu-gold)/0.3)] hover:opacity-95"
+                  className="btn-glow h-11 w-full rounded-xl border-0 text-[15px] font-bold text-[hsl(var(--pu-primary-foreground))] shadow-[0_4px_14px_hsl(var(--pu-gold)/0.25)] hover:opacity-95"
                   onClick={() => {
                     setShowResult(false);
                     setTimeout(handleSpin, 300);
                   }}
                 >
-                  {t("再抽一次 🎰", "Spin again 🎰")}
+                  {t("再抽一次", "Spin again")}
                 </Button>
               )}
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 w-full rounded-xl border-pu-gold/15 bg-[hsl(var(--pu-m-surface)/0.6)] text-sm text-[hsl(var(--pu-m-text)/0.92)] hover:bg-[hsl(var(--pu-m-surface)/0.8)] hover:text-[hsl(var(--pu-m-text))]"
+                className="h-10 w-full rounded-xl border-[hsl(var(--pu-m-surface-border)/0.2)] bg-[hsl(var(--pu-m-surface)/0.5)] text-sm text-[hsl(var(--pu-m-text)/0.9)] hover:bg-[hsl(var(--pu-m-surface)/0.7)]"
                 onClick={() => setShowResult(false)}
               >
                 {t("关闭", "Close")}

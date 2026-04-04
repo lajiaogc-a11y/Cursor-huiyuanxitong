@@ -44,7 +44,7 @@ async function getRealWinFeedItems(tenantId: string, limit = FEED_LIMIT) {
     `SELECT l.id, l.prize_name, l.prize_type, l.created_at,
             m.phone_number, m.member_code
      FROM lottery_logs l
-     LEFT JOIN profiles m ON m.id = l.member_id
+     LEFT JOIN members m ON m.id = l.member_id
      WHERE l.tenant_id = ?
        AND l.prize_type IN ('points', 'custom')
        AND l.reward_status != 'failed'
