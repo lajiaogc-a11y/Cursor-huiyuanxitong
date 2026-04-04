@@ -1243,6 +1243,19 @@ export async function getActivityDataController(req: AuthenticatedRequest, res: 
   }
 }
 
+export async function getSpinCreditsDetailController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const memberId = req.params.memberId;
+    if (!memberId) { res.status(400).json({ success: false, error: 'INVALID_PARAMS' }); return; }
+    const { getSpinCreditsDetailRepository } = await import('./repository.js');
+    const data = await getSpinCreditsDetailRepository(memberId);
+    res.json({ success: true, ...data });
+  } catch (e) {
+    console.error('[Data] getSpinCreditsDetail:', e);
+    res.status(500).json({ success: false, error: (e as Error).message });
+  }
+}
+
 export async function patchActivityGiftController(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const id = req.params.id;

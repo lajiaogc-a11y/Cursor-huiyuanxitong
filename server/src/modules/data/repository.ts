@@ -1585,3 +1585,37 @@ export async function listActivityDataRepository(tenantId: string | null): Promi
     spinCreditsData: pick('spin_credits', spinCreditsRes),
   };
 }
+
+export async function getSpinCreditsDetailRepository(memberId: string) {
+  const credits = await query(
+    `SELECT id, member_id, source, amount, used, created_at
+     FROM spin_credits
+     WHERE member_id = ?
+     ORDER BY created_at ASC, id ASC`,
+    [memberId],
+  );
+
+  const activityRow = await queryOne<{ lottery_spin_balance?: number }>(
+    'SELECT lottery_spin_balance FROM member_activity WHERE member_id = ? LIMIT 1',
+    [memberId],
+  );
+  const remaining = Math.max(0, Math.floor(Number(activityRow?.lottery_spin_balance ?? 0)));
+
+  const rawRows = (credits as { id: string; source: string; amount: number; used: number; created_at: string }[]);
+  let runningBalance = 0;
+  const rows = rawRows.map((row) => {
+    const before = runningBalance;
+    const amt = Math.max(0, Math.floor(Number(row.amount ?? 0)));
+    runningBalance += amt;
+    return {
+      created_at: row.created_at,
+      amount: amt,
+      source: row.source ?? '',
+      balance_before: before,
+      balance_after: runningBalance,
+    };
+  });
+
+  rows.reverse();
+  return { credits: rows, remaining, totalEarned: runningBalance };
+}

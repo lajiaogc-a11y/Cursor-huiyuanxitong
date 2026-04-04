@@ -42,6 +42,7 @@ import {
   patchActivityGiftController,
   deleteActivityGiftController,
   postActivityDataRetentionPurgeAllController,
+  getSpinCreditsDetailController,
 } from './controller.js';
 
 import {
@@ -212,6 +213,7 @@ router.get('/shared-data', getSharedDataController);
 router.post('/shared-data', postSharedDataController);
 router.get('/shared-data/batch', getSharedDataBatchController);
 router.get('/activity-data', getActivityDataController);
+router.get('/spin-credits-detail/:memberId', getSpinCreditsDetailController);
 router.get('/activity-data-retention', getActivityDataRetentionController);
 router.put('/activity-data-retention', putActivityDataRetentionController);
 router.post('/activity-data-retention/run', postActivityDataRetentionRunController);

@@ -76,6 +76,7 @@ import { generateEnglishCopyText, refreshCopySettings } from "@/components/CopyS
 import { getMemberPointsSummary } from "@/services/points/pointsCalculationService";
 import { formatBeijingTime, formatBeijingDate, getNowBeijingISO } from "@/lib/beijingTime";
 import { pointsLedgerTransactionLabel } from "@/lib/pointsLedgerTypeLabel";
+import { getSpinCreditsDetailApi, type SpinCreditDetailRow } from "@/services/staff/dataApi/activityData";
 
 // 类型定义
 interface Member {
@@ -348,6 +349,13 @@ export default function MemberActivityDataContent() {
   
   // 兑换确认对话框状态
   const [isRedeemConfirmOpen, setIsRedeemConfirmOpen] = useState(false);
+
+  // 抽奖次数明细对话框
+  const [isSpinDetailOpen, setIsSpinDetailOpen] = useState(false);
+  const [spinDetailMember, setSpinDetailMember] = useState<{ id: string; label: string } | null>(null);
+  const [spinDetailRows, setSpinDetailRows] = useState<SpinCreditDetailRow[]>([]);
+  const [spinDetailRemaining, setSpinDetailRemaining] = useState(0);
+  const [spinDetailLoading, setSpinDetailLoading] = useState(false);
   
   // 分页状态 - 默认20条
   const [currentPage, setCurrentPage] = useState(1);
@@ -1113,6 +1121,22 @@ export default function MemberActivityDataContent() {
     setIsReferralDialogOpen(true);
   };
 
+  const openSpinDetail = async (memberId: string, memberLabel: string) => {
+    setSpinDetailMember({ id: memberId, label: memberLabel });
+    setSpinDetailRows([]);
+    setIsSpinDetailOpen(true);
+    setSpinDetailLoading(true);
+    try {
+      const data = await getSpinCreditsDetailApi(memberId);
+      setSpinDetailRows(data.credits);
+      setSpinDetailRemaining(data.remaining);
+    } catch {
+      notify.error(t("加载抽奖次数明细失败", "Failed to load spin credits detail"));
+    } finally {
+      setSpinDetailLoading(false);
+    }
+  };
+
   // 跳转到订单管理并自动搜索
   const navigateToOrderWithSearch = (memberCode: string, currency?: string) => {
     const isUsdt = currency === 'USDT';
@@ -1293,7 +1317,18 @@ export default function MemberActivityDataContent() {
                     <Badge variant="outline" className="font-mono text-xs">{row.member.memberCode}</Badge>
                   </MobileCardHeader>
                   <MobileCardRow label={t("会员名称", "Member name")} value={row.member.memberDisplayName ?? row.member.memberCode} />
-                  <MobileCardRow label={t("抽奖次数", "Lottery draws")} value={String(row.lotterySpinBalance)} />
+                  <MobileCardRow
+                    label={t("抽奖次数", "Lottery draws")}
+                    value={
+                      <button
+                        type="button"
+                        className="underline decoration-dotted underline-offset-2 text-violet-600 dark:text-violet-400 font-medium"
+                        onClick={() => openSpinDetail(row.member.id, row.member.memberCode)}
+                      >
+                        {row.lotterySpinBalance}
+                      </button>
+                    }
+                  />
                   <MobileCardRow label={t("邀抽累次", "Invite spins")} value={String(row.inviteSpinCredits)} />
                   <MobileCardRow label={t("消费次数", "Consumption count")} value={row.orderCount} />
                   <MobileCardRow label={t("累积次数", "Accumulated count")} value={row.permanentOrderCount} />
@@ -1389,7 +1424,13 @@ export default function MemberActivityDataContent() {
                         {row.member.memberDisplayName ?? row.member.memberCode}
                       </TableCell>}
                       {isVisible('lotterySpinBalance') && <TableCell className="text-center font-medium text-violet-600 dark:text-violet-400 tabular-nums">
-                        {row.lotterySpinBalance}
+                        <button
+                          type="button"
+                          className="underline decoration-dotted underline-offset-2 hover:text-violet-800 dark:hover:text-violet-300 cursor-pointer"
+                          onClick={() => openSpinDetail(row.member.id, row.member.memberCode)}
+                        >
+                          {row.lotterySpinBalance}
+                        </button>
                       </TableCell>}
                       {isVisible('inviteSpinCredits') && <TableCell className="text-center font-medium text-pink-600 dark:text-pink-400 tabular-nums">
                         {row.inviteSpinCredits > 0 ? row.inviteSpinCredits : "0"}
@@ -1964,6 +2005,78 @@ export default function MemberActivityDataContent() {
           <Button variant="outline" onClick={() => setIsPointsHistoryDialogOpen(false)}>
             {t("关闭", "Close")}
           </Button>
+        </div>
+      </DrawerDetail>
+
+      <DrawerDetail
+        open={isSpinDetailOpen}
+        onOpenChange={setIsSpinDetailOpen}
+        title={`${t("抽奖次数明细", "Spin Credits Detail")} — ${spinDetailMember?.label ?? ""}`}
+        sheetMaxWidth="3xl"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-4 text-sm">
+            <span className="text-muted-foreground">{t("当前剩余次数", "Current remaining")}:</span>
+            <span className="font-bold text-violet-600 dark:text-violet-400 text-lg tabular-nums">{spinDetailRemaining}</span>
+          </div>
+          {spinDetailLoading ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground text-sm gap-2">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+              {t("加载中…", "Loading…")}
+            </div>
+          ) : spinDetailRows.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground text-sm">
+              {t("暂无抽奖次数记录", "No spin credit records")}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table className="text-sm">
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="text-center whitespace-nowrap">{t("时间", "Time")}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">{t("获得次数", "Amount")}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">{t("来源", "Source")}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">{t("获得之前次数", "Before")}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">{t("获得之后次数", "After")}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">{t("剩余次数", "Remaining")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {spinDetailRows.map((row, idx) => {
+                    const sourceLabel = (() => {
+                      const s = row.source;
+                      if (!s) return "—";
+                      if (s === "share") return t("分享奖励", "Share reward");
+                      if (s.startsWith("order_completed:")) return t("完成订单", "Order completed");
+                      if (s === "referral") return t("邀请奖励", "Referral reward");
+                      if (s === "invite_welcome") return t("注册欢迎", "Welcome bonus");
+                      if (s === "check_in") return t("签到奖励", "Check-in reward");
+                      if (s === "daily_free") return t("每日免费", "Daily free");
+                      if (s === "admin_grant") return t("管理员发放", "Admin granted");
+                      return s;
+                    })();
+                    return (
+                      <TableRow key={idx}>
+                        <TableCell className="text-center text-xs whitespace-nowrap">{formatBeijingTime(row.created_at)}</TableCell>
+                        <TableCell className="text-center font-medium text-green-600 tabular-nums">+{row.amount}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className="text-[10px]">{sourceLabel}</Badge>
+                        </TableCell>
+                        <TableCell className="text-center text-muted-foreground tabular-nums">{row.balance_before}</TableCell>
+                        <TableCell className="text-center font-medium tabular-nums">{row.balance_after}</TableCell>
+                        <TableCell className="text-center font-bold text-violet-600 dark:text-violet-400 tabular-nums">{spinDetailRemaining}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          <div className="border-t border-border pt-4 mt-4">
+            <Button variant="outline" onClick={() => setIsSpinDetailOpen(false)}>
+              {t("关闭", "Close")}
+            </Button>
+          </div>
         </div>
       </DrawerDetail>
     </div>

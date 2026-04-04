@@ -48,6 +48,31 @@ export async function patchActivityGiftApi(
   return data && typeof data === "object" ? data : null;
 }
 
+export interface SpinCreditDetailRow {
+  created_at: string;
+  amount: number;
+  source: string;
+  balance_before: number;
+  balance_after: number;
+}
+
+export interface SpinCreditsDetailResult {
+  credits: SpinCreditDetailRow[];
+  remaining: number;
+  totalEarned: number;
+}
+
+export async function getSpinCreditsDetailApi(memberId: string): Promise<SpinCreditsDetailResult> {
+  const res = await apiClient.get<SpinCreditsDetailResult>(`/api/data/spin-credits-detail/${encodeURIComponent(memberId)}`);
+  const raw = res as Record<string, unknown>;
+  const data = (raw?.data && typeof raw.data === "object" ? raw.data : raw) as Record<string, unknown>;
+  return {
+    credits: Array.isArray(data?.credits) ? data.credits as SpinCreditDetailRow[] : [],
+    remaining: Number(data?.remaining ?? 0),
+    totalEarned: Number(data?.totalEarned ?? 0),
+  };
+}
+
 export async function deleteActivityGiftApi(
   id: string,
   tenantId?: string | null,
