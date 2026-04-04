@@ -668,11 +668,11 @@ export default function MemberPortalSettingsPage() {
   const [confirmVersionRejectId, setConfirmVersionRejectId] = useState<string | null>(null);
   const [confirmVersionApproveId, setConfirmVersionApproveId] = useState<string | null>(null);
   const localBuildTime = typeof __BUILD_TIME__ !== "undefined" ? __BUILD_TIME__ : "unknown";
-  const lotteryRateTotal = useMemo(
+  const lotteryWeightTotal = useMemo(
     () => lotteryPrizes.reduce((acc, x) => acc + Math.max(0, Number(x.probability || 0)), 0),
     [lotteryPrizes]
   );
-  const isLotteryRateValid = Math.abs(lotteryRateTotal - 100) < 0.001;
+  const isLotteryWeightsValid = lotteryWeightTotal > 0;
   const hasThanksPrize = useMemo(() => lotteryPrizes.some(p => p.type === 'none'), [lotteryPrizes]);
 
   /** 与会员端一致：上传返回多为 `/api/upload/image/:id`，分域部署须拼 VITE_API_BASE，否则 <img> 会打到静态站 404 */
@@ -954,6 +954,21 @@ export default function MemberPortalSettingsPage() {
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId, loading, workingDraftKey, settings, badgesText, banners, moduleOrder, loginCarouselSlides, lastPublishedSnapshot]);
+
+  // Keep session snapshot in sync so local changes (like mall item deletions) survive tab navigation
+  useEffect(() => {
+    if (loading || !tenantId) return;
+    const existing = getMemberPortalStaffSessionSnapshot(workingDraftKey);
+    if (!existing) return;
+    setMemberPortalStaffSessionSnapshot(workingDraftKey, {
+      ...existing,
+      mallItems,
+      mallCategories,
+      lotteryPrizes,
+      lotterySettings,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mallItems, mallCategories, lotteryPrizes, lotterySettings, workingDraftKey, loading, tenantId]);
 
   // ── Logo 上传 ─────────────────────────────────────────────────────────────
   const onUploadLogo = async (file?: File | null) => {
@@ -1478,11 +1493,11 @@ export default function MemberPortalSettingsPage() {
       lastPublishedLotteryFingerprint !== "" &&
       fingerprintLotteryStaffState(lotterySettings, lotteryPrizes) !== lastPublishedLotteryFingerprint;
     if (lotteryDirtyForPublish) {
-      if (!isLotteryRateValid || !hasThanksPrize) {
+      if (!isLotteryWeightsValid || !hasThanksPrize) {
         notify.error(
           t(
-            "抽奖有未保存变更，但奖品概率须合计 100% 且须含「感谢参与」才能写入。请先在「幸运抽奖」页保存后再发布。",
-            "Lottery has unsaved changes but prizes must total 100% with a Thanks prize. Save on the Lucky Spin tab first, then publish.",
+            "抽奖有未保存变更，奖品权重须大于 0 且须含「感谢参与」才能写入。请先在「幸运抽奖」页保存后再发布。",
+            "Lottery has unsaved changes — prize weights must be > 0 and include a Thanks prize. Save on the Lucky Spin tab first, then publish.",
           ),
         );
         return;

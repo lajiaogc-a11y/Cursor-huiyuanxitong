@@ -164,7 +164,12 @@ export async function memberPrizesController(req: AuthenticatedRequest, res: Res
 
 export async function adminListPrizesController(req: AuthenticatedRequest, res: Response) {
   const tenantId = req.user?.tenant_id ?? null;
-  const prizes = await listPrizes(tenantId);
+  const raw = await listPrizes(tenantId);
+  const prizes = raw.map((p) => ({
+    ...p,
+    stock_enabled: Number(p.stock_enabled) === 1,
+    enabled: Number((p as any).enabled) !== 0,
+  }));
   res.json({ success: true, prizes });
 }
 

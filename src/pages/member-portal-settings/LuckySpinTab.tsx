@@ -50,6 +50,14 @@ function endsWithLoneDot(s: string): boolean {
   return /\.$/.test(s.trim());
 }
 
+/** Format a number without scientific notation; cap decimal places at 4 */
+function formatWeight(n: number): string {
+  if (n === 0) return '0';
+  return n.toFixed(4).replace(/\.?0+$/, '');
+}
+
+const MIN_POSITIVE_WEIGHT = 0.01;
+
 interface Props {
   lotteryPrizes: LotteryPrize[];
   setLotteryPrizes: React.Dispatch<React.SetStateAction<LotteryPrize[]>>;
@@ -95,9 +103,14 @@ export default function LuckySpinTab({
       notify.error(t('必须包含一个\u201C感谢参与\u201D类型奖品', 'Must include a \u201CThanks for participating\u201D prize'));
       return;
     }
+    const sanitised = lotteryPrizes.map(p => {
+      let w = Number(p.probability ?? 0);
+      if (w > 0 && w < MIN_POSITIVE_WEIGHT) w = MIN_POSITIVE_WEIGHT;
+      return { ...p, probability: Math.max(0, w) };
+    });
     setSavingSpinPrizes(true);
     try {
-      await adminSaveLotteryPrizes(lotteryPrizes);
+      await adminSaveLotteryPrizes(sanitised);
       setProbFieldDrafts({});
       setLotteryPrizes(await adminGetLotteryPrizes());
       notify.success(t('奖品配置已保存', 'Prize config saved'));
@@ -538,7 +551,7 @@ export default function LuckySpinTab({
                         value={
                           probFieldDrafts[`win:${idx}`] !== undefined
                             ? probFieldDrafts[`win:${idx}`]!
-                            : String(Number(item.probability ?? 0))
+                            : formatWeight(Number(item.probability ?? 0))
                         }
                         onChange={(e) => {
                           const v = e.target.value;
@@ -558,9 +571,11 @@ export default function LuckySpinTab({
                           if (raw === undefined) return;
                           const trimmed = raw.trim();
                           if (trimmed === '' || trimmed === '.') { updateLotteryPrize(idx, { probability: 0 }); return; }
-                          const n = parseFloat(trimmed);
+                          let n = parseFloat(trimmed);
                           if (!Number.isFinite(n)) return;
-                          updateLotteryPrize(idx, { probability: Math.max(0, n) });
+                          n = Math.max(0, n);
+                          if (n > 0 && n < MIN_POSITIVE_WEIGHT) n = MIN_POSITIVE_WEIGHT;
+                          updateLotteryPrize(idx, { probability: n });
                         }}
                         className="w-24 font-mono text-sm"
                         placeholder="0"
@@ -579,7 +594,7 @@ export default function LuckySpinTab({
                           probFieldDrafts[`disp:${idx}`] !== undefined
                             ? probFieldDrafts[`disp:${idx}`]!
                             : item.display_probability != null && Number.isFinite(Number(item.display_probability))
-                              ? String(item.display_probability)
+                              ? formatWeight(Number(item.display_probability))
                               : ''
                         }
                         onChange={(e) => {
@@ -600,9 +615,11 @@ export default function LuckySpinTab({
                           if (raw === undefined) return;
                           const trimmed = raw.trim();
                           if (trimmed === '' || trimmed === '.') { updateLotteryPrize(idx, { display_probability: null }); return; }
-                          const n = parseFloat(trimmed);
+                          let n = parseFloat(trimmed);
                           if (!Number.isFinite(n)) return;
-                          updateLotteryPrize(idx, { display_probability: Math.max(0, n) });
+                          n = Math.max(0, n);
+                          if (n > 0 && n < MIN_POSITIVE_WEIGHT) n = MIN_POSITIVE_WEIGHT;
+                          updateLotteryPrize(idx, { display_probability: n });
                         }}
                         className="w-24 font-mono text-sm"
                         placeholder={t("空=同权重比", "Empty = ratio")}

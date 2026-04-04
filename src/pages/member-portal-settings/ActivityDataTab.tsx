@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { LucideIcon } from "lucide-react";
-import { RefreshCw, Star, Settings2, ShoppingCart, Share2, UserPlus } from "lucide-react";
+import { RefreshCw, Star, Settings2, ShoppingCart, Share2, UserPlus, CalendarClock } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
