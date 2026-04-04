@@ -954,7 +954,8 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                     acct.tenant_id,
                   ],
                 );
-                await syncPointsLog(conn, String(red.member_id), -cost, 'redeem', confirmDesc, acct.tenant_id);
+                // amount=0: balance already deducted at freeze; only frozen→spent accounting here
+                await syncPointsLog(conn, String(red.member_id), 0, 'redeem_confirmed', confirmDesc, acct.tenant_id, balAfter);
               }
             } else if (action === 'cancel') {
               const qty = Math.max(1, Math.floor(Number(red.quantity ?? 1)));
@@ -987,7 +988,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                     acct.tenant_id,
                   ],
                 );
-                await syncPointsLog(conn, String(red.member_id), cost, 'refund', cancelDesc, acct.tenant_id);
+                await syncPointsLog(conn, String(red.member_id), cost, 'redeem_cancelled', cancelDesc, acct.tenant_id, afterBal);
               }
 
               if (mallItemIdRaw && /^[0-9a-f-]{36}$/i.test(mallItemIdRaw)) {
@@ -1029,7 +1030,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                     acct.tenant_id,
                   ],
                 );
-                await syncPointsLog(conn, String(red.member_id), cost, 'refund', rejectDesc, acct.tenant_id);
+                await syncPointsLog(conn, String(red.member_id), cost, 'redeem_rejected', rejectDesc, acct.tenant_id, afterBal);
               } else if (cost > 0) {
                 await addPoints(conn, {
                   memberId: String(red.member_id),
@@ -2100,7 +2101,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                 acctRow.tenant_id ?? memberRow?.tenant_id ?? null,
               ],
             );
-            await syncPointsLog(conn, memberId, -cost, 'redeem', freezeDesc, acctRow.tenant_id ?? memberRow?.tenant_id ?? null);
+            await syncPointsLog(conn, memberId, -cost, 'freeze', freezeDesc, acctRow.tenant_id ?? memberRow?.tenant_id ?? null, balanceAfterFreeze);
 
             const snapPhone = memberRow?.phone_number != null ? String(memberRow.phone_number).trim().slice(0, 64) : null;
             await conn.query(

@@ -32,6 +32,7 @@ export function pointsLedgerTransactionLabel(
     return t("积分冻结", "Points frozen");
   }
   if (txn === "redeem_confirmed") return t("兑换确认", "Redemption confirmed");
+  if (txn === "redeem_cancelled") return t("兑换取消退回", "Redemption cancelled");
   if (txn === "redeem_rejected") return t("兑换退回", "Redemption refund");
   if (txn === "consumption" || txn === "regular" || txn === "usdt") return t("消费积分", "Consumption");
   if (txn === "referral_1") return t("推荐奖励1", "Referral Reward 1");

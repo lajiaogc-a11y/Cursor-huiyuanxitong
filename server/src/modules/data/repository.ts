@@ -1454,6 +1454,20 @@ function mergePointsLedgerAndLog(
 ): Record<string, unknown>[] {
   if (logRows.length === 0) return ledgerRows;
 
+  // Type equivalence map: ledger type → legacy points_log types that represent the same event
+  const LEDGER_LOG_EQUIV: Record<string, string[]> = {
+    freeze: ['redeem', 'freeze'],
+    redeem_confirmed: ['redeem', 'redeem_confirmed'],
+    redeem_cancelled: ['refund', 'redeem_cancelled'],
+    redeem_rejected: ['refund', 'redeem_rejected'],
+  };
+
+  function typesMatch(ledgerType: string, logType: string): boolean {
+    if (ledgerType === logType) return true;
+    const equiv = LEDGER_LOG_EQUIV[ledgerType];
+    return equiv ? equiv.includes(logType) : false;
+  }
+
   const ledgerByMember = new Map<string, { ts: number; amt: number; type: string }[]>();
   for (const r of ledgerRows) {
     const mid = String(r.member_id ?? '');
@@ -1472,9 +1486,14 @@ function mergePointsLedgerAndLog(
     const amt = Math.abs(Number(r.amount ?? 0));
     const type = String(r.type ?? r.transaction_type ?? '');
     const existing = ledgerByMember.get(mid);
-    const hasDup = existing?.some(
-      (e) => Math.abs(e.ts - ts) <= 500 && Math.abs(e.amt - amt) < 0.02 && e.type === type,
-    );
+    const hasDup = existing?.some((e) => {
+      if (Math.abs(e.ts - ts) > 2000) return false;
+      if (!typesMatch(e.type, type)) return false;
+      // For audit-only entries (ledger amount=0, e.g. redeem_confirmed), skip amount check —
+      // old points_log wrote -cost while ledger correctly wrote 0
+      if (e.amt === 0) return true;
+      return Math.abs(e.amt - amt) < 0.02;
+    });
     if (!hasDup) deduped.push(r);
   }
 

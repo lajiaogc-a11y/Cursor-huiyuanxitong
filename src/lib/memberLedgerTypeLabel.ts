@@ -12,6 +12,7 @@ export function ledgerActivityTypeLabel(
   if (raw === "adjustment") return t("人工调整", "Adjustment");
   if (raw === "freeze") return t("积分冻结", "Points frozen");
   if (raw === "redeem_confirmed") return t("兑换确认", "Redemption confirmed");
+  if (raw === "redeem_cancelled") return t("兑换取消退回", "Redemption cancelled");
   if (raw === "redeem_rejected") return t("兑换退回", "Redemption refund");
   if (raw === "mall_redemption") return t("会员商城兑换", "Mall redemption");
   if (!raw || raw === "unknown") return t("积分变动", "Points change");
