@@ -64,8 +64,8 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   const [refreshing, setRefreshing] = useState(false);
   const [settling, setSettling] = useState(false);
   const startYRef = useRef(0);
+  const startScrollTopRef = useRef(0);
   const pullActiveRef = useRef(false);
-  const scrolledAwayRef = useRef(false);
   const internalScrollRef = useRef<HTMLDivElement>(null);
   const scrollRef = scrollElRef ?? internalScrollRef;
   const location = useLocation();
@@ -73,19 +73,21 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   const memberTabScrollMemoryRef = useRef<Record<string, number>>({});
   const memberScrollPrevPathRef = useRef<string | null>(null);
 
-  const stateRef = useRef({ pulling: false, refreshing: false, pullDistance: 0 });
-
-  const getScrollTop = useCallback((): number => {
-    if (scrollContainer) {
-      const el = (scrollRef as RefObject<HTMLDivElement>).current;
-      return el ? el.scrollTop : 0;
+  /**
+   * Use a state variable to track the actual scroll DOM node.
+   * A callback ref triggers a re-render when the node mounts/unmounts,
+   * which causes the useEffect for event listeners to re-run and
+   * attach to the CORRECT element (not document.body as fallback).
+   */
+  const [scrollNode, setScrollNode] = useState<HTMLDivElement | null>(null);
+  const scrollRefCallback = useCallback((node: HTMLDivElement | null) => {
+    setScrollNode(node);
+    if (scrollRef && "current" in scrollRef) {
+      (scrollRef as MutableRefObject<HTMLDivElement | null>).current = node;
     }
-    return window.scrollY || document.documentElement.scrollTop || 0;
-  }, [scrollContainer, scrollRef]);
+  }, [scrollRef]);
 
-  const isAtTop = useCallback((): boolean => {
-    return Math.round(getScrollTop()) <= 0;
-  }, [getScrollTop]);
+  const stateRef = useRef({ pulling: false, refreshing: false, pullDistance: 0 });
 
   const doRefresh = useCallback(() => {
     setRefreshing(true);
@@ -129,19 +131,23 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   }, [prefersReducedMotion]);
 
   useEffect(() => {
-    const el = scrollContainer
-      ? (scrollRef as RefObject<HTMLDivElement>).current
-      : null;
+    const el = scrollContainer ? scrollNode : null;
     const target = el || document.body;
     if (!target) return;
 
     const handleTouchStart = (e: TouchEvent) => {
       if (stateRef.current.refreshing) return;
       if (touchTargetDefersPull(e.target)) return;
-      scrolledAwayRef.current = false;
+
       pullActiveRef.current = false;
 
-      if (!isAtTop()) return;
+      const currentScrollTop = scrollContainer
+        ? (el?.scrollTop ?? 0)
+        : (window.scrollY || document.documentElement.scrollTop || 0);
+
+      startScrollTopRef.current = currentScrollTop;
+
+      if (Math.round(currentScrollTop) > 0) return;
 
       startYRef.current = e.touches[0].clientY;
       pullActiveRef.current = true;
@@ -149,12 +155,19 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
 
     const handleTouchMove = (e: TouchEvent) => {
       if (!pullActiveRef.current || stateRef.current.refreshing) return;
-      if (scrolledAwayRef.current) return;
+
+      if (startScrollTopRef.current > 0) {
+        pullActiveRef.current = false;
+        return;
+      }
+
+      const currentScrollTop = scrollContainer
+        ? (el?.scrollTop ?? 0)
+        : (window.scrollY || document.documentElement.scrollTop || 0);
 
       const dy = e.touches[0].clientY - startYRef.current;
 
       if (dy < 0) {
-        scrolledAwayRef.current = true;
         pullActiveRef.current = false;
         if (stateRef.current.pulling) {
           setPulling(false);
@@ -165,8 +178,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
         return;
       }
 
-      if (!isAtTop()) {
-        scrolledAwayRef.current = true;
+      if (Math.round(currentScrollTop) > 0) {
         pullActiveRef.current = false;
         if (stateRef.current.pulling) {
           setPulling(false);
@@ -177,7 +189,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
         return;
       }
 
-      if (dy > 8) {
+      if (dy > 4) {
         e.preventDefault();
       }
 
@@ -191,7 +203,6 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
     };
 
     const handleTouchEnd = () => {
-      scrolledAwayRef.current = false;
       if (!pullActiveRef.current) return;
       pullActiveRef.current = false;
       if (stateRef.current.pullDistance >= THRESHOLD) {
@@ -217,7 +228,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
       target.removeEventListener("touchend", handleTouchEnd);
       target.removeEventListener("touchcancel", handleTouchEnd);
     };
-  }, [scrollContainer, scrollRef, isAtTop, doRefresh]);
+  }, [scrollContainer, scrollNode, doRefresh]);
 
   useEffect(() => {
     setPulling(false);
@@ -230,7 +241,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
 
   useLayoutEffect(() => {
     if (!scrollContainer) return;
-    const el = (scrollRef as MutableRefObject<HTMLDivElement | null>).current;
+    const el = scrollNode;
     if (!el) return;
     const pathname = location.pathname;
     const prev = memberScrollPrevPathRef.current;
@@ -245,7 +256,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
       el.scrollLeft = 0;
     }
     memberScrollPrevPathRef.current = pathname;
-  }, [location.pathname, scrollContainer, scrollRef]);
+  }, [location.pathname, scrollContainer, scrollNode]);
 
   const progress = Math.min(pullDistance / THRESHOLD, 1);
   const rotation = prefersReducedMotion ? 0 : pullDistance * 3.6;
@@ -323,9 +334,14 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
       <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", className)}>
         {indicator}
         <div
-          ref={scrollRef as MutableRefObject<HTMLDivElement | null>}
+          ref={scrollRefCallback}
           data-spa-scroll-root="member"
-          className="native-scroll-y min-h-0 flex-1 overflow-x-hidden overflow-y-auto [overscroll-behavior-y:contain] [overscroll-behavior-x:contain]"
+          className="native-scroll-y min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
+          style={{
+            overscrollBehaviorY: "contain",
+            overscrollBehaviorX: "contain",
+            touchAction: pulling ? "none" : "pan-y",
+          }}
           role="region"
           aria-busy={refreshing}
           aria-label={t("会员中心滚动区域", "Member portal scroll area")}
