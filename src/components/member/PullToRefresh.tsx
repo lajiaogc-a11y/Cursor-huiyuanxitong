@@ -271,7 +271,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
         <div
           ref={scrollRef as MutableRefObject<HTMLDivElement | null>}
           data-spa-scroll-root="member"
-          className="native-scroll-y min-h-0 flex-1 overflow-x-hidden overflow-y-auto [overscroll-behavior:contain]"
+          className="native-scroll-y min-h-0 flex-1 overflow-x-hidden overflow-y-auto [overscroll-behavior-y:auto] [overscroll-behavior-x:contain]"
           role="region"
           aria-busy={refreshing}
           aria-label={t("会员中心滚动区域", "Member portal scroll area")}
