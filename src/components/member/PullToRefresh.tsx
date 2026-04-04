@@ -30,8 +30,8 @@ function usePrefersReducedMotion() {
 const THRESHOLD = 80;
 const MAX_PULL = 130;
 const RESISTANCE = 0.42;
+const SETTLE_MS = 320;
 
-/** 触摸起始于输入/可编辑区时不激活下拉刷新，避免与划选文字、光标拖动冲突 */
 function touchTargetDefersPull(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
   if (target.closest('input:not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select, [contenteditable="true"]')) {
@@ -47,16 +47,13 @@ function touchTargetDefersPull(target: EventTarget | null): boolean {
   );
 }
 
-/** Custom event dispatched after a pull-to-refresh so pages can react to data-level refresh */
 export const MEMBER_PULL_REFRESH_EVENT = "member:pull-refresh";
 
 interface Props {
   children: ReactNode;
   themeColor?: string;
-  /** 根节点作为唯一纵向滚动区（会员布局：避免 document 与内部双滚动、回弹异常） */
   scrollContainer?: boolean;
   className?: string;
-  /** External ref to the scroll element (for scroll restoration in parent) */
   scrollElRef?: MutableRefObject<HTMLDivElement | null> | RefObject<HTMLDivElement | null>;
 }
 
@@ -65,8 +62,10 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   const [pulling, setPulling] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [settling, setSettling] = useState(false);
   const startYRef = useRef(0);
   const pullActiveRef = useRef(false);
+  const scrolledAwayRef = useRef(false);
   const internalScrollRef = useRef<HTMLDivElement>(null);
   const scrollRef = scrollElRef ?? internalScrollRef;
   const location = useLocation();
@@ -74,77 +73,26 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   const memberTabScrollMemoryRef = useRef<Record<string, number>>({});
   const memberScrollPrevPathRef = useRef<string | null>(null);
 
-  const canPull = useCallback(() => {
+  const stateRef = useRef({ pulling: false, refreshing: false, pullDistance: 0 });
+
+  const getScrollTop = useCallback((): number => {
     if (scrollContainer) {
       const el = (scrollRef as RefObject<HTMLDivElement>).current;
-      if (!el) return false;
-      return Math.round(el.scrollTop) <= 0;
+      return el ? el.scrollTop : 0;
     }
-    return Math.round(window.scrollY) <= 0 && Math.round(document.documentElement.scrollTop) <= 0;
+    return window.scrollY || document.documentElement.scrollTop || 0;
   }, [scrollContainer, scrollRef]);
 
-  /** Track whether the gesture clearly committed to scrolling (not pulling) */
-  const scrolledAwayRef = useRef(false);
-
-  const onTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      if (refreshing) return;
-      if (touchTargetDefersPull(e.target)) return;
-      scrolledAwayRef.current = false;
-      if (!canPull()) {
-        pullActiveRef.current = false;
-        return;
-      }
-      startYRef.current = e.touches[0].clientY;
-      pullActiveRef.current = true;
-    },
-    [refreshing, canPull]
-  );
-
-  const onTouchMove = useCallback(
-    (e: React.TouchEvent) => {
-      if (!pullActiveRef.current || refreshing) return;
-      if (scrolledAwayRef.current) return;
-
-      const dy = e.touches[0].clientY - startYRef.current;
-
-      if (dy < 0) {
-        scrolledAwayRef.current = true;
-        pullActiveRef.current = false;
-        setPulling(false);
-        setPullDistance(0);
-        return;
-      }
-
-      if (!canPull()) {
-        scrolledAwayRef.current = true;
-        pullActiveRef.current = false;
-        setPulling(false);
-        setPullDistance(0);
-        return;
-      }
-
-      const distance = Math.min(dy * RESISTANCE, MAX_PULL);
-      setPulling(true);
-      setPullDistance(distance);
-    },
-    [refreshing, canPull]
-  );
+  const isAtTop = useCallback((): boolean => {
+    return Math.round(getScrollTop()) <= 0;
+  }, [getScrollTop]);
 
   const doRefresh = useCallback(() => {
     setRefreshing(true);
+    stateRef.current.refreshing = true;
     if (navigator.vibrate && !prefersReducedMotion) {
-      try {
-        navigator.vibrate(12);
-      } catch {
-        /* noop */
-      }
+      try { navigator.vibrate(12); } catch { /* noop */ }
     }
-    const resetPull = () => {
-      setRefreshing(false);
-      setPulling(false);
-      setPullDistance(0);
-    };
     queryClient
       .invalidateQueries({
         queryKey: memberQueryKeys.all,
@@ -153,35 +101,133 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
       })
       .then(() => {
         window.dispatchEvent(new CustomEvent(MEMBER_PULL_REFRESH_EVENT));
-        setTimeout(resetPull, 400);
+        setTimeout(() => {
+          setSettling(true);
+          setPullDistance(0);
+          stateRef.current.pullDistance = 0;
+          setTimeout(() => {
+            setRefreshing(false);
+            setPulling(false);
+            setSettling(false);
+            stateRef.current.refreshing = false;
+            stateRef.current.pulling = false;
+          }, SETTLE_MS);
+        }, 300);
       })
-      .catch(resetPull);
+      .catch(() => {
+        setSettling(true);
+        setPullDistance(0);
+        stateRef.current.pullDistance = 0;
+        setTimeout(() => {
+          setRefreshing(false);
+          setPulling(false);
+          setSettling(false);
+          stateRef.current.refreshing = false;
+          stateRef.current.pulling = false;
+        }, SETTLE_MS);
+      });
   }, [prefersReducedMotion]);
 
-  const onTouchEnd = useCallback(() => {
-    scrolledAwayRef.current = false;
-    if (!pullActiveRef.current) return;
-    pullActiveRef.current = false;
-    if (pullDistance >= THRESHOLD) {
-      setPullDistance(THRESHOLD);
-      doRefresh();
-    } else {
-      setPulling(false);
-      setPullDistance(0);
-    }
-  }, [pullDistance, doRefresh]);
+  useEffect(() => {
+    const el = scrollContainer
+      ? (scrollRef as RefObject<HTMLDivElement>).current
+      : null;
+    const target = el || document.body;
+    if (!target) return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (stateRef.current.refreshing) return;
+      if (touchTargetDefersPull(e.target)) return;
+      scrolledAwayRef.current = false;
+      pullActiveRef.current = false;
+
+      if (!isAtTop()) return;
+
+      startYRef.current = e.touches[0].clientY;
+      pullActiveRef.current = true;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!pullActiveRef.current || stateRef.current.refreshing) return;
+      if (scrolledAwayRef.current) return;
+
+      const dy = e.touches[0].clientY - startYRef.current;
+
+      if (dy < 0) {
+        scrolledAwayRef.current = true;
+        pullActiveRef.current = false;
+        if (stateRef.current.pulling) {
+          setPulling(false);
+          setPullDistance(0);
+          stateRef.current.pulling = false;
+          stateRef.current.pullDistance = 0;
+        }
+        return;
+      }
+
+      if (!isAtTop()) {
+        scrolledAwayRef.current = true;
+        pullActiveRef.current = false;
+        if (stateRef.current.pulling) {
+          setPulling(false);
+          setPullDistance(0);
+          stateRef.current.pulling = false;
+          stateRef.current.pullDistance = 0;
+        }
+        return;
+      }
+
+      if (dy > 8) {
+        e.preventDefault();
+      }
+
+      const distance = Math.min(dy * RESISTANCE, MAX_PULL);
+      if (!stateRef.current.pulling) {
+        setPulling(true);
+        stateRef.current.pulling = true;
+      }
+      setPullDistance(distance);
+      stateRef.current.pullDistance = distance;
+    };
+
+    const handleTouchEnd = () => {
+      scrolledAwayRef.current = false;
+      if (!pullActiveRef.current) return;
+      pullActiveRef.current = false;
+      if (stateRef.current.pullDistance >= THRESHOLD) {
+        setPullDistance(THRESHOLD);
+        stateRef.current.pullDistance = THRESHOLD;
+        doRefresh();
+      } else {
+        setPulling(false);
+        setPullDistance(0);
+        stateRef.current.pulling = false;
+        stateRef.current.pullDistance = 0;
+      }
+    };
+
+    target.addEventListener("touchstart", handleTouchStart, { passive: true });
+    target.addEventListener("touchmove", handleTouchMove, { passive: false });
+    target.addEventListener("touchend", handleTouchEnd, { passive: true });
+    target.addEventListener("touchcancel", handleTouchEnd, { passive: true });
+
+    return () => {
+      target.removeEventListener("touchstart", handleTouchStart);
+      target.removeEventListener("touchmove", handleTouchMove);
+      target.removeEventListener("touchend", handleTouchEnd);
+      target.removeEventListener("touchcancel", handleTouchEnd);
+    };
+  }, [scrollContainer, scrollRef, isAtTop, doRefresh]);
 
   useEffect(() => {
     setPulling(false);
     setPullDistance(0);
     setRefreshing(false);
+    setSettling(false);
     pullActiveRef.current = false;
+    stateRef.current = { pulling: false, refreshing: false, pullDistance: 0 };
   }, [location.pathname]);
 
-  /**
-   * 底部 Tab 互切：记住各 Tab 的 scrollTop（keep-alive 与滚动区合一）。
-   * 非 Tab 或与 Tab 之间切换：仍置顶，避免长页残留导致短页「闪跳」。
-   */
   useLayoutEffect(() => {
     if (!scrollContainer) return;
     const el = (scrollRef as MutableRefObject<HTMLDivElement | null>).current;
@@ -205,17 +251,23 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   const rotation = prefersReducedMotion ? 0 : pullDistance * 3.6;
   const indicatorScale = prefersReducedMotion ? 1 : 0.5 + progress * 0.5;
 
+  const showIndicator = pulling || refreshing || settling;
+  const animateCollapse = settling || (!pulling && !refreshing);
+
   const indicator = (
     <div
       className="member-ptr-indicator shrink-0"
       style={{
-        height: pulling || refreshing ? pullDistance : 0,
+        height: showIndicator ? pullDistance : 0,
         overflow: "hidden",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        transition:
-          pulling || prefersReducedMotion ? "none" : "height 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
+        transition: animateCollapse && !prefersReducedMotion
+          ? `height ${SETTLE_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`
+          : pulling
+            ? "none"
+            : `height ${SETTLE_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`,
       }}
     >
       <div
@@ -225,9 +277,13 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          opacity: progress,
+          opacity: settling ? 0 : progress,
           transform: `scale(${indicatorScale})`,
-          transition: pulling || prefersReducedMotion ? "none" : "all 0.3s ease",
+          transition: settling
+            ? `opacity ${SETTLE_MS * 0.6}ms ease`
+            : pulling || prefersReducedMotion
+              ? "none"
+              : `all ${SETTLE_MS}ms ease`,
         }}
       >
         {refreshing ? (
@@ -255,9 +311,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   const contentInner = (
     <div
       style={{
-        transform: pulling && !refreshing ? `translateY(0)` : undefined,
-        transition:
-          pulling || prefersReducedMotion ? "none" : "transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
+        transition: prefersReducedMotion ? "none" : `transform ${SETTLE_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`,
       }}
     >
       {children}
@@ -271,14 +325,10 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
         <div
           ref={scrollRef as MutableRefObject<HTMLDivElement | null>}
           data-spa-scroll-root="member"
-          className="native-scroll-y min-h-0 flex-1 overflow-x-hidden overflow-y-auto [overscroll-behavior-y:auto] [overscroll-behavior-x:contain]"
+          className="native-scroll-y min-h-0 flex-1 overflow-x-hidden overflow-y-auto [overscroll-behavior-y:contain] [overscroll-behavior-x:contain]"
           role="region"
           aria-busy={refreshing}
           aria-label={t("会员中心滚动区域", "Member portal scroll area")}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-          onTouchCancel={onTouchEnd}
         >
           {contentInner}
         </div>
@@ -287,13 +337,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   }
 
   return (
-    <div
-      className={className}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-      onTouchCancel={onTouchEnd}
-    >
+    <div className={className}>
       {indicator}
       {contentInner}
     </div>
