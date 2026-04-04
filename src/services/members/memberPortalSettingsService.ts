@@ -272,7 +272,7 @@ export const DEFAULT_SETTINGS: MemberPortalSettings = {
   invite_reward_spins: 3,
   daily_invite_reward_limit: 0,
   daily_free_spins_per_day: 0,
-  login_badges: ["🏆 签到奖励", "🎁 积分兑换", "👥 邀请好友"],
+  login_badges: [],
   footer_text: "账户数据安全加密，平台合规运营，请放心使用",
   home_banners: [],
   show_announcement_popup: false,
@@ -346,25 +346,22 @@ export function normalizeLoginBadgesField(raw: unknown): string[] {
   const fromArray = (arr: unknown[]): string[] =>
     arr.map((x) => String(x).trim()).filter((s) => s.length > 0);
   if (Array.isArray(raw)) {
-    const out = fromArray(raw);
-    return out.length > 0 ? out : DEFAULT_SETTINGS.login_badges;
+    return fromArray(raw);
   }
   if (typeof raw === "string") {
     const s = raw.trim();
-    if (!s) return DEFAULT_SETTINGS.login_badges;
+    if (!s) return [];
     try {
       const p = JSON.parse(s) as unknown;
       if (Array.isArray(p)) {
-        const out = fromArray(p);
-        return out.length > 0 ? out : DEFAULT_SETTINGS.login_badges;
+        return fromArray(p);
       }
     } catch {
       /* 单行或多行纯文本 */
     }
-    const lines = fromArray(s.split(/\r?\n/));
-    return lines.length > 0 ? lines : DEFAULT_SETTINGS.login_badges;
+    return fromArray(s.split(/\r?\n/));
   }
-  return DEFAULT_SETTINGS.login_badges;
+  return [];
 }
 
 function normalizeSettings(raw: Record<string, unknown> = {}): MemberPortalSettings {
