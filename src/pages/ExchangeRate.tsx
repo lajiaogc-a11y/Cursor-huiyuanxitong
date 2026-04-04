@@ -621,8 +621,8 @@ export default function ExchangeRate() {
       setPayNaira(savedFormData.payNaira || "");
       setPayCedi(savedFormData.payCedi || "");
       setPayUsdt(savedFormData.payUsdt || "");
-      if (savedFormData.nairaRate) setNairaRate(savedFormData.nairaRate);
-      if (savedFormData.cediRate) setCediRate(savedFormData.cediRate);
+      // nairaRate / cediRate are intentionally NOT restored here —
+      // they are always loaded fresh from calculatorInputRates to avoid stale→new flash.
       setCurrencyPreferenceList(savedFormData.currencyPreferenceList || []);
       setCustomerSource(savedFormData.customerSource || "");
     }).catch(console.error);
@@ -814,14 +814,14 @@ export default function ExchangeRate() {
         payNaira,
         payCedi,
         payUsdt,
-        nairaRate: nairaRate ?? 0,
-        cediRate: cediRate ?? 0,
+        nairaRate: 0,
+        cediRate: 0,
         currencyPreferenceList,
         customerSource,
       };
       saveExchangeRateFormData(formData);
     }
-  }, [cardType, cardMerchant, paymentAgent, phoneNumber, memberCode, memberLevel, selectedCommonCards, customerFeature, remarkOrder, remarkMember, bankCard, cardValue, cardRate, payNaira, payCedi, payUsdt, nairaRate, cediRate, currencyPreferenceList, customerSource]);
+  }, [cardType, cardMerchant, paymentAgent, phoneNumber, memberCode, memberLevel, selectedCommonCards, customerFeature, remarkOrder, remarkMember, bankCard, cardValue, cardRate, payNaira, payCedi, payUsdt, currencyPreferenceList, customerSource]);
   // 电话号码自动匹配会员 - 只允许阿拉伯数字，最长18位
   // 使用 RPC 避免 profiles.employee_id 为空时 RLS 拦截
   const handlePhoneNumberChange = useCallback(async (value: string) => {

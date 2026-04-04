@@ -243,7 +243,7 @@ export default function MemberSettings() {
   const [ledgerTotalCount, setLedgerTotalCount] = useState(0);
   const [ledgerLoadingMore, setLedgerLoadingMore] = useState(false);
 
-  const { isLoading: ledgerLoading, isFetching: ledgerFetching } = useQuery({
+  const { isLoading: ledgerLoading, isFetching: ledgerFetching, data: ledgerPack } = useQuery({
     queryKey: memberId ? memberQueryKeys.pointsLedger(memberId, ledgerCategory) : ["member", "pointsLedger", "__none"],
     queryFn: async () => {
       if (!memberId) return { success: false as const, rows: [] as MemberPointsLedgerRow[], total: 0 };
