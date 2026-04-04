@@ -102,7 +102,12 @@ export default function LuckySpinTab({
       setLotteryPrizes(await adminGetLotteryPrizes());
       notify.success(t('奖品配置已保存', 'Prize config saved'));
     } catch (e: any) {
-      notify.error(e?.message || t('保存失败', 'Save failed'));
+      const code = e?.code || e?.message || '';
+      if (code === 'MAX_8_PRIZES' || code.includes('MAX_8_PRIZES')) {
+        notify.error(t('最多只能启用 8 个奖品（转盘有 8 个格子）', 'Maximum 8 enabled prizes allowed (wheel has 8 slots)'));
+      } else {
+        notify.error(e?.message || t('保存失败', 'Save failed'));
+      }
     } finally {
       setSavingSpinPrizes(false);
     }

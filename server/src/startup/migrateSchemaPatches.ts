@@ -1397,6 +1397,15 @@ export async function migrateSchemaPatches(): Promise<void> {
   await addCol('points_log', 'reference_id', "VARCHAR(36) NULL COMMENT '关联的订单ID/抽奖ID/活动ID'");
   await addCol('points_log', 'balance_after', "DECIMAL(12,2) NULL COMMENT '变动后余额快照'");
 
+  // ── C1连锁: 幂等性查询索引 ──
+  try {
+    await execute(`ALTER TABLE points_ledger ADD INDEX idx_ref_id_type (reference_id, reference_type)`);
+    console.log('[schema-patch] added index idx_ref_id_type on points_ledger');
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!msg.includes('Duplicate key name') && !msg.includes('already exists')) throw e;
+  }
+
   // ── 数据修复：用 points_ledger SUM 校正 points_accounts.balance 偏移 ──
   try {
     const driftRows = await query<{ member_id: string; ledger_sum: number; acct_balance: number }>(

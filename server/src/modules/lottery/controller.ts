@@ -224,7 +224,7 @@ export async function adminSavePrizesController(req: AuthenticatedRequest, res: 
     return;
   }
 
-  await upsertPrizes(tenantId, normalized as unknown as Omit<LotteryPrize, 'enabled'>[]);
+  await upsertPrizes(tenantId, normalized as unknown as (LotteryPrize & { enabled?: boolean | number })[]);
   res.json({ success: true });
 }
 

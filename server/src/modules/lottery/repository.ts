@@ -53,7 +53,7 @@ export async function listEnabledPrizes(tenantId: string | null): Promise<Lotter
   );
 }
 
-export async function upsertPrizes(tenantId: string | null, prizes: Omit<LotteryPrize, 'enabled'>[]): Promise<void> {
+export async function upsertPrizes(tenantId: string | null, prizes: (LotteryPrize & { enabled?: boolean | number })[]): Promise<void> {
   await withTransaction(async (conn) => {
     await conn.query('DELETE FROM lottery_prizes WHERE tenant_id <=> ?', [tenantId]);
     for (const p of prizes) {

@@ -183,22 +183,25 @@ export async function confirmManualReward(
   if (row.reward_type !== 'manual') return { ok: false, error: 'NOT_MANUAL_REWARD' };
   if (row.reward_status === 'done') return { ok: false, error: 'ALREADY_DONE' };
 
-  await execute(
-    `UPDATE lottery_logs SET reward_status = ?, fail_reason = ?, retry_count = COALESCE(retry_count, 0) + 1 WHERE id = ?`,
-    [action, reason?.slice(0, 500) ?? null, logId],
-  );
-  if (action === 'done') {
-    const costRow = await queryOne<{ prize_cost: number; tenant_id: string | null }>(
-      'SELECT COALESCE(prize_cost, 0) AS prize_cost, tenant_id FROM lottery_logs WHERE id = ?',
-      [logId],
+  await withTransaction(async (conn) => {
+    await conn.execute(
+      `UPDATE lottery_logs SET reward_status = ?, fail_reason = ?, retry_count = COALESCE(retry_count, 0) + 1 WHERE id = ?`,
+      [action, reason?.slice(0, 500) ?? null, logId],
     );
-    if (costRow && Number(costRow.prize_cost) > 0) {
-      await execute(
-        'UPDATE lottery_settings SET daily_reward_used = COALESCE(daily_reward_used, 0) + ? WHERE tenant_id <=> ?',
-        [Number(costRow.prize_cost), costRow.tenant_id],
+    if (action === 'done') {
+      const [costRows] = await conn.query(
+        'SELECT COALESCE(prize_cost, 0) AS prize_cost, tenant_id FROM lottery_logs WHERE id = ?',
+        [logId],
       );
+      const costRow = (costRows as { prize_cost: number; tenant_id: string | null }[])[0];
+      if (costRow && Number(costRow.prize_cost) > 0) {
+        await conn.execute(
+          'UPDATE lottery_settings SET daily_reward_used = COALESCE(daily_reward_used, 0) + ? WHERE tenant_id <=> ?',
+          [Number(costRow.prize_cost), costRow.tenant_id],
+        );
+      }
     }
-  }
+  });
   return { ok: true };
 }
 
