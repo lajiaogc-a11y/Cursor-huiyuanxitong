@@ -222,7 +222,8 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
     const targetRtp = Number(settingsRow?.target_rtp ?? 0);
     const policy = parseBudgetPolicy(settingsRow?.budget_policy);
 
-    if (settingsRow && settingsRow.daily_reward_reset_date !== today && rawBudgetCap > 0) {
+    const budgetOrRtpEnabled = rawBudgetCap > 0 || targetRtp > 0;
+    if (settingsRow && settingsRow.daily_reward_reset_date !== today && budgetOrRtpEnabled) {
       await execConn(conn,
         'UPDATE lottery_settings SET daily_reward_used = 0, daily_reward_reset_date = ? WHERE tenant_id <=> ?',
         [today, tenantId],
@@ -230,11 +231,20 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
       budgetUsed = 0;
     }
 
-    // RTP 有效预算：target_rtp 是一个 0~100 的百分比，收紧实际可用上限
-    // 例如 budget=1000, target_rtp=80 → effectiveCap=800
-    const effectiveBudgetCap = rawBudgetCap > 0 && targetRtp > 0
-      ? Math.min(rawBudgetCap, rawBudgetCap * targetRtp / 100)
-      : rawBudgetCap;
+    // ── RTP 有效预算：基于今日订单产生的积分 × RTP% ──
+    // target_rtp 表示"从今日订单产生的积分中，拿出百分之多少作为抽奖发放额度"
+    // 例如 今日订单积分=10000, target_rtp=1 → rtpBudget=100
+    // 最终有效上限 = min(手动预算上限, RTP额度)；两者都为 0 则不限
+    let effectiveBudgetCap = rawBudgetCap;
+    if (targetRtp > 0) {
+      const todayOrderPoints = await getTodayOrderPointsTotal(conn, tenantId, today);
+      const rtpBudget = Math.floor(todayOrderPoints * targetRtp / 100);
+      if (rawBudgetCap > 0) {
+        effectiveBudgetCap = Math.min(rawBudgetCap, rtpBudget);
+      } else {
+        effectiveBudgetCap = rtpBudget;
+      }
+    }
     const budgetRemaining = effectiveBudgetCap > 0 ? effectiveBudgetCap - budgetUsed : Infinity;
     const budgetEnabled = effectiveBudgetCap > 0;
 
@@ -422,6 +432,34 @@ function parseBudgetPolicy(raw: string | null | undefined): BudgetPolicy {
   const v = String(raw ?? '').trim().toLowerCase();
   if (v === 'deny' || v === 'fallback') return v;
   return 'downgrade';
+}
+
+/**
+ * 查询今日（北京时间）该租户通过订单产生的积分总数。
+ * 取 points_ledger 中 type='consumption' 或 transaction_type='consumption' 且 amount > 0 的正向流水。
+ */
+async function getTodayOrderPointsTotal(
+  conn: PoolConnection,
+  tenantId: string | null,
+  today: string,
+): Promise<number> {
+  const dayStart = `${today} 00:00:00`;
+  try {
+    const rows = await queryConn<{ total: number }>(conn,
+      `SELECT COALESCE(SUM(amount), 0) AS total
+       FROM points_ledger
+       WHERE tenant_id <=> ?
+         AND amount > 0
+         AND (type = 'consumption' OR transaction_type = 'consumption')
+         AND created_at >= ?
+         AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
+      [tenantId, dayStart, dayStart],
+    );
+    return Number(rows[0]?.total ?? 0);
+  } catch (e) {
+    console.warn('[lottery] getTodayOrderPointsTotal query failed (fallback 0):', (e as Error).message?.slice(0, 120));
+    return 0;
+  }
 }
 
 /* ──────────── Phase 4: 统一奖励发放 ──────────── */

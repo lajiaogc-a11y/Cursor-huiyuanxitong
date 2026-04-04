@@ -224,6 +224,17 @@ export default function LuckySpinTab({
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
             <SectionTitle>{t("每日预算与 RTP", "Daily Budget & RTP")}</SectionTitle>
           </div>
+          {/* 详细说明 */}
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-200 space-y-2">
+            <p className="font-semibold">{t("预算与 RTP 机制说明", "Budget & RTP Explained")}</p>
+            <ul className="list-disc pl-4 space-y-1">
+              <li>{t("每日发奖预算：手动设置一个积分上限。今日抽奖累计发出的奖品积分达到此值后，按下方「预算策略」处理。设为 0 表示不限（不推荐）。", "Daily budget: a hard cap on lottery prize points per day. Once reached, the budget policy kicks in. 0 = unlimited.")}</li>
+              <li>{t("目标 RTP（Return To Player，返奖率）：参考今日后台「订单管理」中所有订单产生的积分总额，取其百分之多少作为今日抽奖可发放额度。", "Target RTP: takes a percentage of today's total order-generated points as the lottery budget.")}</li>
+              <li>{t("举例：今日订单共产生了 10000 积分，RTP 设为 1%，则今日 RTP 额度 = 10000 × 1% = 100 积分。", "Example: if orders generated 10,000 points today and RTP = 1%, then RTP budget = 100 points.")}</li>
+              <li>{t("最终有效上限 = min(手动预算, RTP额度)。如果手动预算=500、RTP额度=100，则实际可发 100。如果手动预算=0，则仅以 RTP 额度为准。两者都为 0 则完全不限。", "Effective cap = min(manual budget, RTP budget). Both 0 = unlimited.")}</li>
+              <li>{t("注意：RTP 额度会随着今日订单量动态变化——白天订单越多，抽奖可发的积分也越多；凌晨没订单时额度为 0。", "Note: RTP budget changes dynamically as orders come in; more orders = more lottery budget.")}</li>
+            </ul>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label className="text-xs">{t("每日发奖预算（0=不限）", "Daily Reward Budget (0=unlimited)")}</Label>
@@ -234,7 +245,7 @@ export default function LuckySpinTab({
                 value={lotterySettings.daily_reward_budget ?? 0}
                 onChange={(e) => setLotterySettings(prev => ({ ...prev, daily_reward_budget: Math.max(0, Number(e.target.value || 0)) }))}
               />
-              <p className="text-[11px] text-muted-foreground/70">{t("单位：积分。超出后按策略处理。", "Unit: points. When exceeded, budget policy applies.")}</p>
+              <p className="text-[11px] text-muted-foreground/70">{t("单位：积分。这是一个手动硬上限，超出后按「预算策略」处理。", "Unit: points. Hard cap; budget policy applies when exceeded.")}</p>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">{t("今日已用预算（只读）", "Used Today (read-only)")}</Label>
@@ -244,7 +255,7 @@ export default function LuckySpinTab({
                 value={lotterySettings.daily_reward_used ?? 0}
                 className="bg-muted/50 cursor-not-allowed"
               />
-              <p className="text-[11px] text-muted-foreground/70">{t("每日北京时间 0 点自动重置。", "Auto-resets at Beijing midnight each day.")}</p>
+              <p className="text-[11px] text-muted-foreground/70">{t("今日已通过抽奖实际发出的积分成本。每日北京时间 0 点自动重置。", "Actual prize cost spent today. Auto-resets at Beijing midnight.")}</p>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">{t("目标 RTP（%，0=不限）", "Target RTP (%, 0=no limit)")}</Label>
@@ -252,11 +263,14 @@ export default function LuckySpinTab({
                 type="number"
                 min={0}
                 max={100}
-                step={1}
+                step={0.1}
                 value={lotterySettings.target_rtp ?? 0}
                 onChange={(e) => setLotterySettings(prev => ({ ...prev, target_rtp: Math.min(100, Math.max(0, Number(e.target.value || 0))) }))}
               />
-              <p className="text-[11px] text-muted-foreground/70">{t("有效预算上限 = min(预算, 预算×RTP/100)。", "Effective cap = min(budget, budget×RTP/100).")}</p>
+              <p className="text-[11px] text-muted-foreground/70">{t(
+                "从今日订单产生的积分中，取百分之多少作为抽奖发放额度。例：设 1% → 今日订单积分 10000 → 额度 100。设 0 表示不使用此限制。",
+                "% of today's order points as lottery budget. E.g. 1% of 10,000 = 100. Set 0 to disable.",
+              )}</p>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">{t("预算策略", "Budget Policy")}</Label>
@@ -268,13 +282,37 @@ export default function LuckySpinTab({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="downgrade">{t("降级（压权，优先保底）", "Downgrade (suppress weights, fallback first)")}</SelectItem>
-                  <SelectItem value="fallback">{t("保底（只保留低成本奖品）", "Fallback (only low-cost prizes)")}</SelectItem>
-                  <SelectItem value="deny">{t("拒绝（预算耗尽禁止抽奖）", "Deny (block spins when exhausted)")}</SelectItem>
+                  <SelectItem value="downgrade">{t("降级 — 压低高成本奖品概率", "Downgrade — suppress high-cost prize probability")}</SelectItem>
+                  <SelectItem value="fallback">{t("保底 — 只保留低成本奖品", "Fallback — only keep low-cost prizes")}</SelectItem>
+                  <SelectItem value="deny">{t("拒绝 — 预算耗尽直接禁止抽奖", "Deny — block all spins when exhausted")}</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-muted-foreground/70">{t("预算耗尽时的行为：降级压权 / 仅保底 / 直接拒绝。", "Behavior when budget runs out: downgrade / fallback / deny.")}</p>
             </div>
+          </div>
+          {/* 预算策略详细中文解释 */}
+          <div className="rounded-lg border border-dashed p-3 bg-muted/10 text-[11px] text-muted-foreground/80 leading-relaxed space-y-1.5">
+            <p className="font-medium text-muted-foreground">{t("预算策略详解", "Budget Policy Details")}</p>
+            <p>
+              <span className="font-semibold text-orange-600 dark:text-orange-400">{t("降级（推荐）", "Downgrade")}</span>
+              {t(
+                "：预算快用完时，系统自动压低高成本奖品（如 100 积分大奖）的中奖概率，把概率挪给「感谢参与」和低成本奖品。会员仍然可以抽奖，只是大奖概率变低。预算完全用完后大奖概率接近 0，基本只中「感谢参与」。",
+                ": Suppresses high-cost prize probability when budget is low; probability shifts to 'thanks' and cheap prizes.",
+              )}
+            </p>
+            <p>
+              <span className="font-semibold text-blue-600 dark:text-blue-400">{t("保底", "Fallback")}</span>
+              {t(
+                "：预算不足时，直接移除所有成本超过剩余预算的奖品，只保留成本低于剩余预算的奖品和「感谢参与」。比降级更激进——高成本奖品完全消失。",
+                ": Removes all prizes whose cost exceeds remaining budget; only cheap prizes and 'thanks' survive.",
+              )}
+            </p>
+            <p>
+              <span className="font-semibold text-red-600 dark:text-red-400">{t("拒绝", "Deny")}</span>
+              {t(
+                "：预算耗尽后，会员点击抽奖直接返回「预算已用完」错误，无法继续抽奖，直到次日预算重置。最严格，但体验最差。",
+                ": When budget is exhausted, spins are blocked entirely until the next day's reset.",
+              )}
+            </p>
           </div>
           <Button size="sm" className="gap-1.5" onClick={saveLotterySettingsHandler}>
             <Save className="h-3.5 w-3.5" />
@@ -289,6 +327,16 @@ export default function LuckySpinTab({
           <div className="flex items-center gap-2">
             <ShieldAlert className="h-4 w-4 text-muted-foreground" />
             <SectionTitle>{t("风险控制", "Risk Control")}</SectionTitle>
+          </div>
+          {/* 风控详细说明 */}
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200 space-y-2">
+            <p className="font-semibold">{t("风险控制说明", "Risk Control Explained")}</p>
+            <ul className="list-disc pl-4 space-y-1">
+              <li>{t("风控用于防止恶意刷抽奖（如同一账号短时间内疯狂抽奖，或同一 IP 多个账号轮换刷）。", "Prevents abuse such as rapid spinning or multi-account attacks from the same IP.")}</li>
+              <li>{t("系统会自动计算每次抽奖的「风险分」（0~100+），分数越高表示越可疑。", "Each draw gets a risk score (0–100+); higher = more suspicious.")}</li>
+              <li>{t("风险分来源：账号 60 秒内抽奖次数（超限 +50 分）、账号每日总次数（超限 +60 分）、同 IP 短时间多次请求（超限 +40 分）、同 IP 今日多个账号（超限 +30 分）。", "Score sources: account burst (+50), account daily (+60), IP burst (+40), IP multi-account (+30).")}</li>
+              <li>{t("裁定规则：风险分 ≥ 50 且触发账号维度限制 → 直接拦截（本次抽奖失败）；风险分 ≥ 30 → 降级（本次强制只中「感谢参与」）。", "Score ≥ 50 with account trigger → block; score ≥ 30 → downgrade to 'thanks'.")}</li>
+            </ul>
           </div>
           <Label className="flex items-center gap-3">
             {t("启用风控", "Enable Risk Control")}
@@ -305,6 +353,7 @@ export default function LuckySpinTab({
                 value={lotterySettings.risk_account_daily_limit ?? 0}
                 onChange={(e) => setLotterySettings(prev => ({ ...prev, risk_account_daily_limit: Math.max(0, Math.floor(Number(e.target.value || 0))) }))}
               />
+              <p className="text-[11px] text-muted-foreground/70">{t("同一账号每天最多抽奖多少次。超出后触发拦截（+60 风险分）。", "Max spins per account per day. Exceeding adds +60 risk score → block.")}</p>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">{t("单账号60s内抽奖上限（0=不限）", "Account burst limit/60s (0=no limit)")}</Label>
@@ -313,14 +362,16 @@ export default function LuckySpinTab({
                 value={lotterySettings.risk_account_burst_limit ?? 0}
                 onChange={(e) => setLotterySettings(prev => ({ ...prev, risk_account_burst_limit: Math.max(0, Math.floor(Number(e.target.value || 0))) }))}
               />
+              <p className="text-[11px] text-muted-foreground/70">{t("同一账号 60 秒内最多抽多少次（防连点/脚本）。超出 +50 风险分 → 拦截。", "Max spins per account in 60s (anti-rapid). Exceeding adds +50 → block.")}</p>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">{t("同IP每日抽奖上限（0=不限）", "IP daily limit (0=no limit)")}</Label>
+              <Label className="text-xs">{t("同IP每日抽奖账号上限（0=不限）", "IP daily account limit (0=no limit)")}</Label>
               <Input
                 type="number" min={0}
                 value={lotterySettings.risk_ip_daily_limit ?? 0}
                 onChange={(e) => setLotterySettings(prev => ({ ...prev, risk_ip_daily_limit: Math.max(0, Math.floor(Number(e.target.value || 0))) }))}
               />
+              <p className="text-[11px] text-muted-foreground/70">{t("同一 IP 今天最多允许多少个不同账号抽奖。超出 +30 风险分 → 降级。用于防止同一个人注册多个号刷奖。", "Max distinct accounts per IP per day. Anti multi-account abuse. +30 → downgrade.")}</p>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">{t("同IP 60s内抽奖上限（0=不限）", "IP burst limit/60s (0=no limit)")}</Label>
@@ -329,6 +380,7 @@ export default function LuckySpinTab({
                 value={lotterySettings.risk_ip_burst_limit ?? 0}
                 onChange={(e) => setLotterySettings(prev => ({ ...prev, risk_ip_burst_limit: Math.max(0, Math.floor(Number(e.target.value || 0))) }))}
               />
+              <p className="text-[11px] text-muted-foreground/70">{t("同一 IP 60 秒内最多多少次抽奖请求。超出 +40 风险分。", "Max spins from same IP in 60s. Exceeding adds +40 risk score.")}</p>
             </div>
             <div className="space-y-1 sm:col-span-2">
               <Label className="text-xs">{t("风险分阈值（≥此值强制保底，0=不启用）", "Risk score threshold (≥ = force fallback, 0=off)")}</Label>
@@ -338,7 +390,22 @@ export default function LuckySpinTab({
                 onChange={(e) => setLotterySettings(prev => ({ ...prev, risk_high_score_threshold: Math.max(0, Math.floor(Number(e.target.value || 0))) }))}
                 className="max-w-xs"
               />
-              <p className="text-[11px] text-muted-foreground/70">{t("风险分由 IP 频率 + 账号频率计算；超出阈值时本次抽奖强制降为感谢参与。", "Score = IP + account frequency signals. Exceeding threshold forces 'thanks' prize.")}</p>
+              {/* 风险分阈值详细说明 */}
+              <div className="rounded-lg border border-dashed p-2.5 bg-muted/10 text-[11px] text-muted-foreground/80 leading-relaxed space-y-1 mt-1">
+                <p className="font-medium text-muted-foreground">{t("风险分阈值详细说明", "Risk Score Threshold Details")}</p>
+                <p>{t(
+                  "系统会根据上面 4 项维度自动计算出一个「风险分」。当风险分达到或超过这里设定的阈值时，本次抽奖强制降级为「感谢参与」（即使正常随机本应中大奖）。",
+                  "When the computed risk score ≥ this threshold, the draw is forced to 'thanks for participating' even if the normal random would have won a big prize.",
+                )}</p>
+                <p>{t(
+                  "风险分计分规则：账号 60s 爆发超限 = +50分，账号每日超限 = +60分（接近限额 +20），同 IP 爆发超限 = +40分，同 IP 多账号 = +30分。各项可叠加。",
+                  "Scoring: account burst +50, account daily +60 (near limit +20), IP burst +40, IP multi-account +30. Scores stack.",
+                )}</p>
+                <p>{t(
+                  "设为 0 表示不启用此阈值（其他维度的拦截/降级仍然生效）。建议值：30~50。设太低会误伤正常用户，设太高则形同虚设。",
+                  "0 = disabled. Recommended: 30–50. Too low may affect normal users; too high is ineffective.",
+                )}</p>
+              </div>
             </div>
           </div>
           <Button size="sm" className="gap-1.5" onClick={saveLotterySettingsHandler}>
