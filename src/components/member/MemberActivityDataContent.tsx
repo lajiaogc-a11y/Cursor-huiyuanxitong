@@ -475,9 +475,19 @@ export default function MemberActivityDataContent() {
         .filter(g => g.currency === "USDT")
         .reduce((sum, g) => sum + (Number(g.amount) || 0), 0);
 
-      // 邀抽累次：spin_credits 累计获得的抽奖次数（永久累积）
-      const inviteSpinCredits = (spinCreditsData as { member_id?: string; total_spins?: number | string }[])
-        .filter((sc) => sc.member_id === member.id)
+      // 邀抽累次：仅邀请相关 source（与 memberAuth invite_lifetime_reward_spins 一致）
+      const inviteSpinCredits = (
+        spinCreditsData as {
+          member_id?: string;
+          total_spins?: number | string;
+          source?: string;
+        }[]
+      )
+        .filter(
+          (sc) =>
+            sc.member_id === member.id &&
+            (sc.source === 'referral' || sc.source === 'invite_welcome'),
+        )
         .reduce((sum, sc) => sum + Math.max(0, Math.floor(Number(sc.total_spins) || 0)), 0);
 
       // 7. 推荐人数 - 使用数据库字段名

@@ -137,6 +137,12 @@ export async function retryFailedRewards(tenantId: string | null, batchSize = 20
           [result.status, result.failReason, result.awardedPoints, row.id],
         );
 
+        if (result.status === 'done' && Number(row.prize_cost) > 0) {
+          await conn.query(
+            'UPDATE lottery_settings SET daily_reward_used = COALESCE(daily_reward_used, 0) + ? WHERE tenant_id <=> ?',
+            [Number(row.prize_cost), row.tenant_id],
+          );
+        }
         if (result.status === 'done') succeeded++;
         else stillFailed++;
       });
@@ -181,6 +187,18 @@ export async function confirmManualReward(
     `UPDATE lottery_logs SET reward_status = ?, fail_reason = ?, retry_count = COALESCE(retry_count, 0) + 1 WHERE id = ?`,
     [action, reason?.slice(0, 500) ?? null, logId],
   );
+  if (action === 'done') {
+    const costRow = await queryOne<{ prize_cost: number; tenant_id: string | null }>(
+      'SELECT COALESCE(prize_cost, 0) AS prize_cost, tenant_id FROM lottery_logs WHERE id = ?',
+      [logId],
+    );
+    if (costRow && Number(costRow.prize_cost) > 0) {
+      await execute(
+        'UPDATE lottery_settings SET daily_reward_used = COALESCE(daily_reward_used, 0) + ? WHERE tenant_id <=> ?',
+        [Number(costRow.prize_cost), costRow.tenant_id],
+      );
+    }
+  }
   return { ok: true };
 }
 
@@ -212,6 +230,19 @@ export async function manualRetryReward(logId: string): Promise<{ ok: boolean; e
       `UPDATE lottery_logs SET reward_status = ?, fail_reason = ?, reward_points = ?, retry_count = COALESCE(retry_count, 0) + 1 WHERE id = ?`,
       [res.status, res.failReason, res.awardedPoints, logId],
     );
+    if (res.status === 'done') {
+      const [costRows] = await conn.query(
+        'SELECT COALESCE(prize_cost, 0) AS prize_cost FROM lottery_logs WHERE id = ?',
+        [logId],
+      );
+      const cost = Number((costRows as { prize_cost?: number }[])[0]?.prize_cost ?? 0);
+      if (cost > 0) {
+        await conn.execute(
+          'UPDATE lottery_settings SET daily_reward_used = COALESCE(daily_reward_used, 0) + ? WHERE tenant_id <=> ?',
+          [cost, row.tenant_id],
+        );
+      }
+    }
     return res;
   });
 

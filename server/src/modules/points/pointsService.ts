@@ -70,9 +70,9 @@ export async function addPoints(
     extras: extras ?? null,
   });
 
-  await syncPointsLog(conn, memberId, amount, type, description ?? null, extras?.tenant_id ?? null);
-
   const after = await getBalanceOnConn(conn, memberId);
+  await syncPointsLog(conn, memberId, amount, type, description ?? null, extras?.tenant_id ?? null, after);
+
   return { ledgerId, amount, balanceAfter: after, type, referenceId: referenceId ?? null };
 }
 
@@ -125,6 +125,7 @@ export async function syncPointsLog(
   type: string,
   remark: string | null,
   tenantId?: string | null,
+  balanceAfter?: number | null,
 ): Promise<void> {
   const tid = tenantId ?? (
     await qOneConn<{ tenant_id: string | null }>(
@@ -133,9 +134,9 @@ export async function syncPointsLog(
   )?.tenant_id ?? null;
 
   await execConn(conn,
-    `INSERT INTO points_log (id, member_id, tenant_id, \`change\`, type, category, remark)
-     VALUES (?, ?, ?, ?, ?, 'online_points', ?)`,
-    [randomUUID(), memberId, tid, change, type, remark],
+    `INSERT INTO points_log (id, member_id, tenant_id, \`change\`, type, category, remark, balance_after)
+     VALUES (?, ?, ?, ?, ?, 'online_points', ?, ?)`,
+    [randomUUID(), memberId, tid, change, type, remark, balanceAfter ?? null],
   );
 }
 

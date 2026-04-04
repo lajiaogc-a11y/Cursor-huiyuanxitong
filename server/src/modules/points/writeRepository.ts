@@ -174,23 +174,30 @@ export async function addConsumptionToMemberActivity(
   if (!member) return { updated: false };
 
   const act = await findActivityForMember(member.id, phone);
+  const balance = await queryOne<{ balance: number }>(
+    'SELECT COALESCE(balance, 0) AS balance FROM points_accounts WHERE member_id = ?',
+    [member.id],
+  );
+  const actualBalance = Number(balance?.balance ?? 0);
+
   if (!act) {
     await execute(
       `INSERT INTO member_activity (id, member_id, phone_number, remaining_points, accumulated_points)
        VALUES (?, ?, ?, ?, ?)`,
-      [randomUUID(), member.id, phone, consumptionPoints, consumptionPoints]
+      [randomUUID(), member.id, phone, actualBalance, consumptionPoints]
     );
     return { updated: true };
   }
 
+  // Sync remaining_points from authoritative points_accounts
   await execute(
     `UPDATE member_activity SET
-       remaining_points = COALESCE(remaining_points, 0) + ?,
+       remaining_points = ?,
        accumulated_points = COALESCE(accumulated_points, 0) + ?,
        phone_number = COALESCE(phone_number, ?),
        updated_at = NOW()
      WHERE id = ?`,
-    [consumptionPoints, consumptionPoints, phone, act.id]
+    [actualBalance, consumptionPoints, phone, act.id]
   );
   return { updated: true };
 }
@@ -208,24 +215,31 @@ export async function addReferralToMemberActivity(
   if (!member) return { updated: false };
 
   const act = await findActivityForMember(member.id, phone);
+  const balance = await queryOne<{ balance: number }>(
+    'SELECT COALESCE(balance, 0) AS balance FROM points_accounts WHERE member_id = ?',
+    [member.id],
+  );
+  const actualBalance = Number(balance?.balance ?? 0);
+
   if (!act) {
     await execute(
       `INSERT INTO member_activity (id, member_id, phone_number, remaining_points, referral_points, referral_count)
        VALUES (?, ?, ?, ?, ?, 1)`,
-      [randomUUID(), member.id, phone, referralPoints, referralPoints]
+      [randomUUID(), member.id, phone, actualBalance, referralPoints]
     );
     return { updated: true };
   }
 
+  // Sync remaining_points from authoritative points_accounts
   await execute(
     `UPDATE member_activity SET
-       remaining_points = COALESCE(remaining_points, 0) + ?,
+       remaining_points = ?,
        referral_points = COALESCE(referral_points, 0) + ?,
        referral_count = COALESCE(referral_count, 0) + 1,
        phone_number = COALESCE(phone_number, ?),
        updated_at = NOW()
      WHERE id = ?`,
-    [referralPoints, referralPoints, phone, act.id]
+    [actualBalance, referralPoints, phone, act.id]
   );
   return { updated: true };
 }

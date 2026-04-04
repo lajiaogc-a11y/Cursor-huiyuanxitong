@@ -196,7 +196,7 @@ app.use('/api/orders', wrapRouterAsync(ordersRoutes));
 app.use('/api/whatsapp', wrapRouterAsync(whatsappRoutes));
 app.use('/api/reports', wrapRouterAsync(reportsRoutes));
 app.use('/api/admin', wrapRouterAsync(adminRoutes));
-app.use('/api/admin/database', databaseDumpRoutes);
+app.use('/api/admin/database', wrapRouterAsync(databaseDumpRoutes));
 app.use('/api/tenants', wrapRouterAsync(tenantsRoutes));
 app.use('/api/member-portal-settings', wrapRouterAsync(memberPortalSettingsRoutes));
 app.use('/api/member-portal/site-data', wrapRouterAsync(memberAnalyticsRoutes));

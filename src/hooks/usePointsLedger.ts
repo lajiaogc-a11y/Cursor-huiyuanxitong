@@ -207,12 +207,38 @@ export function usePointsLedger() {
       const resetQ = lastResetTime
         ? `&created_at=gt.${encodeURIComponent(lastResetTime)}`
         : '';
-      const rows = await apiGet<{ points_earned?: number | null; amount?: number | null }[]>(
-        `/api/data/table/points_ledger?select=points_earned,amount,status&member_code=eq.${encodeURIComponent(member_code)}&status=in.(issued,reversed)${resetQ}`
-      );
-      const data = Array.isArray(rows) ? rows : [];
 
-      const total = data.reduce(
+      const byCode = await apiGet<{ points_earned?: number | null; amount?: number | null; id?: string }[]>(
+        `/api/data/table/points_ledger?select=id,points_earned,amount,status&member_code=eq.${encodeURIComponent(member_code)}&status=in.(issued,reversed)${resetQ}`
+      );
+
+      let byId: { points_earned?: number | null; amount?: number | null; id?: string }[] = [];
+      try {
+        const memberRow = await apiGet<{ id?: string }[]>(
+          `/api/data/table/members?select=id&member_code=eq.${encodeURIComponent(member_code)}&limit=1`
+        );
+        const memberId = Array.isArray(memberRow) && memberRow[0]?.id;
+        if (memberId) {
+          byId = await apiGet<{ points_earned?: number | null; amount?: number | null; id?: string }[]>(
+            `/api/data/table/points_ledger?select=id,points_earned,amount,status&member_id=eq.${encodeURIComponent(memberId)}&status=in.(issued,reversed)${resetQ}`
+          );
+        }
+      } catch {
+        /* fallback to code-only */
+      }
+
+      const codeData = Array.isArray(byCode) ? byCode : [];
+      const idData = Array.isArray(byId) ? byId : [];
+      const seenIds = new Set(codeData.map((e: { id?: string }) => e.id).filter(Boolean));
+      const merged = [...codeData];
+      for (const entry of idData) {
+        if (entry.id && !seenIds.has(entry.id)) {
+          merged.push(entry);
+          seenIds.add(entry.id);
+        }
+      }
+
+      const total = merged.reduce(
         (sum: number, e: { points_earned?: number | null; amount?: number | null }) =>
           sum + Number(e.points_earned ?? e.amount ?? 0),
         0

@@ -61,7 +61,7 @@ export function ProtectedRoute({ children, requireAdmin, requireManager, require
 
   // 未登录
   if (!session) {
-    return <Navigate to="/staff/login" state={{ from: location }} replace />;
+    return <Navigate to={ROUTES.STAFF.LOGIN} state={{ from: location }} replace />;
   }
 
   // 有 session 但 employee 还没加载

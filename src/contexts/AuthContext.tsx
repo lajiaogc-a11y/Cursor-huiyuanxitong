@@ -334,22 +334,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return true;
     } catch (error) {
       console.error('[AuthContext] IP validation error:', error);
-      // 验证出错时，出于安全考虑，也强制登出
-      if (forceLogout && session) {
-        notify.error(_t('IP验证服务异常，请重新登录', 'IP verification error, please login again'));
-        await logoutApi();
-        setUser(null);
-        setSession(null);
-        writeEmployeeCache(null);
-        setEmployee(null);
-        clearOperatorCache();
-        if (shouldHardRedirectToStaffPortal()) {
-          hardRedirectToStaff('/staff/login');
-        } else {
-          spaNavigate('/staff/login', { replace: true });
-        }
-      }
-      return false;
+      // Network/service errors should not force logout — treat as validation skipped
+      return true;
     } finally {
       isValidatingIpRef.current = false;
     }

@@ -26,6 +26,7 @@ import {
   listLotteryPointsRowsForTenant,
   sumLotteryPointsPositiveForTenant,
 } from './lotteryPointsAdmin.js';
+import { queryOne } from '../../database/index.js';
 import {
   countSpinCreditsForTenant,
   listSpinCreditsForTenant,
@@ -253,6 +254,21 @@ export async function getSettingsByMemberController(
     });
     return;
   }
+  // M10: staff must belong to same tenant as the queried member
+  if (req.user?.type !== 'member' && req.user?.tenant_id) {
+    try {
+      const memberTenant = await queryOne<{ tenant_id: string | null }>(
+        'SELECT tenant_id FROM members WHERE id = ? LIMIT 1',
+        [memberId]
+      );
+      if (memberTenant && memberTenant.tenant_id !== req.user.tenant_id) {
+        res.status(403).json({ success: false, error: 'CROSS_TENANT_FORBIDDEN' });
+        return;
+      }
+    } catch {
+      /* proceed if lookup fails */
+    }
+  }
   try {
     const result = await getPortalSettingsByMember(memberId);
     res.json({
@@ -384,6 +400,21 @@ export async function listSpinWheelPrizesByMemberController(
   if (req.user?.type === 'member' && req.user.id !== memberId) {
     res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Member can only load own spin prizes' } });
     return;
+  }
+  // M10: staff must belong to same tenant as the queried member
+  if (req.user?.type !== 'member' && req.user?.tenant_id) {
+    try {
+      const memberTenant = await queryOne<{ tenant_id: string | null }>(
+        'SELECT tenant_id FROM members WHERE id = ? LIMIT 1',
+        [memberId]
+      );
+      if (memberTenant && memberTenant.tenant_id !== req.user.tenant_id) {
+        res.status(403).json({ success: false, error: 'CROSS_TENANT_FORBIDDEN' });
+        return;
+      }
+    } catch {
+      /* proceed if lookup fails */
+    }
   }
   try {
     const result = await listSpinWheelPrizesForMember(memberId);

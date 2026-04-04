@@ -64,7 +64,6 @@ export async function logoutApi(): Promise<void> {
     // 忽略服务端错误（如未登录时 401），本地清除即可
   }
   clearAuthToken();
-  clearMemberAccessToken();
   localStorage.removeItem('supabase_access_token'); // 历史键，清理旧会话
   _cachedPlatformTenantId = null;
 }

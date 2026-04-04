@@ -123,7 +123,7 @@ export default function MemberInvite() {
     if (!inviteLink) return;
     try {
       const prefixText = prefix ? `${prefix}\n` : "";
-      const msg = `${prefixText}Join ${portalSettings.company_name || "FastGC"}! Register & log in to get ${inviteRewardSpins} free spins to win prizes! Click: ${inviteLink}`;
+      const msg = `${prefixText}${t(`加入 ${portalSettings.company_name || "FastGC"}！注册并登录即可获得 ${inviteRewardSpins} 次免费抽奖机会！点击: ${inviteLink}`, `Join ${portalSettings.company_name || "FastGC"}! Register & log in to get ${inviteRewardSpins} free spins to win prizes! Click: ${inviteLink}`)}`;
       window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
     } catch {
       notify.error(t("无法打开分享页面", "Unable to open share page"));

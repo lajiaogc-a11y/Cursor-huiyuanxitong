@@ -83,11 +83,16 @@ export async function resolveMemberScope(
   }
   if (!param) return { memberId: null, forbidden: false };
   // 员工查询：校验 memberId 归属于员工的同一租户
+  const memberTenant = await getMemberTenantId(param);
   if (req.user?.tenant_id) {
-    const memberTenant = await getMemberTenantId(param);
     if (memberTenant !== req.user.tenant_id) {
       return { memberId: null, forbidden: true };
     }
+  } else if (memberTenant) {
+    // Staff without tenant_id should not access members that belong to a tenant
+    console.warn(
+      `[resolveMemberScope] Staff ${uid} has no tenant_id but tried to access member ${param} (tenant: ${memberTenant})`,
+    );
   }
   return { memberId: param, forbidden: false };
 }
@@ -206,9 +211,20 @@ export async function adminSavePrizesController(req: AuthenticatedRequest, res: 
     stock_enabled: p.stock_enabled ? 1 : 0,
     stock_total: Number.isFinite(Number(p.stock_total)) ? Math.floor(Number(p.stock_total)) : -1,
     daily_stock_limit: Number.isFinite(Number(p.daily_stock_limit)) ? Math.floor(Number(p.daily_stock_limit)) : -1,
+    enabled: p.enabled !== false && p.enabled !== 0,
   }));
 
-  await upsertPrizes(tenantId, normalized as Omit<LotteryPrize, 'enabled'>[]);
+  const enabledCount = normalized.filter((p) => p.enabled).length;
+  if (enabledCount > 8) {
+    res.status(400).json({
+      success: false,
+      error: 'MAX_8_PRIZES',
+      message: '最多只能启用 8 个奖品（转盘有 8 个格子）/ Maximum 8 enabled prizes allowed',
+    });
+    return;
+  }
+
+  await upsertPrizes(tenantId, normalized as unknown as Omit<LotteryPrize, 'enabled'>[]);
   res.json({ success: true });
 }
 

@@ -533,6 +533,25 @@ export async function fulfillRewardOnConn(
   // auto 型：积分类自动发放 — 全部经由统一 pointsService
   if (prizeType === 'points' && prizeValue > 0) {
     try {
+      // C1: idempotency — skip duplicate points_ledger rows for same lottery log on retry
+      const existing = await queryConn<{ id: string }>(
+        conn,
+        `SELECT id FROM points_ledger WHERE reference_id = ? AND reference_type = 'lottery_log' LIMIT 1`,
+        [logId],
+      );
+      if (existing.length > 0) {
+        const bal = await queryConn<{ balance: number }>(
+          conn,
+          'SELECT balance FROM points_accounts WHERE member_id = ? LIMIT 1',
+          [memberId],
+        );
+        return {
+          status: 'done',
+          failReason: null,
+          awardedPoints: prizeValue,
+          balanceAfter: Number(bal[0]?.balance ?? 0),
+        };
+      }
       const mutation = await addPoints(conn, {
         memberId,
         amount: prizeValue,
