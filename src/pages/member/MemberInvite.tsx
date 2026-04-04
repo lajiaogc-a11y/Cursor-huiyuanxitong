@@ -152,25 +152,22 @@ export default function MemberInvite() {
     const spins = inviteRewardSpins;
     const frame = getPosterFrame(portalSettings.poster_frame_id || "gold");
 
-    const headlineL1 = (portalSettings.poster_headline_zh || portalSettings.poster_headline_en)
-      ? t(portalSettings.poster_headline_zh || "邀请好友", portalSettings.poster_headline_en || "Invite friends")
-      : t("邀请好友", "Invite friends");
-    const headlineL2Zh = portalSettings.poster_headline_zh ? "" : "赢取奖励";
-    const headlineL2En = portalSettings.poster_headline_en ? "" : "Earn rewards";
-    const headlineL2 = (portalSettings.poster_headline_zh || portalSettings.poster_headline_en)
-      ? "" : t(headlineL2Zh, headlineL2En);
+    const headlineL1 = portalSettings.poster_headline_zh || portalSettings.poster_headline_en
+      ? t(portalSettings.poster_headline_zh || "", portalSettings.poster_headline_en || "")
+      : "";
+    const headlineL2 = "";
 
-    const rawSubtext = (portalSettings.poster_subtext_zh || portalSettings.poster_subtext_en)
+    const rawSubtext = portalSettings.poster_subtext_zh || portalSettings.poster_subtext_en
       ? t(
-          portalSettings.poster_subtext_zh || `扫描二维码注册，双方各得 ${spins} 次抽奖`,
-          portalSettings.poster_subtext_en || `Scan QR to register, ${spins} free spins each`,
+          portalSettings.poster_subtext_zh || "",
+          portalSettings.poster_subtext_en || "",
         )
-      : t(`扫描下方二维码注册，双方各得 ${spins} 次免费转盘`, `Scan the QR code to register — ${spins} free spins each`);
+      : "";
     const subtext = rawSubtext.replace(/\{spins\}/g, String(spins));
 
-    const footer = (portalSettings.poster_footer_zh || portalSettings.poster_footer_en)
-      ? t(portalSettings.poster_footer_zh || company, portalSettings.poster_footer_en || company)
-      : `— ${company} —`;
+    const footer = portalSettings.poster_footer_zh || portalSettings.poster_footer_en
+      ? t(portalSettings.poster_footer_zh || "", portalSettings.poster_footer_en || "")
+      : "";
 
     const canvas = document.createElement("canvas");
 

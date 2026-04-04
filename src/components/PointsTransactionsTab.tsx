@@ -191,9 +191,10 @@ export default function PointsTransactionsTab({
       
       let runningTotal = 0;
       sorted.forEach(entry => {
-        const dbBalAfter = Number((entry as { balance_after?: unknown }).balance_after);
+        const rawBalAfter = (entry as { balance_after?: unknown }).balance_after;
+        const dbBalAfter = rawBalAfter != null ? Number(rawBalAfter) : NaN;
         const pe = entry.points_earned;
-        if (Number.isFinite(dbBalAfter) && dbBalAfter !== 0) {
+        if (Number.isFinite(dbBalAfter)) {
           const pointsAfter = dbBalAfter;
           const pointsBefore = pointsAfter - pe;
           runningTotal = pointsAfter;

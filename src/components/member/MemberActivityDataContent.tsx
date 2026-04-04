@@ -1866,8 +1866,9 @@ export default function MemberActivityDataContent() {
                           const balMap = new Map<string, { before: number; after: number }>();
                           for (const e of ascHistory) {
                             const pe = Number(e.points_earned ?? (e as { amount?: unknown }).amount ?? 0);
-                            const dbBal = Number((e as { balance_after?: unknown }).balance_after);
-                            if (Number.isFinite(dbBal) && dbBal !== 0) {
+                            const rawBal = (e as { balance_after?: unknown }).balance_after;
+                            const dbBal = rawBal != null ? Number(rawBal) : NaN;
+                            if (Number.isFinite(dbBal)) {
                               const after = dbBal;
                               const before = after - pe;
                               runBal = after;

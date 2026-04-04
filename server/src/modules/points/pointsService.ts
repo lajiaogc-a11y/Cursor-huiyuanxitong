@@ -58,7 +58,7 @@ export async function addPoints(
   if (amount <= 0) throw new Error('addPoints: amount must be positive');
   const ledgerId = randomUUID();
 
-  await applyPointsLedgerDeltaOnConn(conn, {
+  const { actualDelta, balanceAfter } = await applyPointsLedgerDeltaOnConn(conn, {
     ledgerId,
     memberId,
     type,
@@ -70,10 +70,9 @@ export async function addPoints(
     extras: extras ?? null,
   });
 
-  const after = await getBalanceOnConn(conn, memberId);
-  await syncPointsLog(conn, memberId, amount, type, description ?? null, extras?.tenant_id ?? null, after);
+  await syncPointsLog(conn, memberId, actualDelta, type, description ?? null, extras?.tenant_id ?? null, balanceAfter);
 
-  return { ledgerId, amount, balanceAfter: after, type, referenceId: referenceId ?? null };
+  return { ledgerId, amount: actualDelta, balanceAfter, type, referenceId: referenceId ?? null };
 }
 
 /**
@@ -88,7 +87,7 @@ export async function deductPoints(
   if (amount <= 0) throw new Error('deductPoints: amount must be positive');
   const ledgerId = randomUUID();
 
-  await applyPointsLedgerDeltaOnConn(conn, {
+  const { actualDelta, balanceAfter } = await applyPointsLedgerDeltaOnConn(conn, {
     ledgerId,
     memberId,
     type,
@@ -101,10 +100,9 @@ export async function deductPoints(
     clampToZero,
   });
 
-  await syncPointsLog(conn, memberId, -amount, type, description ?? null, extras?.tenant_id ?? null);
+  await syncPointsLog(conn, memberId, actualDelta, type, description ?? null, extras?.tenant_id ?? null, balanceAfter);
 
-  const after = await getBalanceOnConn(conn, memberId);
-  return { ledgerId, amount, balanceAfter: after, type, referenceId: referenceId ?? null };
+  return { ledgerId, amount: Math.abs(actualDelta), balanceAfter, type, referenceId: referenceId ?? null };
 }
 
 /** 查询当前可用余额（事务内） */

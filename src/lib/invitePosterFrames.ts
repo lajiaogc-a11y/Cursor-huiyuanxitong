@@ -213,20 +213,22 @@ export function drawInvitePoster(
     frame.drawBackground(ctx);
   }
 
-  // Headline
+  // Headline (skip if empty)
   ctx.fillStyle = frame.headlineColor;
   ctx.textAlign = "center";
   ctx.font = "800 44px system-ui, -apple-system, sans-serif";
-  ctx.fillText(headlineL1, W / 2, 160);
-  ctx.fillText(headlineL2, W / 2, 220);
+  if (headlineL1) ctx.fillText(headlineL1, W / 2, 160);
+  if (headlineL2) ctx.fillText(headlineL2, W / 2, 220);
 
-  // Subtext
-  ctx.fillStyle = frame.subtextColor;
-  ctx.font = "500 22px system-ui, -apple-system, sans-serif";
-  const subtextLines = subtext.length > 30 ? [subtext.slice(0, 30), subtext.slice(30)] : [subtext];
-  subtextLines.forEach((line, i) => {
-    ctx.fillText(line, W / 2, 310 + i * 32);
-  });
+  // Subtext (skip if empty)
+  if (subtext) {
+    ctx.fillStyle = frame.subtextColor;
+    ctx.font = "500 22px system-ui, -apple-system, sans-serif";
+    const subtextLines = subtext.length > 30 ? [subtext.slice(0, 30), subtext.slice(30)] : [subtext];
+    subtextLines.forEach((line, i) => {
+      ctx.fillText(line, W / 2, 310 + i * 32);
+    });
+  }
 
   // Decorative line above QR
   ctx.save();
@@ -257,11 +259,13 @@ export function drawInvitePoster(
         QR_BOX_SIZE - QR_PAD * 2,
       );
 
-      // "Scan to register" label below QR
-      ctx.fillStyle = frame.subtextColor;
-      ctx.font = "500 18px system-ui, -apple-system, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("扫描二维码注册 / Scan to register", W / 2, QR_BOX_Y + QR_BOX_SIZE + 40);
+      // "Scan to register" label below QR — only when subtext is provided
+      if (subtext) {
+        ctx.fillStyle = frame.subtextColor;
+        ctx.font = "500 18px system-ui, -apple-system, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(subtext.length > 40 ? subtext.slice(0, 40) : subtext, W / 2, QR_BOX_Y + QR_BOX_SIZE + 40);
+      }
 
       // Invite link
       ctx.fillStyle = frame.footerColor;
@@ -272,21 +276,22 @@ export function drawInvitePoster(
         ctx.fillText(line, W / 2, QR_BOX_Y + QR_BOX_SIZE + 80 + i * 20);
       });
 
-      // Decorative line above footer
-      ctx.save();
-      ctx.strokeStyle = frame.footerColor;
-      ctx.globalAlpha = 0.3;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(W / 2 - 80, H - 120);
-      ctx.lineTo(W / 2 + 80, H - 120);
-      ctx.stroke();
-      ctx.restore();
+      // Decorative line + footer (skip both if no text)
+      if (footerText) {
+        ctx.save();
+        ctx.strokeStyle = frame.footerColor;
+        ctx.globalAlpha = 0.3;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(W / 2 - 80, H - 120);
+        ctx.lineTo(W / 2 + 80, H - 120);
+        ctx.stroke();
+        ctx.restore();
 
-      // Footer
-      ctx.fillStyle = frame.footerColor;
-      ctx.font = "500 18px system-ui, -apple-system, sans-serif";
-      ctx.fillText(footerText, W / 2, H - 72);
+        ctx.fillStyle = frame.footerColor;
+        ctx.font = "500 18px system-ui, -apple-system, sans-serif";
+        ctx.fillText(footerText, W / 2, H - 72);
+      }
 
       resolve();
     };

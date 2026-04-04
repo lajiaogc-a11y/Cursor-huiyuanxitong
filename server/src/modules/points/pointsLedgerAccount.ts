@@ -48,7 +48,7 @@ export async function applyPointsLedgerDeltaOnConn(
     /** 当 true 时，余额不足不抛错，而是将 balance 截止到 0（用于订单删除回滚等非消费场景） */
     clampToZero?: boolean;
   }
-): Promise<void> {
+): Promise<{ actualDelta: number; balanceAfter: number }> {
   const { ledgerId, memberId, type, delta, description, referenceType, referenceId, createdBy, extras, clampToZero } = input;
   const x = extras ?? {};
 
@@ -91,6 +91,7 @@ export async function applyPointsLedgerDeltaOnConn(
     }
     after = 0;
   }
+  const actualDelta = after - before;
 
   await exec(
     conn,
@@ -100,7 +101,7 @@ export async function applyPointsLedgerDeltaOnConn(
        total_spent = total_spent + ?,
        updated_at = NOW(3)
      WHERE id = ?`,
-    [after, Math.max(0, delta), Math.max(0, -delta), acct.id]
+    [after, Math.max(0, actualDelta), Math.max(0, -actualDelta), acct.id]
   );
 
   const cr = createdBy;
@@ -124,7 +125,7 @@ export async function applyPointsLedgerDeltaOnConn(
       acct.id,
       memberId,
       type,
-      delta,
+      actualDelta,
       after,
       referenceType,
       referenceId,
@@ -146,14 +147,14 @@ export async function applyPointsLedgerDeltaOnConn(
     ]
   );
 
-  if (delta > 0) {
+  if (actualDelta > 0) {
     await exec(
       conn,
       `UPDATE members SET
          lifetime_reward_points_earned = lifetime_reward_points_earned + ?,
          total_points = total_points + ?
        WHERE id = ?`,
-      [delta, delta, memberId],
+      [actualDelta, actualDelta, memberId],
     );
     const ptsRow = await qOne<{ total_points: number | string; tenant_id: string | null }>(
       conn,
@@ -163,4 +164,5 @@ export async function applyPointsLedgerDeltaOnConn(
     const tp = Number(ptsRow?.total_points) || 0;
     await syncMemberLevelFromTotalOnConn(conn, memberId, ptsRow?.tenant_id ?? null, tp);
   }
+  return { actualDelta, balanceAfter: after };
 }
