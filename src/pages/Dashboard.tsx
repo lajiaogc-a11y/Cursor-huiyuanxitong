@@ -269,7 +269,7 @@ export default function Dashboard() {
     <div className="elite-staff-shell elite-soft-scroll rounded-2xl border border-border/50 p-4 shadow-soft md:p-6">
       <div className="space-y-5">
       <ElitePageHeader
-        description={t("会员、订单与利润趋势汇总", "Summary of members, orders, and profit trends.")}
+        description={t("全站所有会员、订单与利润趋势汇总（含员工后台录入与前端自助注册等全部来源）", "Site-wide summary of ALL members, orders, and profit trends (all sources including staff-created and portal self-registered).")}
       />
       <DashboardQuickStartCard />
       {/* Top Bar: Time range left + Refresh controls fixed right */}

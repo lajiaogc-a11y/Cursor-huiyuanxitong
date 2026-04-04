@@ -111,8 +111,8 @@ export function WebsiteDataTab({ tenantId }: WebsiteDataTabProps) {
           </li>
           <li>
             {t(
-              "会员范围：本租户「会员库」中的全部会员（门户自助注册、邀请链接/落地页注册、员工后台录入等），不按注册渠道过滤。",
-              "Members: every member row for this tenant (portal self-sign-up, invite landing, staff-created, etc.) — not invite-only.",
+              "会员范围：仅统计来自前端会员门户自助注册（含邀请链接/落地页注册）的会员数据。员工后台手动录入的会员不计入此处；如需查看全部会员的汇总，请前往「数据统计」仪表盘。",
+              "Members: only members who self-registered via the frontend portal (including invite link / landing page sign-up). Staff-created members are excluded here; for an all-source summary go to the Dashboard.",
             )}
           </li>
           <li>
@@ -123,14 +123,20 @@ export function WebsiteDataTab({ tenantId }: WebsiteDataTabProps) {
           </li>
           <li>
             {t(
-              "订单与金额：与员工端「订单管理」同源的业务订单；不含已取消、已删除。积分商城等若单独记账可能不在此汇总。",
-              "Orders & amounts: same business orders as staff Order Management; excludes cancelled/deleted. Points-mall flows stored elsewhere may be excluded.",
+              "订单与金额：仅统计上述前端自助注册会员的订单；不含已取消、已删除。积分商城等若单独记账可能不在此汇总。",
+              "Orders & amounts: only from the portal-registered members above; excludes cancelled/deleted. Points-mall flows stored elsewhere may be excluded.",
             )}
           </li>
           <li>
             {t(
               "在线人数：约 15 分钟内有活动的活跃会员。",
               "Online: active members with activity in roughly the last 15 minutes.",
+            )}
+          </li>
+          <li>
+            {t(
+              "与「数据统计」的区别：「数据统计」仪表盘汇总全站所有会员与订单（含员工后台录入），此处仅反映前端门户自助渠道的会员活跃数据。",
+              "Difference from Dashboard: the Dashboard summarizes ALL members & orders (including staff-created); this page only reflects portal self-service channel data.",
             )}
           </li>
         </ul>

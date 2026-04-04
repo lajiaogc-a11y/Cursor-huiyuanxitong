@@ -199,7 +199,7 @@ export default function MobileDashboard() {
                   {t("数据概览", "Overview")}
                 </h2>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {t("除「总用户」外均按所选周期统计", "All except Total Users use the selected range")}
+                  {t("全站全部来源数据汇总；除「总用户」外均按所选周期统计", "All-source site-wide summary; all except Total Users use the selected range")}
                 </p>
               </div>
             </div>

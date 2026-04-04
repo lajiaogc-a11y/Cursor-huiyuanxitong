@@ -82,7 +82,7 @@ import { getPointsSettings } from "@/stores/pointsSettingsStore";
 import { getMemberLastResetTime } from "@/stores/pointsAccountStore";
 import { getMemberPointsSummary } from "@/services/points/pointsCalculationService";
 import { getMemberByPhoneForMyTenant } from "@/services/members/memberLookupService";
-import { getExchangeRateFormData, saveExchangeRateFormData, ExchangeRateFormData } from "@/stores/exchangeRateFormStore";
+import { getExchangeRateFormDataAsync, saveExchangeRateFormData, ExchangeRateFormData } from "@/stores/exchangeRateFormStore";
 import RateCalculator from "@/components/RateCalculator";
 import { getCalculatorFormData, CalculatorId, subscribeCalculatorChange } from "@/hooks/useCalculatorStore";
 import { getCopySettings, generateEnglishCopyText } from "@/components/CopySettingsTab";
@@ -155,12 +155,7 @@ const fetchPaymentProvidersFromDatabase = async (): Promise<{ id: string; name: 
   }
 };
 
-// Module-level rate caches — survive component unmount/remount during navigation
-let _cachedUsdtRate: number | null = null;
-let _cachedNairaRate: number | null = null;
-let _cachedCediRate: number | null = null;
-let _cachedBtcPrice: number | null = null;
-let _cachedRatesInitialized = false;
+// Module-level rate caches removed — always load fresh data to avoid stale→new flash
 
 
 export default function ExchangeRate() {
@@ -213,19 +208,11 @@ export default function ExchangeRate() {
   const [customerSource, setCustomerSource] = useState(""); // 客户来源
   const [customerSources, setCustomerSources] = useState<{ id: string; name: string }[]>([]); // 来源列表
 
-  // 汇率设置 - 初始化时从数据库读取，使用内存缓存而非 localStorage
-  // 默认值仅在首次加载且数据库无数据时使用
-  const [usdtRate, setUsdtRate] = useState<number | null>(_cachedUsdtRate);
-  const [nairaRate, setNairaRate] = useState<number | null>(_cachedNairaRate);
-  const [cediRate, setCediRate] = useState<number | null>(_cachedCediRate);
-  const [btcPrice, setBtcPrice] = useState<number | null>(_cachedBtcPrice);
-  const [ratesInitialized, setRatesInitialized] = useState(_cachedRatesInitialized);
-  // Sync state → module-level cache so next mount is instant
-  useEffect(() => { _cachedUsdtRate = usdtRate; }, [usdtRate]);
-  useEffect(() => { _cachedNairaRate = nairaRate; }, [nairaRate]);
-  useEffect(() => { _cachedCediRate = cediRate; }, [cediRate]);
-  useEffect(() => { _cachedBtcPrice = btcPrice; }, [btcPrice]);
-  useEffect(() => { _cachedRatesInitialized = ratesInitialized; }, [ratesInitialized]);
+  const [usdtRate, setUsdtRate] = useState<number | null>(null);
+  const [nairaRate, setNairaRate] = useState<number | null>(null);
+  const [cediRate, setCediRate] = useState<number | null>(null);
+  const [btcPrice, setBtcPrice] = useState<number | null>(null);
+  const [ratesInitialized, setRatesInitialized] = useState(false);
 
   // USDT手续费 - 从系统设置读取，持久化存储
   const [usdtFee, setUsdtFee] = useState(() => {
@@ -615,9 +602,9 @@ export default function ExchangeRate() {
       }
     }).catch(console.error);
     
-    // 恢复表单数据
-    const savedFormData = getExchangeRateFormData();
-    if (savedFormData) {
+    // 恢复表单数据（async 避免使用过期内存缓存导致闪跳）
+    void getExchangeRateFormDataAsync().then((savedFormData) => {
+      if (!savedFormData) return;
       setCardType(savedFormData.cardType || "");
       setCardMerchant(savedFormData.cardMerchant || "");
       setPaymentAgent(savedFormData.paymentAgent || "");
@@ -638,7 +625,7 @@ export default function ExchangeRate() {
       if (savedFormData.cediRate) setCediRate(savedFormData.cediRate);
       setCurrencyPreferenceList(savedFormData.currencyPreferenceList || []);
       setCustomerSource(savedFormData.customerSource || "");
-    }
+    }).catch(console.error);
     
     // 每30秒刷新未读数和客户来源（商家数据改用realtime订阅）
     const interval = setInterval(() => {

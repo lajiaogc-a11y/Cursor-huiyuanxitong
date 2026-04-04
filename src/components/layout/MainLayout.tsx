@@ -98,7 +98,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           role="main"
           aria-label={t("主内容区域", "Main content area")}
           className={cn(
-            "flex-1 overflow-auto flex flex-col min-h-0 relative elite-staff-shell elite-staff-surface w-full min-w-0",
+            "flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 relative elite-staff-shell elite-staff-surface w-full min-w-0",
             "p-3 sm:p-5 md:p-6",
             layoutMode === "centered" && "bg-muted/20 dark:bg-muted/40 transition-colors duration-200",
           )}

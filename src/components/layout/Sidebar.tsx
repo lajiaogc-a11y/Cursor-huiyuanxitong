@@ -220,14 +220,19 @@ export function Sidebar() {
     return isNavKeyVisible(item.navKey);
   });
 
-  /** 抽屉侧栏：平台入口在列表末尾时小屏常被裁切；提前三项并配合 nav min-h-0 保证可滚动 */
-  const sidebarMenuItems =
-    overlaySidebar && employee?.is_platform_super_admin
-      ? [
-          ...menuItems.filter((i) => platformOnlyNavKeys.includes(i.navKey)),
-          ...menuItems.filter((i) => !platformOnlyNavKeys.includes(i.navKey)),
-        ]
-      : menuItems;
+  const sidebarMenuItems = menuItems;
+
+  const isPlatformRoute = platformOnlyNavKeys.some((k) =>
+    menuItems.find((m) => m.navKey === k && location.pathname === m.path),
+  );
+
+  useEffect(() => {
+    if (overlaySidebar && isPlatformRoute && navRef.current) {
+      requestAnimationFrame(() => {
+        navRef.current?.scrollTo({ top: navRef.current.scrollHeight, behavior: "smooth" });
+      });
+    }
+  }, [overlaySidebar, isPlatformRoute]);
 
   const toggleMenu = (navKey: string) => {
     const newExpanded = new Set(expandedMenus);
@@ -404,15 +409,17 @@ export function Sidebar() {
     return (
       <>
         {/* Backdrop */}
-        {tabletSidebarOpen && (
-          <div 
-            className="fixed inset-0 z-40 bg-black/50 transition-opacity"
-            onClick={() => setTabletSidebarOpen(false)} 
-          />
-        )}
+        <div
+          className={cn(
+            "fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 ease-out",
+            tabletSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0",
+          )}
+          onClick={() => setTabletSidebarOpen(false)}
+          aria-hidden={!tabletSidebarOpen}
+        />
         {/* Sliding sidebar */}
         <aside role="navigation" aria-label="Main navigation" className={cn(
-          "fixed left-0 top-0 z-50 h-[100dvh] max-h-[100dvh] w-64 bg-sidebar text-sidebar-foreground flex flex-col min-h-0 border-r border-sidebar-border shadow-xl transition-transform duration-300",
+          "fixed left-0 top-0 z-50 h-[100dvh] max-h-[100dvh] w-64 bg-sidebar text-sidebar-foreground flex flex-col min-h-0 border-r border-sidebar-border shadow-xl will-change-transform transition-transform duration-200 ease-out",
           tabletSidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}>
           {/* Header */}
