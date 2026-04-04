@@ -247,8 +247,8 @@ export async function validateInviteAndSubmit(params: {
       if (c === "TOKEN_USED" || e.statusCode === 410) {
         return { success: false, error: "TOKEN_USED" };
       }
-      if (c === "ALREADY_INVITED" || e.statusCode === 409) {
-        return { success: false, error: "ALREADY_INVITED" };
+      if (c === "ALREADY_INVITED" || c === "PHONE_ALREADY_REGISTERED" || e.statusCode === 409) {
+        return { success: false, error: c === "PHONE_ALREADY_REGISTERED" ? "PHONE_ALREADY_REGISTERED" : "ALREADY_INVITED" };
       }
       if (c === "SELF_REFERRAL") {
         return { success: false, error: "SELF_REFERRAL" };

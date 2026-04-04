@@ -148,6 +148,7 @@ const allMenuItems: MenuItem[] = [
       },
       { labelZh: "复制设置", labelEn: "Copy", path: "/staff/settings?tab=copy" },
       { labelZh: "员工邀请码", labelEn: "Staff invite", path: "/staff/settings?tab=staff-invite" },
+      { labelZh: "登录IP限制", labelEn: "Staff login IP", path: "/staff/settings?tab=staff-login-ip" },
       { labelZh: "后台登录设备", labelEn: "Staff login devices", path: "/staff/settings?tab=staff-devices" },
       { labelZh: "版本更新", labelEn: "Version update", path: "/staff/settings?tab=version-update" },
       { labelZh: "权限设置", labelEn: "Permissions", path: "/staff/settings?tab=permission" },

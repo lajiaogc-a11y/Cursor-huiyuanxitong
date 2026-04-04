@@ -266,8 +266,8 @@ export async function completeInviteRegister(params: {
       if (exRows.length > 0) {
         return {
           ok: false,
-          error: 'ALREADY_INVITED',
-          audit: { errorCode: 'ALREADY_INVITED', tokenId: tokenRow.id, tenantId: tokenRow.tenant_id },
+          error: 'PHONE_ALREADY_REGISTERED',
+          audit: { errorCode: 'PHONE_ALREADY_REGISTERED', tokenId: tokenRow.id, tenantId: tokenRow.tenant_id },
         };
       }
 

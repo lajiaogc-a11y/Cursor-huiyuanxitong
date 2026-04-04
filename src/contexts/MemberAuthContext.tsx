@@ -8,7 +8,7 @@
  * 退出：清 token、清 session、清门户展示缓存（见 clearMemberPortalSettingsBrowserCaches）、removeQueries。
  */
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { memberSignIn, memberSetPassword, memberGetInfo } from '@/services/memberPortal/memberAuthService';
+import { memberSignIn, memberSetPassword, memberGetInfo, isMustChangePasswordResult } from '@/services/memberPortal/memberAuthService';
 import {
   setMemberAccessToken,
   clearMemberAccessToken,
@@ -224,6 +224,10 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       const m = await memberGetInfo(member.id);
+      if (isMustChangePasswordResult(m)) {
+        // Server says must change password — keep session, don't logout
+        return;
+      }
       if (m) {
         setMember(m);
         saveSession(m);
@@ -234,7 +238,7 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
         bumpAuth();
       }
     } catch (err) {
-      if (err instanceof ApiError && (err.statusCode === 401 || err.statusCode === 403)) {
+      if (err instanceof ApiError && err.statusCode === 401) {
         setMember(null);
         saveSession(null);
         clearMemberAccessToken();
@@ -257,6 +261,11 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
     memberGetInfo(cachedMember.id)
       .then((serverMember) => {
         if (cancelled) return;
+        if (isMustChangePasswordResult(serverMember)) {
+          // Keep cached session — user will be directed to change password
+          setMember(cachedMember);
+          return;
+        }
         if (serverMember) {
           setMember(serverMember);
           saveSession(serverMember);
@@ -289,6 +298,7 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
       }
       memberGetInfo(member.id)
         .then((serverMember) => {
+          if (isMustChangePasswordResult(serverMember)) return;
           if (!serverMember) {
             setMember(null);
             saveSession(null);

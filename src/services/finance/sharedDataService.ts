@@ -315,14 +315,16 @@ export async function preloadSharedData(): Promise<void> {
 const DEFAULT_SHARED_DATA: Partial<Record<SharedDataKey, any>> = {
   feeSettings: {
     nairaThreshold: 100000,
-    nairaThresholdFee: 200,
+    nairaFeeAbove: 0,
+    nairaFeeBelow: 200,
     cediThreshold: 500,
-    cediThresholdFee: 2,
-    usdtFee: 1,
+    cediFeeAbove: 0,
+    cediFeeBelow: 2,
+    usdtExchangeRate: 0,
   },
   trxSettings: {
-    rate: 0,
-    quantity: 0,
+    trxRate: 0,
+    trxQuantity: 0,
     lastUpdated: new Date().toISOString(),
   },
   points_settings: {

@@ -19,7 +19,7 @@ export function isMemberMcpExemptGlobalRequest(req: AuthenticatedRequest): boole
   return false;
 }
 
-/** member-auth 路由内：强制改密时禁止拉取 /info（改密页仅用本地 session） */
+/** member-auth 路由内：强制改密时禁止拉取 /info（改密页仅用本地 session）— 同时拦截 POST */
 export function isMemberAuthInfoGet(req: Pick<Request, 'method' | 'originalUrl' | 'url'>): boolean {
-  return req.method === 'GET' && apiPathFromRequest(req).endsWith('/api/member-auth/info');
+  return (req.method === 'GET' || req.method === 'POST') && apiPathFromRequest(req).endsWith('/api/member-auth/info');
 }

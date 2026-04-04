@@ -278,7 +278,7 @@ export async function getOperationLogsController(req: AuthenticatedRequest, res:
       beforeData: coerceOperationLogJsonColumn(r.before_data),
       afterData: coerceOperationLogJsonColumn(r.after_data),
       ipAddress: r.ip_address,
-      isRestored: r.is_restored,
+      isRestored: !!(r.is_restored),
       restoredBy: r.restored_by,
       restoredAt: r.restored_at,
     }));

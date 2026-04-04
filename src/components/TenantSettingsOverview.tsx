@@ -12,16 +12,14 @@ import {
   Settings2,
   Coins,
   Gift,
-  Globe,
   Lock,
-  FileText,
   Loader2,
   CheckCircle2,
   XCircle,
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useIsMobile, useIsTablet } from '@/hooks/use-mobile';
-import { loadSharedData, loadMultipleSharedData } from '@/services/finance/sharedDataService';
+import { loadMultipleSharedData } from '@/services/finance/sharedDataService';
 import { resolveAllRates, invalidateRatesBatch, type ResolvedRatesSummary } from '@/lib/resolveRates';
 import { mergeAuditSettings, type AuditSettings, ORDER_AUDIT_FIELDS, MEMBER_AUDIT_FIELDS, ACTIVITY_AUDIT_FIELDS, ORDER_OPERATION_FIELDS } from '@/lib/auditSettingsTypes';
 
@@ -164,10 +162,12 @@ export default function TenantSettingsOverview() {
           <CardContent className="pt-4 pb-3 px-4 space-y-0">
             <Section title={t('手续费', 'Fees')} icon={<Coins className="h-4 w-4 text-amber-500" />}>
               <KV label={t('奈拉阈值', 'NGN Threshold')} value={fmt(feeSettings?.nairaThreshold, 0)} />
-              <KV label={t('奈拉手续费', 'NGN Fee')} value={fmt(feeSettings?.nairaThresholdFee, 0)} />
+              <KV label={t('奈拉手续费(≥阈值)', 'NGN Fee (≥threshold)')} value={fmt(feeSettings?.nairaFeeAbove, 0)} />
+              <KV label={t('奈拉手续费(<阈值)', 'NGN Fee (<threshold)')} value={fmt(feeSettings?.nairaFeeBelow, 0)} />
               <KV label={t('赛地阈值', 'GHS Threshold')} value={fmt(feeSettings?.cediThreshold, 0)} />
-              <KV label={t('赛地手续费', 'GHS Fee')} value={fmt(feeSettings?.cediThresholdFee, 0)} />
-              <KV label={t('USDT手续费', 'USDT Fee')} value={fmt(feeSettings?.usdtFee)} />
+              <KV label={t('赛地手续费(≥阈值)', 'GHS Fee (≥threshold)')} value={fmt(feeSettings?.cediFeeAbove, 0)} />
+              <KV label={t('赛地手续费(<阈值)', 'GHS Fee (<threshold)')} value={fmt(feeSettings?.cediFeeBelow, 0)} />
+              <KV label={t('USDT汇率', 'USDT Rate')} value={fmt(feeSettings?.usdtExchangeRate)} />
             </Section>
           </CardContent>
         </Card>

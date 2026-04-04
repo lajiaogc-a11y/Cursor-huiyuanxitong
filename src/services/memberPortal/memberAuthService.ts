@@ -61,6 +61,10 @@ export async function memberSignIn(
             0,
             Math.floor(Number((member as { invite_success_lifetime_count?: unknown }).invite_success_lifetime_count) || 0),
           ),
+          invite_lifetime_reward_spins: Math.max(
+            0,
+            Math.floor(Number((member as { invite_lifetime_reward_spins?: unknown }).invite_lifetime_reward_spins) || 0),
+          ),
           lifetime_reward_points_earned: Math.max(
             0,
             Number((member as { lifetime_reward_points_earned?: unknown }).lifetime_reward_points_earned) || 0,
@@ -105,6 +109,7 @@ function mapMemberPayload(m: Record<string, unknown>): MemberInfo {
     avatar_url: m.avatar_url && String(m.avatar_url).trim() ? String(m.avatar_url) : null,
     must_change_password: m.must_change_password === true || Number(m.must_change_password) === 1,
     invite_success_lifetime_count: Math.max(0, Math.floor(Number(m.invite_success_lifetime_count) || 0)),
+    invite_lifetime_reward_spins: Math.max(0, Math.floor(Number(m.invite_lifetime_reward_spins) || 0)),
     lifetime_reward_points_earned: Math.max(0, Number(m.lifetime_reward_points_earned) || 0),
     total_points: Math.max(0, Number(m.total_points) || 0),
   };
@@ -160,29 +165,32 @@ export async function memberGetInfo(memberId: string): Promise<MemberInfo | null
     const r = res as { success?: boolean; data?: { member?: MemberInfo }; member?: MemberInfo };
     const member = r?.member ?? r?.data?.member;
     if (member?.id) {
-      return {
-        id: member.id,
-        member_code: member.member_code,
-        phone_number: member.phone_number,
-        nickname: member.nickname ?? null,
-        member_level: member.member_level ?? null,
-        member_level_zh: (member as { member_level_zh?: string | null }).member_level_zh ?? null,
-        wallet_balance: Number(member.wallet_balance) || 0,
-        tenant_id: (member as { tenant_id?: string | null }).tenant_id ?? null,
-        avatar_url: (member as { avatar_url?: string | null }).avatar_url ?? null,
-        must_change_password: !!(member as { must_change_password?: boolean }).must_change_password,
-        invite_success_lifetime_count: Math.max(
-          0,
-          Math.floor(Number((member as { invite_success_lifetime_count?: unknown }).invite_success_lifetime_count) || 0),
-        ),
-        lifetime_reward_points_earned: Math.max(
-          0,
-          Number((member as { lifetime_reward_points_earned?: unknown }).lifetime_reward_points_earned) || 0,
-        ),
-      };
+      return mapMemberPayload(member as unknown as Record<string, unknown>);
     }
     return null;
-  } catch {
+  } catch (e: unknown) {
+    if (e instanceof ApiError && e.code === 'MEMBER_MUST_CHANGE_PASSWORD') {
+      return MUST_CHANGE_PASSWORD_SENTINEL;
+    }
     return null;
   }
+}
+
+/**
+ * Sentinel value: memberGetInfo returns this when the server responds with
+ * MEMBER_MUST_CHANGE_PASSWORD (403). Callers should check via
+ * `isMustChangePasswordResult()` and NOT treat it as "session invalid".
+ */
+const MUST_CHANGE_PASSWORD_SENTINEL: MemberInfo = Object.freeze({
+  id: '__must_change_password__',
+  member_code: '',
+  phone_number: '',
+  nickname: null,
+  member_level: null,
+  wallet_balance: 0,
+  must_change_password: true,
+});
+
+export function isMustChangePasswordResult(m: MemberInfo | null): boolean {
+  return m?.id === '__must_change_password__';
 }

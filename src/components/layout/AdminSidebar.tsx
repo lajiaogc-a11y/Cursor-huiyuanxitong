@@ -20,6 +20,12 @@ import {
   Key,
   History,
   LogIn,
+  ToggleLeft,
+  Construction,
+  Megaphone,
+  ShieldCheck,
+  Ruler,
+  DatabaseZap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -34,6 +40,12 @@ const PLATFORM_SETTINGS_CHILDREN = [
   { path: "/staff/admin/settings/data-repair", icon: Wrench, labelZh: "数据修复", labelEn: "Data Repair" },
   { path: "/staff/admin/settings/operation-logs", icon: History, labelZh: "操作日志", labelEn: "Operation Logs" },
   { path: "/staff/admin/settings/login-logs", icon: LogIn, labelZh: "登录日志", labelEn: "Login Logs" },
+  { path: "/staff/admin/settings/feature-flags", icon: ToggleLeft, labelZh: "功能开关", labelEn: "Feature Flags" },
+  { path: "/staff/admin/settings/maintenance-mode", icon: Construction, labelZh: "维护模式", labelEn: "Maintenance Mode" },
+  { path: "/staff/admin/settings/announcements", icon: Megaphone, labelZh: "公告/站内信", labelEn: "Announcements" },
+  { path: "/staff/admin/settings/login-2fa", icon: ShieldCheck, labelZh: "登录2FA", labelEn: "Login 2FA" },
+  { path: "/staff/admin/settings/tenant-quota", icon: Ruler, labelZh: "租户配额", labelEn: "Tenant Quota" },
+  { path: "/staff/admin/settings/data-migration-tools", icon: DatabaseZap, labelZh: "数据迁移工具", labelEn: "Data Migration Tools" },
   { path: "/staff/admin/settings/open-api", icon: Key, labelZh: "开放 API", labelEn: "Open API" },
   { path: "/staff/admin/settings/device-whitelist", icon: Smartphone, labelZh: "设备白名单登录", labelEn: "Device whitelist login" },
 ];

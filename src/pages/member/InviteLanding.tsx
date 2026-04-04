@@ -240,6 +240,7 @@ export default function InviteLanding() {
         else if (r.error === "SELF_REFERRAL")
           notify.error(t("不能使用推荐人本人的手机号注册", "You cannot register with the referrer's own phone"));
         else if (r.error === "ALREADY_INVITED") notify.error(t("已被邀请过", "Already invited"));
+        else if (r.error === "PHONE_ALREADY_REGISTERED") notify.error(t("该手机号已注册", "This phone number is already registered"));
         else if (r.error === "REGISTER_FAILED")
           notify.error(t("注册失败，请重试", "Registration failed, please try again"));
         else if (r.error?.includes("invitee") || r.error?.includes("unique"))

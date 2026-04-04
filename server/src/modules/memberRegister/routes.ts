@@ -39,6 +39,7 @@ function statusForRegisterError(err: string): number {
     TOKEN_EXPIRED: 401,
     SELF_REFERRAL: 400,
     ALREADY_INVITED: 409,
+    PHONE_ALREADY_REGISTERED: 409,
     INVALID_INPUT: 400,
     INVALID_REFERRER: 400,
     REGISTER_FAILED: 500,

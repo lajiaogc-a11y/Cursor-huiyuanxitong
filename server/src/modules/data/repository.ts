@@ -180,7 +180,7 @@ export async function insertOperationLogRepository(params: InsertOperationLogPar
     `INSERT INTO operation_logs (
        operator_id, operator_account, operator_role, module, operation_type,
        object_id, object_description, before_data, after_data, ip_address, timestamp
-     ) VALUES (?,?,?,?,?,?,?,?,?,?,NOW())`,
+     ) VALUES (?,?,?,?,?,?,?,?,?,?,NOW(3))`,
     [
       params.operator_id ?? null,
       params.operator_account,
