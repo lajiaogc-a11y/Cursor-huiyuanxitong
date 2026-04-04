@@ -23,8 +23,8 @@ export function errorHandler(
 
   // 生产环境不向客户端暴露详细错误信息，防止信息泄露
   const message = isProduction && statusCode === 500
-    ? '服务器内部错误，请稍后重试'
-    : (err.message ?? '服务器内部错误，请稍后重试');
+    ? 'Internal server error. Please try again later.'
+    : (err.message ?? 'Internal server error. Please try again later.');
 
   res.status(statusCode).json({
     success: false,

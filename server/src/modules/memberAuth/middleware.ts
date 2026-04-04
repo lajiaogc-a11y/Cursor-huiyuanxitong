@@ -73,7 +73,7 @@ export async function memberAuthMiddleware(
         success: false,
         error: {
           code: 'MEMBER_SESSION_REPLACED',
-          message: '您的账号已在其他设备登录，如非本人操作请及时修改密码。',
+          message: 'Your account has been signed in on another device. If this was not you, please change your password promptly.',
         },
       });
       return;
@@ -83,7 +83,7 @@ export async function memberAuthMiddleware(
         success: false,
         error: {
           code: 'MEMBER_MUST_CHANGE_PASSWORD',
-          message: '请先修改登录密码后再继续使用',
+          message: 'Please change your password first before continuing',
         },
       });
       return;

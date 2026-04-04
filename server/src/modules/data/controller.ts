@@ -163,7 +163,7 @@ async function auditPlatformDelegation(
       module: 'platform_delegation',
       operation_type: op.operation_type,
       object_id: op.object_id ?? null,
-      object_description: '平台超管代管写入（显式 target_tenant_id / tenant_id）',
+      object_description: 'Platform super-admin delegated write (explicit target_tenant_id / tenant_id)',
       before_data: null,
       after_data: op.after_data,
       ip_address: clientIpForAudit(req),
@@ -427,7 +427,7 @@ export async function getKnowledgeArticlesController(req: AuthenticatedRequest, 
 export async function postKnowledgeCategoryController(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     if (!canManageKnowledge(req)) {
-      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '仅管理员可操作' } });
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Admin access required' } });
       return;
     }
     const body = req.body as {
@@ -442,7 +442,7 @@ export async function postKnowledgeCategoryController(req: AuthenticatedRequest,
     }
     const tenantId = tenantIdForKnowledgeCreate(req);
     if (!tenantId) {
-      res.status(403).json({ success: false, error: { code: 'TENANT_REQUIRED', message: '当前账号未绑定租户，无法创建知识库分类' } });
+      res.status(403).json({ success: false, error: { code: 'TENANT_REQUIRED', message: 'Account not bound to a tenant; cannot create knowledge category' } });
       return;
     }
     const data = await createKnowledgeCategoryRepository({
@@ -464,7 +464,7 @@ export async function postKnowledgeCategoryController(req: AuthenticatedRequest,
 export async function patchKnowledgeCategoryController(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     if (!canManageKnowledge(req)) {
-      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '仅管理员可操作' } });
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Admin access required' } });
       return;
     }
     const id = req.params.id;
@@ -485,7 +485,7 @@ export async function patchKnowledgeCategoryController(req: AuthenticatedRequest
     const { target_tenant_id, tenant_id, ...categoryPatch } = body;
     const { tenantId, delegated } = tenantIdForPlatformDelegatedWrite(req, { target_tenant_id, tenant_id });
     if (!tenantId) {
-      res.status(403).json({ success: false, error: { code: 'TENANT_REQUIRED', message: '当前账号未绑定租户' } });
+      res.status(403).json({ success: false, error: { code: 'TENANT_REQUIRED', message: 'Account not bound to a tenant' } });
       return;
     }
     const data = await updateKnowledgeCategoryRepository(id, categoryPatch, tenantId);
@@ -494,7 +494,7 @@ export async function patchKnowledgeCategoryController(req: AuthenticatedRequest
         success: false,
         error: {
           code: 'NOT_FOUND',
-          message: '分类不存在，或不在当前租户范围内（平台管理员请先选择目标租户后再编辑）',
+          message: 'Category not found or not in current tenant scope (platform admins: select a target tenant before editing)',
         },
       });
       return;
@@ -520,7 +520,7 @@ export async function patchKnowledgeCategoryController(req: AuthenticatedRequest
 export async function deleteKnowledgeCategoryController(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     if (!canManageKnowledge(req)) {
-      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '仅管理员可操作' } });
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Admin access required' } });
       return;
     }
     const id = req.params.id;
@@ -530,7 +530,7 @@ export async function deleteKnowledgeCategoryController(req: AuthenticatedReques
     }
     const tenantId = tenantIdForKnowledgeWriteScope(req);
     if (!tenantId) {
-      res.status(403).json({ success: false, error: { code: 'TENANT_REQUIRED', message: '当前账号未绑定租户' } });
+      res.status(403).json({ success: false, error: { code: 'TENANT_REQUIRED', message: 'Account not bound to a tenant' } });
       return;
     }
     const ok = await deleteKnowledgeCategoryRepository(id, tenantId);
@@ -549,7 +549,7 @@ export async function deleteKnowledgeCategoryController(req: AuthenticatedReques
 export async function postKnowledgeArticleController(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     if (!canManageKnowledge(req)) {
-      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '仅管理员可操作' } });
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Admin access required' } });
       return;
     }
     const body = req.body as {
@@ -571,13 +571,13 @@ export async function postKnowledgeArticleController(req: AuthenticatedRequest, 
     if (!body?.category_id || !titleZh) {
       res.status(400).json({
         success: false,
-        error: { code: 'VALIDATION_ERROR', message: 'category_id 与标题（title_zh 或 title）必填' },
+        error: { code: 'VALIDATION_ERROR', message: 'category_id and title (title_zh or title) are required' },
       });
       return;
     }
     const tenantId = tenantIdForKnowledgeCreate(req);
     if (!tenantId) {
-      res.status(403).json({ success: false, error: { code: 'TENANT_REQUIRED', message: '当前账号未绑定租户，无法创建知识库文章' } });
+      res.status(403).json({ success: false, error: { code: 'TENANT_REQUIRED', message: 'Account not bound to a tenant; cannot create knowledge article' } });
       return;
     }
     const contentRaw = body.content ?? body.body;
@@ -605,7 +605,7 @@ export async function postKnowledgeArticleController(req: AuthenticatedRequest, 
 export async function patchKnowledgeArticleController(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     if (!canManageKnowledge(req)) {
-      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '仅管理员可操作' } });
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Admin access required' } });
       return;
     }
     const id = req.params.id;
@@ -627,7 +627,7 @@ export async function patchKnowledgeArticleController(req: AuthenticatedRequest,
     };
     const tenantId = tenantIdForKnowledgeWriteScope(req);
     if (!tenantId) {
-      res.status(403).json({ success: false, error: { code: 'TENANT_REQUIRED', message: '当前账号未绑定租户' } });
+      res.status(403).json({ success: false, error: { code: 'TENANT_REQUIRED', message: 'Account not bound to a tenant' } });
       return;
     }
     const patch: Parameters<typeof updateKnowledgeArticleRepository>[1] = {};
@@ -660,7 +660,7 @@ export async function patchKnowledgeArticleController(req: AuthenticatedRequest,
 export async function deleteKnowledgeArticleController(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     if (!canManageKnowledge(req)) {
-      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '仅管理员可操作' } });
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Admin access required' } });
       return;
     }
     const id = req.params.id;
@@ -670,7 +670,7 @@ export async function deleteKnowledgeArticleController(req: AuthenticatedRequest
     }
     const tenantId = tenantIdForKnowledgeWriteScope(req);
     if (!tenantId) {
-      res.status(403).json({ success: false, error: { code: 'TENANT_REQUIRED', message: '当前账号未绑定租户' } });
+      res.status(403).json({ success: false, error: { code: 'TENANT_REQUIRED', message: 'Account not bound to a tenant' } });
       return;
     }
     const ok = await deleteKnowledgeArticleRepository(id, tenantId);
@@ -746,7 +746,7 @@ export async function postKnowledgeMarkAllReadController(req: AuthenticatedReque
     }
     const tenantScope = tenantIdForKnowledgeMarkAllReadScope(req);
     if (tenantScope === undefined) {
-      res.status(403).json({ success: false, error: { code: 'TENANT_REQUIRED', message: '当前账号未绑定租户' } });
+      res.status(403).json({ success: false, error: { code: 'TENANT_REQUIRED', message: 'Account not bound to a tenant' } });
       return;
     }
     const count = await markAllKnowledgeArticlesReadRepository(employeeId, tenantScope);
@@ -962,7 +962,7 @@ export async function repairKnowledgeFieldsController(req: AuthenticatedRequest,
   try {
     const role = req.user?.role;
     if (role !== 'admin' && role !== 'manager' && !req.user?.is_platform_super_admin) {
-      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '仅管理员可执行' } });
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Admin access required' } });
       return;
     }
     const data = await repairKnowledgeFields();
@@ -977,21 +977,21 @@ export async function seedKnowledgeCategoriesController(req: AuthenticatedReques
   try {
     const role = req.user?.role;
     if (role !== 'admin' && role !== 'manager' && !req.user?.is_platform_super_admin) {
-      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '仅管理员可执行' } });
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Admin access required' } });
       return;
     }
     const { query: dbQuery, execute: dbExecute } = await import('../../database/index.js');
     const existing = await dbQuery('SELECT id FROM knowledge_categories LIMIT 1');
     if (existing && existing.length > 0) {
-      res.json({ success: true, data: { seeded: false, message: '已有分类，跳过' } });
+      res.json({ success: true, data: { seeded: false, message: 'Categories already exist, skipped' } });
       return;
     }
     const tenantId = req.user?.tenant_id ?? null;
     const defaults = [
-      { name: '公司通知', content_type: 'text', sort_order: 1, visibility: 'public' },
-      { name: '行业知识', content_type: 'text', sort_order: 2, visibility: 'public' },
-      { name: '兑卡指南', content_type: 'image', sort_order: 3, visibility: 'public' },
-      { name: '常用话术', content_type: 'phrase', sort_order: 4, visibility: 'public' },
+      { name: 'Company News', content_type: 'text', sort_order: 1, visibility: 'public' },
+      { name: 'Industry Knowledge', content_type: 'text', sort_order: 2, visibility: 'public' },
+      { name: 'Card Guide', content_type: 'image', sort_order: 3, visibility: 'public' },
+      { name: 'Common Phrases', content_type: 'phrase', sort_order: 4, visibility: 'public' },
     ];
     for (const row of defaults) {
       if (tenantId) {
@@ -1115,8 +1115,8 @@ export async function getIpCountryCheckController(req: Request, res: Response): 
         error: 'IP_COUNTRY_NOT_ALLOWED',
         message:
           norm.country_mode === 'allow'
-            ? `访问被拒绝：当前 IP (${clientIp}) 所在地区不在允许列表内。${modeHint}`
-            : `访问被拒绝：当前 IP (${clientIp}) 来自受限国家/地区（${loc.country_name || loc.country_code || '未知'}）。${modeHint}`,
+            ? `Access denied: current IP (${clientIp}) is not in the allowed region list. ${modeHint}`
+            : `Access denied: current IP (${clientIp}) is from a restricted country/region (${loc.country_name || loc.country_code || 'Unknown'}). ${modeHint}`,
       },
     });
   } catch (e) {
@@ -1141,7 +1141,7 @@ export async function getSharedDataController(req: AuthenticatedRequest, res: Re
       return;
     }
     if (dataKey === TENANT_STAFF_LOGIN_IP_STORE_KEY && !canManageStaffLoginIpSettings(req)) {
-      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '无权查看该配置' } });
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'No permission to view this configuration' } });
       return;
     }
     const tenantId = resolveTenantId(req, queryTenantId);
@@ -1173,13 +1173,13 @@ export async function postSharedDataController(req: AuthenticatedRequest, res: R
       return;
     }
     if (dataKey === TENANT_STAFF_LOGIN_IP_STORE_KEY && !canManageStaffLoginIpSettings(req)) {
-      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '仅租户管理员可配置员工登录 IP 白名单' } });
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Only tenant admins can configure staff login IP allowlist' } });
       return;
     }
     const { target_tenant_id, tenant_id } = body;
     const { tenantId, delegated } = tenantIdForPlatformDelegatedWrite(req, { target_tenant_id, tenant_id });
     if (!tenantId) {
-      res.status(403).json({ success: false, error: { code: 'TENANT_REQUIRED', message: '当前账号未绑定租户' } });
+      res.status(403).json({ success: false, error: { code: 'TENANT_REQUIRED', message: 'Account not bound to a tenant' } });
       return;
     }
     const payload =

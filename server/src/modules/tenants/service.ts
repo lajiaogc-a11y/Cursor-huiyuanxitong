@@ -42,7 +42,7 @@ export async function createTenantWithAdminService(
       return {
         success: false as const,
         errorCode: 'PASSWORD_PROBE_FAILED',
-        message: '租户创建后管理员密码校验失败，事务已回滚，请重试',
+        message: 'Admin password verification failed after tenant creation; transaction rolled back. Please try again.',
       };
     }
     throw e;
@@ -122,7 +122,7 @@ export async function deleteTenantService(
   const verify = await verifyEmployeeLoginRepository(actor.username, input.password);
   const row = verify.data?.[0];
   if (verify.error || !row || (row as { error_code?: string | null }).error_code) {
-    return { success: false as const, errorCode: 'INVALID_PASSWORD', message: '密码错误' };
+    return { success: false as const, errorCode: 'INVALID_PASSWORD', message: 'Incorrect password' };
   }
   return deleteTenantRepository({ tenantId: input.tenantId, force: input.force });
 }

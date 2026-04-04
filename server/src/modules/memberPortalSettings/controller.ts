@@ -432,7 +432,7 @@ export async function listCheckInsController(req: AuthenticatedRequest, res: Res
     return;
   }
   if (req.user?.type === 'member') {
-    res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '员工接口' } });
+    res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Staff endpoint' } });
     return;
   }
   const resolved = resolveTenantIdForActivityDataList(req);
@@ -468,7 +468,7 @@ export async function listLotteryPointsLedgerController(req: AuthenticatedReques
     return;
   }
   if (req.user?.type === 'member') {
-    res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '员工接口' } });
+    res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Staff endpoint' } });
     return;
   }
   const resolved = resolveTenantIdForActivityDataList(req);
@@ -505,7 +505,7 @@ export async function listSpinCreditsLogController(req: AuthenticatedRequest, re
     return;
   }
   if (req.user?.type === 'member') {
-    res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '员工接口' } });
+    res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Staff endpoint' } });
     return;
   }
   const resolved = resolveTenantIdForActivityDataList(req);

@@ -107,11 +107,12 @@ export async function adminListSpinFakeHourRunsController(req: AuthenticatedRequ
 }
 
 const START_ERR: Record<string, string> = {
-  ENABLE_CRON_FIRST: '请先开启「每小时自动生成」并保存策略。',
-  NO_PRIZES: '当前租户没有启用的抽奖奖品，无法模拟。',
-  SLOT0_BUSY: '本轮已认领（请勿重复点击）；若需重新从当前时刻计时，请先关闭再开启自动生成以清除锚点后再试。',
+  ENABLE_CRON_FIRST: 'Enable auto-generate hourly and save settings first.',
+  NO_PRIZES: 'No enabled lottery prizes for this tenant; cannot simulate.',
+  SLOT0_BUSY:
+    'This round is already claimed (do not click again). To restart the timer from now, turn off auto-generate, turn it on again to clear the anchor, then retry.',
   ANCHOR_ALREADY_SET:
-    '模拟已在运行（已有时间锚点）。若要重新从当前时刻开始，请先关闭「每小时自动生成」并保存，再重新开启并点击模拟执行。',
+    'Simulation is already running (time anchor exists). To restart from the current moment, turn off auto-generate hourly and save, then turn it on again and run simulation.',
 };
 
 export async function adminStartSpinFakeCronController(req: AuthenticatedRequest, res: Response): Promise<void> {

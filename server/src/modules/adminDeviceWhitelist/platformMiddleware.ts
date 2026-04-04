@@ -7,7 +7,7 @@ export function requirePlatformSuperAdminMiddleware(
   next: NextFunction,
 ): void {
   if (!req.user || req.user.type !== 'employee') {
-    res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: '未登录或登录已失效，请重新登录' } });
+    res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated or session expired. Please sign in again.' } });
     return;
   }
   if (!req.user.is_platform_super_admin) {
@@ -15,7 +15,7 @@ export function requirePlatformSuperAdminMiddleware(
       success: false,
       error: {
         code: 'PLATFORM_SUPER_ADMIN_REQUIRED',
-        message: '仅平台超级管理员可操作；请使用平台总管理员账号或重新登录以刷新权限。',
+        message: 'Platform super admin access required. Use a platform super admin account or sign in again to refresh permissions.',
       },
     });
     return;

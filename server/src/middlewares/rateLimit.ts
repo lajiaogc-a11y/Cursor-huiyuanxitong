@@ -34,7 +34,7 @@ export const staffLoginLimiter = rateLimit({
   max: 40,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: json429('登录尝试过于频繁，请稍后再试'),
+  handler: json429('Too many login attempts. Please try again later.'),
 });
 
 /** 员工注册 */
@@ -43,7 +43,7 @@ export const staffRegisterLimiter = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: json429('注册尝试过于频繁，请稍后再试'),
+  handler: json429('Too many registration attempts. Please try again later.'),
 });
 
 /** 会员登录 */
@@ -52,7 +52,7 @@ export const memberSignInLimiter = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: json429('登录尝试过于频繁，请稍后再试'),
+  handler: json429('Too many login attempts. Please try again later.'),
 });
 
 /** 通用 RPC POST（含会员/员工已认证调用；公开白名单 RPC 同样计入） */
@@ -61,7 +61,7 @@ export const dataRpcPostLimiter = rateLimit({
   max: 240,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: json429('接口请求过于频繁，请稍后再试'),
+  handler: json429('Too many requests. Please try again later.'),
 });
 
 /**
@@ -73,7 +73,7 @@ export const memberGrantSpinShareLimiter = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: json429('分享领奖请求过于频繁，请稍后再试'),
+  handler: json429('Too many share reward requests. Please try again later.'),
 });
 
 /**
@@ -91,7 +91,7 @@ export const lotteryDrawBurstLimiter = rateLimit({
     if (req.ip) return ipKeyGenerator(req.ip);
     return 'draw_burst:anonymous';
   },
-  handler: json429('抽奖请求过于频繁，请稍候再试'),
+  handler: json429('Too many spin requests. Please try again later.'),
 });
 
 /** 抽奖接口 — 按会员 ID 分钟级限流（已认证 + 会员 JWT 之后） */
@@ -106,7 +106,7 @@ export const lotteryDrawLimiter = rateLimit({
     if (req.ip) return ipKeyGenerator(req.ip);
     return 'anonymous';
   },
-  handler: json429('抽奖请求过于频繁，请稍后再试'),
+  handler: json429('Too many spin requests. Please try again later.'),
 });
 
 /** 邀请落地页注册（公开 RPC，防刷号） */
@@ -115,7 +115,7 @@ export const publicInviteSubmitLimiter = rateLimit({
   max: 25,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: json429('当前网络注册尝试过于频繁，请稍后再试'),
+  handler: json429('Too many registration attempts from this network. Please try again later.'),
 });
 
 /** 换取注册临时凭证（按 IP，略严于最终提交） */
@@ -124,7 +124,7 @@ export const memberRegisterInitLimiter = rateLimit({
   max: 40,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: json429('注册初始化请求过于频繁，请稍后再试'),
+  handler: json429('Too many registration initialization requests. Please try again later.'),
 });
 
 /**
@@ -144,7 +144,7 @@ export const memberRegisterInitPerInviteLimiter = rateLimit({
     const slug = code ? createHash('sha256').update(code, 'utf8').digest('hex').slice(0, 24) : 'empty';
     return `reg_init_inv:${slug}:${ip}`;
   },
-  handler: json429('当前网络对该邀请码的尝试过于频繁，请稍后再试'),
+  handler: json429('Too many attempts for this invite code from this network. Please try again later.'),
 });
 
 /** 使用 registerToken 完成注册（与 RPC 提交同量级） */
@@ -153,7 +153,7 @@ export const memberRegisterCompleteLimiter = rateLimit({
   max: 25,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: json429('当前网络注册尝试过于频繁，请稍后再试'),
+  handler: json429('Too many registration attempts from this network. Please try again later.'),
 });
 
 export { sampleLogIp };

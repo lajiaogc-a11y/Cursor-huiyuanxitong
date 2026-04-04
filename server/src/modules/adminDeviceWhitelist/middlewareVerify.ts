@@ -27,7 +27,7 @@ export async function assertEmployeeDeviceJwtAllowed(
         success: false,
         error: {
           code: 'DEVICE_BINDING_REQUIRED',
-          message: '登录令牌缺少设备绑定，请重新登录',
+          message: 'Login token missing device binding. Please sign in again.',
         },
       },
     };
@@ -45,7 +45,7 @@ export async function assertEmployeeDeviceJwtAllowed(
         success: false,
         error: {
           code: 'DEVICE_WHITELIST_UNAVAILABLE',
-          message: '设备白名单数据暂不可用，请稍后重试或联系管理员',
+          message: 'Device whitelist data temporarily unavailable. Please try again later or contact an administrator.',
         },
       },
     };
@@ -58,7 +58,7 @@ export async function assertEmployeeDeviceJwtAllowed(
         success: false,
         error: {
           code: 'DEVICE_NOT_ALLOWED',
-          message: '当前设备已从白名单移除或已失效，请重新登录',
+          message: 'This device has been removed from the whitelist or is no longer valid. Please sign in again.',
         },
       },
     };

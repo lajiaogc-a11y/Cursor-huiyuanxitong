@@ -23,23 +23,23 @@ export type MemberInboxCopyTemplatesState = {
 export type MemberInboxCategory = 'trade' | 'redemption' | 'announcement' | 'other';
 
 const DEFAULT_TRADE: Required<MemberInboxCopyBlock> = {
-  titleZh: '交易完成',
+  titleZh: 'Transaction completed',
   titleEn: 'Trade completed',
-  bodyZh: '恭喜您交易成功，获得 {{spins}} 次转盘抽奖机会！',
+  bodyZh: 'Congratulations! Transaction successful. You earned {{spins}} wheel spin(s)!',
   bodyEn: 'Congratulations! Your trade was completed — you earned {{spins}} wheel spin(s).',
 };
 
 const DEFAULT_RED_COMPLETED: Required<MemberInboxCopyBlock> = {
-  titleZh: '兑换已完成',
+  titleZh: 'Redemption completed',
   titleEn: 'Redemption completed',
-  bodyZh: '您兑换的「{{item}}」×{{qty}} 已处理完成。{{points_hint}}',
+  bodyZh: 'Your redemption for "{{item}}" ×{{qty}} is complete. {{points_hint}}',
   bodyEn: 'Your redemption for "{{item}}" ×{{qty}} has been completed. {{points_hint}}',
 };
 
 const DEFAULT_RED_REJECTED: Required<MemberInboxCopyBlock> = {
-  titleZh: '兑换已驳回',
+  titleZh: 'Redemption rejected',
   titleEn: 'Redemption rejected',
-  bodyZh: '您兑换的「{{item}}」已被驳回。{{points_hint}}{{note_line}}',
+  bodyZh: 'Your redemption for "{{item}}" was rejected. {{points_hint}}{{note_line}}',
   bodyEn: 'Your redemption for "{{item}}" was rejected. {{points_hint}}{{note_line}}',
 };
 
@@ -201,17 +201,17 @@ export function buildMallRedemptionInboxCopy(
   let noteLineEn = '';
   if (input.outcome === 'completed') {
     if (pts > 0) {
-      pointsHintZh = `已从冻结积分中扣除 ${pts} 积分。`;
+      pointsHintZh = `Deducted ${pts} points from frozen balance.`;
       pointsHintEn = `${pts} points were deducted from your frozen balance.`;
     }
   } else {
     if (pts > 0) {
-      pointsHintZh = `${pts} 积分已退回可用余额。`;
+      pointsHintZh = `${pts} points refunded to available balance.`;
       pointsHintEn = `${pts} points have been returned to your balance.`;
     }
     const note = input.note?.trim() ? input.note.trim() : '';
     if (note) {
-      noteLineZh = ` 说明：${note}`;
+      noteLineZh = ` Note: ${note}`;
       noteLineEn = ` Note: ${note}`;
     }
   }

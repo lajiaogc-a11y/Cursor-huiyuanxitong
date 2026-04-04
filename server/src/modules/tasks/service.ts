@@ -433,7 +433,7 @@ export async function getTaskProgressListForTenant(
     const phone = row.i_phone != null ? String(row.i_phone) : null;
     const posterId = row.i_poster_id != null ? String(row.i_poster_id) : null;
     const posterTitle = row.poster_title != null && String(row.poster_title).trim() !== '' ? String(row.poster_title) : null;
-    const displayLabel = posterId ? (posterTitle || '海报') : (phone || '-');
+    const displayLabel = posterId ? (posterTitle || 'Poster') : (phone || '-');
 
     const st = String(row.i_status ?? 'todo') === 'done' ? 'done' : 'todo';
     const doneAt =
@@ -475,7 +475,7 @@ export async function getTaskProgressListForTenant(
     const statMap = new Map<string, { name: string; done: number; total: number }>();
     for (const it of g.items) {
       const eid = it.assigned_to ?? '_unassigned';
-      const name = it.assignee_name?.trim() || (eid === '_unassigned' ? '未分配' : '未知');
+      const name = it.assignee_name?.trim() || (eid === '_unassigned' ? 'Unassigned' : 'Unknown');
       if (!statMap.has(eid)) {
         statMap.set(eid, { name, done: 0, total: 0 });
       }

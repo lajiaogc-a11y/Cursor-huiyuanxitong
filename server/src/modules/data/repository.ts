@@ -636,10 +636,10 @@ export async function createKnowledgeArticleRepository(
   }
 
   if (!hasTitle && !hasTitleZh) {
-    throw new Error('knowledge_articles 表缺少 title 与 title_zh 列，无法插入');
+    throw new Error('knowledge_articles table is missing title and title_zh columns; cannot insert');
   }
   if (!hasContent) {
-    throw new Error('knowledge_articles 表缺少 content 列，无法插入');
+    throw new Error('knowledge_articles table is missing content column; cannot insert');
   }
 
   const id = crypto.randomUUID();
@@ -885,10 +885,10 @@ function deriveIpLocation(ip: string | null | undefined): string | null {
   const trimmed = ip.trim();
   const normalized = trimmed.startsWith('::ffff:') ? trimmed.slice(7) : trimmed;
   if (normalized === '127.0.0.1' || normalized === '::1' || normalized === 'localhost') {
-    return '本机';
+    return 'localhost';
   }
   if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(normalized)) {
-    return '内网';
+    return 'LAN';
   }
   return null;
 }
@@ -1037,7 +1037,7 @@ export async function deleteActivityGiftRepository(
               // 与原始兑换流水同一 transaction_type，便于积分汇总按类型正负抵消
               type: restoreTxnType,
               delta: pointsToRestore,
-              description: `删除活动赠送回退积分 (${gift.gift_number || giftId})`,
+              description: `Activity gift deleted, points refunded (${gift.gift_number || giftId})`,
               referenceType: 'gift_delete',
               referenceId: giftId,
               createdBy: gift.creator_id ?? null,

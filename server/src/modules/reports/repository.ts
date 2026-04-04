@@ -109,10 +109,10 @@ export async function getDashboardTrendRepository(params: {
          DATE(bf.created_at) AS d,
          COUNT(*) AS cnt,
          COALESCE(SUM(bf.profit_ngn), 0) AS total_profit,
-         COALESCE(SUM(CASE WHEN bf.currency IN ('NGN', '奈拉') THEN bf.amount ELSE 0 END), 0) AS v_ngn,
-         COALESCE(SUM(CASE WHEN bf.currency IN ('GHS', '赛地') THEN bf.amount ELSE 0 END), 0) AS v_ghs,
-         COALESCE(SUM(CASE WHEN bf.currency IN ('NGN', '奈拉') THEN bf.profit_ngn ELSE 0 END), 0) AS p_ngn,
-         COALESCE(SUM(CASE WHEN bf.currency IN ('GHS', '赛地') THEN bf.profit_ngn ELSE 0 END), 0) AS p_ghs
+         COALESCE(SUM(CASE WHEN bf.currency IN ('NGN','奈拉','NAIRA') THEN bf.amount ELSE 0 END), 0) AS v_ngn,
+         COALESCE(SUM(CASE WHEN bf.currency IN ('GHS','赛地','CEDI') THEN bf.amount ELSE 0 END), 0) AS v_ghs,
+         COALESCE(SUM(CASE WHEN bf.currency IN ('NGN','奈拉','NAIRA') THEN bf.profit_ngn ELSE 0 END), 0) AS p_ngn,
+         COALESCE(SUM(CASE WHEN bf.currency IN ('GHS','赛地','CEDI') THEN bf.profit_ngn ELSE 0 END), 0) AS p_ghs
        FROM base_filter bf
        WHERE bf.currency <> 'USDT'
        GROUP BY DATE(bf.created_at)
@@ -143,11 +143,11 @@ export async function getDashboardTrendRepository(params: {
      period_totals AS (
        SELECT
          COUNT(*) AS total_orders,
-         COALESCE(SUM(CASE WHEN bf.currency IN ('NGN', '奈拉') THEN bf.amount ELSE 0 END), 0) AS total_ngn_vol,
-         COALESCE(SUM(CASE WHEN bf.currency IN ('GHS', '赛地') THEN bf.amount ELSE 0 END), 0) AS total_ghs_vol,
+         COALESCE(SUM(CASE WHEN bf.currency IN ('NGN','奈拉','NAIRA') THEN bf.amount ELSE 0 END), 0) AS total_ngn_vol,
+         COALESCE(SUM(CASE WHEN bf.currency IN ('GHS','赛地','CEDI') THEN bf.amount ELSE 0 END), 0) AS total_ghs_vol,
          COALESCE(SUM(CASE WHEN bf.currency = 'USDT' THEN bf.amount ELSE 0 END), 0) AS total_usdt_vol,
-         COALESCE(SUM(CASE WHEN bf.currency IN ('NGN', '奈拉') THEN bf.profit_ngn ELSE 0 END), 0) AS total_ngn_profit,
-         COALESCE(SUM(CASE WHEN bf.currency IN ('GHS', '赛地') THEN bf.profit_ngn ELSE 0 END), 0) AS total_ghs_profit,
+         COALESCE(SUM(CASE WHEN bf.currency IN ('NGN','奈拉','NAIRA') THEN bf.profit_ngn ELSE 0 END), 0) AS total_ngn_profit,
+         COALESCE(SUM(CASE WHEN bf.currency IN ('GHS','赛地','CEDI') THEN bf.profit_ngn ELSE 0 END), 0) AS total_ghs_profit,
          COALESCE(SUM(CASE WHEN bf.currency = 'USDT' THEN bf.profit_usdt ELSE 0 END), 0) AS total_usdt_profit
        FROM base_filter bf
      )

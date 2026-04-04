@@ -112,7 +112,7 @@ export async function insertPointsLedgerRow(body: LedgerInsertBody, tenantId: st
       memberId,
       type: body.transaction_type,
       delta: pts,
-      description: `订单积分 (${body.transaction_type})`,
+      description: `Order points (${body.transaction_type})`,
       referenceType: body.order_id ? 'order' : null,
       referenceId: body.order_id,
       createdBy: body.creator_id,

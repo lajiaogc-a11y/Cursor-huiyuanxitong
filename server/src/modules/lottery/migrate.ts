@@ -154,7 +154,7 @@ export async function migrateLotteryTables(): Promise<void> {
       if (mallSet.has('name')) {
         await execute(`UPDATE member_points_mall_items SET title = name WHERE title = '' OR title IS NULL`);
       } else {
-        await execute(`UPDATE member_points_mall_items SET title = '商品' WHERE title = '' OR title IS NULL`);
+        await execute(`UPDATE member_points_mall_items SET title = 'Product' WHERE title = '' OR title IS NULL`);
       }
       mallSet.add('title');
     }

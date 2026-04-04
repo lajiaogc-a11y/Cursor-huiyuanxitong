@@ -65,11 +65,11 @@ export async function createPointOrderController(req: AuthenticatedRequest, res:
     const msg = e instanceof Error ? e.message : String(e);
     switch (msg) {
       case 'POINTS_ACCOUNT_NOT_FOUND':
-        return businessError(res, msg, '积分账户不存在');
+        return businessError(res, msg, 'Points account not found');
       case 'HAS_FROZEN_POINTS':
-        return businessError(res, msg, '有待审核的兑换订单，暂时无法兑换');
+        return businessError(res, msg, 'Pending redemption order exists');
       case 'INSUFFICIENT_POINTS':
-        return businessError(res, msg, '可用积分不足');
+        return businessError(res, msg, 'Insufficient points');
       default:
         console.error('[point-order] create', e);
         res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
@@ -97,7 +97,7 @@ export async function approvePointOrderController(req: AuthenticatedRequest, res
       module: 'points_redemption',
       operation_type: 'status_change',
       object_id: orderId,
-      object_description: `积分兑换订单通过: ${order.product_name} ×${order.quantity}`,
+      object_description: `Points redemption approved: ${order.product_name} ×${order.quantity}`,
       before_data: { status: 'pending' },
       after_data: { status: 'success', reviewed_by: req.user?.id },
       ip_address: req.ip ?? null,
@@ -108,11 +108,11 @@ export async function approvePointOrderController(req: AuthenticatedRequest, res
     const msg = e instanceof Error ? e.message : String(e);
     switch (msg) {
       case 'ORDER_NOT_FOUND':
-        return businessError(res, msg, '订单不存在');
+        return businessError(res, msg, 'Order not found');
       case 'ORDER_NOT_PENDING':
-        return businessError(res, msg, '订单状态不是待审核，无法操作');
+        return businessError(res, msg, 'Order is not pending, cannot process');
       case 'FROZEN_POINTS_INCONSISTENT':
-        return businessError(res, msg, '冻结积分数据异常');
+        return businessError(res, msg, 'Frozen points data error');
       default:
         console.error('[point-order] approve', e);
         res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
@@ -143,7 +143,7 @@ export async function rejectPointOrderController(req: AuthenticatedRequest, res:
       module: 'points_redemption',
       operation_type: 'reject',
       object_id: orderId,
-      object_description: `积分兑换订单拒绝: ${order.product_name} ×${order.quantity}${reason ? ` (${reason})` : ''}`,
+      object_description: `Points redemption rejected: ${order.product_name} ×${order.quantity}${reason ? ` (${reason})` : ''}`,
       before_data: { status: 'pending' },
       after_data: { status: 'rejected', reject_reason: reason ?? null, reviewed_by: req.user?.id },
       ip_address: req.ip ?? null,
@@ -154,9 +154,9 @@ export async function rejectPointOrderController(req: AuthenticatedRequest, res:
     const msg = e instanceof Error ? e.message : String(e);
     switch (msg) {
       case 'ORDER_NOT_FOUND':
-        return businessError(res, msg, '订单不存在');
+        return businessError(res, msg, 'Order not found');
       case 'ORDER_NOT_PENDING':
-        return businessError(res, msg, '订单状态不是待审核，无法操作');
+        return businessError(res, msg, 'Order is not pending, cannot process');
       default:
         console.error('[point-order] reject', e);
         res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
@@ -188,7 +188,7 @@ export async function getPointOrderController(req: AuthenticatedRequest, res: Re
   try {
     const order = await getPointOrder(req.params.id);
     if (!order) {
-      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: '订单不存在' } });
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found' } });
       return;
     }
     res.json({ success: true, data: order });

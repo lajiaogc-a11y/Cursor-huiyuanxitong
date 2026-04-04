@@ -56,7 +56,7 @@ export async function bulkDeleteController(req: Request, res: Response): Promise
     const msg = err instanceof Error ? err.message : String(err);
     res.status(500).json({
       success: false,
-      data: { success: false, deletedSummary: [], totalCount: 0, errors: [`系统错误: ${msg}`], warnings: [] },
+      data: { success: false, deletedSummary: [], totalCount: 0, errors: [`System error: ${msg}`], warnings: [] },
     });
   }
 }
@@ -119,7 +119,7 @@ export async function archiveOrdersController(req: Request, res: Response): Prom
     const msg = err instanceof Error ? err.message : String(err);
     res.status(500).json({
       success: false,
-      data: { success: false, deletedSummary: [], totalCount: 0, errors: [`系统错误: ${msg}`], warnings: [] },
+      data: { success: false, deletedSummary: [], totalCount: 0, errors: [`System error: ${msg}`], warnings: [] },
     });
   }
 }
@@ -172,7 +172,7 @@ export async function archiveMembersController(req: Request, res: Response): Pro
     const msg = err instanceof Error ? err.message : String(err);
     res.status(500).json({
       success: false,
-      data: { success: false, deletedSummary: [], totalCount: 0, errors: [`系统错误: ${msg}`], warnings: [] },
+      data: { success: false, deletedSummary: [], totalCount: 0, errors: [`System error: ${msg}`], warnings: [] },
     });
   }
 }

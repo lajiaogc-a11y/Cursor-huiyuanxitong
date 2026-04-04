@@ -51,7 +51,7 @@ export async function authMiddleware(
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith('Bearer ')) {
-    res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: '缺少或无效的登录凭证，请重新登录' } });
+    res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Missing or invalid credentials. Please sign in again.' } });
     return;
   }
 
@@ -101,14 +101,14 @@ export async function authMiddleware(
     const gate = await verifyMemberAuthGateRepository(memberPayload.sub, memberPayload.sid);
     if (!gate.ok) {
       if (gate.reason === 'not_found') {
-        res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: '登录已失效，请重新登录' } });
+        res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Session expired. Please sign in again.' } });
         return;
       }
       res.status(401).json({
         success: false,
         error: {
           code: 'MEMBER_SESSION_REPLACED',
-          message: '您的账号已在其他设备登录，如非本人操作请及时修改密码。',
+          message: 'Your account has been signed in on another device. If this was not you, please change your password promptly.',
         },
       });
       return;
@@ -127,7 +127,7 @@ export async function authMiddleware(
         success: false,
         error: {
           code: 'MEMBER_MUST_CHANGE_PASSWORD',
-          message: '请先修改登录密码后再继续使用',
+          message: 'Please change your password before continuing',
         },
       });
       return;
@@ -137,7 +137,7 @@ export async function authMiddleware(
     return;
   }
 
-  res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: '登录已失效，请重新登录' } });
+  res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Session expired. Please sign in again.' } });
 }
 
 /** 仅允许会员 JWT（员工 JWT 的 sub 为员工 id，不能用于抽奖等业务身份） */
@@ -151,7 +151,7 @@ export function requireMemberJwt(
       success: false,
       error: {
         code: 'MEMBER_JWT_REQUIRED',
-        message: '此操作需要会员登录状态',
+        message: 'Member login required',
       },
     });
     return;

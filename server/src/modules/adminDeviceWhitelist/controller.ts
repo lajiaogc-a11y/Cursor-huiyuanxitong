@@ -38,7 +38,7 @@ export async function putDeviceWhitelistConfigController(req: AuthenticatedReque
       success: false,
       error: {
         code: 'DEVICE_WHITELIST_UNAVAILABLE',
-        message: '设备白名单配置暂无法写入，请确认数据库迁移已完成（employee_devices / data_settings）后重试',
+        message: 'Device whitelist settings cannot be saved right now. Ensure database migrations have run (employee_devices / data_settings), then try again.',
       },
     });
   }
@@ -61,7 +61,7 @@ export async function postDeviceAdminController(req: AuthenticatedRequest, res: 
   const username = String(body.username || '').trim();
   const device_id = body.device_id;
   if (!username || !device_id) {
-    res.status(400).json({ success: false, error: 'username 与 device_id 必填' });
+    res.status(400).json({ success: false, error: 'username and device_id are required' });
     return;
   }
   const r = await adminAddDevice({
@@ -79,12 +79,12 @@ export async function postDeviceAdminController(req: AuthenticatedRequest, res: 
 export async function deleteDeviceAdminController(req: AuthenticatedRequest, res: Response): Promise<void> {
   const id = String(req.params.id || '').trim();
   if (!id) {
-    res.status(400).json({ success: false, error: '缺少 id' });
+    res.status(400).json({ success: false, error: 'id is required' });
     return;
   }
   const ok = await deleteDevice(id);
   if (!ok) {
-    res.status(404).json({ success: false, error: '记录不存在' });
+    res.status(404).json({ success: false, error: 'Record not found' });
     return;
   }
   res.json({ success: true });
@@ -116,7 +116,7 @@ export async function getDeviceWhitelistPublicController(_req: Request, res: Res
 export async function postBindDeviceController(req: AuthenticatedRequest, res: Response): Promise<void> {
   const u = req.user;
   if (!u?.id || u.type !== 'employee') {
-    res.status(401).json({ success: false, error: '未登录' });
+    res.status(401).json({ success: false, error: 'Not signed in' });
     return;
   }
   const body = req.body as { device_id?: string; device_name?: string };
@@ -158,7 +158,7 @@ export async function postBindDeviceController(req: AuthenticatedRequest, res: R
 export async function listMyDevicesController(req: AuthenticatedRequest, res: Response): Promise<void> {
   const u = req.user;
   if (!u?.id || u.type !== 'employee') {
-    res.status(401).json({ success: false, error: '未登录' });
+    res.status(401).json({ success: false, error: 'Not signed in' });
     return;
   }
   const rows = await listDevicesSelf(u.id);

@@ -62,8 +62,10 @@ export async function getWebsiteStatsService(params: {
     success: true as const,
     data: {
       scope: 'invite_register' as const,
-      scope_description: '仅统计来自前端自助注册链接的会员数据（registration_source = invite_register）',
-      data_source_description: '统计范围：前端邀请注册链接注册的用户，不含后台手工创建、批量导入等来源',
+      scope_description:
+        'Counts only members who registered via the self-service invite link (registration_source = invite_register).',
+      data_source_description:
+        'Includes users who signed up through the front-end invite registration link only; excludes staff-created accounts, bulk imports, and other sources.',
       calendar_today: today,
       range: { start_date: startDate, end_date: endDate },
       online_now: n(row.online_now),

@@ -219,7 +219,7 @@ export async function adminSavePrizesController(req: AuthenticatedRequest, res: 
     res.status(400).json({
       success: false,
       error: 'MAX_8_PRIZES',
-      message: '最多只能启用 8 个奖品（转盘有 8 个格子）/ Maximum 8 enabled prizes allowed',
+      message: 'At most 8 prizes can be enabled (the wheel has 8 slots).',
     });
     return;
   }

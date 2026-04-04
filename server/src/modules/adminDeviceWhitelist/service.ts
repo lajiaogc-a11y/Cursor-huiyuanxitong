@@ -71,16 +71,16 @@ export async function adminAddDevice(params: {
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   await ensureDeviceWhitelistSchema();
   const did = normalizeStaffDeviceId(params.deviceId);
-  if (!did) return { ok: false, error: 'device_id 格式无效' };
+  if (!did) return { ok: false, error: 'Invalid device_id format' };
   const empId = await getEmployeeIdByUsernameRepository(params.username);
-  if (!empId) return { ok: false, error: '员工用户名不存在' };
+  if (!empId) return { ok: false, error: 'Staff username not found' };
 
   const cfg = await getAdminDeviceWhitelistConfigRepository();
   const existingAllowed = await isEmployeeDeviceAllowedRepository(empId, did);
   if (!existingAllowed) {
     const cnt = await countAllowedDevicesRepository(empId);
     if (cnt >= cfg.max_devices_per_employee) {
-      return { ok: false, error: `该账号已达设备上限（${cfg.max_devices_per_employee} 台）` };
+      return { ok: false, error: `Device limit reached for this account (${cfg.max_devices_per_employee} devices)` };
     }
   }
 
@@ -100,14 +100,14 @@ export async function bindCurrentDevice(params: {
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   await ensureDeviceWhitelistSchema();
   const did = normalizeStaffDeviceId(params.deviceId);
-  if (!did) return { ok: false, error: 'device_id 格式无效' };
+  if (!did) return { ok: false, error: 'Invalid device_id format' };
 
   const cfg = await getAdminDeviceWhitelistConfigRepository();
   const existingAllowed = await isEmployeeDeviceAllowedRepository(params.employeeId, did);
   if (!existingAllowed) {
     const cnt = await countAllowedDevicesRepository(params.employeeId);
     if (cnt >= cfg.max_devices_per_employee) {
-      return { ok: false, error: `已达设备上限（${cfg.max_devices_per_employee} 台），请联系管理员` };
+      return { ok: false, error: `Device limit reached (${cfg.max_devices_per_employee} devices). Please contact an administrator.` };
     }
   }
 

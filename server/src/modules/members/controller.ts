@@ -71,7 +71,7 @@ export async function createMemberController(req: AuthenticatedRequest, res: Res
     ((req.query.tenant_id as string) ?? (req.body?.tenant_id as string | undefined)) ?? undefined
   );
   if (!tenantId) {
-    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '创建会员需指定 tenant_id（query 或 body）' } });
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenant_id is required to create a user (query or body)' } });
     return;
   }
   const body = req.body;
@@ -136,7 +136,7 @@ export async function updateMemberController(req: AuthenticatedRequest, res: Res
     ) {
       res.status(400).json({
         success: false,
-        error: { code: err.code, message: err.message || '推荐人无效' },
+        error: { code: err.code, message: err.message || 'Invalid referrer' },
       });
       return;
     }
@@ -144,7 +144,7 @@ export async function updateMemberController(req: AuthenticatedRequest, res: Res
       console.error('[updateMember] SQL error:', err);
       res.status(400).json({
         success: false,
-        error: { code: 'DATA_ERROR', message: '数据格式错误，请检查输入内容' },
+        error: { code: 'DATA_ERROR', message: 'Invalid data format. Please check your input.' },
       });
       return;
     }
@@ -196,7 +196,7 @@ export async function updateMemberByPhoneController(req: AuthenticatedRequest, r
     ) {
       res.status(400).json({
         success: false,
-        error: { code: err.code, message: err.message || '推荐人无效' },
+        error: { code: err.code, message: err.message || 'Invalid referrer' },
       });
       return;
     }
@@ -204,7 +204,7 @@ export async function updateMemberByPhoneController(req: AuthenticatedRequest, r
       console.error('[updateMemberByPhone] SQL error:', err);
       res.status(400).json({
         success: false,
-        error: { code: 'DATA_ERROR', message: '数据格式错误，请检查输入内容' },
+        error: { code: 'DATA_ERROR', message: 'Invalid data format. Please check your input.' },
       });
       return;
     }

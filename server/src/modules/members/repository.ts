@@ -330,7 +330,7 @@ async function applyMemberReferrerSync(memberId: string, tenantId: string, refer
 
   const refMemberRaw = await lookupMemberForReferralRepository(tenantId, raw);
   if (!refMemberRaw || !(refMemberRaw as { id?: string }).id) {
-    throw Object.assign(new Error('未找到该推荐人，请确认手机号或会员编号属于本租户会员'), {
+    throw Object.assign(new Error('Referrer not found'), {
       code: 'REFERRER_NOT_FOUND',
     });
   }
@@ -341,10 +341,10 @@ async function applyMemberReferrerSync(memberId: string, tenantId: string, refer
     member_code?: string | null;
   };
   if (refMember.id === memberId) {
-    throw Object.assign(new Error('不能将自己设为推荐人'), { code: 'REFERRER_SELF' });
+    throw Object.assign(new Error('Cannot set yourself as your own referrer'), { code: 'REFERRER_SELF' });
   }
   if (refMember.tenant_id != null && String(refMember.tenant_id) !== String(tenantId)) {
-    throw Object.assign(new Error('推荐人不在当前租户'), { code: 'REFERRER_TENANT_MISMATCH' });
+    throw Object.assign(new Error('Referrer not in current tenant'), { code: 'REFERRER_TENANT_MISMATCH' });
   }
 
   await clearReferrer();
@@ -396,7 +396,7 @@ export async function updateMemberRepository(id: string, tenantId: string, body:
         [tenantId, code, id]
       );
       if (clash) {
-        throw Object.assign(new Error('该会员编号已被其他会员使用'), { code: 'MEMBER_CODE_TAKEN' });
+        throw Object.assign(new Error('This user code is already in use'), { code: 'MEMBER_CODE_TAKEN' });
       }
       setClauses.push('member_code = ?');
       params.push(code);
@@ -409,7 +409,7 @@ export async function updateMemberRepository(id: string, tenantId: string, body:
     if (rawId != null && String(rawId).trim() !== '') {
       const rule = await getMemberLevelRuleByIdRepository(String(rawId).trim(), tenantId);
       if (!rule) {
-        throw Object.assign(new Error('无效的等级 ID'), { code: 'INVALID_LEVEL_ID' });
+        throw Object.assign(new Error('Invalid level ID'), { code: 'INVALID_LEVEL_ID' });
       }
       setClauses.push('current_level_id = ?');
       params.push(rule.id);
@@ -491,7 +491,7 @@ export async function updateMemberByPhoneRepository(phone: string, tenantId: str
           [tenantId, code, self.id]
         );
         if (clash) {
-          throw Object.assign(new Error('该会员编号已被其他会员使用'), { code: 'MEMBER_CODE_TAKEN' });
+          throw Object.assign(new Error('This user code is already in use'), { code: 'MEMBER_CODE_TAKEN' });
         }
       }
       setClauses.push('member_code = ?');
@@ -505,7 +505,7 @@ export async function updateMemberByPhoneRepository(phone: string, tenantId: str
     if (rawId != null && String(rawId).trim() !== '') {
       const rule = await getMemberLevelRuleByIdRepository(String(rawId).trim(), tenantId);
       if (!rule) {
-        throw Object.assign(new Error('无效的等级 ID'), { code: 'INVALID_LEVEL_ID' });
+        throw Object.assign(new Error('Invalid level ID'), { code: 'INVALID_LEVEL_ID' });
       }
       setClauses.push('current_level_id = ?');
       params.push(rule.id);

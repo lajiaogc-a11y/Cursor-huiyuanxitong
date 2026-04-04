@@ -354,7 +354,7 @@ export async function deleteTenantRepository(input: {
       return {
         success: false,
         errorCode: 'TENANT_HAS_DATA',
-        message: `共 ${dataCount} 条业务数据: ${dataDetails.join(', ')}`,
+        message: `${dataCount} business records: ${dataDetails.join(', ')}`,
       };
     }
 

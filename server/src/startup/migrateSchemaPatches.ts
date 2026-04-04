@@ -286,7 +286,7 @@ export async function migrateSchemaPatches(): Promise<void> {
   await addCol('referral_relations', 'referrer_member_code', 'VARCHAR(50) NULL');
   await addCol('referral_relations', 'referee_phone', 'VARCHAR(50) NULL');
   await addCol('referral_relations', 'referee_member_code', 'VARCHAR(50) NULL');
-  await addCol('referral_relations', 'source', "VARCHAR(255) NULL DEFAULT '转介绍'");
+  await addCol('referral_relations', 'source', "VARCHAR(255) NULL DEFAULT 'referral'");
   try { await execute('ALTER TABLE referral_relations MODIFY COLUMN referrer_id CHAR(36) NULL'); } catch { /* already nullable */ }
   try { await execute('ALTER TABLE referral_relations MODIFY COLUMN referee_id CHAR(36) NULL'); } catch { /* already nullable */ }
   try { await execute('ALTER TABLE referral_relations DROP FOREIGN KEY fk_referral_referrer'); } catch { /* already dropped or doesn't exist */ }
@@ -725,8 +725,8 @@ export async function migrateSchemaPatches(): Promise<void> {
       console.warn('[schema-patch] activity_types junk delete:', ((e as Error).message || '').slice(0, 120));
     }
     const atDefaults: Array<[string, string, string, number]> = [
-      ['activity_1', '活动1', '活动1', 1],
-      ['activity_2', '活动2', '活动2', 2],
+      ['activity_1', 'Activity 1', 'Activity 1', 1],
+      ['activity_2', 'Activity 2', 'Activity 2', 2],
     ];
     for (const [codeVal, nameZh, labelZh, sort] of atDefaults) {
       try {
@@ -749,8 +749,8 @@ export async function migrateSchemaPatches(): Promise<void> {
   // ── currencies：保证 NGN / GHS / USDT 存在（仅 INSERT 缺失代码，不删不改已有行） ──
   if (await tableExists('currencies')) {
     const defaults: Array<[string, string, string, string, number]> = [
-      ['NGN', '奈拉', 'Naira', 'bg-orange-100 text-orange-700 border-orange-200', 1],
-      ['GHS', '赛地', 'Cedi', 'bg-green-100 text-green-700 border-green-200', 2],
+      ['NGN', 'Naira', 'Naira', 'bg-orange-100 text-orange-700 border-orange-200', 1],
+      ['GHS', 'Cedi', 'Cedi', 'bg-green-100 text-green-700 border-green-200', 2],
       ['USDT', 'USDT', 'USDT', 'bg-blue-100 text-blue-700 border-blue-200', 3],
     ];
     for (const [code, nameZh, nameEn, badge, sort] of defaults) {

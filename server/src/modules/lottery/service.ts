@@ -559,7 +559,7 @@ export async function fulfillRewardOnConn(
         type: 'lottery',
         referenceType: 'lottery_log',
         referenceId: logId,
-        description: `幸运抽奖: ${prizeName}`,
+        description: `Lucky spin: ${prizeName}`,
         extras: { tenant_id: tenantId },
       });
       return {

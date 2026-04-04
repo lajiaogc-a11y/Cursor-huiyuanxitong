@@ -88,8 +88,8 @@ async function evaluatePlatformCountryForStaffLogin(
   }
   const message =
     norm.country_mode === 'allow'
-      ? '当前登录 IP 所在国家/地区不在允许列表中，无法登录员工后台'
-      : '当前登录 IP 所在国家/地区被禁止登录员工后台';
+      ? 'Login denied: your IP country/region is not on the allow list for staff access.'
+      : 'Login denied: your IP country/region is blocked for staff access.';
   return { allowed: false, message };
 }
 
@@ -109,7 +109,7 @@ export async function assertStaffLoginAccessControl(params: {
 
   const countryRes = await evaluatePlatformCountryForStaffLogin(ip, platformNorm);
   if (!countryRes.allowed) {
-    return { ok: false, message: countryRes.message || '地区策略限制，无法登录' };
+    return { ok: false, message: countryRes.message || 'Region policy restricts login.' };
   }
 
   if (params.employeeTenantId) {
@@ -119,7 +119,7 @@ export async function assertStaffLoginAccessControl(params: {
     if (!tev.allowed) {
       return {
         ok: false,
-        message: '当前 IP 不在本租户「员工登录 IP 白名单」中，无法登录后台',
+        message: 'This IP is not on this tenant staff login allowlist; access denied.',
       };
     }
   }

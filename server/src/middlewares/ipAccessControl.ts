@@ -76,14 +76,14 @@ export function ipAccessControlMiddleware(req: Request, res: Response, next: Nex
       } else {
         res.status(403).json({
           error: 'IP_ACCESS_DENIED',
-          message: '当前访问 IP 不在允许列表中，无法访问',
+          message: 'Access denied: your IP is not in the allowlist',
         });
       }
     } else {
       if (matched) {
         res.status(403).json({
           error: 'IP_ACCESS_DENIED',
-          message: '当前访问 IP 已被禁止访问',
+          message: 'Access denied: your IP has been blocked',
         });
       } else {
         next();

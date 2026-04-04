@@ -42,14 +42,14 @@ export function mysqlDumpController(req: AuthenticatedRequest, res: Response): v
     const waitSec = Math.ceil((MIN_INTERVAL_MS - (now - prev)) / 1000);
     res.status(429).json({
       success: false,
-      error: { code: 'DUMP_COOLDOWN', message: `导出冷却中，请 ${waitSec} 秒后再试` },
+      error: { code: 'DUMP_COOLDOWN', message: `Export cooldown active. Please wait ${waitSec} seconds.` },
     });
     return;
   }
 
   const mode = String(req.query.mode || 'full').toLowerCase();
   if (!['full', 'schema', 'data'].includes(mode)) {
-    res.status(400).json({ success: false, error: { code: 'BAD_MODE', message: 'mode 须为 full | schema | data' } });
+    res.status(400).json({ success: false, error: { code: 'BAD_MODE', message: 'mode must be full | schema | data' } });
     return;
   }
 
@@ -124,7 +124,7 @@ export function mysqlDumpController(req: AuthenticatedRequest, res: Response): v
         success: false,
         error: {
           code: 'MYSQLDUMP_NOT_FOUND',
-          message: `未找到 mysqldump 可执行文件（PATH: ${mysqldumpPath}）。请在服务器安装 MySQL Client 或设置 MYSQLDUMP_PATH。`,
+          message: `mysqldump executable not found (PATH: ${mysqldumpPath}). Please install MySQL Client on the server or set MYSQLDUMP_PATH.`,
         },
       });
     } else {
@@ -148,7 +148,7 @@ export function mysqlDumpController(req: AuthenticatedRequest, res: Response): v
     if (!spawned && !res.headersSent) {
       res.status(500).json({
         success: false,
-        error: { code: 'MYSQLDUMP_FAILED', message: stderrBuf || `mysqldump 退出码 ${code}` },
+        error: { code: 'MYSQLDUMP_FAILED', message: stderrBuf || `mysqldump exited with code ${code}` },
       });
       return;
     }

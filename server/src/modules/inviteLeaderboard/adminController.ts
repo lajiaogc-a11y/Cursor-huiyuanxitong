@@ -39,7 +39,7 @@ async function audit(
     operator_id: req.user?.id ?? null,
     operator_account: req.user?.username || req.user?.real_name || 'staff',
     operator_role: req.user?.role || 'staff',
-    module: '邀请排行榜设置',
+    module: 'Invite leaderboard settings',
     operation_type: operationType,
     object_id: objectId,
     object_description: desc,
@@ -55,7 +55,7 @@ function assertEmployee(req: AuthenticatedRequest, res: Response): boolean {
     return false;
   }
   if (req.user.type === 'member') {
-    res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '员工接口' } });
+    res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Staff endpoint' } });
     return false;
   }
   return true;
@@ -140,7 +140,7 @@ export async function patchInviteLeaderboardFakeUserController(req: Authenticate
       return;
     }
     const afterRow = await getFakeUser(resolved.tenantId, id);
-    await audit(req, 'update', id, '邀请排行榜假用户编辑', serializeFakeRow(beforeRow), afterRow ? serializeFakeRow(afterRow) : null);
+    await audit(req, 'update', id, 'Invite leaderboard fake user edit', serializeFakeRow(beforeRow), afterRow ? serializeFakeRow(afterRow) : null);
     res.json({ success: true, row: afterRow ? serializeFakeRow(afterRow) : null });
   } catch (e) {
     res.status(500).json({ success: false, error: (e as Error).message || 'Failed' });
@@ -173,7 +173,7 @@ export async function postInviteLeaderboardFakeUserToggleController(req: Authent
     }
     await setFakeUserActive(resolved.tenantId, id, isActive);
     const afterRow = await getFakeUser(resolved.tenantId, id);
-    await audit(req, 'toggle_active', id, isActive ? '启用假用户' : '停用假用户', serializeFakeRow(beforeRow), afterRow ? serializeFakeRow(afterRow) : null);
+    await audit(req, 'toggle_active', id, isActive ? 'Enable fake user' : 'Disable fake user', serializeFakeRow(beforeRow), afterRow ? serializeFakeRow(afterRow) : null);
     res.json({ success: true, row: afterRow ? serializeFakeRow(afterRow) : null });
   } catch (e) {
     res.status(500).json({ success: false, error: (e as Error).message || 'Failed' });
@@ -203,7 +203,7 @@ export async function postInviteLeaderboardFakeUserResetGrowthController(
     }
     await resetFakeUserGrowth(resolved.tenantId, id);
     const afterRow = await getFakeUser(resolved.tenantId, id);
-    await audit(req, 'reset_growth', id, '重置自动增长', serializeFakeRow(beforeRow), afterRow ? serializeFakeRow(afterRow) : null);
+    await audit(req, 'reset_growth', id, 'Reset auto-growth', serializeFakeRow(beforeRow), afterRow ? serializeFakeRow(afterRow) : null);
     res.json({ success: true, row: afterRow ? serializeFakeRow(afterRow) : null });
   } catch (e) {
     res.status(500).json({ success: false, error: (e as Error).message || 'Failed' });
@@ -223,7 +223,7 @@ export async function postInviteLeaderboardDeleteAllFakesController(req: Authent
   }
   try {
     const deleted = await deleteAllFakeUsersForTenant(resolved.tenantId);
-    await audit(req, 'delete_all_fakes', null, '一键删除全部邀请榜假用户', null, { deleted });
+    await audit(req, 'delete_all_fakes', null, 'Delete all invite leaderboard fake users', null, { deleted });
     res.json({ success: true, deleted });
   } catch (e) {
     res.status(500).json({ success: false, error: (e as Error).message || 'Failed' });
@@ -255,7 +255,7 @@ export async function postInviteLeaderboardRandomizeFakeBaseController(req: Auth
   }
   try {
     const updated = await randomizeBaseInviteCountsForTenant(resolved.tenantId, min, max);
-    await audit(req, 'randomize_fake_base', null, '一键随机基础邀请人数', { min, max }, { updated });
+    await audit(req, 'randomize_fake_base', null, 'Randomize base invite counts', { min, max }, { updated });
     res.json({ success: true, updated, min, max });
   } catch (e) {
     res.status(500).json({ success: false, error: (e as Error).message || 'Failed' });
@@ -280,9 +280,9 @@ export async function postInviteLeaderboardSeedController(req: AuthenticatedRequ
   }
   try {
     const { inserted } = await seedFiftyFakeUsers(resolved.tenantId, replace);
-    await audit(req, 'seed', null, replace ? '替换初始化50条假用户' : '初始化50条假用户', { replace }, { inserted });
+    await audit(req, 'seed', null, replace ? 'Replace and initialize 50 fake users' : 'Initialize 50 fake users', { replace }, { inserted });
     if (!replace && inserted === 0) {
-      res.status(409).json({ success: false, error: 'ALREADY_SEEDED', message: '已有假用户，需 replace 才覆盖' });
+      res.status(409).json({ success: false, error: 'ALREADY_SEEDED', message: 'Fake users already exist, use replace to overwrite' });
       return;
     }
     res.json({ success: true, inserted });
@@ -353,7 +353,7 @@ export async function patchInviteLeaderboardGrowthSettingsController(
   try {
     const before = await getGrowthSettingsMerged(resolved.tenantId);
     const after = await upsertInviteLeaderboardGrowthSettings(resolved.tenantId, patch);
-    await audit(req, 'growth_settings', null, '邀请榜自动增长策略', serializeGrowthSettings(before), serializeGrowthSettings(after));
+    await audit(req, 'growth_settings', null, 'Invite leaderboard auto-growth strategy', serializeGrowthSettings(before), serializeGrowthSettings(after));
     res.json({ success: true, settings: serializeGrowthSettings(after) });
   } catch (e) {
     res.status(500).json({ success: false, error: (e as Error).message || 'Failed' });
@@ -369,7 +369,7 @@ export async function postInviteLeaderboardRunGrowthNowController(req: Authentic
   }
   try {
     const result = await runInviteLeaderboardFakeGrowthJob();
-    await audit(req, 'run_growth_job', null, '手动执行邀请榜假用户增长任务', null, result);
+    await audit(req, 'run_growth_job', null, 'Manually run invite leaderboard fake user growth task', null, result);
     res.json({
       success: result.ok,
       tenants_eligible: result.tenants_eligible,

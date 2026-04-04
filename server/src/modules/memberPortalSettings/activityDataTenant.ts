@@ -36,7 +36,7 @@ export function resolveTenantIdForActivityDataList(req: AuthenticatedRequest): R
           success: false,
           error: {
             code: 'TENANT_ID_REQUIRED',
-            message: '平台管理员查询活动数据时必须传入 tenant_id',
+            message: 'tenant_id is required when querying activity data as platform admin',
           },
         },
       };
@@ -52,7 +52,7 @@ export function resolveTenantIdForActivityDataList(req: AuthenticatedRequest): R
         success: false,
         error: {
           code: 'TENANT_NOT_BOUND',
-          message: '当前账号未绑定租户，无法查询活动数据',
+          message: 'Account not bound to a tenant, cannot query activity data',
         },
       },
     };
@@ -66,7 +66,7 @@ export function resolveTenantIdForActivityDataList(req: AuthenticatedRequest): R
         success: false,
         error: {
           code: 'TENANT_SCOPE_FORBIDDEN',
-          message: '无权查询其他租户的签到或抽奖积分数据',
+          message: 'No permission to query check-in or spin credit data for other tenants',
         },
       },
     };

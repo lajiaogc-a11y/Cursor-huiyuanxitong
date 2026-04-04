@@ -168,7 +168,7 @@ export async function bulkDeleteRepository(
       const rows = await query<{ cnt: number }>(sql, vals);
       return Number(rows[0]?.cnt ?? 0);
     } catch (e: unknown) {
-      errors.push(`COUNT 查询失败: ${e instanceof Error ? e.message : String(e)}`);
+      errors.push(`COUNT query failed: ${e instanceof Error ? e.message : String(e)}`);
       return 0;
     }
   };
@@ -230,9 +230,9 @@ export async function bulkDeleteRepository(
       const insufficientCount = revErrors.filter(e => e.includes('INSUFFICIENT_POINTS')).length;
       const otherErrors = revErrors.filter(e => !e.includes('INSUFFICIENT_POINTS'));
       if (insufficientCount > 0) {
-        warnings.push(`${insufficientCount} 个订单的积分已被使用，回收时跳过积分反转（不影响订单删除）`);
+        warnings.push(`${insufficientCount} order(s) points already used; point reversal skipped (order deletion continues)`);
       }
-      for (const e of otherErrors) warnings.push(`订单活动回滚: ${e}`);
+      for (const e of otherErrors) warnings.push(`Order activity rollback: ${e}`);
       console.warn('[bulkDelete] Order reversal warnings:', revErrors);
     } else if (reversed > 0) {
       console.log('[bulkDelete] Reversed activity data for', reversed, 'orders');
@@ -292,7 +292,7 @@ export async function bulkDeleteRepository(
         WHERE ${tenantScope} AND ${dateCond}`;
       try {
         await execute(delSql, cntVals);
-        if (cnt) deletedSummary.push({ table: '积分明细', count: cnt });
+        if (cnt) deletedSummary.push({ table: 'Points ledger', count: cnt });
       } catch (e: unknown) {
         errors.push(`points_ledger: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -306,7 +306,7 @@ export async function bulkDeleteRepository(
       try {
         if (deleteAll) await execute(`DELETE FROM points_ledger WHERE id <> ?`, [NULL_UUID]);
         else await execute(`DELETE FROM points_ledger WHERE created_at < ?`, [cutoffDateStr]);
-        if (cnt) deletedSummary.push({ table: '积分明细', count: cnt });
+        if (cnt) deletedSummary.push({ table: 'Points ledger', count: cnt });
       } catch (e: unknown) {
         errors.push(`points_ledger: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -332,7 +332,7 @@ export async function bulkDeleteRepository(
     if (giftIdsToDelete.length > 0) {
       try {
         const { errors: revErrors } = await reverseGiftActivityDataBeforeDelete(giftIdsToDelete);
-        for (const e of revErrors) warnings.push(`活动赠送回滚: ${e}`);
+        for (const e of revErrors) warnings.push(`Activity gift rollback: ${e}`);
       } catch (e) {
         errors.push(`activity_gifts reversal: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -344,7 +344,7 @@ export async function bulkDeleteRepository(
     try {
       if (deleteAll) await execute(`DELETE FROM activity_gifts WHERE id <> ?`, [NULL_UUID]);
       else await execute(`DELETE FROM activity_gifts WHERE created_at < ?`, [cutoffDateStr]);
-      if (cnt) deletedSummary.push({ table: '活动赠送', count: cnt });
+      if (cnt) deletedSummary.push({ table: 'Activity gifts', count: cnt });
     } catch (e: unknown) { errors.push(`activity_gifts: ${e instanceof Error ? e.message : String(e)}`); }
   } else if (memberIdsToDelete.length > 0) {
     for (let i = 0; i < memberIdsToDelete.length; i += BATCH_SIZE) {
@@ -392,7 +392,7 @@ export async function bulkDeleteRepository(
             [tenantId, tenantId, cutoffDateStr],
           );
         }
-        if (cnt) deletedSummary.push({ table: '抽奖流水', count: cnt });
+        if (cnt) deletedSummary.push({ table: 'Lottery logs', count: cnt });
       } catch (e: unknown) {
         errors.push(`lottery_logs: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -423,7 +423,7 @@ export async function bulkDeleteRepository(
               [tenantId, cutoffDateStr],
             );
           }
-          if (plc) deletedSummary.push({ table: '抽奖类积分流水', count: plc });
+          if (plc) deletedSummary.push({ table: 'Lottery points ledger', count: plc });
         } catch (e: unknown) {
           errors.push(`points_ledger(lottery): ${e instanceof Error ? e.message : String(e)}`);
         }
@@ -457,7 +457,7 @@ export async function bulkDeleteRepository(
             [tenantId, cutoffDateStr],
           );
         }
-        if (cnt) deletedSummary.push({ table: '签到流水', count: cnt });
+        if (cnt) deletedSummary.push({ table: 'Check-in logs', count: cnt });
       } catch (e: unknown) {
         errors.push(`check_ins: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -487,7 +487,7 @@ export async function bulkDeleteRepository(
             [tenantId, cutoffDateStr],
           );
         }
-        if (scc) deletedSummary.push({ table: '签到·抽奖次数', count: scc });
+        if (scc) deletedSummary.push({ table: 'Check-in spin credits', count: scc });
       } catch (e: unknown) {
         errors.push(`spin_credits(check_in): ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -521,17 +521,17 @@ export async function bulkDeleteRepository(
     };
 
     if (wantActivitySpinOrder) {
-      await runSpinCat('订单抽奖次数', `sc.source LIKE 'order_completed:%'`);
+      await runSpinCat('Order spin credits', `sc.source LIKE 'order_completed:%'`);
     }
     if (wantActivitySpinShare) {
-      await runSpinCat('分享抽奖次数', `sc.source = 'share'`);
+      await runSpinCat('Share spin credits', `sc.source = 'share'`);
     }
     if (wantActivitySpinInvite) {
-      await runSpinCat('邀请抽奖次数', `sc.source IN ('referral','invite_welcome')`);
+      await runSpinCat('Invite spin credits', `sc.source IN ('referral','invite_welcome')`);
     }
     if (wantActivitySpinOther) {
       await runSpinCat(
-        '其他抽奖次数',
+        'Other spin credits',
         `sc.source NOT LIKE 'order_completed:%' AND sc.source <> 'share' AND sc.source NOT IN ('referral','invite_welcome') AND sc.source <> 'check_in'`,
       );
     }
@@ -549,12 +549,12 @@ export async function bulkDeleteRepository(
         deletedCount += hdr.affectedRows ?? 0;
       } catch (e: unknown) { errors.push(`member_activity: ${e instanceof Error ? e.message : String(e)}`); }
     }
-    if (deletedCount > 0) deletedSummary.push({ table: '会员活动', count: deletedCount });
+    if (deletedCount > 0) deletedSummary.push({ table: 'Member activity', count: deletedCount });
   } else if (wantActivityMemberSummary && !preserveActivityData && deleteAll) {
     const cnt = await safeCount(`SELECT COUNT(*) as cnt FROM member_activity WHERE id <> ?`, [NULL_UUID]);
     try {
       await execute(`DELETE FROM member_activity WHERE id <> ?`, [NULL_UUID]);
-      if (cnt) deletedSummary.push({ table: '会员活动', count: cnt });
+      if (cnt) deletedSummary.push({ table: 'Member activity', count: cnt });
     } catch (e: unknown) { errors.push(`member_activity: ${e instanceof Error ? e.message : String(e)}`); }
   }
 
@@ -579,7 +579,7 @@ export async function bulkDeleteRepository(
       } catch (e: unknown) { errors.push(`points_accounts: ${e instanceof Error ? e.message : String(e)}`); }
     }
     if (pointsAccountsDeletedForMembers > 0) {
-      deletedSummary.push({ table: '积分账户', count: pointsAccountsDeletedForMembers });
+      deletedSummary.push({ table: 'Points accounts', count: pointsAccountsDeletedForMembers });
     }
   } else if (memberCodesToDelete.length > 0 && !preserveActivityData) {
     for (let i = 0; i < memberCodesToDelete.length; i += BATCH_SIZE) {
@@ -592,7 +592,7 @@ export async function bulkDeleteRepository(
     const cnt = await safeCount(`SELECT COUNT(*) as cnt FROM points_accounts WHERE id <> ?`, [NULL_UUID]);
     try {
       await execute(`DELETE FROM points_accounts WHERE id <> ?`, [NULL_UUID]);
-      if (cnt) deletedSummary.push({ table: '积分账户', count: cnt });
+      if (cnt) deletedSummary.push({ table: 'Points accounts', count: cnt });
     } catch (e: unknown) { errors.push(`points_accounts: ${e instanceof Error ? e.message : String(e)}`); }
   }
 
@@ -626,7 +626,7 @@ export async function bulkDeleteRepository(
         deletedCount += batch.length;
       } catch (e: unknown) { errors.push(`orders batch: ${e instanceof Error ? e.message : String(e)}`); }
     }
-    if (deletedCount > 0) deletedSummary.push({ table: '订单', count: deletedCount });
+    if (deletedCount > 0) deletedSummary.push({ table: 'Orders', count: deletedCount });
   }
 
   // 9. referral_relations
@@ -636,7 +636,7 @@ export async function bulkDeleteRepository(
     const cnt = await safeCount(`SELECT COUNT(*) as cnt FROM referral_relations WHERE ${cond}`, [val]);
     try {
       await execute(`DELETE FROM referral_relations WHERE ${cond}`, [val]);
-      if (cnt) deletedSummary.push({ table: '推荐关系', count: cnt });
+      if (cnt) deletedSummary.push({ table: 'Referral relations', count: cnt });
     } catch (e: unknown) { errors.push(`referral_relations: ${e instanceof Error ? e.message : String(e)}`); }
   }
 
@@ -648,13 +648,13 @@ export async function bulkDeleteRepository(
     const ledgerCount = await safeCount(`SELECT COUNT(*) as cnt FROM ledger_transactions WHERE ${cond}`, [val]);
     try {
       await execute(`DELETE FROM ledger_transactions WHERE ${cond}`, [val]);
-      if (ledgerCount) deletedSummary.push({ table: '账本明细', count: ledgerCount });
+      if (ledgerCount) deletedSummary.push({ table: 'Ledger transactions', count: ledgerCount });
     } catch (e: unknown) { errors.push(`ledger_transactions: ${e instanceof Error ? e.message : String(e)}`); }
 
     const balCount = await safeCount(`SELECT COUNT(*) as cnt FROM balance_change_logs WHERE ${cond}`, [val]);
     try {
       await execute(`DELETE FROM balance_change_logs WHERE ${cond}`, [val]);
-      if (balCount) deletedSummary.push({ table: '变动明细', count: balCount });
+      if (balCount) deletedSummary.push({ table: 'Balance change logs', count: balCount });
     } catch (e: unknown) { errors.push(`balance_change_logs: ${e instanceof Error ? e.message : String(e)}`); }
 
     // 10b. shared_data_store：卡商提款明细、代付充值明细（存于 JSON，与上一步 DB 表并列）
@@ -685,9 +685,9 @@ export async function bulkDeleteRepository(
         settlementRowsTouched++;
       }
       if (settlementStripped > 0) {
-        deletedSummary.push({ table: '商家结算·提款/充值明细', count: settlementStripped });
+        deletedSummary.push({ table: 'Merchant settlement withdrawal/recharge entries', count: settlementStripped });
       } else if (settlementRowsTouched > 0) {
-        deletedSummary.push({ table: '商家结算·提款/充值明细', count: settlementRowsTouched });
+        deletedSummary.push({ table: 'Merchant settlement withdrawal/recharge entries', count: settlementRowsTouched });
       }
     } catch (e: unknown) {
       errors.push(`shared_data_store(settlement JSON): ${e instanceof Error ? e.message : String(e)}`);
@@ -718,7 +718,7 @@ export async function bulkDeleteRepository(
           await execute(`DELETE FROM shared_data_store WHERE id IN (${batchIn(batch)})`, batch);
         } catch (e: unknown) { errors.push(`shared_data_store: ${e instanceof Error ? e.message : String(e)}`); }
       }
-      deletedSummary.push({ table: '商家结算档案', count: balanceKeys.length });
+      deletedSummary.push({ table: 'Merchant settlement records', count: balanceKeys.length });
     }
   }
 
@@ -768,7 +768,7 @@ export async function bulkDeleteRepository(
         deletedCount += batch.length;
       } catch (e: unknown) { errors.push(`members batch: ${e instanceof Error ? e.message : String(e)}`); }
     }
-    if (deletedCount > 0) deletedSummary.push({ table: '会员', count: deletedCount });
+    if (deletedCount > 0) deletedSummary.push({ table: 'Users', count: deletedCount });
   }
 
   // 13. shift_handovers
@@ -778,7 +778,7 @@ export async function bulkDeleteRepository(
     const cnt = await safeCount(`SELECT COUNT(*) as cnt FROM shift_handovers WHERE ${cond}`, [val]);
     try {
       await execute(`DELETE FROM shift_handovers WHERE ${cond}`, [val]);
-      if (cnt) deletedSummary.push({ table: '交班记录', count: cnt });
+      if (cnt) deletedSummary.push({ table: 'Shift handovers', count: cnt });
     } catch (e: unknown) { errors.push(`shift_handovers: ${e instanceof Error ? e.message : String(e)}`); }
   }
 
@@ -787,7 +787,7 @@ export async function bulkDeleteRepository(
     const cnt = await safeCount(`SELECT COUNT(*) as cnt FROM shift_receivers WHERE id <> ?`, [NULL_UUID]);
     try {
       await execute(`DELETE FROM shift_receivers WHERE id <> ?`, [NULL_UUID]);
-      if (cnt) deletedSummary.push({ table: '接班人列表', count: cnt });
+      if (cnt) deletedSummary.push({ table: 'Shift receivers', count: cnt });
     } catch (e: unknown) { errors.push(`shift_receivers: ${e instanceof Error ? e.message : String(e)}`); }
   }
 
@@ -798,7 +798,7 @@ export async function bulkDeleteRepository(
     const cnt = await safeCount(`SELECT COUNT(*) as cnt FROM audit_records WHERE ${cond}`, [val]);
     try {
       await execute(`DELETE FROM audit_records WHERE ${cond}`, [val]);
-      if (cnt) deletedSummary.push({ table: '审核记录', count: cnt });
+      if (cnt) deletedSummary.push({ table: 'Audit records', count: cnt });
     } catch (e: unknown) { errors.push(`audit_records: ${e instanceof Error ? e.message : String(e)}`); }
   }
 
@@ -809,7 +809,7 @@ export async function bulkDeleteRepository(
     const cnt = await safeCount(`SELECT COUNT(*) as cnt FROM operation_logs WHERE ${cond}`, [val]);
     try {
       await execute(`DELETE FROM operation_logs WHERE ${cond}`, [val]);
-      if (cnt) deletedSummary.push({ table: '操作日志', count: cnt });
+      if (cnt) deletedSummary.push({ table: 'Operation logs', count: cnt });
     } catch (e: unknown) { errors.push(`operation_logs: ${e instanceof Error ? e.message : String(e)}`); }
   }
 
@@ -820,7 +820,7 @@ export async function bulkDeleteRepository(
     const cnt = await safeCount(`SELECT COUNT(*) as cnt FROM employee_login_logs WHERE ${cond}`, [val]);
     try {
       await execute(`DELETE FROM employee_login_logs WHERE ${cond}`, [val]);
-      if (cnt) deletedSummary.push({ table: '登录日志', count: cnt });
+      if (cnt) deletedSummary.push({ table: 'Login logs', count: cnt });
     } catch (e: unknown) { errors.push(`employee_login_logs: ${e instanceof Error ? e.message : String(e)}`); }
   }
 
@@ -838,7 +838,7 @@ export async function bulkDeleteRepository(
         [val],
       );
       await execute(`DELETE FROM knowledge_articles WHERE ${cond}`, [val]);
-      if (cnt) deletedSummary.push({ table: '知识库文章', count: cnt });
+      if (cnt) deletedSummary.push({ table: 'Knowledge articles', count: cnt });
     } catch (e: unknown) { errors.push(`knowledge_articles: ${e instanceof Error ? e.message : String(e)}`); }
   }
 
@@ -847,7 +847,7 @@ export async function bulkDeleteRepository(
     const cnt = await safeCount(`SELECT COUNT(*) as cnt FROM knowledge_categories WHERE id <> ?`, [NULL_UUID]);
     try {
       await execute(`DELETE FROM knowledge_categories WHERE id <> ?`, [NULL_UUID]);
-      if (cnt) deletedSummary.push({ table: '知识库分类', count: cnt });
+      if (cnt) deletedSummary.push({ table: 'Knowledge categories', count: cnt });
     } catch (e: unknown) { errors.push(`knowledge_categories: ${e instanceof Error ? e.message : String(e)}`); }
   }
 
@@ -859,7 +859,7 @@ export async function bulkDeleteRepository(
     const cnt = await safeCount(`SELECT COUNT(*) as cnt FROM task_items WHERE ${cond}`, [val]);
     try {
       await execute(`DELETE FROM task_items WHERE ${cond}`, [val]);
-      if (cnt) deletedSummary.push({ table: '维护历史', count: cnt });
+      if (cnt) deletedSummary.push({ table: 'Maintenance history', count: cnt });
     } catch (e: unknown) { errors.push(`task_items: ${e instanceof Error ? e.message : String(e)}`); }
   }
 
@@ -873,14 +873,14 @@ export async function bulkDeleteRepository(
         await execute(`DELETE FROM task_items WHERE task_id IN (SELECT id FROM tasks WHERE ${cond})`, [val]);
       }
       await execute(`DELETE FROM tasks WHERE ${cond}`, [val]);
-      if (cnt) deletedSummary.push({ table: '工作任务', count: cnt });
+      if (cnt) deletedSummary.push({ table: 'Work tasks', count: cnt });
     } catch (e: unknown) { errors.push(`tasks: ${e instanceof Error ? e.message : String(e)}`); }
   }
 
   } catch (topErr: unknown) {
     const msg = topErr instanceof Error ? topErr.message : String(topErr);
-    console.error('[bulkDelete] 未预期的顶层错误:', msg);
-    errors.push(`系统错误: ${msg}`);
+    console.error('[bulkDelete] Unexpected top-level error:', msg);
+    errors.push(`System error: ${msg}`);
   }
 
   return { deletedSummary, errors, warnings };
@@ -981,7 +981,7 @@ export async function deleteMemberByIdRepository(
 
   if (fkWarnings.length > 0) {
     console.warn(`[deleteMember] FK cleanup warnings for ${memberId}:`, fkWarnings);
-    errors.push(`关联数据清理部分失败 (${fkWarnings.length}/${fkCleanups.length}): ${fkWarnings.slice(0, 3).join('; ')}${fkWarnings.length > 3 ? '...' : ''}`);
+    errors.push(`Related data cleanup partially failed (${fkWarnings.length}/${fkCleanups.length}): ${fkWarnings.slice(0, 3).join('; ')}${fkWarnings.length > 3 ? '...' : ''}`);
     return { success: false, error: errors.join('; ') };
   }
 

@@ -79,14 +79,14 @@ if ((isProduction && trustProxyEnvOn) || verifyTrustProxyDev) {
   app.set('trust proxy', 1);
   if (verifyTrustProxyDev) {
     console.log(
-      '[API] trust proxy enabled (VERIFY_TRUST_PROXY=1 + TRUST_PROXY=1，开发联调)；上线请 NODE_ENV=production + TRUST_PROXY=1 并重启',
+      '[API] trust proxy enabled (VERIFY_TRUST_PROXY=1 + TRUST_PROXY=1, dev mode); set NODE_ENV=production + TRUST_PROXY=1 and restart for production',
     );
   } else {
     console.log('[API] trust proxy enabled (TRUST_PROXY=1) — rate limit / req.ip use X-Forwarded-For');
   }
 } else if (isProduction && !trustProxyEnvOn) {
   console.warn(
-    '[API] 生产环境未设置 TRUST_PROXY=1：若在 CDN/反代后部署，限流会按代理 IP 统计；请在环境变量中设置 TRUST_PROXY=1 后重启',
+    '[API] TRUST_PROXY=1 not set in production: rate limiting will use proxy IP when behind CDN/reverse proxy; set TRUST_PROXY=1 and restart',
   );
 }
 
@@ -258,36 +258,36 @@ function buildApiRootInfoHtml(): string {
   const listItems: string[] = [];
   for (const o of memberOrigins) {
     const e = escapeHtmlAttr(o);
-    listItems.push(`<li>会员门户：<a href="${e}">${e}</a></li>`);
+    listItems.push(`<li>Member portal: <a href="${e}">${e}</a></li>`);
   }
   for (const o of staffOrigins) {
     const e = escapeHtmlAttr(o);
-    listItems.push(`<li>员工后台：<a href="${e}">${e}</a></li>`);
+    listItems.push(`<li>Staff portal: <a href="${e}">${e}</a></li>`);
   }
   const portalList = listItems.length
     ? `<ul style="padding-left:1.25rem;">${listItems.join('')}</ul>`
-    : '<p>（未配置公网前台地址，请在环境变量 <code>MEMBER_HOSTS</code>、<code>STAFF_HOSTS</code> 中设置域名。）</p>';
+    : '<p>No public portal URLs configured. Set domains in <code>MEMBER_HOSTS</code> and <code>STAFF_HOSTS</code>.</p>';
 
   const devBlock = isProd
     ? ''
     : `
-  <p style="margin-top:1.25rem;"><strong>本地开发（示例地址）</strong></p>
+  <p style="margin-top:1.25rem;"><strong>Local dev (example URLs)</strong></p>
   <ul style="padding-left:1.25rem;">
-    <li>会员端：<a href="http://localhost:8081">http://localhost:8081</a></li>
-    <li>员工端：<a href="http://localhost:8080">http://localhost:8080</a></li>
+    <li>Member: <a href="http://localhost:8081">http://localhost:8081</a></li>
+    <li>Staff: <a href="http://localhost:8080">http://localhost:8080</a></li>
   </ul>
-  <p style="color:#666;font-size:0.95rem;">端口以本机前端配置为准；请在仓库根目录按项目说明启动前端开发服务。</p>`;
+  <p style="color:#666;font-size:0.95rem;">Ports follow your local frontend setup; start the dev servers from the repo root per project docs.</p>`;
 
   return `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>礼品系统 · 接口服务</title>
+  <title>Gift System · API Service</title>
 </head>
 <body style="font-family:system-ui,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;padding:2rem;max-width:640px;margin:0 auto;line-height:1.6;">
-  <h1 style="font-size:1.35rem;">礼品系统 · 接口服务</h1>
-  <p>当前为<strong>后端接口</strong>（非管理界面）。请从浏览器打开下列前台地址使用系统：</p>
+  <h1 style="font-size:1.35rem;">Gift System · API Service</h1>
+  <p>This is the <strong>backend API</strong> (not the admin UI). Open one of the portal URLs below in your browser:</p>
   ${isProd ? portalList : `${portalList}${devBlock}`}
 </body>
 </html>`;
@@ -304,7 +304,7 @@ if (
   !config.mysql.password &&
   config.mysql.host === 'localhost'
 ) {
-  console.warn('[API] 警告: MYSQL_PASSWORD 未配置，请在 server/.env 中配置');
+  console.warn('[API] WARNING: MYSQL_PASSWORD not set. Please configure it in server/.env');
 }
 
 import { runAllMigrations } from './startup/runAllMigrations.js';
@@ -349,7 +349,7 @@ void (async () => {
       `[API] Database: MySQL ${config.mysqlUsesDatabaseUrl ? 'DATABASE_URL → ' : ''}${config.mysql.host}:${config.mysql.port}/${config.mysql.database}`,
     );
     if (process.env.SKIP_STARTUP_SCHEDULERS === '1') {
-      console.warn('[API] SKIP_STARTUP_SCHEDULERS=1: 未启动后台定时任务（无库/仅联调 UI 时使用）');
+      console.warn('[API] SKIP_STARTUP_SCHEDULERS=1: background schedulers not started (use when DB is unavailable or for UI-only dev)');
     } else {
       startAutoBackupScheduler();
       startMemberDataCleanupScheduler();

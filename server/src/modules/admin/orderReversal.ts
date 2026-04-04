@@ -72,10 +72,10 @@ export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok
       ];
       const values: any[] = [profitRmb, profitUsdt];
 
-      if (currency === 'NGN' || currency === '奈拉' || String(currency).toUpperCase() === 'NAIRA') {
+      if (currency === 'NGN' || String(currency).toUpperCase() === 'NAIRA' || currency === '奈拉') {
         setClauses.push(`total_accumulated_ngn = GREATEST(0, COALESCE(total_accumulated_ngn, 0) - ?)`);
         values.push(actualPayment);
-      } else if (currency === 'GHS' || currency === '赛地' || String(currency).toUpperCase() === 'CEDI') {
+      } else if (currency === 'GHS' || String(currency).toUpperCase() === 'CEDI' || currency === '赛地') {
         setClauses.push(`total_accumulated_ghs = GREATEST(0, COALESCE(total_accumulated_ghs, 0) - ?)`);
         values.push(actualPayment);
       } else if (currency === 'USDT') {
@@ -138,7 +138,7 @@ export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok
             memberId: String(memberId),
             type: 'reversal',
             delta: negativePoints,
-            description: `订单取消回滚 (${(entry as { transaction_type?: string }).transaction_type || 'consumption'})`,
+            description: `Order cancellation rollback (${(entry as { transaction_type?: string }).transaction_type || 'consumption'})`,
             referenceType: 'order',
             referenceId: orderId,
             createdBy: (entry as { creator_id?: string | null }).creator_id ?? null,

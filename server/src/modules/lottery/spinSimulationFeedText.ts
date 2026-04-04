@@ -4,7 +4,7 @@
  */
 const SIM_PRIZE_EN_EXACT: Record<string, string> = {
   感谢参与: "Thanks for playing",
-  谢谢参与: "Thanks for playing",
+  谢谢参与: "Thank you for playing",
 };
 
 export function formatSimulationPrizeNameForMemberFeed(prizeName: string): string {

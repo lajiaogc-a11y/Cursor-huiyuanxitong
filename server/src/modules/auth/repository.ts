@@ -112,8 +112,8 @@ function normalizeIp(ip: string | null | undefined): string | null {
 async function resolveIpLocation(ip: string | null): Promise<string | null> {
   const normalized = normalizeIp(ip);
   if (!normalized) return null;
-  if (normalized === '127.0.0.1' || normalized === '::1' || normalized === 'localhost') return '本机';
-  if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(normalized)) return '内网';
+  if (normalized === '127.0.0.1' || normalized === '::1' || normalized === 'localhost') return 'localhost';
+  if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(normalized)) return 'LAN';
   try {
     const resp = await fetch(
       `http://ip-api.com/json/${encodeURIComponent(normalized)}?fields=status,country,regionName,city&lang=zh-CN`,

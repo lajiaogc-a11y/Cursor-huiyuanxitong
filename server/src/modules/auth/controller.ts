@@ -13,7 +13,7 @@ import { getRequestClientIp } from '../../lib/requestClientIp.js';
 export async function loginController(req: Request, res: Response): Promise<void> {
   const body = req.body as LoginRequest;
   if (!body.username || !body.password) {
-    res.status(400).json({ success: false, error: '用户名和密码不能为空' });
+    res.status(400).json({ success: false, error: 'Username and password are required' });
     return;
   }
   const clientIp = getRequestClientIp(req);
@@ -27,11 +27,11 @@ export async function loginController(req: Request, res: Response): Promise<void
         res.status(503).json({
           success: false,
           code: 'SERVICE_UNAVAILABLE',
-          message: result.error || '服务暂时不可用，请稍后重试',
+          message: result.error || 'Service temporarily unavailable. Please try again later.',
         });
         return;
       }
-      const msg = result.error || '登录失败';
+      const msg = result.error || 'Login failed';
       const deviceDenied = msg.startsWith('DEVICE_NOT_AUTHORIZED:');
       if (deviceDenied) {
         res.status(403).json({
@@ -53,7 +53,7 @@ export async function loginController(req: Request, res: Response): Promise<void
     console.error('[Auth] Login error:', body.username, err);
     res.status(500).json({
       success: false,
-      error: '登录服务异常，请稍后重试',
+      error: 'Login service error. Please try again later.',
     });
   }
 }
@@ -61,7 +61,7 @@ export async function loginController(req: Request, res: Response): Promise<void
 export async function registerController(req: Request, res: Response): Promise<void> {
   const body = req.body as RegisterRequest;
   if (!body.username || !body.password || !body.realName) {
-    res.status(400).json({ success: false, error: '用户名、密码和真实姓名不能为空' });
+    res.status(400).json({ success: false, error: 'Username, password, and real name are required' });
     return;
   }
   const result = await registerService({
@@ -81,13 +81,13 @@ export async function registerController(req: Request, res: Response): Promise<v
   res.json({
     success: true,
     assigned_status: result.assigned_status,
-    message: result.assigned_status === 'active' ? '注册成功，请登录' : '注册成功，等待管理员审批',
+    message: result.assigned_status === 'active' ? 'Registration successful. Please sign in.' : 'Registration successful. Pending administrator approval.',
   });
 }
 
 export async function logoutController(_req: Request, res: Response): Promise<void> {
   // 客户端清除 token 即可，服务端无状态
-  res.json({ success: true, message: '已退出登录' });
+  res.json({ success: true, message: 'Signed out' });
 }
 
 /** 当前登录员工将 MySQL employees.password_hash 更新为给定密码（bcrypt），替代 Supabase Edge Function */
@@ -99,21 +99,21 @@ export async function syncPasswordController(req: Request, res: Response): Promi
   const password = body?.password;
 
   if (!username || !password) {
-    res.status(400).json({ success: false, message: '用户名和密码不能为空' });
+    res.status(400).json({ success: false, message: 'Username and password are required' });
     return;
   }
   if (u?.type !== 'employee' || !u.username) {
-    res.status(403).json({ success: false, message: '仅员工可同步密码' });
+    res.status(403).json({ success: false, message: 'Only staff can sync passwords' });
     return;
   }
   if (u.username !== username) {
-    res.status(403).json({ success: false, message: '只能同步当前登录账号的密码' });
+    res.status(403).json({ success: false, message: 'You may only sync the password for your current account' });
     return;
   }
 
   const r = await syncAuthPasswordViaEdgeRepository(username, password);
   if (!r.success) {
-    res.status(400).json({ success: false, message: r.message || '同步失败' });
+    res.status(400).json({ success: false, message: r.message || 'Sync failed' });
     return;
   }
   res.json({ success: true });
@@ -165,7 +165,7 @@ export async function meController(req: Request, res: Response): Promise<void> {
     const authReq = req as AuthenticatedRequest;
     const u = authReq.user;
     if (!u?.id) {
-      res.status(401).json({ success: false, error: '未登录' });
+      res.status(401).json({ success: false, error: 'Not signed in' });
       return;
     }
     let user = await getMeService(u.id);
@@ -182,7 +182,7 @@ export async function meController(req: Request, res: Response): Promise<void> {
       });
     }
     if (!user || !user.id) {
-      res.status(401).json({ success: false, error: '用户不存在或已禁用' });
+      res.status(401).json({ success: false, error: 'User not found or disabled' });
       return;
     }
     const payload: Record<string, unknown> = { success: true, user: normalizeAuthUserPayload(user) };
@@ -192,7 +192,7 @@ export async function meController(req: Request, res: Response): Promise<void> {
     res.json(payload);
   } catch (e) {
     console.error('[Auth] /me error:', e);
-    res.status(500).json({ success: false, error: { code: 'ME_FAILED', message: '获取用户信息失败' } });
+    res.status(500).json({ success: false, error: { code: 'ME_FAILED', message: 'Failed to get user info' } });
   }
 }
 

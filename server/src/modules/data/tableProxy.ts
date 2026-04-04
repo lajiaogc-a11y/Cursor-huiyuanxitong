@@ -57,7 +57,7 @@ function buildStaffPointsRedemptionRemark(
   } else {
     amtStr = n.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   }
-  return `积分兑换: ${pts}积分 → ${amtStr} ${cur}`;
+  return `Points redemption: ${pts} pts → ${amtStr} ${cur}`;
 }
 
 // ============ GET /api/data/table/:table — SELECT ============
@@ -785,7 +785,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
             const item = items[i] as Record<string, unknown>;
             const rawId = item.id != null ? String(item.id).trim() : '';
             const id = /^[0-9a-f-]{36}$/i.test(rawId) ? rawId : randomUUID();
-            const title = String(item.title ?? '').trim() || '商品';
+            const title = String(item.title ?? '').trim() || 'Product';
             const descriptionRaw = item.description != null ? String(item.description).trim() : '';
             const description = descriptionRaw === '' ? null : descriptionRaw;
             const imageRaw = item.image_url != null ? String(item.image_url).trim() : '';
@@ -939,7 +939,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                 );
                 const [balRows] = await conn.query('SELECT COALESCE(balance,0) AS b FROM points_accounts WHERE id = ?', [acct.id]);
                 const balAfter = Number((balRows as { b?: unknown }[])[0]?.b ?? 0);
-                const confirmDesc = `商城兑换完成（${String(red.item_title || '商品')} ×${Math.max(1, Math.floor(Number(red.quantity ?? 1)))}，${cost} 积分）`;
+                const confirmDesc = `Mall redemption completed (${String(red.item_title || 'Product')} ×${Math.max(1, Math.floor(Number(red.quantity ?? 1)))}, ${cost} pts)`;
                 await conn.query(
                   `INSERT INTO points_ledger (id, account_id, member_id, type, amount, balance_after, reference_type, reference_id, description, created_by, tenant_id, created_at)
                    VALUES (?, ?, ?, 'redeem_confirmed', 0, ?, 'mall_redemption_confirm', ?, ?, ?, ?, NOW(3))`,
@@ -972,7 +972,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                 );
                 const [balRows] = await conn.query('SELECT COALESCE(balance,0) AS b FROM points_accounts WHERE id = ?', [acct.id]);
                 const afterBal = Number((balRows as { b?: unknown }[])[0]?.b ?? 0);
-                const cancelDesc = `商城兑换取消退回（${String(red.item_title || '商品')} ×${qty}，退回 ${cost} 积分${note ? `，说明: ${String(note)}` : ''}）`;
+                const cancelDesc = `Mall redemption cancelled, refunded (${String(red.item_title || 'Product')} ×${qty}, ${cost} pts refunded${note ? `, note: ${String(note)}` : ''})`;
                 await conn.query(
                   `INSERT INTO points_ledger (id, account_id, member_id, type, amount, balance_after, reference_type, reference_id, description, created_by, tenant_id, created_at)
                    VALUES (?, ?, ?, 'redeem_cancelled', ?, ?, 'mall_redemption_cancel', ?, ?, ?, ?, NOW(3))`,
@@ -1014,7 +1014,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
                   [cost, cost, acct.id],
                 );
                 const afterBal = Number(acct.balance) + cost;
-                const rejectDesc = `商城兑换驳回退回（${String(red.item_title || '商品')}，退回 ${cost} 积分${note ? `，说明: ${String(note)}` : ''}）`;
+                const rejectDesc = `Mall redemption rejected, refunded (${String(red.item_title || 'Product')}, ${cost} pts refunded${note ? `, note: ${String(note)}` : ''})`;
                 await conn.query(
                   `INSERT INTO points_ledger (id, account_id, member_id, type, amount, balance_after, reference_type, reference_id, description, created_by, tenant_id, created_at)
                    VALUES (?, ?, ?, 'redeem_rejected', ?, ?, 'mall_redemption_reject', ?, ?, ?, ?, NOW(3))`,
@@ -1086,7 +1086,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
             module: 'points_redemption',
             operation_type: action === 'complete' ? 'status_change' : action === 'cancel' ? 'cancel' : 'reject',
             object_id: String(redemptionId),
-            object_description: `商城兑换${action === 'complete' ? '完成' : action === 'cancel' ? '取消' : '驳回'}: ${mallRedemptionNotifyRef.payload?.itemTitle ?? '商品'}`,
+            object_description: `Mall redemption ${action === 'complete' ? 'Completed' : action === 'cancel' ? 'Cancelled' : 'Rejected'}: ${mallRedemptionNotifyRef.payload?.itemTitle ?? 'Product'}`,
             before_data: { status: action === 'cancel' ? 'completed' : 'pending' },
             after_data: { status: newStatus, note },
             ip_address: req.ip ?? null,
@@ -1151,7 +1151,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
         const items = await query(
           `SELECT r.id, r.member_id, m.member_code,
             COALESCE(NULLIF(TRIM(r.member_phone_snapshot), ''), m.phone_number) AS member_phone,
-            COALESCE(NULLIF(TRIM(r.item_title), ''), i.title, '商城商品') AS item_title,
+            COALESCE(NULLIF(TRIM(r.item_title), ''), i.title, 'Mall product') AS item_title,
             COALESCE(r.item_image_url, i.image_url) AS item_image_url,
             COALESCE(r.quantity, 1) AS quantity,
             COALESCE(r.points_used, 0) AS points_used,
@@ -1876,7 +1876,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
             const rid = r.id != null ? String(r.id).trim() : '';
             const id = /^[0-9a-f-]{36}$/i.test(rid) ? rid : randomUUID();
             keepIds.add(id);
-            const name_zh = String(r.name_zh ?? '').trim().slice(0, 128) || '分类';
+            const name_zh = String(r.name_zh ?? '').trim().slice(0, 128) || 'Category';
             const name_en = String(r.name_en ?? '').trim().slice(0, 128);
             normalized.push({ id, name_zh, name_en: name_en || name_zh, sort_order: i + 1 });
           }
@@ -1950,7 +1950,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
         }
         const itemTitle =
           String(item.title ?? item.name ?? '')
-            .trim() || '商品';
+            .trim() || 'Product';
         const stockRemainingRaw = item.stock_remaining;
         const stockLegacyRaw = item.stock;
         let stockRemaining = Number(stockRemainingRaw);
@@ -2084,7 +2084,7 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
             const redemptionId = randomUUID();
             const freezeLedgerId = randomUUID();
             const freezeDesc =
-              qty > 1 ? `积分冻结（商城兑换: ${itemTitle} ×${qty}）` : `积分冻结（商城兑换: ${itemTitle}）`;
+              qty > 1 ? `Points frozen (mall redemption: ${itemTitle} ×${qty})` : `Points frozen (mall redemption: ${itemTitle})`;
             await conn.query(
               `INSERT INTO points_ledger (
                  id, account_id, member_id, type, amount, balance_after,

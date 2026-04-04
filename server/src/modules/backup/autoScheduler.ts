@@ -6,14 +6,14 @@ let timer: ReturnType<typeof setInterval> | undefined;
 export function startAutoBackupScheduler(): void {
   const ms = config.backup.autoIntervalMs;
   if (ms <= 0) return;
-  console.log(`[Backup] BACKUP_AUTO_INTERVAL_MS=${ms} — 进程内定时备份已启用`);
+  console.log(`[Backup] BACKUP_AUTO_INTERVAL_MS=${ms} — in-process auto backup enabled`);
   timer = setInterval(() => {
     void (async () => {
       try {
-        await runDataBackup({ triggerType: 'auto', createdByName: '定时任务' });
-        console.log('[Backup] 进程内定时备份完成');
+        await runDataBackup({ triggerType: 'auto', createdByName: 'Scheduled task' });
+        console.log('[Backup] Auto backup completed');
       } catch (e) {
-        console.error('[Backup] 进程内定时备份失败:', (e as Error).message);
+        console.error('[Backup] Auto backup failed:', (e as Error).message);
       }
     })();
   }, ms);

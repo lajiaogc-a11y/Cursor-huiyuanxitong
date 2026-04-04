@@ -51,7 +51,7 @@ export async function loginService(
 ): Promise<LoginResponse> {
   const username = params.username?.trim();
   if (!username || !params.password) {
-    return { success: false, error: '用户名和密码不能为空' };
+    return { success: false, error: 'Username and password are required' };
   }
 
   const ip = clientIp ?? null;
@@ -65,15 +65,15 @@ export async function loginService(
     // RPC 可能不存在，跳过锁定检查
   }
   if (lock.is_locked) {
-    logEmployeeLoginRepository(null, ip, ua, false, '账号已锁定', username).catch(e => console.error('[Auth] login log write failed:', e));
+    logEmployeeLoginRepository(null, ip, ua, false, 'Account locked', username).catch(e => console.error('[Auth] login log write failed:', e));
     const minutes = Math.max(1, Math.ceil((lock.remaining_seconds ?? 0) / 60));
-    return { success: false, error: `账号已临时锁定，请${minutes}分钟后重试` };
+    return { success: false, error: `Account temporarily locked. Try again in ${minutes} minute(s).` };
   }
 
   // 2. 验证账号密码
   const { data: verifyData, error: verifyError } = await verifyEmployeeLoginRepository(username, params.password);
   if (verifyError) {
-    logEmployeeLoginRepository(null, ip, ua, false, '系统验证异常', username).catch(e => console.error('[Auth] login log write failed:', e));
+    logEmployeeLoginRepository(null, ip, ua, false, 'System verification error', username).catch(e => console.error('[Auth] login log write failed:', e));
     console.error('[Auth] verifyEmployeeLoginRepository:', verifyError);
     const anyErr = verifyError as Error & { code?: string; errno?: number };
     const errno = anyErr.errno;
@@ -83,50 +83,50 @@ export async function loginService(
       return {
         success: false,
         error:
-          '无法连接数据库：请检查 server/.env 中的 MYSQL_USER、MYSQL_PASSWORD（或 DATABASE_URL）是否正确，并确认 MySQL 已启动。',
+          'Database connection failed: check MYSQL_USER, MYSQL_PASSWORD (or DATABASE_URL) in server/.env, and ensure MySQL is running.',
       };
     }
     if (sqlCode === 'ECONNREFUSED' || text.includes('econnrefused')) {
-      return { success: false, error: '无法连接数据库：MySQL 未启动或主机/端口配置错误。' };
+      return { success: false, error: 'Database connection failed: MySQL is not running or host/port is misconfigured.' };
     }
     if (sqlCode === 'ETIMEDOUT' || text.includes('etimedout')) {
       return {
         success: false,
         error:
-          '无法连接数据库：连接超时。请检查 EC2/RDS 安全组是否放行本机 IP 的 3306，或改用 SSH 隧道并把 DATABASE_URL 指向 127.0.0.1。',
+          'Database connection failed: connection timed out. Check EC2/RDS security groups allow port 3306 from this machine, or use an SSH tunnel and point DATABASE_URL to 127.0.0.1.',
       };
     }
     if (sqlCode === 'ER_BAD_DB_ERROR' || errno === 1049) {
       return {
         success: false,
-        error: '数据库不存在：请创建 MYSQL_DATABASE 指定的库，并启动后端以完成迁移。',
+        error: 'Database does not exist: create the database named in MYSQL_DATABASE and start the API to run migrations.',
       };
     }
     if (sqlCode === 'ER_NO_SUCH_TABLE' || errno === 1146) {
-      return { success: false, error: '数据库表缺失：请确认已运行迁移（开发环境启动 API 会自动迁移）。' };
+      return { success: false, error: 'Missing database tables: run migrations (starting the API in development applies them automatically).' };
     }
-    return { success: false, error: '登录验证失败（数据库异常），请查看服务端日志或联系管理员。' };
+    return { success: false, error: 'Login verification failed (database error). Check server logs or contact an administrator.' };
   }
   if (!verifyData || verifyData.length === 0) {
-    logEmployeeLoginRepository(null, ip, ua, false, '验证无结果', username).catch(e => console.error('[Auth] login log write failed:', e));
-    return { success: false, error: '验证失败，请稍后重试' };
+    logEmployeeLoginRepository(null, ip, ua, false, 'Verification returned no result', username).catch(e => console.error('[Auth] login log write failed:', e));
+    return { success: false, error: 'Verification failed. Please try again later.' };
   }
 
   const result = verifyData[0];
   const errorCode = (result as { error_code?: string }).error_code;
   if (errorCode === 'USER_NOT_FOUND') {
-    logEmployeeLoginRepository(null, ip, ua, false, '账号不存在', username).catch(e => console.error('[Auth] login log write failed:', e));
-    return { success: false, error: '账号不存在' };
+    logEmployeeLoginRepository(null, ip, ua, false, 'Account not found', username).catch(e => console.error('[Auth] login log write failed:', e));
+    return { success: false, error: 'Account not found' };
   }
   if (errorCode === 'WRONG_PASSWORD') {
     const empId = (result as { employee_id?: string }).employee_id ?? null;
-    logEmployeeLoginRepository(empId, ip, ua, false, '密码错误', username).catch(e => console.error('[Auth] login log write failed:', e));
-    return { success: false, error: '密码错误' };
+    logEmployeeLoginRepository(empId, ip, ua, false, 'Incorrect password', username).catch(e => console.error('[Auth] login log write failed:', e));
+    return { success: false, error: 'Incorrect password' };
   }
   if (errorCode === 'ACCOUNT_DISABLED') {
     const empId = (result as { employee_id?: string }).employee_id ?? null;
-    logEmployeeLoginRepository(empId, ip, ua, false, '账号已禁用', username).catch(e => console.error('[Auth] login log write failed:', e));
-    return { success: false, error: '账号已被禁用，请联系管理员' };
+    logEmployeeLoginRepository(empId, ip, ua, false, 'Account disabled', username).catch(e => console.error('[Auth] login log write failed:', e));
+    return { success: false, error: 'Account disabled. Please contact an administrator.' };
   }
 
   const emp = result as {
@@ -141,12 +141,12 @@ export async function loginService(
   };
 
   if (emp.status === 'pending') {
-    logEmployeeLoginRepository(emp.employee_id, ip, ua, false, '账号待审批', username).catch(e => console.error('[Auth] login log write failed:', e));
-    return { success: false, error: '账号正在等待管理员审批，请耐心等待' };
+    logEmployeeLoginRepository(emp.employee_id, ip, ua, false, 'Account pending approval', username).catch(e => console.error('[Auth] login log write failed:', e));
+    return { success: false, error: 'Your account is pending administrator approval. Please wait.' };
   }
   if (emp.status !== 'active') {
-    logEmployeeLoginRepository(emp.employee_id, ip, ua, false, `账号状态异常: ${emp.status}`, username).catch(e => console.error('[Auth] login log write failed:', e));
-    return { success: false, error: '账号已被禁用，请联系管理员' };
+    logEmployeeLoginRepository(emp.employee_id, ip, ua, false, `Abnormal account status: ${emp.status}`, username).catch(e => console.error('[Auth] login log write failed:', e));
+    return { success: false, error: 'Account disabled. Please contact an administrator.' };
   }
 
   const accessGate = await assertStaffLoginAccessControl({
@@ -166,8 +166,8 @@ export async function loginService(
     try {
       const maintenance = await getMaintenanceModeStatusRepository(emp.tenant_id ?? null);
       if (maintenance.effectiveEnabled) {
-        logEmployeeLoginRepository(emp.employee_id, ip, ua, false, '系统维护中', username).catch(e => console.error('[Auth] login log write failed:', e));
-        return { success: false, error: '系统维护中，请稍后再试' };
+        logEmployeeLoginRepository(emp.employee_id, ip, ua, false, 'System under maintenance', username).catch(e => console.error('[Auth] login log write failed:', e));
+        return { success: false, error: 'System under maintenance. Please try again later.' };
       }
     } catch (_) {
       // RPC 可能不存在，跳过维护模式检查
@@ -193,11 +193,11 @@ export async function loginService(
   if (wlCfg.enabled && !isPlatformSuperAdmin) {
     const did = normalizeStaffDeviceId(params.device_id);
     if (!did) {
-      logEmployeeLoginRepository(emp.employee_id, ip, ua, false, '设备白名单：缺少或非法 device_id', username).catch((e) =>
+      logEmployeeLoginRepository(emp.employee_id, ip, ua, false, 'Device whitelist: missing or invalid device_id', username).catch((e) =>
         console.error('[Auth] login log write failed:', e),
       );
       console.log('[Auth][Device] login rejected: bad device_id', { username, ip });
-      return { success: false, error: 'DEVICE_NOT_AUTHORIZED: 无法识别本机设备标识，请刷新页面后重试' };
+      return { success: false, error: 'DEVICE_NOT_AUTHORIZED: Could not identify this device. Refresh the page and try again.' };
     }
     let allowed: boolean;
     try {
@@ -207,18 +207,18 @@ export async function loginService(
       return {
         success: false,
         httpStatus: 503,
-        error: '设备白名单数据暂不可用，请稍后重试或联系管理员',
+        error: 'Device whitelist data is temporarily unavailable. Try again later or contact an administrator.',
       };
     }
     if (!allowed) {
-      logEmployeeLoginRepository(emp.employee_id, ip, ua, false, '设备未授权', username).catch((e) =>
+      logEmployeeLoginRepository(emp.employee_id, ip, ua, false, 'Device not authorized', username).catch((e) =>
         console.error('[Auth] login log write failed:', e),
       );
       console.log('[Auth][Device] login rejected: not whitelisted', { username, employeeId: emp.employee_id, deviceId: did, ip });
       return {
         success: false,
         error:
-          'DEVICE_NOT_AUTHORIZED: 当前设备未授权登录后台。请在已授权设备上由管理员添加白名单，或登录后在「系统设置 → 后台登录设备」绑定本机。',
+          'DEVICE_NOT_AUTHORIZED: This device is not authorized for admin login. Have an administrator add it on an authorized device, or after signing in bind this device under System settings → Admin login devices.',
       };
     }
     boundDeviceId = did;
@@ -266,12 +266,12 @@ export async function registerService(params: {
     invitationCode: params.invitationCode ?? null,
   });
   if (!result.success) {
-    const msg = result.error_code === 'USERNAME_EXISTS' ? '用户名已存在'
-      : result.error_code === 'INVITATION_CODE_REQUIRED' ? '请输入邀请码'
-      : result.error_code === 'INVALID_INVITATION_CODE' ? '邀请码无效'
-      : result.error_code === 'INVITATION_CODE_EXPIRED' ? '邀请码已过期'
-      : result.error_code === 'INVITATION_CODE_USED' ? '邀请码已被使用完'
-      : '注册失败';
+    const msg = result.error_code === 'USERNAME_EXISTS' ? 'Username already exists'
+      : result.error_code === 'INVITATION_CODE_REQUIRED' ? 'Invitation code is required'
+      : result.error_code === 'INVALID_INVITATION_CODE' ? 'Invalid invitation code'
+      : result.error_code === 'INVITATION_CODE_EXPIRED' ? 'Invitation code has expired'
+      : result.error_code === 'INVITATION_CODE_USED' ? 'Invitation code has no uses left'
+      : 'Registration failed';
     return { success: false, error_code: result.error_code, message: msg };
   }
   return { success: true, assigned_status: result.assigned_status };

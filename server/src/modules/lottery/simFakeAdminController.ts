@@ -65,7 +65,7 @@ export async function adminSaveSimFakeSettingsController(req: AuthenticatedReque
 
   const pool = buildPoolFromRawText(raw);
   if (!pool || pool.length === 0) {
-    res.status(400).json({ success: false, error: { code: 'INVALID_NICKNAMES', message: '无有效昵称，请至少输入一行' } });
+    res.status(400).json({ success: false, error: { code: 'INVALID_NICKNAMES', message: 'No valid nicknames. Enter at least one line.' } });
     return;
   }
 
