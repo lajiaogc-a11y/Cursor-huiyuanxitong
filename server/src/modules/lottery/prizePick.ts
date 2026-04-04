@@ -20,7 +20,7 @@ export function pickLotteryPrizeByConfiguredProbability<T extends PrizeWithProba
   }
   const total = prizes.reduce((sum, p) => sum + Number(p.probability), 0);
   if (total <= 0) {
-    throw new Error('PROBABILITY_SUM_NOT_100');
+    throw new Error('PROBABILITY_SUM_ZERO');
   }
   const scale = 100 / total;
   const rand = randomInt(0, 1_000_000) / 10_000;

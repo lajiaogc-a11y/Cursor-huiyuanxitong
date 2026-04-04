@@ -117,7 +117,7 @@ export function runSimulation(
       try {
         hit = pickLotteryPrizeByConfiguredProbability(prizes);
       } catch {
-        warnings.push('PROBABILITY_SUM_NOT_100');
+        warnings.push('PROBABILITY_SUM_ZERO');
         break;
       }
     }

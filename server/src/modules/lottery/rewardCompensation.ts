@@ -199,7 +199,7 @@ export async function manualRetryReward(logId: string): Promise<{ ok: boolean; e
   if (row.reward_type === 'none') return { ok: false, error: 'NO_REWARD_NEEDED' };
 
   const result = await withTransaction(async (conn) => {
-    return fulfillRewardOnConn(conn, {
+    const res = await fulfillRewardOnConn(conn, {
       logId: row.id,
       memberId: row.member_id,
       tenantId: row.tenant_id,
@@ -208,12 +208,12 @@ export async function manualRetryReward(logId: string): Promise<{ ok: boolean; e
       prizeValue: row.prize_value,
       rewardType: row.reward_type as RewardType,
     });
+    await conn.execute(
+      `UPDATE lottery_logs SET reward_status = ?, fail_reason = ?, reward_points = ?, retry_count = COALESCE(retry_count, 0) + 1 WHERE id = ?`,
+      [res.status, res.failReason, res.awardedPoints, logId],
+    );
+    return res;
   });
-
-  await execute(
-    `UPDATE lottery_logs SET reward_status = ?, fail_reason = ?, reward_points = ?, retry_count = COALESCE(retry_count, 0) + 1 WHERE id = ?`,
-    [result.status, result.failReason, result.awardedPoints, logId],
-  );
 
   return { ok: true, newStatus: result.status };
 }

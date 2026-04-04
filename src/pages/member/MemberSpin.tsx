@@ -403,7 +403,7 @@ export default function MemberSpin() {
             notifyError(
               t("抽奖次数不足，请通过签到或任务获取更多。", "Not enough draw chances. Earn more via check-in or tasks."),
             );
-          else if (r.error === "PROBABILITY_SUM_NOT_100")
+          else if (r.error === "PROBABILITY_SUM_ZERO" || r.error === "PROBABILITY_SUM_NOT_100")
             notifyError(t("抽奖配置异常，请联系客服。", "Lottery configuration error, please contact support."));
           else if (r.error === "NO_PRIZES_CONFIGURED")
             notifyError(t("未配置奖品，请联系客服。", "No prizes configured, please contact support."));

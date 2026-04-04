@@ -23,7 +23,7 @@ import { getEffectiveDailyFreeSpinsConn, getLotterySettings, listEnabledPrizes }
 import { pickLotteryPrizeByConfiguredProbability, budgetAwarePrizePick, type BudgetPolicy } from './prizePick.js';
 import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
 import { syncLotteryQuotaDayAndLoadConn } from './spinBalanceAccount.js';
-import { evaluateDrawRisk, loadRiskThresholds, type RiskResult } from './riskControl.js';
+import { evaluateDrawRisk, loadRiskThresholds, recordDrawBurst, type RiskResult } from './riskControl.js';
 
 // ── 内存防抖（仍保留作为热路径快速拦截，DB UNIQUE INDEX 是真正保障）──
 const recentDraws = new Map<string, number>();
@@ -79,6 +79,7 @@ interface LotteryPrize {
   stock_enabled?: number;
   stock_total?: number;
   stock_used?: number;
+  daily_stock_limit?: number;
   prize_cost?: number;
 }
 
@@ -275,6 +276,7 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
               COALESCE(stock_enabled, 0) AS stock_enabled,
               COALESCE(stock_total, -1) AS stock_total,
               COALESCE(stock_used, 0) AS stock_used,
+              COALESCE(daily_stock_limit, -1) AS daily_stock_limit,
               COALESCE(prize_cost, 0) AS prize_cost
        FROM lottery_prizes
        WHERE (tenant_id IS NULL OR tenant_id = ?) AND enabled = 1
@@ -320,13 +322,12 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
       try {
         hit = pickLotteryPrizeByConfiguredProbability(prizes);
       } catch {
-        return { success: false, error: 'PROBABILITY_SUM_NOT_100' };
+        return { success: false, error: 'PROBABILITY_SUM_ZERO' };
       }
     }
 
     // ── 7. 库存检查 + 原子扣减 ──
     if (hit.type !== 'none' && Number(hit.stock_enabled) === 1 && Number(hit.stock_total) >= 0) {
-      // 先检查快照（Phase 1 逻辑保留）
       if (Number(hit.stock_used) >= Number(hit.stock_total)) {
         if (nonePrize) hit = nonePrize;
       } else {
@@ -337,6 +338,20 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
         if (Number((stockRes as ResultSetHeader).affectedRows) !== 1) {
           if (nonePrize) hit = nonePrize;
         }
+      }
+    }
+
+    // ── 7b. 每日库存限制检查 ──
+    const dailyLimit = Number(hit.daily_stock_limit ?? -1);
+    if (hit.type !== 'none' && dailyLimit > 0) {
+      const dayStart = `${today} 00:00:00`;
+      const [dailyRow] = await queryConn<{ cnt: number }>(conn,
+        `SELECT COUNT(*) AS cnt FROM lottery_logs
+         WHERE prize_id = ? AND created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
+        [hit.id, dayStart, dayStart],
+      );
+      if (Number(dailyRow?.cnt ?? 0) >= dailyLimit) {
+        if (nonePrize) hit = nonePrize;
       }
     }
 
@@ -424,6 +439,7 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
 
   if (result.success) {
     recentDraws.set(memberId, Date.now());
+    recordDrawBurst({ memberId, tenantId: null, clientIp: clientIp ?? null, deviceFingerprint: deviceFingerprint ?? null });
   }
   return result;
 }
@@ -609,7 +625,7 @@ export async function simulateLotteryDrawForTenant(tenantId: string | null): Pro
     };
   } catch (e) {
     const msg = (e as Error).message;
-    if (msg === 'PROBABILITY_SUM_NOT_100') return { ok: false, error: 'PROBABILITY_SUM_NOT_100' };
+    if (msg === 'PROBABILITY_SUM_ZERO') return { ok: false, error: 'PROBABILITY_SUM_ZERO' };
     throw e;
   }
 }

@@ -39,7 +39,7 @@ const TIME_RANGES: { label: string; labelEn: string; value: TimeRangeType }[] = 
 ];
 
 const QUICK_ACTIONS = [
-  { icon: UserPlus, labelZh: "新增会员", labelEn: "Add Member", path: "/staff/exchange-rate", color: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
+  { icon: UserPlus, labelZh: "新增会员", labelEn: "Add Member", path: "/staff/member-management", color: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
   { icon: Calculator, labelZh: "汇率计算", labelEn: "Exchange", path: "/staff/exchange-rate", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
   { icon: ClipboardList, labelZh: "订单管理", labelEn: "Orders", path: "/staff/orders", color: "bg-violet-500/10 text-violet-600 dark:text-violet-400" },
   { icon: Building2, labelZh: "商家结算", labelEn: "Settlement", path: "/staff/merchant-settlement", color: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },

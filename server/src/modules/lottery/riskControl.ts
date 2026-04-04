@@ -119,8 +119,8 @@ export async function loadRiskThresholds(tenantId: string | null): Promise<RiskT
 /* ──────────── 核心评估 ──────────── */
 
 /**
- * 在抽奖事务之前调用。纯读 + 内存计数，不写任何数据。
- * 同时把本次请求记录到内存滑窗（即使最终被拦截，也计入频控）。
+ * 在抽奖事务之前调用。纯读评估，不记录到滑窗。
+ * 抽奖成功后调用 recordDrawBurst() 记录。
  */
 export async function evaluateDrawRisk(
   ctx: RiskContext,
@@ -138,8 +138,8 @@ export async function evaluateDrawRisk(
 
   // ── 1. 账号维度 ──
 
-  // 1a. burst：内存滑窗 60s
-  const accountBurstCount = recordHit(accountBurstMap, ctx.memberId);
+  // 1a. burst：内存滑窗 60s (peek only, don't record yet)
+  const accountBurstCount = peekCount(accountBurstMap, ctx.memberId, BURST_WINDOW_MS) + 1;
   if (thresholds.accountBurstLimit > 0 && accountBurstCount > thresholds.accountBurstLimit) {
     reasons.push(`account_burst:${accountBurstCount}/${thresholds.accountBurstLimit}`);
     score += 50;
@@ -164,8 +164,8 @@ export async function evaluateDrawRisk(
 
   // ── 2. IP 维度 ──
   if (ctx.clientIp) {
-    // 2a. burst：内存滑窗 60s
-    const ipBurstCount = recordHit(ipBurstMap, ctx.clientIp);
+    // 2a. burst：内存滑窗 60s (peek only)
+    const ipBurstCount = peekCount(ipBurstMap, ctx.clientIp, BURST_WINDOW_MS) + 1;
     if (thresholds.ipBurstLimit > 0 && ipBurstCount > thresholds.ipBurstLimit) {
       reasons.push(`ip_burst:${ipBurstCount}/${thresholds.ipBurstLimit}`);
       score += 40;
@@ -208,4 +208,14 @@ export async function evaluateDrawRisk(
     reasons,
     errorCode: verdict === 'block' ? 'RISK_BLOCKED' : verdict === 'downgrade' ? 'RISK_DOWNGRADED' : undefined,
   };
+}
+
+/**
+ * Call after a successful draw to record the burst hit in the sliding window.
+ */
+export function recordDrawBurst(ctx: RiskContext): void {
+  recordHit(accountBurstMap, ctx.memberId);
+  if (ctx.clientIp) {
+    recordHit(ipBurstMap, ctx.clientIp);
+  }
 }

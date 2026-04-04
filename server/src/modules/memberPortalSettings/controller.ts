@@ -185,8 +185,9 @@ export async function getDefaultSettingsPublicController(
       tenant_name: result.tenant_name || '',
       settings: result.settings || {},
     });
-  } catch {
-    res.json({ success: true, tenant_id: null, tenant_name: '', settings: {} });
+  } catch (err) {
+    console.error('[getDefaultSettingsPublicController] error:', err);
+    res.status(500).json({ success: false, tenant_id: null, tenant_name: '', settings: {} });
   }
 }
 
@@ -207,8 +208,9 @@ export async function getSettingsByAccountPublicController(
       tenant_name: result.tenant_name || '',
       settings: result.settings || {},
     });
-  } catch {
-    res.json({ success: true, tenant_id: null, tenant_name: '', settings: {} });
+  } catch (err) {
+    console.error('[getSettingsByAccountPublicController] error:', err);
+    res.status(500).json({ success: false, tenant_id: null, tenant_name: '', settings: {} });
   }
 }
 
@@ -229,8 +231,9 @@ export async function getSettingsByInviteTokenPublicController(
       tenant_name: result.tenant_name || '',
       settings: result.settings || {},
     });
-  } catch {
-    res.json({ success: true, tenant_id: null, tenant_name: '', settings: {} });
+  } catch (err) {
+    console.error('[getSettingsByInviteTokenPublicController] error:', err);
+    res.status(500).json({ success: false, tenant_id: null, tenant_name: '', settings: {} });
   }
 }
 

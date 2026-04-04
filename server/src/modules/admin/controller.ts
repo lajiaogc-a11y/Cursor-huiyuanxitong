@@ -54,8 +54,8 @@ export async function bulkDeleteController(req: Request, res: Response): Promise
   } catch (err: unknown) {
     console.error('[bulkDeleteController] Unhandled error:', err);
     const msg = err instanceof Error ? err.message : String(err);
-    res.status(200).json({
-      success: true,
+    res.status(500).json({
+      success: false,
       data: { success: false, deletedSummary: [], totalCount: 0, errors: [`系统错误: ${msg}`], warnings: [] },
     });
   }
@@ -117,8 +117,8 @@ export async function archiveOrdersController(req: Request, res: Response): Prom
   } catch (err: unknown) {
     console.error('[archiveOrdersController] Unhandled error:', err);
     const msg = err instanceof Error ? err.message : String(err);
-    res.status(200).json({
-      success: true,
+    res.status(500).json({
+      success: false,
       data: { success: false, deletedSummary: [], totalCount: 0, errors: [`系统错误: ${msg}`], warnings: [] },
     });
   }
@@ -170,8 +170,8 @@ export async function archiveMembersController(req: Request, res: Response): Pro
   } catch (err: unknown) {
     console.error('[archiveMembersController] Unhandled error:', err);
     const msg = err instanceof Error ? err.message : String(err);
-    res.status(200).json({
-      success: true,
+    res.status(500).json({
+      success: false,
       data: { success: false, deletedSummary: [], totalCount: 0, errors: [`系统错误: ${msg}`], warnings: [] },
     });
   }
