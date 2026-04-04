@@ -1443,6 +1443,42 @@ export async function getMultipleSharedDataRepository(tenantId: string | null, d
   return result;
 }
 
+/**
+ * Merge points_ledger rows with points_log rows, deduplicating entries
+ * that exist in both tables (same member_id, similar timestamp, similar amount).
+ * points_ledger entries take precedence; points_log entries only fill gaps.
+ */
+function mergePointsLedgerAndLog(
+  ledgerRows: Record<string, unknown>[],
+  logRows: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  if (logRows.length === 0) return ledgerRows;
+
+  const ledgerByMember = new Map<string, { ts: number; amt: number }[]>();
+  for (const r of ledgerRows) {
+    const mid = String(r.member_id ?? '');
+    if (!mid) continue;
+    const ts = new Date(String(r.created_at ?? '')).getTime();
+    const amt = Math.abs(Number(r.amount ?? 0));
+    if (!ledgerByMember.has(mid)) ledgerByMember.set(mid, []);
+    ledgerByMember.get(mid)!.push({ ts, amt });
+  }
+
+  const deduped: Record<string, unknown>[] = [];
+  for (const r of logRows) {
+    const mid = String(r.member_id ?? '');
+    const ts = new Date(String(r.created_at ?? '')).getTime();
+    const amt = Math.abs(Number(r.amount ?? 0));
+    const existing = ledgerByMember.get(mid);
+    const hasDup = existing?.some(
+      (e) => Math.abs(e.ts - ts) <= 2000 && Math.abs(e.amt - amt) < 0.02,
+    );
+    if (!hasDup) deduped.push(r);
+  }
+
+  return [...ledgerRows, ...deduped];
+}
+
 /** 活动数据 */
 export async function listActivityDataRepository(tenantId: string | null): Promise<{
   gifts: unknown[];
@@ -1462,7 +1498,7 @@ export async function listActivityDataRepository(tenantId: string | null): Promi
     return [];
   };
 
-  const [giftsRes, referralsRes, memberActivitiesRes, pointsLedgerRes, pointsAccountsRes, spinCreditsRes] = await Promise.allSettled([
+  const [giftsRes, referralsRes, memberActivitiesRes, pointsLedgerRes, pointsLogRes, pointsAccountsRes, spinCreditsRes] = await Promise.allSettled([
     query(
       `SELECT ag.* FROM activity_gifts ag
        INNER JOIN employees e ON e.id = ag.creator_id AND e.tenant_id = ?
@@ -1490,6 +1526,17 @@ export async function listActivityDataRepository(tenantId: string | null): Promi
       [tenantId, tenantId, tenantId]
     ),
     query(
+      `SELECT pl.id, pl.member_id, pl.\`change\` AS amount, pl.type,
+              pl.type AS transaction_type, pl.remark AS description,
+              pl.balance_after, pl.created_at, pl.tenant_id,
+              'issued' AS status, pl.category, pl.reference_id,
+              '__points_log' AS _source
+       FROM points_log pl
+       WHERE pl.member_id IN (SELECT id FROM members WHERE tenant_id = ?)
+       ORDER BY pl.created_at DESC`,
+      [tenantId]
+    ),
+    query(
       `SELECT pa.* FROM points_accounts pa
        INNER JOIN members m ON m.id = pa.member_id AND m.tenant_id = ?
        ORDER BY COALESCE(pa.updated_at, pa.last_updated) DESC`,
@@ -1504,11 +1551,15 @@ export async function listActivityDataRepository(tenantId: string | null): Promi
     ),
   ]);
 
+  const ledgerRows = pick('points_ledger', pointsLedgerRes) as Record<string, unknown>[];
+  const logRows = pick('points_log', pointsLogRes) as Record<string, unknown>[];
+  const mergedPointsData = mergePointsLedgerAndLog(ledgerRows, logRows);
+
   return {
     gifts: pick('activity_gifts', giftsRes),
     referrals: pick('referral_relations', referralsRes),
     memberActivities: pick('member_activity', memberActivitiesRes),
-    pointsLedgerData: pick('points_ledger', pointsLedgerRes),
+    pointsLedgerData: mergedPointsData,
     pointsAccountsData: pick('points_accounts', pointsAccountsRes),
     spinCreditsData: pick('spin_credits', spinCreditsRes),
   };

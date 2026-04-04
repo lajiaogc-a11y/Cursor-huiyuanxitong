@@ -1811,14 +1811,14 @@ export default function MemberActivityDataContent() {
       <DrawerDetail
         open={isPointsHistoryDialogOpen}
         onOpenChange={setIsPointsHistoryDialogOpen}
-        title={`${t("积分流水详情", "Points History")} — ${selectedMemberForHistory?.memberCode ?? ""}`}
+        title={`${t("积分流水详情", "Points History")} — ${selectedMemberForHistory?.member_code ?? ""}`}
         sheetMaxWidth="4xl"
       >
           <div className="space-y-4">
             {selectedMemberForHistory && (
               <>
                 <div className="text-sm text-muted-foreground">
-                  {t("电话号码", "Phone")}：{displayPhone(selectedMemberForHistory.phoneNumber)}
+                  {t("电话号码", "Phone")}：{displayPhone(selectedMemberForHistory.phone_number)}
                 </div>
                 <div className="border rounded-lg overflow-hidden">
                   <Table>
@@ -1835,7 +1835,7 @@ export default function MemberActivityDataContent() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {getMemberPointsHistory(selectedMemberForHistory.memberCode).length === 0 ? (
+                      {getMemberPointsHistory(selectedMemberForHistory.member_code).length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                             {t("暂无积分流水记录", "No points history records")}
@@ -1843,12 +1843,31 @@ export default function MemberActivityDataContent() {
                         </TableRow>
                       ) : (
                         (() => {
-                          const history = getMemberPointsHistory(selectedMemberForHistory.memberCode);
+                          const history = getMemberPointsHistory(selectedMemberForHistory.member_code);
+                          const ascHistory = [...history].sort((a, b) =>
+                            new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                          let runBal = 0;
+                          const balMap = new Map<string, { before: number; after: number }>();
+                          for (const e of ascHistory) {
+                            const pe = Number(e.points_earned ?? (e as { amount?: unknown }).amount ?? 0);
+                            const dbBal = Number((e as { balance_after?: unknown }).balance_after);
+                            if (Number.isFinite(dbBal) && dbBal !== 0) {
+                              const after = dbBal;
+                              const before = after - pe;
+                              runBal = after;
+                              balMap.set(e.id, { before, after });
+                            } else {
+                              const before = runBal;
+                              const after = runBal + pe;
+                              runBal = after;
+                              balMap.set(e.id, { before, after });
+                            }
+                          }
                           return history.map((entry) => {
                             const pe = Number(entry.points_earned ?? entry.amount ?? 0);
-                            const balAfter = Number((entry as { balance_after?: unknown }).balance_after);
-                            const pointsAfter = Number.isFinite(balAfter) ? balAfter : 0;
-                            const pointsBefore = pointsAfter - pe;
+                            const bal = balMap.get(entry.id) ?? { before: 0, after: 0 };
+                            const pointsBefore = bal.before;
+                            const pointsAfter = bal.after;
                             const txn = String(entry.transaction_type || entry.type || '').toLowerCase();
                             const ty = String(entry.type || '').toLowerCase();
                             const refTy = String((entry as { reference_type?: string }).reference_type || '').toLowerCase();

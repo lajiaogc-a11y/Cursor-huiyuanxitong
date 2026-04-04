@@ -140,32 +140,39 @@ export default function PointsTransactionsTab({
 
   // 计算带累计积分的流水记录
   const ledgerWithBalance = useMemo(() => {
-    // 首先按会员分组，然后按时间正序排列计算累计
     const entriesByMember: Record<string, PointsLedgerEntry[]> = {};
     
     entriesForUi.forEach(entry => {
-      const memberKey = entry.member_code || entry.phone_number || entry.member_id || 'unknown';
+      const mid = entry.member_id || '';
+      const memberKey = mid || entry.member_code || entry.phone_number || 'unknown';
       if (!entriesByMember[memberKey]) {
         entriesByMember[memberKey] = [];
       }
       entriesByMember[memberKey].push(entry);
     });
     
-    // 对每个会员的记录按时间正序排列并计算累计积分
     const result: (PointsLedgerEntry & { pointsBefore: number; pointsAfter: number })[] = [];
     
     Object.values(entriesByMember).forEach(memberEntries => {
-      // 按创建时间正序排列（从旧到新）
       const sorted = [...memberEntries].sort((a, b) => 
         new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
       
       let runningTotal = 0;
       sorted.forEach(entry => {
-        const pointsBefore = runningTotal;
-        const pointsAfter = runningTotal + entry.points_earned;
-        runningTotal = pointsAfter;
-        result.push({ ...entry, pointsBefore, pointsAfter });
+        const dbBalAfter = Number((entry as { balance_after?: unknown }).balance_after);
+        const pe = entry.points_earned;
+        if (Number.isFinite(dbBalAfter) && dbBalAfter !== 0) {
+          const pointsAfter = dbBalAfter;
+          const pointsBefore = pointsAfter - pe;
+          runningTotal = pointsAfter;
+          result.push({ ...entry, pointsBefore, pointsAfter });
+        } else {
+          const pointsBefore = runningTotal;
+          const pointsAfter = runningTotal + pe;
+          runningTotal = pointsAfter;
+          result.push({ ...entry, pointsBefore, pointsAfter });
+        }
       });
     });
     

@@ -59,13 +59,60 @@ export function normalizePointsLedgerRow(raw: Record<string, unknown>): PointsLe
   } as PointsLedgerEntry;
 }
 
-// Standalone fetch function
+/**
+ * Deduplicate points_log entries against points_ledger entries.
+ * An entry from points_log is considered a duplicate if a points_ledger entry
+ * exists with the same member_id, similar timestamp (±2s), and similar amount.
+ */
+function deduplicateLogRows(
+  ledger: PointsLedgerEntry[],
+  logRows: PointsLedgerEntry[],
+): PointsLedgerEntry[] {
+  if (logRows.length === 0) return [];
+  const byMember = new Map<string, { ts: number; amt: number }[]>();
+  for (const r of ledger) {
+    const mid = String(r.member_id ?? '');
+    if (!mid) continue;
+    const ts = new Date(r.created_at).getTime();
+    const amt = Math.abs(r.points_earned);
+    if (!byMember.has(mid)) byMember.set(mid, []);
+    byMember.get(mid)!.push({ ts, amt });
+  }
+  return logRows.filter((r) => {
+    const mid = String(r.member_id ?? '');
+    const ts = new Date(r.created_at).getTime();
+    const amt = Math.abs(r.points_earned);
+    const existing = byMember.get(mid);
+    return !existing?.some(
+      (e) => Math.abs(e.ts - ts) <= 2000 && Math.abs(e.amt - amt) < 0.02,
+    );
+  });
+}
+
+// Standalone fetch function — merges points_ledger + points_log for a complete timeline
 export async function fetchPointsLedgerFromDb(): Promise<PointsLedgerEntry[]> {
-  const data = await apiGet<unknown>(
-    `/api/data/table/points_ledger?select=*&order=created_at.desc`
-  );
-  const rows = Array.isArray(data) ? data : [];
-  return rows.map((row) => normalizePointsLedgerRow(row as Record<string, unknown>));
+  const [ledgerData, logData] = await Promise.all([
+    apiGet<unknown>(`/api/data/table/points_ledger?select=*&order=created_at.desc`),
+    apiGet<unknown>(`/api/data/table/points_log?select=*&order=created_at.desc`).catch(() => []),
+  ]);
+  const ledgerRows = (Array.isArray(ledgerData) ? ledgerData : [])
+    .map((row) => normalizePointsLedgerRow(row as Record<string, unknown>));
+  const logRows = (Array.isArray(logData) ? logData : [])
+    .map((row) => {
+      const r = row as Record<string, unknown>;
+      const mapped: Record<string, unknown> = {
+        ...r,
+        amount: r.change ?? r.amount ?? 0,
+        points_earned: Number(r.change ?? r.amount ?? 0),
+        transaction_type: r.type ?? 'unknown',
+        description: r.remark ?? r.description ?? null,
+        status: 'issued',
+        _source: '__points_log',
+      };
+      return normalizePointsLedgerRow(mapped);
+    });
+  const unique = deduplicateLogRows(ledgerRows, logRows);
+  return [...ledgerRows, ...unique];
 }
 
 export function usePointsLedger() {
@@ -85,7 +132,7 @@ export function usePointsLedger() {
     const onPointsRefresh = () => invalidate();
     const onDataRefresh = (e: Event) => {
       const d = (e as CustomEvent<{ table?: string }>).detail;
-      if (d?.table === 'points_ledger' || d?.table === 'orders' || d?.table === 'activity_gifts') invalidate();
+      if (d?.table === 'points_ledger' || d?.table === 'points_log' || d?.table === 'orders' || d?.table === 'activity_gifts') invalidate();
     };
     window.addEventListener('data-refresh:points_ledger', onPointsRefresh);
     window.addEventListener('data-refresh', onDataRefresh);
