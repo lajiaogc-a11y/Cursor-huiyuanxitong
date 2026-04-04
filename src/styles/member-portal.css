@@ -1984,7 +1984,7 @@ html.member-html .member-cs-panel::-webkit-scrollbar-thumb:hover {
 /* ── Native-like scrolling & touch ── */
 html.member-html {
   -webkit-tap-highlight-color: transparent;
-  overscroll-behavior-y: auto;
+  overscroll-behavior-y: contain;
 }
 html.member-html body {
   background: hsl(var(--pu-m-bg-1));

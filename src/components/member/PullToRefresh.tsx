@@ -27,9 +27,9 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-const THRESHOLD = 68;
-const MAX_PULL = 120;
-const RESISTANCE = 0.45;
+const THRESHOLD = 80;
+const MAX_PULL = 130;
+const RESISTANCE = 0.42;
 
 /** 触摸起始于输入/可编辑区时不激活下拉刷新，避免与划选文字、光标拖动冲突 */
 function touchTargetDefersPull(target: EventTarget | null): boolean {
@@ -77,16 +77,24 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   const canPull = useCallback(() => {
     if (scrollContainer) {
       const el = (scrollRef as RefObject<HTMLDivElement>).current;
-      return el ? el.scrollTop <= 0 : window.scrollY <= 0;
+      if (!el) return false;
+      return Math.round(el.scrollTop) <= 0;
     }
-    return window.scrollY <= 0;
+    return Math.round(window.scrollY) <= 0 && Math.round(document.documentElement.scrollTop) <= 0;
   }, [scrollContainer, scrollRef]);
+
+  /** Track whether the gesture clearly committed to scrolling (not pulling) */
+  const scrolledAwayRef = useRef(false);
 
   const onTouchStart = useCallback(
     (e: React.TouchEvent) => {
       if (refreshing) return;
       if (touchTargetDefersPull(e.target)) return;
-      if (!canPull()) return;
+      scrolledAwayRef.current = false;
+      if (!canPull()) {
+        pullActiveRef.current = false;
+        return;
+      }
       startYRef.current = e.touches[0].clientY;
       pullActiveRef.current = true;
     },
@@ -96,18 +104,26 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   const onTouchMove = useCallback(
     (e: React.TouchEvent) => {
       if (!pullActiveRef.current || refreshing) return;
+      if (scrolledAwayRef.current) return;
+
       const dy = e.touches[0].clientY - startYRef.current;
+
       if (dy < 0) {
-        setPulling(false);
-        setPullDistance(0);
-        return;
-      }
-      if (!canPull()) {
+        scrolledAwayRef.current = true;
         pullActiveRef.current = false;
         setPulling(false);
         setPullDistance(0);
         return;
       }
+
+      if (!canPull()) {
+        scrolledAwayRef.current = true;
+        pullActiveRef.current = false;
+        setPulling(false);
+        setPullDistance(0);
+        return;
+      }
+
       const distance = Math.min(dy * RESISTANCE, MAX_PULL);
       setPulling(true);
       setPullDistance(distance);
@@ -143,6 +159,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   }, [prefersReducedMotion]);
 
   const onTouchEnd = useCallback(() => {
+    scrolledAwayRef.current = false;
     if (!pullActiveRef.current) return;
     pullActiveRef.current = false;
     if (pullDistance >= THRESHOLD) {
@@ -254,7 +271,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
         <div
           ref={scrollRef as MutableRefObject<HTMLDivElement | null>}
           data-spa-scroll-root="member"
-          className="native-scroll-y min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-auto [overscroll-behavior-x:contain]"
+          className="native-scroll-y min-h-0 flex-1 overflow-x-hidden overflow-y-auto [overscroll-behavior:contain]"
           role="region"
           aria-busy={refreshing}
           aria-label={t("会员中心滚动区域", "Member portal scroll area")}
