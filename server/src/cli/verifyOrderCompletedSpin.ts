@@ -43,7 +43,7 @@ void (async () => {
     const cur = await getLotterySettings(tenantId);
     await upsertLotterySettings(
       tenantId,
-      Math.max(0, Number(cur?.daily_free_spins ?? 1)),
+      Math.max(0, Number(cur?.daily_free_spins ?? 0)),
       Number(cur?.enabled) === 1,
       cur?.probability_notice ?? null,
       { enabled: true, amount: 2 },

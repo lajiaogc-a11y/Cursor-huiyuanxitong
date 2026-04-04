@@ -288,7 +288,7 @@ export async function adminGetSettingsController(req: AuthenticatedRequest, res:
   const settings = await getLotterySettings(tenantId);
   res.json({
     success: true,
-    daily_free_spins: settings?.daily_free_spins ?? 1,
+    daily_free_spins: settings?.daily_free_spins ?? 0,
     enabled: settings?.enabled !== 0,
     probability_notice: settings?.probability_notice ?? null,
     order_completed_spin_enabled: Number(settings?.order_completed_spin_enabled) === 1,

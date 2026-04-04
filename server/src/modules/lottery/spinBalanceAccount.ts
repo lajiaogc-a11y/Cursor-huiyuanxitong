@@ -114,5 +114,7 @@ export async function syncLotteryQuotaDayAndLoadConn(
     [todayYmd, freeUsed, memberId],
   );
 
+  console.log(`[SpinQuotaSync] member=${memberId} dayChange ${storedDay}->${todayYmd} dailyFree=${dailyFree} drawsToday=${drawsToday} freeUsed=${freeUsed} balance=${balance}`);
+
   return { freeDrawsUsed: freeUsed, balance };
 }

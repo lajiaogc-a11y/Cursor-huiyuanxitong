@@ -280,7 +280,7 @@ export async function adminGetLotterySettings(): Promise<LotterySettings> {
       }>('/api/lottery/admin/settings');
       const bp = String(r?.budget_policy ?? 'downgrade').toLowerCase();
       return {
-        daily_free_spins: r?.daily_free_spins ?? 1,
+        daily_free_spins: r?.daily_free_spins ?? 0,
         enabled: r?.enabled !== false,
         probability_notice: r?.probability_notice ?? null,
         order_completed_spin_enabled: r?.order_completed_spin_enabled === true,

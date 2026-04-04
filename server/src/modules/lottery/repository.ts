@@ -260,8 +260,9 @@ export async function getSpinsUsedToday(memberId: string): Promise<number> {
 }
 
 /**
- * 每日免费次数：优先 `lottery_settings`（抽奖后台已配置过则以此为准）；
- * 若无行则回退 `member_portal_settings.daily_free_spins_per_day`，再默认 1。
+ * Effective daily free spins: prefer `lottery_settings` (authoritative when row exists);
+ * fall back to `member_portal_settings.daily_free_spins_per_day`; default 0 (not 1)
+ * so tenants that never configured lottery don't silently gift free spins.
  */
 export async function getEffectiveDailyFreeSpins(tenantId: string | null): Promise<number> {
   const lotteryRow = await queryOne<{ daily_free_spins: number }>(
@@ -271,16 +272,15 @@ export async function getEffectiveDailyFreeSpins(tenantId: string | null): Promi
   if (lotteryRow != null) {
     return Math.max(0, Number(lotteryRow.daily_free_spins ?? 0));
   }
-  if (!tenantId) return 1;
+  if (!tenantId) return 0;
   const portalRow = await queryOne<{ daily_free_spins_per_day: number }>(
     'SELECT daily_free_spins_per_day FROM member_portal_settings WHERE tenant_id = ? LIMIT 1',
     [tenantId],
   );
-  const portal = Math.max(0, Number(portalRow?.daily_free_spins_per_day ?? 0));
-  return portal > 0 ? portal : 1;
+  return Math.max(0, Number(portalRow?.daily_free_spins_per_day ?? 0));
 }
 
-/** 事务内与 getEffectiveDailyFreeSpins 逻辑一致 */
+/** Transaction-scoped variant of getEffectiveDailyFreeSpins */
 export async function getEffectiveDailyFreeSpinsConn(
   conn: PoolConnection,
   tenantId: string | null,
@@ -293,14 +293,13 @@ export async function getEffectiveDailyFreeSpinsConn(
   if (lotteryRow != null) {
     return Math.max(0, Number(lotteryRow.daily_free_spins ?? 0));
   }
-  if (!tenantId) return 1;
+  if (!tenantId) return 0;
   const portalRow = await queryOneConn<{ daily_free_spins_per_day: number }>(
     conn,
     'SELECT daily_free_spins_per_day FROM member_portal_settings WHERE tenant_id = ? LIMIT 1',
     [tenantId],
   );
-  const portal = Math.max(0, Number(portalRow?.daily_free_spins_per_day ?? 0));
-  return portal > 0 ? portal : 1;
+  return Math.max(0, Number(portalRow?.daily_free_spins_per_day ?? 0));
 }
 
 /** @deprecated 请使用 getEffectiveDailyFreeSpins */
