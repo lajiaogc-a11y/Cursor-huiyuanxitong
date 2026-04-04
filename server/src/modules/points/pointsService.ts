@@ -139,19 +139,19 @@ export async function syncPointsLog(
 }
 
 /**
- * 数据校正：用 points_ledger 的 SUM 重算 points_accounts.balance。
+ * 数据校正：用 points_ledger 最新 balance_after 校正 points_accounts.balance。
  * 仅供管理员/迁移脚本调用，不属于常规业务流程。
  */
 export async function reconcileBalance(
   conn: PoolConnection,
   memberId: string,
 ): Promise<{ ledgerSum: number; accountBalance: number; fixed: boolean }> {
-  const sumRow = await qOneConn<{ s: number }>(
+  const latestRow = await qOneConn<{ balance_after: number }>(
     conn,
-    `SELECT COALESCE(SUM(amount), 0) AS s FROM points_ledger WHERE member_id = ?`,
+    `SELECT balance_after FROM points_ledger WHERE member_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
     [memberId],
   );
-  const ledgerSum = Number(sumRow?.s ?? 0);
+  const ledgerSum = Number(latestRow?.balance_after ?? 0);
 
   const acctRow = await qOneConn<{ balance: number }>(
     conn,

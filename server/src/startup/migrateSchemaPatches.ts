@@ -1406,20 +1406,26 @@ export async function migrateSchemaPatches(): Promise<void> {
     if (!msg.includes('Duplicate key name') && !msg.includes('already exists')) throw e;
   }
 
-  // ── 数据修复：用 points_ledger SUM 校正 points_accounts.balance 偏移 ──
+  // ── 数据修复：用 points_ledger 最新 balance_after 校正 points_accounts.balance ──
   try {
-    const driftRows = await query<{ member_id: string; ledger_sum: number; acct_balance: number }>(
+    const driftRows = await query<{ member_id: string; latest_balance: number; acct_balance: number }>(
       `SELECT pa.member_id,
-              COALESCE((SELECT SUM(amount) FROM points_ledger WHERE member_id = pa.member_id), 0) AS ledger_sum,
+              COALESCE((
+                SELECT pl.balance_after
+                FROM points_ledger pl
+                WHERE pl.member_id = pa.member_id
+                ORDER BY pl.created_at DESC, pl.id DESC
+                LIMIT 1
+              ), 0) AS latest_balance,
               COALESCE(pa.balance, 0) AS acct_balance
        FROM points_accounts pa
-       HAVING ABS(ledger_sum - acct_balance) > 0.01
+       HAVING ABS(latest_balance - acct_balance) > 0.01
        LIMIT 500`
     );
     if (driftRows.length > 0) {
       console.log(`[schema-patch] reconciling ${driftRows.length} drifted balances…`);
       for (const r of driftRows) {
-        const corrected = Math.max(0, Number(r.ledger_sum));
+        const corrected = Math.max(0, Number(r.latest_balance));
         await execute(
           'UPDATE points_accounts SET balance = ?, updated_at = NOW(3) WHERE member_id = ?',
           [corrected, r.member_id],
