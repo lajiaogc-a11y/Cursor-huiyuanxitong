@@ -358,6 +358,7 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
 
     // ── 8. 扣减配额 ──
     let newRemaining = 0;
+    let spinConsumeSource = '';
     if (freeRemaining > 0) {
       await execConn(
         conn,
@@ -366,6 +367,7 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
       );
       const nextFreeUsed = quotaSnap.freeDrawsUsed + 1;
       newRemaining = Math.max(0, dailyFree - nextFreeUsed) + quotaSnap.balance;
+      spinConsumeSource = 'daily_free_draw';
     } else {
       const [ur] = await conn.query(
         'UPDATE member_activity SET lottery_spin_balance = COALESCE(lottery_spin_balance, 0) - 1, updated_at = NOW(3) WHERE member_id = ? AND COALESCE(lottery_spin_balance, 0) >= 1',
@@ -376,7 +378,14 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
         return { success: false, error: 'NO_SPIN_QUOTA', remaining: 0 };
       }
       newRemaining = Math.max(0, dailyFree - quotaSnap.freeDrawsUsed) + (quotaSnap.balance - 1);
+      spinConsumeSource = 'lottery_draw';
     }
+
+    // Record spin consumption in spin_credits for audit trail
+    await execConn(conn,
+      `INSERT INTO spin_credits (id, member_id, source, amount, created_at) VALUES (?, ?, ?, -1, NOW(3))`,
+      [randomUUID(), memberId, spinConsumeSource],
+    );
 
     // ── 9. 写抽奖日志（Phase 4: 含 prize_cost / reward_type，初始 reward_status='pending'） ──
     const logId = randomUUID();

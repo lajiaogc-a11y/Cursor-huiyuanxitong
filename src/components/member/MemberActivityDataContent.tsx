@@ -2034,18 +2034,21 @@ export default function MemberActivityDataContent() {
                 <TableHeader>
                   <TableRow className="bg-muted/50">
                     <TableHead className="text-center whitespace-nowrap">{t("时间", "Time")}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">{t("获得次数", "Amount")}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">{t("变动次数", "Change")}</TableHead>
                     <TableHead className="text-center whitespace-nowrap">{t("来源", "Source")}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">{t("获得之前次数", "Before")}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">{t("获得之后次数", "After")}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">{t("变动前次数", "Before")}</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">{t("变动后次数", "After")}</TableHead>
                     <TableHead className="text-center whitespace-nowrap">{t("剩余次数", "Remaining")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {spinDetailRows.map((row, idx) => {
+                    const isConsumption = row.amount < 0;
                     const sourceLabel = (() => {
                       const s = row.source;
                       if (!s) return "—";
+                      if (s === "lottery_draw") return t("抽奖消耗", "Lottery draw");
+                      if (s === "daily_free_draw") return t("每日免费抽奖", "Daily free draw");
                       if (s === "share") return t("分享奖励", "Share reward");
                       if (s.startsWith("order_completed:")) return t("完成订单", "Order completed");
                       if (s === "referral") return t("邀请奖励", "Referral reward");
@@ -2058,9 +2061,11 @@ export default function MemberActivityDataContent() {
                     return (
                       <TableRow key={idx}>
                         <TableCell className="text-center text-xs whitespace-nowrap">{formatBeijingTime(row.created_at)}</TableCell>
-                        <TableCell className="text-center font-medium text-green-600 tabular-nums">+{row.amount}</TableCell>
+                        <TableCell className={`text-center font-medium tabular-nums ${isConsumption ? 'text-red-500' : 'text-green-600'}`}>
+                          {isConsumption ? String(row.amount) : `+${row.amount}`}
+                        </TableCell>
                         <TableCell className="text-center">
-                          <Badge variant="outline" className="text-[10px]">{sourceLabel}</Badge>
+                          <Badge variant={isConsumption ? "destructive" : "outline"} className="text-[10px]">{sourceLabel}</Badge>
                         </TableCell>
                         <TableCell className="text-center text-muted-foreground tabular-nums">{row.balance_before}</TableCell>
                         <TableCell className="text-center font-medium tabular-nums">{row.balance_after}</TableCell>

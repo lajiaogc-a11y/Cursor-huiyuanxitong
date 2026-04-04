@@ -1605,7 +1605,7 @@ export async function getSpinCreditsDetailRepository(memberId: string) {
   let runningBalance = 0;
   const rows = rawRows.map((row) => {
     const before = runningBalance;
-    const amt = Math.max(0, Math.floor(Number(row.amount ?? 0)));
+    const amt = Math.floor(Number(row.amount ?? 0));
     runningBalance += amt;
     return {
       created_at: row.created_at,

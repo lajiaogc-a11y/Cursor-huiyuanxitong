@@ -149,17 +149,15 @@ export default function EmployeeLeaderboard() {
                   <div className="w-5 flex justify-center shrink-0">{getRankIcon(i)}</div>
                   <span className="text-sm font-medium flex-1 truncate">{entry.employeeName}</span>
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground tabular-nums min-w-[40px] text-right">
                       {entry.orderCount} {t("单", "orders")}
                     </span>
                     <span className="text-xs font-semibold text-success tabular-nums min-w-[60px] text-right">
                       ₦{safeToFixed(entry.profitNgn, 0)}
                     </span>
-                    {entry.profitUsdt > 0 && (
-                      <span className="text-xs font-semibold tabular-nums" style={{ color: 'hsl(var(--chart-3))' }}>
-                        ${safeToFixed(entry.profitUsdt, 2)}
-                      </span>
-                    )}
+                    <span className="text-xs font-semibold tabular-nums min-w-[50px] text-right" style={{ color: 'hsl(var(--chart-3))' }}>
+                      ${safeToFixed(entry.profitUsdt, 2)}
+                    </span>
                   </div>
                 </div>
               ))}

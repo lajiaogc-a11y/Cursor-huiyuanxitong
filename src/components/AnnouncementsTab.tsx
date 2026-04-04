@@ -271,7 +271,9 @@ export default function AnnouncementsTab() {
                   <TableCell className="font-medium">{item.title}</TableCell>
                   <TableCell className="max-w-[500px] truncate">{item.message}</TableCell>
                   <TableCell>
-                    <Badge variant={TYPE_BADGE_VARIANT[item.type] || "secondary"}>{item.type}</Badge>
+                    <Badge variant={TYPE_BADGE_VARIANT[item.type] || "secondary"}>
+                      {t(TYPE_OPTIONS.find(o => o.value === item.type)?.zh || item.type, TYPE_OPTIONS.find(o => o.value === item.type)?.en || item.type)}
+                    </Badge>
                   </TableCell>
                 </TableRow>
               ))}
