@@ -202,7 +202,7 @@ export async function adminSavePrizesController(req: AuthenticatedRequest, res: 
     display_probability: parseDisplayProbability(p.display_probability),
     image_url: (p.image_url as string | null) ?? null,
     sort_order: Number(p.sort_order) || idx,
-    prize_cost: Math.max(0, Number(p.prize_cost) || 0),
+    prize_cost: Number(p.prize_cost) > 0 ? Number(p.prize_cost) : (p.type === 'points' ? Math.max(0, Number(p.value) || 0) : 0),
     stock_enabled: p.stock_enabled ? 1 : 0,
     stock_total: Number.isFinite(Number(p.stock_total)) ? Math.floor(Number(p.stock_total)) : -1,
     daily_stock_limit: Number.isFinite(Number(p.daily_stock_limit)) ? Math.floor(Number(p.daily_stock_limit)) : -1,

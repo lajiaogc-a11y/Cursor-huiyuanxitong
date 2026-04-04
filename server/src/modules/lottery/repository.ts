@@ -64,7 +64,10 @@ export async function upsertPrizes(tenantId: string | null, prizes: Omit<Lottery
       const stockEnabled = (p as any).stock_enabled ? 1 : 0;
       const stockTotal = Number.isFinite(Number((p as any).stock_total)) ? Math.floor(Number((p as any).stock_total)) : -1;
       const dailyStockLimit = Number.isFinite(Number((p as any).daily_stock_limit)) ? Math.floor(Number((p as any).daily_stock_limit)) : -1;
-      const prizeCost = Math.max(0, Number((p as any).prize_cost) || 0);
+      const explicitCost = Number((p as any).prize_cost);
+      const prizeCost = Number.isFinite(explicitCost) && explicitCost > 0
+        ? explicitCost
+        : p.type === 'points' ? Math.max(0, Number(p.value) || 0) : 0;
       await conn.query(
         `INSERT INTO lottery_prizes
            (id, tenant_id, name, type, value, description, probability, display_probability,

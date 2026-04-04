@@ -460,7 +460,12 @@ export default function LuckySpinTab({
                   <div className="space-y-0.5">
                     <select
                       value={item.type}
-                      onChange={(e) => updateLotteryPrize(idx, { type: e.target.value as LotteryPrizeType, value: e.target.value === 'none' ? 0 : item.value })}
+                      onChange={(e) => {
+                        const newType = e.target.value as LotteryPrizeType;
+                        const newValue = newType === 'none' ? 0 : item.value;
+                        const autoCost = newType === 'points' ? Math.max(0, Number(newValue) || 0) : item.prize_cost;
+                        updateLotteryPrize(idx, { type: newType, value: newValue, prize_cost: autoCost });
+                      }}
                       className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                     >
                       <option value="points">{t('积分', 'Points')}</option>
@@ -483,7 +488,12 @@ export default function LuckySpinTab({
                         type="number"
                         min={0}
                         value={item.value}
-                        onChange={(e) => updateLotteryPrize(idx, { value: Math.max(0, Number(e.target.value || 0)) })}
+                        onChange={(e) => {
+                          const newVal = Math.max(0, Number(e.target.value || 0));
+                          const patch: Partial<LotteryPrize> = { value: newVal };
+                          if (item.type === 'points') patch.prize_cost = newVal;
+                          updateLotteryPrize(idx, patch);
+                        }}
                         className="w-28"
                         placeholder={t("如：10", "e.g. 10")}
                       />
@@ -608,7 +618,10 @@ export default function LuckySpinTab({
                       className="w-24 font-mono text-sm"
                       placeholder="0"
                     />
-                    <p className="text-[10px] text-muted-foreground/60 px-0.5">{t("发奖成本（积分）", "Prize cost (pts)")}</p>
+                    <p className="text-[10px] text-muted-foreground/60 px-0.5">
+                      {t("发奖成本（积分）", "Prize cost (pts)")}
+                      {item.type === 'points' && <span className="ml-1 text-blue-500">{t("积分类自动同步", "auto-synced")}</span>}
+                    </p>
                   </div>
                 </div>
 
