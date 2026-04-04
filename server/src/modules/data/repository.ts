@@ -1450,6 +1450,7 @@ export async function listActivityDataRepository(tenantId: string | null): Promi
   memberActivities: unknown[];
   pointsLedgerData: unknown[];
   pointsAccountsData: unknown[];
+  spinCreditsData: unknown[];
 }> {
   if (!tenantId) {
     return { gifts: [], referrals: [], memberActivities: [], pointsLedgerData: [], pointsAccountsData: [], spinCreditsData: [] };
