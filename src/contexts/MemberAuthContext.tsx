@@ -251,7 +251,7 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     const timeout = setTimeout(() => {
       if (!cancelled) setSessionVerifying(false);
-    }, 4000);
+    }, 1500);
     memberGetInfo(cachedMember.id)
       .then((serverMember) => {
         if (cancelled) return;

@@ -26,6 +26,9 @@ const setPasswordSchema = z.object({
 const router = Router();
 
 router.post('/signin', memberSignInLimiter, validate({ body: signInSchema }), memberSignInController);
+router.get('/signin', (_req, res) => {
+  res.status(405).json({ success: false, code: 'METHOD_NOT_ALLOWED', message: 'Use POST to sign in' });
+});
 router.post('/set-password', memberAuthMiddleware, validate({ body: setPasswordSchema }), memberSetPasswordController);
 router.get('/info', memberAuthMiddleware, memberGetInfoController);
 router.post('/info', memberAuthMiddleware, memberGetInfoController);
