@@ -42,6 +42,7 @@ import { useExportConfirm } from "@/hooks/useExportConfirm";
 import { exportToCSV, formatNumberForExport, formatDateTimeForExport } from "@/lib/exportUtils";
 import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
 import { repairUtf8MisdecodedAsLatin1 } from "@/lib/utf8MojibakeRepair";
+import type { TimeRange } from "@/components/member/MemberActivityFilters";
 
 /** 备注：库内可能为 UTF-8 字节被按 Latin-1 存入的乱码，展示前统一修复 */
 function formatPointsLedgerDescription(d: string | null | undefined): string {
@@ -130,6 +131,9 @@ export default function PointsTransactionsTab({
   const [filterCurrency, setFilterCurrency] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [timeRange, setTimeRange] = useState<TimeRange>("today");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -137,6 +141,33 @@ export default function PointsTransactionsTab({
 
   const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : internalSearchTerm;
   const setSearchTerm = onSearchChange || setInternalSearchTerm;
+
+  const timeRangeDates = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    switch (timeRange) {
+      case "all": return { start: null as Date | null, end: null as Date | null };
+      case "today": return { start: todayStart, end: todayEnd };
+      case "yesterday": {
+        const ys = new Date(todayStart); ys.setDate(ys.getDate() - 1);
+        const ye = new Date(todayEnd); ye.setDate(ye.getDate() - 1);
+        return { start: ys, end: ye };
+      }
+      case "thisMonth": return { start: new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0), end: todayEnd };
+      case "lastMonth": {
+        return { start: new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0), end: new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999) };
+      }
+      case "custom":
+        if (customStart && customEnd) {
+          const s = new Date(customStart); s.setHours(0,0,0,0);
+          const e = new Date(customEnd); e.setHours(23,59,59,999);
+          return { start: s, end: e };
+        }
+        return { start: null as Date | null, end: null as Date | null };
+      default: return { start: null as Date | null, end: null as Date | null };
+    }
+  }, [timeRange, customStart, customEnd]);
 
   // 计算带累计积分的流水记录
   const ledgerWithBalance = useMemo(() => {
@@ -186,6 +217,14 @@ export default function PointsTransactionsTab({
     );
     
     return sorted.filter((entry) => {
+      // 时间范围筛选
+      if (timeRangeDates.start || timeRangeDates.end) {
+        const d = new Date(entry.created_at);
+        if (isNaN(d.getTime())) return false;
+        if (timeRangeDates.start && d < timeRangeDates.start) return false;
+        if (timeRangeDates.end && d > timeRangeDates.end) return false;
+      }
+
       const q = searchTerm.toLowerCase().trim();
       const matchesSearch = 
         String(entry.member_code ?? '').toLowerCase().includes(q) ||
@@ -216,7 +255,7 @@ export default function PointsTransactionsTab({
       
       return matchesSearch && matchesCurrency && matchesType && matchesStatus;
     });
-  }, [ledgerWithBalance, searchTerm, filterCurrency, filterType, filterStatus]);
+  }, [ledgerWithBalance, searchTerm, filterCurrency, filterType, filterStatus, timeRangeDates]);
 
   // Paginated ledger
   const paginatedLedger = useMemo(() => {
@@ -229,7 +268,7 @@ export default function PointsTransactionsTab({
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterCurrency, filterType, filterStatus, pageSize]);
+  }, [searchTerm, filterCurrency, filterType, filterStatus, pageSize, timeRange]);
 
   const formatDateTime = (dateStr: string) => {
     return formatBeijingTime(dateStr);
@@ -417,6 +456,26 @@ export default function PointsTransactionsTab({
                 </div>
                 {searchError && <span className="text-xs text-destructive whitespace-nowrap">{searchError}</span>}
               </div>
+              <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
+                <SelectTrigger className="w-28">
+                  <SelectValue placeholder={t("时间范围", "Time Range")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("全部", "All")}</SelectItem>
+                  <SelectItem value="today">{t("今天", "Today")}</SelectItem>
+                  <SelectItem value="yesterday">{t("昨天", "Yesterday")}</SelectItem>
+                  <SelectItem value="thisMonth">{t("本月", "This Month")}</SelectItem>
+                  <SelectItem value="lastMonth">{t("上月", "Last Month")}</SelectItem>
+                  <SelectItem value="custom">{t("自定义", "Custom")}</SelectItem>
+                </SelectContent>
+              </Select>
+              {timeRange === "custom" && (
+                <>
+                  <Input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="w-36" />
+                  <span className="text-muted-foreground">-</span>
+                  <Input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="w-36" />
+                </>
+              )}
               <Select value={filterCurrency} onValueChange={setFilterCurrency}>
                 <SelectTrigger className="w-28">
                   <SelectValue placeholder={t("币种", "Currency")} />

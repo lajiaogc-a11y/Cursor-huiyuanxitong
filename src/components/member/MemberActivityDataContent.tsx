@@ -69,6 +69,7 @@ import { addGiftAmount, deductAccumulatedProfit } from "@/hooks/useMemberActivit
 import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
 import { trackRender } from "@/lib/performanceUtils";
 import { useMembers } from "@/hooks/useMembers";
+import { usePointsLedger, type PointsLedgerEntry } from "@/hooks/usePointsLedger";
 import { useActivityDataContent } from "@/hooks/useActivityDataContent";
 import { TablePageSkeleton } from "@/components/skeletons/TablePageSkeleton";
 import { generateEnglishCopyText, refreshCopySettings } from "@/components/CopySettingsTab";
@@ -272,6 +273,8 @@ export default function MemberActivityDataContent() {
   const useMyTenantRpc = !!(effectiveTenantId && employee?.tenant_id && effectiveTenantId === employee.tenant_id);
   // 使用 useMembers 与会员管理保持一致（含租户过滤），避免活动数据与会员管理会员数量不一致
   const { members: membersFromHook } = useMembers();
+  // 详细弹窗使用积分明细同源数据（usePointsLedger 合并了 points_ledger + points_log）
+  const { entries: pointsLedgerEntries } = usePointsLedger();
   // react-query 缓存，页面切换秒开
   const {
     orders,
@@ -286,7 +289,7 @@ export default function MemberActivityDataContent() {
     isLoading: activityDataLoading,
     refetch: refetchActivityData,
   } = useActivityDataContent(effectiveTenantId, useMyTenantRpc);
-  const [timeRange, setTimeRange] = useState<TimeRange>("today");
+  const [timeRange, setTimeRange] = useState<TimeRange>("thisMonth");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -690,18 +693,21 @@ export default function MemberActivityDataContent() {
     setCurrentPage(1);
   }, [searchTerm, timeRange, customStart, customEnd, pageSize]);
 
-  // 获取会员的完整积分流水 — member_id 优先匹配所有类型，member_code / phone 兜底
-  const getMemberPointsHistory = (memberCode: string) => {
+  // 获取会员的完整积分流水 — 使用 usePointsLedger 同源数据（与积分明细一致）
+  const getMemberPointsHistory = (memberCode: string): PointsLedgerEntry[] => {
     const member = members.find(m => m.member_code === memberCode);
     const phoneNumber = member?.phone_number || '';
     const mid = member?.id;
 
-    return pointsLedgerData
+    const byId = new Map(membersFromHook.map(m => [m.id, m]));
+    return pointsLedgerEntries
       .filter((e) => {
-        if (mid && e.member_id === mid) return true;
-        if (e.member_code === memberCode) return true;
-        const tt = String(e.transaction_type || e.type || '').toLowerCase();
-        if (phoneNumber && e.phone_number === phoneNumber && (tt === 'referral_1' || tt === 'referral_2')) return true;
+        const eMid = e.member_id || '';
+        if (mid && eMid === mid) return true;
+        const eMc = e.member_code || (eMid ? byId.get(eMid)?.memberCode : '') || '';
+        if (eMc === memberCode) return true;
+        const ePh = e.phone_number || (eMid ? byId.get(eMid)?.phoneNumber : '') || '';
+        if (phoneNumber && ePh === phoneNumber) return true;
         return false;
       })
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
