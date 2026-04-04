@@ -982,11 +982,7 @@ export default function MemberDashboard() {
                 >
                   <Users className="h-[22px] w-[22px] text-[hsl(var(--pu-m-bg-1))]" strokeWidth={2} aria-hidden />
                 </div>
-                {(member?.invite_success_lifetime_count ?? 0) > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-pu-emerald px-1 text-[10px] font-bold leading-none text-white shadow">
-                    +{member!.invite_success_lifetime_count}
-                  </span>
-                )}
+                
               </div>
               <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))] transition group-hover:text-[hsl(var(--pu-m-text))]">
                 {t("邀请好友", "Invite")}

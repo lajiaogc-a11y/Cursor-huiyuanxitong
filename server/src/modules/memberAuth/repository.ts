@@ -250,17 +250,37 @@ export async function grantReferralSpinsOnFirstLogin(memberId: string): Promise<
     if ((idempRows as ResultSetHeader).affectedRows !== 1) return;
 
     const [portalRows] = await conn.query<RowDataPacket[]>(
-      `SELECT invite_reward_spins FROM member_portal_settings WHERE tenant_id = ? LIMIT 1`,
+      `SELECT invite_reward_spins, daily_invite_reward_limit FROM member_portal_settings WHERE tenant_id = ? LIMIT 1`,
       [regEvent.tenant_id],
     );
-    const rewardSpins = Number((portalRows[0] as { invite_reward_spins?: number } | undefined)?.invite_reward_spins ?? 3);
+    const psRow = portalRows[0] as { invite_reward_spins?: number; daily_invite_reward_limit?: number } | undefined;
+    const rewardSpins = Number(psRow?.invite_reward_spins ?? 3);
     if (rewardSpins <= 0) return;
 
-    await conn.query(
-      'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
-      [regEvent.referrer_id, rewardSpins, 'referral'],
-    );
-    await incrementLotterySpinBalanceConn(conn, regEvent.referrer_id, rewardSpins);
+    const dailyInviteCap = Math.max(0, Number(psRow?.daily_invite_reward_limit ?? 0));
+
+    let referrerGranted = true;
+    if (dailyInviteCap > 0) {
+      const [sumRows] = await conn.query(
+        `SELECT COALESCE(SUM(amount), 0) AS total FROM spin_credits
+         WHERE member_id = ? AND source = 'referral'
+           AND created_at >= CURDATE()
+           AND created_at < DATE_ADD(CURDATE(), INTERVAL 1 DAY)`,
+        [regEvent.referrer_id],
+      );
+      const todayReferralSpins = Number((sumRows as { total: number }[])[0]?.total ?? 0);
+      if (todayReferralSpins + rewardSpins > dailyInviteCap) {
+        referrerGranted = false;
+      }
+    }
+
+    if (referrerGranted) {
+      await conn.query(
+        'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
+        [regEvent.referrer_id, rewardSpins, 'referral'],
+      );
+      await incrementLotterySpinBalanceConn(conn, regEvent.referrer_id, rewardSpins);
+    }
 
     await conn.query(
       'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',

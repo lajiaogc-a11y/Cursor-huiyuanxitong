@@ -370,9 +370,9 @@ export default function MemberLogin() {
     const raw = displaySettings.login_carousel_slides || [];
     const custom: LoginHeroSlide[] = raw
       .map((s, i) => {
-        const image_url = (s.image_url || "").trim();
-        const title = (s.title_en || s.title_zh).trim();
-        const body = (s.body_en || s.body_zh).trim();
+        const image_url = String(s.image_url ?? "").trim();
+        const title = String(s.title_en || s.title_zh || "").trim();
+        const body = String(s.body_en || s.body_zh || "").trim();
         if (!image_url && !title && !body) return null;
         return { kind: "custom" as const, id: `c-${i}`, image_url, title, body };
       })

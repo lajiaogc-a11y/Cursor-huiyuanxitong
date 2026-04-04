@@ -31,13 +31,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
         classNames: memberSurface
           ? {
               toast:
-                "group toast border-0 bg-transparent text-[#F8FAFC] shadow-none backdrop-blur-0",
-              title: "group-[.toast]:font-semibold group-[.toast]:text-[#F8FAFC]",
-              description: "group-[.toast]:text-[hsl(var(--pu-m-text-dim)/0.88)]",
+                "group toast border-0 bg-transparent shadow-none backdrop-blur-0",
+              title: "group-[.toast]:font-semibold",
+              description: "",
               actionButton:
                 "group-[.toast]:rounded-lg group-[.toast]:bg-[hsl(var(--pu-gold))] group-[.toast]:text-[hsl(var(--pu-primary-foreground))] group-[.toast]:font-semibold",
               cancelButton:
-                "group-[.toast]:rounded-lg group-[.toast]:border group-[.toast]:border-white/15 group-[.toast]:bg-white/5 group-[.toast]:text-[hsl(var(--pu-m-text-dim)/0.95)]",
+                "group-[.toast]:rounded-lg group-[.toast]:border group-[.toast]:border-white/15 group-[.toast]:bg-white/5",
             }
           : {
               toast:

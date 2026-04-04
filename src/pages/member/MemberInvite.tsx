@@ -120,15 +120,25 @@ export default function MemberInvite() {
   };
 
   const shareWhatsApp = () => {
-    const prefixText = prefix ? `${prefix}\n` : "";
-    const msg = `${prefixText}Join ${portalSettings.company_name || "FastGC"}! Register & log in to get ${inviteRewardSpins} free spins to win prizes! Click: ${inviteLink}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+    if (!inviteLink) return;
+    try {
+      const prefixText = prefix ? `${prefix}\n` : "";
+      const msg = `${prefixText}Join ${portalSettings.company_name || "FastGC"}! Register & log in to get ${inviteRewardSpins} free spins to win prizes! Click: ${inviteLink}`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+    } catch {
+      notify.error(t("无法打开分享页面", "Unable to open share page"));
+    }
   };
 
   const shareTelegram = () => {
-    const prefixText = prefix ? `${prefix}\n` : "";
-    const msg = `${prefixText}Join ${portalSettings.company_name || "FastGC"}! Register & log in to get ${inviteRewardSpins} free spins to win prizes!`;
-    window.open(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+    if (!inviteLink) return;
+    try {
+      const prefixText = prefix ? `${prefix}\n` : "";
+      const msg = `${prefixText}Join ${portalSettings.company_name || "FastGC"}! Register & log in to get ${inviteRewardSpins} free spins to win prizes!`;
+      window.open(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+    } catch {
+      notify.error(t("无法打开分享页面", "Unable to open share page"));
+    }
   };
 
   const downloadInvitePoster = useCallback(async () => {

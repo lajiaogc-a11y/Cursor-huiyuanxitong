@@ -225,8 +225,17 @@ export function useMemberDashboardDailyTasks({
         const shareNonce = nonceRes.nonce;
 
         // Step 2: Open the share page
-        const inviteLink = `${window.location.origin}/invite/${inviteToken || invitePathFallback || ""}`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(buildShareInviteText(inviteLink))}`, "_blank", "noopener,noreferrer");
+        const code = inviteToken || invitePathFallback || "";
+        if (!code) {
+          notifyError(["邀请链接未就绪，请稍后再试", "Invite link not ready, please try again"]);
+          return;
+        }
+        const inviteLink = `${window.location.origin}/invite/${code}`;
+        try {
+          window.open(`https://wa.me/?text=${encodeURIComponent(buildShareInviteText(inviteLink))}`, "_blank", "noopener,noreferrer");
+        } catch {
+          notifyError(["无法打开分享页面", "Unable to open share page"]);
+        }
 
         // Step 3: Claim reward with the one-time nonce
         const r = await memberClaimShareReward(memberId, shareNonce);
