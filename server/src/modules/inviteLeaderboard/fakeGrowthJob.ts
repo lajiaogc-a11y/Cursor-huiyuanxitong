@@ -85,8 +85,7 @@ async function startNewCycle(
      WHERE tenant_id = ? AND next_growth_at IS NOT NULL`,
     [tenantId],
   );
-  const earliest = (nextRow[0] as Record<string, unknown> | undefined)?.earliest;
-  const nextStr = earliest != null ? String(earliest) : null;
+  const earliest = (nextRow[0] as Record<string, unknown> | undefined)?.earliest ?? null;
 
   await conn.query(
     `UPDATE invite_leaderboard_tenant_growth_schedule
@@ -94,7 +93,7 @@ async function startNewCycle(
          next_fake_growth_at = ?,
          updated_at = NOW(3)
      WHERE tenant_id = ?`,
-    [cycleStartStr, nextStr, tenantId],
+    [cycleStartStr, earliest, tenantId],
   );
 }
 
@@ -184,8 +183,7 @@ async function runGrowthInTransaction(conn: PoolConnection): Promise<{
          WHERE tenant_id = ? AND next_growth_at IS NOT NULL`,
         [tenantId],
       );
-      const earliest = (nextRow[0] as Record<string, unknown> | undefined)?.earliest;
-      const nextStr = earliest != null ? String(earliest) : null;
+      const earliest = (nextRow[0] as Record<string, unknown> | undefined)?.earliest ?? null;
 
       await conn.query(
         `UPDATE invite_leaderboard_tenant_growth_schedule
@@ -193,7 +191,7 @@ async function runGrowthInTransaction(conn: PoolConnection): Promise<{
              next_fake_growth_at = ?,
              updated_at = NOW(3)
          WHERE tenant_id = ?`,
-        [nextStr, tenantId],
+        [earliest, tenantId],
       );
     }
 
