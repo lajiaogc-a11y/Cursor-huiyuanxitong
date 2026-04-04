@@ -1543,7 +1543,7 @@ export async function listActivityDataRepository(tenantId: string | null): Promi
       [tenantId]
     ),
     query(
-      `SELECT sc.member_id, SUM(sc.amount) AS total_spins, source
+      `SELECT sc.member_id, SUM(sc.amount) AS total_spins, sc.source
        FROM spin_credits sc
        INNER JOIN members m ON m.id = sc.member_id AND m.tenant_id = ?
        GROUP BY sc.member_id, sc.source`,
