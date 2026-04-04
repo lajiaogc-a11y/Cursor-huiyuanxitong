@@ -323,7 +323,6 @@ export function usePointsLedger() {
     };
     const todayEntries = entries.filter(isToday);
 
-    const todayNetIssued = todayEntries.reduce((s, e) => s + e.points_earned, 0);
     const todayLotteryNet = todayEntries
       .filter(e => e.transaction_type === 'lottery')
       .reduce((s, e) => s + e.points_earned, 0);
@@ -333,6 +332,13 @@ export function usePointsLedger() {
         return txn === 'consumption' || txn === 'regular' || txn === 'usdt';
       })
       .reduce((s, e) => s + e.points_earned, 0);
+    const todayOtherNet = todayEntries
+      .filter(e => {
+        const txn = e.transaction_type;
+        return txn !== 'lottery' && txn !== 'consumption' && txn !== 'regular' && txn !== 'usdt';
+      })
+      .reduce((s, e) => s + e.points_earned, 0);
+    const todayNetIssued = todayLotteryNet + todayOrderNet + todayOtherNet;
 
     return {
       totalIssued,
@@ -345,6 +351,7 @@ export function usePointsLedger() {
       todayNetIssued,
       todayLotteryNet,
       todayOrderNet,
+      todayOtherNet,
     };
   };
 

@@ -371,13 +371,13 @@ export default function PointsTransactionsTab({
   return (
     <div className="flex flex-col h-full">
       {/* Today stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-2 shrink-0">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-2 shrink-0">
         <Card className="shadow-sm border-l-4 border-l-emerald-500">
           <CardContent className="py-2.5 px-4">
             <div className="text-xl font-bold text-emerald-600">{stats.todayNetIssued >= 0 ? '+' : ''}{stats.todayNetIssued.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">{t("今日净发放积分", "Today net points")}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
-              {t("今日实际发放（已扣除回收）", "Today's effective issuance (reversed deducted)")}
+              {t("= 抽奖 + 订单 + 其他", "= Lottery + Orders + Other")}
             </p>
           </CardContent>
         </Card>
@@ -396,6 +396,15 @@ export default function PointsTransactionsTab({
             <p className="text-xs text-muted-foreground">{t("今日订单发放", "Today order points")}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
               {t("订单消费积分净额", "Order consumption points (net)")}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm border-l-4 border-l-purple-500">
+          <CardContent className="py-2.5 px-4">
+            <div className={`text-xl font-bold ${stats.todayOtherNet >= 0 ? 'text-purple-600' : 'text-red-500'}`}>{stats.todayOtherNet >= 0 ? '+' : ''}{stats.todayOtherNet.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">{t("今日其他变动", "Today other changes")}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
+              {t("手动调整/兑换/签到等", "Manual/Redeem/Check-in etc.")}
             </p>
           </CardContent>
         </Card>
