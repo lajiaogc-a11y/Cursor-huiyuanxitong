@@ -239,17 +239,14 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
     const budgetEnabled = effectiveBudgetCap > 0;
 
     // ── 4. deny 策略 / RTP 前置拦截 ──
-    if (budgetEnabled) {
-      // RTP 超限检查：budgetUsed 已经 >= 有效预算
-      if (targetRtp > 0 && rawBudgetCap > 0 && budgetUsed >= effectiveBudgetCap && effectiveBudgetCap < rawBudgetCap) {
-        if (policy === 'deny') {
-          return { success: false, error: 'RTP_LIMIT_REACHED' };
-        }
-        // downgrade / fallback 继续执行，但 budgetRemaining ≤ 0 会被 budgetAwarePrizePick 处理
-      }
-      if (budgetRemaining <= 0 && policy === 'deny') {
-        return { success: false, error: 'BUDGET_EXCEEDED' };
-      }
+    // 注意：预算机制是否真正生效取决于"奖品是否有 prize_cost > 0"（anyPrizeHasCost，步骤 6 判断）。
+    // 若所有 prize_cost = 0，则 budgetEffective = false，步骤 6 走正常加权随机，不受 deny 限制。
+    // 因此此处的 deny 拦截仅适用于 budgetEffective = true 的情况，步骤 6 的 budgetAwarePrizePick
+    // 返回 null 时已包含 deny 逻辑，这里只保留 RTP 超限的 deny 快速返回（节省一次奖品查询）。
+    if (budgetEnabled && policy === 'deny' && budgetRemaining <= 0) {
+      // 快速返回，但实际上只有 prize_cost > 0 时才有意义；步骤 6 会做最终决定。
+      // 此处不直接返回，交由步骤 6 的 budgetEffective 检查来决定是否真正拒绝，
+      // 确保 prize_cost = 0 的配置不被误拦截。
     }
 
     // ── 5. 次数配额 ──
@@ -282,11 +279,17 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
     let hit: LotteryPrize;
     let budgetWarning: DrawResult['budget_warning'];
 
+    // 只有当奖品池中至少有一个 prize_cost > 0 时，预算机制才有意义。
+    // 若所有奖品 prize_cost = 0（默认），跳过 budgetAwarePrizePick，避免因管理员
+    // 误设 daily_reward_budget 导致奖品被意外压权。
+    const anyPrizeHasCost = prizes.some((p) => Number(p.prize_cost ?? 0) > 0);
+    const budgetEffective = budgetEnabled && anyPrizeHasCost;
+
     // Phase 3: 风控降级 → 直接强制保底
     if (riskDowngrade && nonePrize) {
       hit = nonePrize;
-    } else if (budgetEnabled) {
-      // Phase 2: 使用预算感知抽奖
+    } else if (budgetEffective) {
+      // Phase 2: 使用预算感知抽奖（仅当奖品有成本配置时才启用）
       const pickResult = budgetAwarePrizePick(prizes, {
         budgetRemaining,
         budgetCap: effectiveBudgetCap,
@@ -303,7 +306,7 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
         budgetWarning = 'RTP_LIMIT_REACHED';
       }
     } else {
-      // 无预算限制，使用原始加权随机
+      // 无预算限制（或奖品无成本配置），使用原始加权随机
       try {
         hit = pickLotteryPrizeByConfiguredProbability(prizes);
       } catch {

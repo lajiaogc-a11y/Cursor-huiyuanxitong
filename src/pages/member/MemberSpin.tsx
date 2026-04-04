@@ -196,6 +196,12 @@ export default function MemberSpin() {
   /** 定时刷新 / 切回前台时递增，与下拉刷新一样重新拉奖品与「概率说明」 */
   const [spinDataRefreshNonce, setSpinDataRefreshNonce] = useState(0);
   const highlightCancelRef = useRef<(() => void) | null>(null);
+  /**
+   * 记录最近一次抽奖 API 返回的时间戳（ms）。
+   * 用于防止"过期轮询响应覆盖正确的抽奖后状态"的竞态条件：
+   * 若轮询请求发起时间早于此值，则丢弃其配额数据（次数/已用）。
+   */
+  const lastDrawResponseAtRef = useRef(0);
 
   const [simFeedItems, setSimFeedItems] = useState<SpinSimFeedItem[]>([]);
   /** 每次 feed 数据真正变化时递增，用作滚动轨道 key 触发动画平滑重启 */
@@ -292,6 +298,8 @@ export default function MemberSpin() {
 
   useEffect(() => {
     if (!member) return;
+    // 记录本次 fetch 的发起时间，用于检测是否已过期（抽奖发生后的旧请求）
+    const fetchStartedAt = Date.now();
     setLoadError(false);
     if (!_spinCache.has(member.id)) setQuotaLoading(true);
     loadMemberSpinPrizesAndQuota(member.id)
@@ -300,8 +308,12 @@ export default function MemberSpin() {
         setProbabilityNotice(probability_notice ?? null);
         const grid = pickGridPrizesForSpinPage(raw);
         if (grid.length > 0) setPrizes(grid);
-        setRemaining(quotaRemaining);
-        setQuotaUsedToday(used);
+        // 只有当此次 fetch 发起时间晚于最近一次抽奖响应时间，才更新配额显示。
+        // 防止竞态条件：若 30s 轮询在抽奖之前发出，但在抽奖后才回来，会覆盖正确的抽奖后次数。
+        if (fetchStartedAt >= lastDrawResponseAtRef.current) {
+          setRemaining(quotaRemaining);
+          setQuotaUsedToday(used);
+        }
         setQuotaLoading(false);
         _spinCache.set(member.id, {
           prizes: grid.length > 0 ? grid : _spinCache.get(member.id)?.prizes ?? [],
@@ -382,6 +394,8 @@ export default function MemberSpin() {
       setShowResult(false);
       try {
         const r = await executeMemberLotteryDraw(member.id);
+        // 标记抽奖 API 响应时间，使此时间之前发出的轮询不会覆盖配额显示
+        lastDrawResponseAtRef.current = Date.now();
         if (!r.success) {
           if (r.error === "LOTTERY_DISABLED")
             notifyError(t("抽奖暂时关闭", "Lottery is currently closed"));
