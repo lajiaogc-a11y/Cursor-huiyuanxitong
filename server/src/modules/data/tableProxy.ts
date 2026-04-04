@@ -77,8 +77,14 @@ export async function tableSelectController(req: AuthenticatedRequest, res: Resp
   /** 防止恶意或误配超大 limit 拖垮 DB；不改变常规分页（≤20000）的语义 */
   const rawLim = params.limit ? parseInt(params.limit, 10) : NaN;
   const cappedLim = Number.isFinite(rawLim) && rawLim > 0 ? Math.min(rawLim, 20000) : NaN;
-  const limit = Number.isFinite(cappedLim) ? `LIMIT ${cappedLim}` : '';
-  const offset = params.offset ? `OFFSET ${parseInt(params.offset, 10)}` : '';
+  const rawOff = params.offset ? parseInt(params.offset, 10) : NaN;
+  const hasLimit = Number.isFinite(cappedLim);
+  const hasOffset = Number.isFinite(rawOff) && rawOff > 0;
+  const limit = hasLimit ? 'LIMIT ?' : '';
+  const offset = hasOffset ? 'OFFSET ?' : '';
+  const paginationVals: number[] = [];
+  if (hasLimit) paginationVals.push(cappedLim);
+  if (hasOffset) paginationVals.push(rawOff);
   const selectCols = params.select || '*';
   const reverseAlias = getReverseAliasMap(table);
 
@@ -113,20 +119,20 @@ export async function tableSelectController(req: AuthenticatedRequest, res: Resp
       const total = countRows[0]?.total ?? 0;
 
       if (params.single === 'true' || !limit) {
-        const rows = await query(`SELECT ${safeCols} FROM \`${table}\` ${where} ${order} ${limit} ${offset}`, values);
+        const rows = await query(`SELECT ${safeCols} FROM \`${table}\` ${where} ${order} ${limit} ${offset}`, [...values, ...paginationVals]);
         if (params.single === 'true') {
           res.json({ data: rows[0] ?? null, error: null, count: total });
         } else {
           res.json({ data: rows, error: null, count: total });
         }
       } else {
-        const rows = await query(`SELECT ${safeCols} FROM \`${table}\` ${where} ${order} ${limit} ${offset}`, values);
+        const rows = await query(`SELECT ${safeCols} FROM \`${table}\` ${where} ${order} ${limit} ${offset}`, [...values, ...paginationVals]);
         res.json({ data: rows, error: null, count: total });
       }
       return;
     }
 
-    let rows = await query(`SELECT ${safeCols} FROM \`${table}\` ${where} ${order} ${limit} ${offset}`, values);
+    let rows = await query(`SELECT ${safeCols} FROM \`${table}\` ${where} ${order} ${limit} ${offset}`, [...values, ...paginationVals]);
 
     // SELECT * 时，将数据库列名映射回前端期望的列名
     if (selectCols === '*' && reverseAlias) {
@@ -1425,8 +1431,8 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
            WHERE (o.member_id = ? OR (o.phone_number IS NOT NULL AND o.phone_number = ?))
            AND COALESCE(o.is_deleted, 0) = 0
            ORDER BY o.created_at DESC
-           LIMIT ${ordLim} OFFSET ${ordOff}`,
-          [memberId, phone]
+           LIMIT ? OFFSET ?`,
+          [memberId, phone, ordLim, ordOff]
         );
         result = { rows: orders, total: ordTotal };
         break;
@@ -2900,8 +2906,8 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
         const lim = Math.min(200, Math.max(1, Number(params.p_limit ?? 50)));
         const rows = await query<Record<string, unknown>>(
           `SELECT id, scope, tenant_id, title, message, type, link, created_by, created_at
-           FROM system_announcements ORDER BY created_at DESC LIMIT ${lim}`,
-          [],
+           FROM system_announcements ORDER BY created_at DESC LIMIT ?`,
+          [lim],
         );
         result = rows.map((r) => ({
           ...r,

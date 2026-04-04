@@ -235,7 +235,7 @@ function asPermissionBool(v: unknown): boolean {
 
 // 🔧 会话级权限缓存（性能优化）
 const permissionCache = new Map<string, boolean>();
-let cacheInvalidationSubscribed = false;
+let cacheInvalidationRefCount = 0;
 let cacheInvalidationTimer: ReturnType<typeof setInterval> | null = null;
 
 // 清空权限缓存
@@ -247,21 +247,24 @@ export function useAuditWorkflow() {
   const { employee } = useAuth();
   const { t } = useLanguage();
   
-  // 订阅权限变更以清空缓存 - 轮询替代 Realtime
+  // 订阅权限变更以清空缓存 - 引用计数保证只有一个 interval 运行
   useEffect(() => {
-    if (cacheInvalidationSubscribed) return;
-    cacheInvalidationSubscribed = true;
-    
-    cacheInvalidationTimer = setInterval(() => {
-      clearPermissionCache();
-    }, 30000);
+    cacheInvalidationRefCount++;
+    if (cacheInvalidationRefCount === 1) {
+      cacheInvalidationTimer = setInterval(() => {
+        clearPermissionCache();
+      }, 30000);
+    }
     
     return () => {
-      if (cacheInvalidationTimer) {
-        clearInterval(cacheInvalidationTimer);
-        cacheInvalidationTimer = null;
+      cacheInvalidationRefCount--;
+      if (cacheInvalidationRefCount <= 0) {
+        cacheInvalidationRefCount = 0;
+        if (cacheInvalidationTimer) {
+          clearInterval(cacheInvalidationTimer);
+          cacheInvalidationTimer = null;
+        }
       }
-      cacheInvalidationSubscribed = false;
     };
   }, []);
 

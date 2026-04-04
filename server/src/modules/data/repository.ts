@@ -1454,14 +1454,15 @@ function mergePointsLedgerAndLog(
 ): Record<string, unknown>[] {
   if (logRows.length === 0) return ledgerRows;
 
-  const ledgerByMember = new Map<string, { ts: number; amt: number }[]>();
+  const ledgerByMember = new Map<string, { ts: number; amt: number; type: string }[]>();
   for (const r of ledgerRows) {
     const mid = String(r.member_id ?? '');
     if (!mid) continue;
     const ts = new Date(String(r.created_at ?? '')).getTime();
     const amt = Math.abs(Number(r.amount ?? 0));
+    const type = String(r.type ?? r.transaction_type ?? '');
     if (!ledgerByMember.has(mid)) ledgerByMember.set(mid, []);
-    ledgerByMember.get(mid)!.push({ ts, amt });
+    ledgerByMember.get(mid)!.push({ ts, amt, type });
   }
 
   const deduped: Record<string, unknown>[] = [];
@@ -1469,9 +1470,10 @@ function mergePointsLedgerAndLog(
     const mid = String(r.member_id ?? '');
     const ts = new Date(String(r.created_at ?? '')).getTime();
     const amt = Math.abs(Number(r.amount ?? 0));
+    const type = String(r.type ?? r.transaction_type ?? '');
     const existing = ledgerByMember.get(mid);
     const hasDup = existing?.some(
-      (e) => Math.abs(e.ts - ts) <= 2000 && Math.abs(e.amt - amt) < 0.02,
+      (e) => Math.abs(e.ts - ts) <= 500 && Math.abs(e.amt - amt) < 0.02 && e.type === type,
     );
     if (!hasDup) deduped.push(r);
   }

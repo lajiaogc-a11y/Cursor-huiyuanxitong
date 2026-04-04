@@ -28,12 +28,13 @@ import { evaluateDrawRisk, loadRiskThresholds, recordDrawBurst, type RiskResult 
 // ── 内存防抖（仍保留作为热路径快速拦截，DB UNIQUE INDEX 是真正保障）──
 const recentDraws = new Map<string, number>();
 const DRAW_IDEMPOTENCY_WINDOW_MS = 2000;
-setInterval(() => {
+const _drawGcTimer = setInterval(() => {
   const now = Date.now();
   for (const [key, ts] of recentDraws) {
     if (now - ts > DRAW_IDEMPOTENCY_WINDOW_MS * 3) recentDraws.delete(key);
   }
 }, 10_000);
+if (typeof process !== 'undefined') process.once?.('beforeExit', () => clearInterval(_drawGcTimer));
 
 export interface DrawResult {
   success: boolean;

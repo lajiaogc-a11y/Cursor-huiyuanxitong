@@ -74,7 +74,7 @@ function peekCount(map: Map<string, SlidingBucket>, key: string, windowMs: numbe
   return countInWindow(bucket, windowMs);
 }
 
-setInterval(() => {
+const _riskGcTimer = setInterval(() => {
   const cutoff = Date.now() - BURST_WINDOW_MS * 2;
   for (const [key, bucket] of accountBurstMap) {
     bucket.timestamps = bucket.timestamps.filter((t) => t > cutoff);
@@ -85,6 +85,7 @@ setInterval(() => {
     if (bucket.timestamps.length === 0) ipBurstMap.delete(key);
   }
 }, GC_INTERVAL_MS);
+if (typeof process !== 'undefined') process.once?.('beforeExit', () => clearInterval(_riskGcTimer));
 
 /* ──────────── 加载风控设置 ──────────── */
 
