@@ -73,7 +73,7 @@ export async function migrateLotteryTables(): Promise<void> {
     CREATE TABLE IF NOT EXISTS lottery_settings (
       id                CHAR(36) NOT NULL DEFAULT (UUID()) PRIMARY KEY,
       tenant_id         CHAR(36) NULL UNIQUE,
-      daily_free_spins  INT NOT NULL DEFAULT 1,
+      daily_free_spins  INT NOT NULL DEFAULT 0,
       enabled           TINYINT(1) NOT NULL DEFAULT 1,
       updated_at        DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci

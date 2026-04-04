@@ -637,7 +637,7 @@ export default function MemberPortalSettingsPage() {
   const [uploading, setUploading] = useState(false);
   const [lotteryPrizes, setLotteryPrizes] = useState<LotteryPrize[]>([]);
   const [lotterySettings, setLotterySettings] = useState<LotterySettings>({
-    daily_free_spins: 1,
+    daily_free_spins: 0,
     enabled: true,
     probability_notice: null,
     order_completed_spin_enabled: false,
@@ -850,7 +850,7 @@ export default function MemberPortalSettingsPage() {
 
         let lotteryPrizesData: LotteryPrize[] = [];
         let lotterySettingsData: LotterySettings = {
-          daily_free_spins: 1,
+          daily_free_spins: 0,
           enabled: true,
           probability_notice: null,
           order_completed_spin_enabled: false,

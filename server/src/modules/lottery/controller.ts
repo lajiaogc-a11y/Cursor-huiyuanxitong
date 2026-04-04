@@ -311,7 +311,7 @@ export async function adminSaveSettingsController(req: AuthenticatedRequest, res
   const body = req.body || {};
   const { daily_free_spins, enabled } = body;
   const parsed = Number(daily_free_spins);
-  const n = Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 1;
+  const n = Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0;
   const noticePatch = Object.prototype.hasOwnProperty.call(body, 'probability_notice')
     ? body.probability_notice == null || String(body.probability_notice).trim() === ''
       ? null

@@ -1437,5 +1437,14 @@ export async function migrateSchemaPatches(): Promise<void> {
     console.warn('[schema-patch] balance reconciliation skipped:', e instanceof Error ? e.message : e);
   }
 
+  // ── Fix lottery_settings column default from 1 to 0 (idempotent) ──
+  try {
+    await execute(
+      `ALTER TABLE lottery_settings MODIFY COLUMN daily_free_spins INT NOT NULL DEFAULT 0`,
+    );
+  } catch (e: unknown) {
+    console.warn('[schema-patch] lottery_settings daily_free_spins default fix:', ((e as Error).message || '').slice(0, 120));
+  }
+
   console.log('[schema-patch] done.');
 }

@@ -298,7 +298,7 @@ export async function adminGetLotterySettings(): Promise<LotterySettings> {
       };
     },
     {
-      daily_free_spins: 1,
+      daily_free_spins: 0,
       enabled: false,
       probability_notice: null,
       order_completed_spin_enabled: false,
