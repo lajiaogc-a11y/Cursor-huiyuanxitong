@@ -25,15 +25,16 @@ import {
   type SpinCreditCategoryParam,
   type SpinCreditsLogRow,
 } from "@/services/members/memberPortalSettingsService";
-import { adminGetLotteryLogs, type LotteryLog } from "@/services/lottery/lotteryService";
+import { adminGetLotteryLogs, adminConfirmReward, type LotteryLog } from "@/services/lottery/lotteryService";
 import { cn } from "@/lib/utils";
 import {
   PaginationBar,
   portalSettingsEmptyShellClass,
   portalSettingsEmptyIconWrapClass,
 } from "../member-portal/shared";
-import { AdminSpinHistoryTab } from "../member-portal/AdminSpinHistoryTab";
 import { formatBeijingTime } from "@/lib/beijingTime";
+import { notify } from "@/lib/notifyHub";
+import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 const LOTTERY_ADMIN_LOGS_PAGE_SIZE = 50;
 const CHECKIN_ADMIN_PAGE_SIZE = 50;
 const SPIN_CREDITS_ADMIN_PAGE_SIZE = 50;
@@ -54,6 +55,16 @@ function lotteryLogMemberLabel(log: LotteryLog): string {
   const c = log.member_code?.trim();
   if (c) return c;
   return log.member_id;
+}
+
+function rewardStatusLabel(log: LotteryLog, t: (zh: string, en: string) => string) {
+  const st = log.reward_status ?? 'done';
+  const rt = log.reward_type ?? 'auto';
+  if (rt === 'none' || st === 'done') return { text: t("已完成", "Done"), className: "bg-green-50 text-green-700 border-green-200" };
+  if (st === 'pending' && rt === 'manual') return { text: t("待处理", "Pending"), className: "bg-amber-50 text-amber-700 border-amber-200" };
+  if (st === 'failed') return { text: t("发放失败", "Failed"), className: "bg-red-50 text-red-700 border-red-200" };
+  if (st === 'pending') return { text: t("处理中", "Processing"), className: "bg-blue-50 text-blue-700 border-blue-200" };
+  return { text: st, className: "" };
 }
 
 type ActivityDataSubKey = "lottery" | "checkin" | "spin_order" | "spin_share" | "spin_invite";
@@ -252,6 +263,7 @@ export function ActivityDataTab({ tenantId }: ActivityDataTabProps) {
   const [lotteryLogsTotal, setLotteryLogsTotal] = useState(0);
   const [lotteryLogsPage, setLotteryLogsPage] = useState(1);
   const [lotteryLogsLoading, setLotteryLogsLoading] = useState(false);
+  const [confirmingLogId, setConfirmingLogId] = useState<string | null>(null);
   const [checkInLogs, setCheckInLogs] = useState<PortalCheckInLogRow[]>([]);
   const [checkInTotal, setCheckInTotal] = useState(0);
   const [checkInPage, setCheckInPage] = useState(1);
@@ -289,6 +301,24 @@ export function ActivityDataTab({ tenantId }: ActivityDataTabProps) {
       }
     },
     [tenantId],
+  );
+
+  const handleConfirmReward = useCallback(
+    async (logId: string, action: 'done' | 'failed') => {
+      setConfirmingLogId(logId);
+      try {
+        await adminConfirmReward(logId, action, action === 'failed' ? '管理员拒绝' : undefined);
+        notify.success(action === 'done'
+          ? ["\u5956\u54C1\u5DF2\u786E\u8BA4\u53D1\u653E", "Prize confirmed"]
+          : ["\u5956\u54C1\u5DF2\u62D2\u7EDD", "Prize rejected"]);
+        void loadLotteryLogsPage(lotteryLogsPage, filters.lottery);
+      } catch {
+        notify.error(["\u64CD\u4F5C\u5931\u8D25", "Operation failed"]);
+      } finally {
+        setConfirmingLogId(null);
+      }
+    },
+    [loadLotteryLogsPage, lotteryLogsPage, filters],
   );
 
   const loadCheckInsPage = useCallback(
@@ -455,8 +485,8 @@ export function ActivityDataTab({ tenantId }: ActivityDataTabProps) {
         <div className="space-y-10">
           <p className="text-xs text-muted-foreground -mb-2">
             {t(
-              "会员每次抽奖均写入数据库（无条数上限）；此处按租户查询全部抽奖流水，支持分页。",
-              "Every spin is persisted with no cap; paginate through the full lottery history for this tenant.",
+              "积分与感谢参与类奖品系统自动发放；自定义奖品需在此手动「确认发放」或「拒绝」。",
+              "Points & thanks-for-playing prizes are auto-fulfilled; custom prizes require manual confirm/reject here.",
             )}
           </p>
           <Card>
@@ -493,21 +523,37 @@ export function ActivityDataTab({ tenantId }: ActivityDataTabProps) {
                 >
                   {isMobile ? (
                     <MobileCardList>
-                      {lotteryLogs.map((log) => (
-                        <MobileCard key={log.id} compact>
-                          <MobileCardHeader>
-                            <span className="font-medium text-sm truncate">{lotteryLogMemberLabel(log)}</span>
-                            <Badge variant="outline" className="text-[10px] shrink-0">
-                              {log.prize_type === "points" ? t("积分", "Points") : log.prize_type === "none" ? t("感谢参与", "Thanks") : t("自定义", "Custom")}
-                            </Badge>
-                          </MobileCardHeader>
-                          <MobileCardRow label={t("电话号码", "Phone")} value={log.phone_number || "—"} mono />
-                          <MobileCardRow label={t("会员编号", "Member ID")} value={log.member_code || "—"} mono />
-                          <MobileCardRow label={t("奖品", "Prize")} value={log.prize_name} highlight />
-                          <MobileCardRow label={t("积分值", "Points")} value={log.prize_value} mono />
-                          <MobileCardRow label={t("时间", "Time")} value={formatBeijingTime(log.created_at)} />
-                        </MobileCard>
-                      ))}
+                      {lotteryLogs.map((log) => {
+                        const st = rewardStatusLabel(log, t);
+                        const isPending = log.reward_status === 'pending' && log.reward_type === 'manual';
+                        const isConfirming = confirmingLogId === log.id;
+                        return (
+                          <MobileCard key={log.id} compact>
+                            <MobileCardHeader>
+                              <span className="font-medium text-sm truncate">{lotteryLogMemberLabel(log)}</span>
+                              <Badge variant="outline" className={cn("text-[10px] shrink-0", st.className)}>{st.text}</Badge>
+                            </MobileCardHeader>
+                            <MobileCardRow label={t("电话号码", "Phone")} value={log.phone_number || "—"} mono />
+                            <MobileCardRow label={t("会员编号", "Member ID")} value={log.member_code || "—"} mono />
+                            <MobileCardRow label={t("奖品", "Prize")} value={log.prize_name} highlight />
+                            <MobileCardRow label={t("类型", "Type")} value={log.prize_type === "points" ? t("积分", "Points") : log.prize_type === "none" ? t("感谢参与", "Thanks") : t("自定义", "Custom")} />
+                            <MobileCardRow label={t("积分值", "Points")} value={log.prize_value} mono />
+                            <MobileCardRow label={t("时间", "Time")} value={formatBeijingTime(log.created_at)} />
+                            {isPending && (
+                              <div className="flex gap-2 mt-2 px-1">
+                                <Button size="sm" className="h-7 flex-1 gap-1 text-xs" disabled={isConfirming} onClick={() => void handleConfirmReward(log.id, 'done')}>
+                                  {isConfirming ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                                  {t("确认发放", "Confirm")}
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 flex-1 gap-1 text-xs text-destructive" disabled={isConfirming} onClick={() => void handleConfirmReward(log.id, 'failed')}>
+                                  <XCircle className="h-3 w-3" />
+                                  {t("拒绝", "Reject")}
+                                </Button>
+                              </div>
+                            )}
+                          </MobileCard>
+                        );
+                      })}
                     </MobileCardList>
                   ) : (
                     <div className="overflow-x-auto">
@@ -521,28 +567,54 @@ export function ActivityDataTab({ tenantId }: ActivityDataTabProps) {
                             <TableHead>{t("奖品", "Prize")}</TableHead>
                             <TableHead>{t("类型", "Type")}</TableHead>
                             <TableHead>{t("积分值", "Points")}</TableHead>
+                            <TableHead>{t("状态", "Status")}</TableHead>
+                            <TableHead className="text-center">{t("操作", "Actions")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {lotteryLogs.map((log) => (
-                            <TableRow key={log.id}>
-                              <TableCell className="text-xs whitespace-nowrap">{formatBeijingTime(log.created_at)}</TableCell>
-                              <TableCell className="text-xs font-mono whitespace-nowrap">{log.phone_number || "—"}</TableCell>
-                              <TableCell className="text-xs">{lotteryLogMemberLabel(log)}</TableCell>
-                              <TableCell className="text-xs font-mono">{log.member_code || "—"}</TableCell>
-                              <TableCell className="text-xs">{log.prize_name}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className="text-[10px]">
-                                  {log.prize_type === "points"
-                                    ? t("积分", "Points")
-                                    : log.prize_type === "none"
-                                      ? t("感谢参与", "Thanks")
-                                      : t("自定义", "Custom")}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-xs font-mono">{log.prize_value}</TableCell>
-                            </TableRow>
-                          ))}
+                          {lotteryLogs.map((log) => {
+                            const st = rewardStatusLabel(log, t);
+                            const isPending = log.reward_status === 'pending' && log.reward_type === 'manual';
+                            const isConfirming = confirmingLogId === log.id;
+                            return (
+                              <TableRow key={log.id} className={isPending ? "bg-amber-50/40" : undefined}>
+                                <TableCell className="text-xs whitespace-nowrap">{formatBeijingTime(log.created_at)}</TableCell>
+                                <TableCell className="text-xs font-mono whitespace-nowrap">{log.phone_number || "—"}</TableCell>
+                                <TableCell className="text-xs">{lotteryLogMemberLabel(log)}</TableCell>
+                                <TableCell className="text-xs font-mono">{log.member_code || "—"}</TableCell>
+                                <TableCell className="text-xs">{log.prize_name}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="text-[10px]">
+                                    {log.prize_type === "points"
+                                      ? t("积分", "Points")
+                                      : log.prize_type === "none"
+                                        ? t("感谢参与", "Thanks")
+                                        : t("自定义", "Custom")}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-xs font-mono">{log.prize_value}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className={cn("text-[10px]", st.className)}>{st.text}</Badge>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {isPending ? (
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <Button size="sm" className="h-6 px-2 gap-1 text-[10px]" disabled={isConfirming} onClick={() => void handleConfirmReward(log.id, 'done')}>
+                                        {isConfirming ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                                        {t("确认", "OK")}
+                                      </Button>
+                                      <Button size="sm" variant="outline" className="h-6 px-2 gap-1 text-[10px] text-destructive" disabled={isConfirming} onClick={() => void handleConfirmReward(log.id, 'failed')}>
+                                        <XCircle className="h-3 w-3" />
+                                        {t("拒绝", "No")}
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     </div>
@@ -568,15 +640,7 @@ export function ActivityDataTab({ tenantId }: ActivityDataTabProps) {
             </CardContent>
           </Card>
 
-          <div className="space-y-4 border-t border-border/60 pt-8">
-            <p className="text-xs text-muted-foreground -mt-2">
-              {t(
-                "以下为抽奖行为与来源筛选（RPC 统计），可与上方流水对照使用。",
-                "Spin analytics and filters (RPC); use together with the table above.",
-              )}
-            </p>
-            <AdminSpinHistoryTab t={t} />
-          </div>
+          
         </div>
       )}
 

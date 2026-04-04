@@ -18,6 +18,7 @@ import { RouteProgressBar } from "@/components/RouteProgressBar";
 import { BackgroundUpdateIndicator } from "@/components/BackgroundUpdateIndicator";
 import { TenantViewBanner, TenantViewFloatingIndicator } from "@/components/TenantViewBanner";
 import { MallRedemptionStaffNotifier } from "@/components/staff/MallRedemptionStaffNotifier";
+import { LotteryRewardStaffNotifier } from "@/components/staff/LotteryRewardStaffNotifier";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -118,6 +119,7 @@ export function MainLayout({ children }: MainLayoutProps) {
         </main>
         <TenantViewFloatingIndicator />
         <MallRedemptionStaffNotifier />
+        <LotteryRewardStaffNotifier />
       </div>
     );
   }
@@ -157,6 +159,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       </div>
       <TenantViewFloatingIndicator />
       <MallRedemptionStaffNotifier />
+      <LotteryRewardStaffNotifier />
     </div>
   );
 }
