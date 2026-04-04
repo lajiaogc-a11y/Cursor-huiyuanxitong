@@ -303,8 +303,8 @@ export async function completeInviteRegister(params: {
       await ensureDefaultMemberLevelRulesRepository(referrer.tenant_id);
 
       await conn.query(
-        `INSERT INTO members (id, phone_number, member_code, invite_token, referral_code, password_hash, tenant_id, referrer_id, referrer_bound_at, referral_source, status, member_portal_first_login_done, nickname, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(3), 'link', 'active', 1, ?, NOW(3), NOW(3))`,
+        `INSERT INTO members (id, phone_number, member_code, invite_token, referral_code, password_hash, tenant_id, referrer_id, referrer_bound_at, referral_source, registration_source, status, member_portal_first_login_done, nickname, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(3), 'link', 'invite_register', 'active', 1, ?, NOW(3), NOW(3))`,
         [
           newId,
           inviteePhone,

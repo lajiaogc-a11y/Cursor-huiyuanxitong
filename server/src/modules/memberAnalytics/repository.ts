@@ -5,8 +5,18 @@ import { randomUUID } from 'node:crypto';
 import { query, queryOne, execute } from '../../database/index.js';
 import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
 
-/** 仅用于数据清理等「邀请链接会员」策略；网站统计已改为全租户会员，不再使用此条件 */
+/** 数据清理策略用（保留旧行为）：邀请链接会员判定条件 */
 export const INVITE_LINK_MEMBER_SQL = `(m.referral_source = 'link' AND m.referrer_id IS NOT NULL)`;
+
+/**
+ * 网站数据统计专用过滤：仅统计前端自助注册链接来的会员。
+ * 兼容新旧数据：优先用 registration_source = 'invite_register'；
+ * 若字段为 NULL（迁移前旧数据）则回退到 referral_source = 'link' 作兜底。
+ */
+const WEBSITE_DATA_MEMBER_FILTER = `(
+  m.registration_source = 'invite_register'
+  OR (m.registration_source IS NULL AND m.referral_source = 'link')
+)`;
 
 export interface WebsiteStatsRow {
   online_now: string | number;
@@ -49,11 +59,12 @@ export async function fetchWebsiteStatsRepository(params: {
   const todayStart = dayStart(today);
   const todayAfter = dayAfterStart(today);
 
-  /** 网站统计：本租户 `members` 全量（不区分门户邀请注册与后台录入等来源） */
+  /** 网站统计：仅统计本租户前端自助注册链接来源的会员（registration_source = 'invite_register'），不含后台录入等来源 */
   const row = await queryOne<WebsiteStatsRow>(
     `SELECT
        (SELECT COUNT(*) FROM members m
          WHERE m.tenant_id = ?
+           AND ${WEBSITE_DATA_MEMBER_FILTER}
            AND m.last_seen_at >= NOW(3) - INTERVAL 15 MINUTE
            AND (m.status IS NULL OR LOWER(TRIM(m.status)) = 'active')
        ) AS online_now,
@@ -61,17 +72,20 @@ export async function fetchWebsiteStatsRepository(params: {
        (SELECT COUNT(DISTINCT l.member_id) FROM member_login_logs l
          INNER JOIN members m ON m.id = l.member_id
          WHERE m.tenant_id = ?
+           AND ${WEBSITE_DATA_MEMBER_FILTER}
            AND l.login_at >= ? AND l.login_at < ?
        ) AS today_login_users,
 
        (SELECT COUNT(*) FROM members m
          WHERE m.tenant_id = ?
+           AND ${WEBSITE_DATA_MEMBER_FILTER}
            AND m.created_at >= ? AND m.created_at < ?
        ) AS today_register_count,
 
        (SELECT COUNT(DISTINCT o.member_id) FROM orders o
          INNER JOIN members m ON m.id = o.member_id
          WHERE m.tenant_id = ?
+           AND ${WEBSITE_DATA_MEMBER_FILTER}
            AND (o.status IS NULL OR o.status <> 'cancelled')
            AND (o.is_deleted = false OR o.is_deleted IS NULL)
            AND o.member_id IS NOT NULL
@@ -81,17 +95,20 @@ export async function fetchWebsiteStatsRepository(params: {
        (SELECT COUNT(DISTINCT l.member_id) FROM member_login_logs l
          INNER JOIN members m ON m.id = l.member_id
          WHERE m.tenant_id = ?
+           AND ${WEBSITE_DATA_MEMBER_FILTER}
            AND l.login_at >= ? AND l.login_at <= ?
        ) AS range_login_users,
 
        (SELECT COUNT(*) FROM members m
          WHERE m.tenant_id = ?
+           AND ${WEBSITE_DATA_MEMBER_FILTER}
            AND m.created_at >= ? AND m.created_at <= ?
        ) AS range_register_count,
 
        (SELECT COUNT(DISTINCT o.member_id) FROM orders o
          INNER JOIN members m ON m.id = o.member_id
          WHERE m.tenant_id = ?
+           AND ${WEBSITE_DATA_MEMBER_FILTER}
            AND (o.status IS NULL OR o.status <> 'cancelled')
            AND (o.is_deleted = false OR o.is_deleted IS NULL)
            AND o.member_id IS NOT NULL
@@ -103,6 +120,7 @@ export async function fetchWebsiteStatsRepository(params: {
           ), 0) FROM orders o
          INNER JOIN members m ON m.id = o.member_id
          WHERE m.tenant_id = ?
+           AND ${WEBSITE_DATA_MEMBER_FILTER}
            AND (o.status IS NULL OR o.status <> 'cancelled')
            AND (o.is_deleted = false OR o.is_deleted IS NULL)
            AND o.member_id IS NOT NULL
@@ -114,6 +132,7 @@ export async function fetchWebsiteStatsRepository(params: {
           ), 0) FROM orders o
          INNER JOIN members m ON m.id = o.member_id
          WHERE m.tenant_id = ?
+           AND ${WEBSITE_DATA_MEMBER_FILTER}
            AND (o.status IS NULL OR o.status <> 'cancelled')
            AND (o.is_deleted = false OR o.is_deleted IS NULL)
            AND o.member_id IS NOT NULL
@@ -122,6 +141,7 @@ export async function fetchWebsiteStatsRepository(params: {
 
        (SELECT COUNT(*) FROM members m
          WHERE m.tenant_id = ?
+           AND ${WEBSITE_DATA_MEMBER_FILTER}
            AND m.created_at <= ?
        ) AS cumulative_invite_registers
     `,

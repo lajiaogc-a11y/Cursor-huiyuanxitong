@@ -261,8 +261,8 @@ export async function createMemberRepository(tenantId: string, body: CreateMembe
   const passwordHash = await bcrypt.hash(initialPassword, 10);
 
   await execute(
-    `INSERT INTO members (id, tenant_id, phone_number, member_code, nickname, member_level, total_points, current_level_id, currency_preferences, bank_card, common_cards, customer_feature, remark, source_id, creator_id, recorder_id, password_hash, initial_password, member_portal_first_login_done, must_change_password)
-     VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1)`,
+    `INSERT INTO members (id, tenant_id, phone_number, member_code, nickname, member_level, total_points, current_level_id, currency_preferences, bank_card, common_cards, customer_feature, remark, source_id, creator_id, recorder_id, password_hash, initial_password, member_portal_first_login_done, must_change_password, registration_source)
+     VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, 'admin_create')`,
     [
       id,
       tenantId,

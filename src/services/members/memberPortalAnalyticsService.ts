@@ -1,6 +1,10 @@
 import { apiGet, apiPut, apiPost } from "@/api/client";
 
 export interface MemberPortalWebsiteStats {
+  /** 统计口径标识，固定为 invite_register，表示仅含自助注册链接来源 */
+  scope?: 'invite_register';
+  scope_description?: string;
+  data_source_description?: string;
   calendar_today: string;
   range: { start_date: string; end_date: string };
   online_now: number;
@@ -16,7 +20,7 @@ export interface MemberPortalWebsiteStats {
     total_transaction_amount: number;
     card_value_sum: number;
   };
-  /** 截至范围结束日 23:59:59 的本租户会员总数（全来源）；与 cumulative_members 同义 */
+  /** 截至范围结束日，仅含 invite_register 来源的累积会员数 */
   cumulative_invite_registers: number;
   /** 与 cumulative_invite_registers 相同（推荐使用该字段名） */
   cumulative_members?: number;

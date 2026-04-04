@@ -1360,6 +1360,39 @@ export async function migrateSchemaPatches(): Promise<void> {
   await addCol('member_portal_settings', 'poster_frame_id', "VARCHAR(20) NOT NULL DEFAULT 'gold' COMMENT '内置海报模板ID'");
   await addCol('member_portal_settings', 'poster_custom_bg_url', "VARCHAR(500) NULL COMMENT '自定义海报背景图URL'");
 
+  // ── members.registration_source：注册来源字段，区分网站数据与全站统计口径 ──
+  await addCol(
+    'members',
+    'registration_source',
+    `VARCHAR(32) NULL DEFAULT NULL COMMENT '注册来源: invite_register(前端自助注册链接) | admin_create(后台手工创建) | import(批量导入) | other(其它)'`,
+  );
+  // 回填：referral_source = 'link' 的是通过前端邀请链接注册的会员
+  try {
+    await execute(
+      `UPDATE members SET registration_source = 'invite_register'
+       WHERE registration_source IS NULL AND referral_source = 'link'`,
+    );
+  } catch (e: unknown) {
+    console.warn('[schema-patch] members registration_source invite_register backfill:', ((e as Error).message || '').slice(0, 200));
+  }
+  // 回填：有 creator_id 或 source_id（后台录入信号），且来源非邀请链接
+  try {
+    await execute(
+      `UPDATE members SET registration_source = 'admin_create'
+       WHERE registration_source IS NULL AND (creator_id IS NOT NULL OR source_id IS NOT NULL)`,
+    );
+  } catch (e: unknown) {
+    console.warn('[schema-patch] members registration_source admin_create backfill:', ((e as Error).message || '').slice(0, 200));
+  }
+  // 其余无法识别的旧数据标记为 other
+  try {
+    await execute(
+      `UPDATE members SET registration_source = 'other' WHERE registration_source IS NULL`,
+    );
+  } catch (e: unknown) {
+    console.warn('[schema-patch] members registration_source other backfill:', ((e as Error).message || '').slice(0, 200));
+  }
+
   // ── points_log 字段补充（单一账本对齐） ──
   await addCol('points_log', 'reference_id', "VARCHAR(36) NULL COMMENT '关联的订单ID/抽奖ID/活动ID'");
   await addCol('points_log', 'balance_after', "DECIMAL(12,2) NULL COMMENT '变动后余额快照'");

@@ -100,19 +100,32 @@ export function WebsiteDataTab({ tenantId }: WebsiteDataTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* ── 统计口径标签 ── */}
+      <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs dark:border-amber-800 dark:bg-amber-950/30">
+        <span className="mt-0.5 shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white uppercase tracking-wide">
+          {t("自助注册链接", "Invite-link only")}
+        </span>
+        <p className="text-amber-800 dark:text-amber-300 leading-relaxed m-0">
+          {t(
+            "此页面仅统计通过前端自助注册链接注册的会员（registration_source = invite_register）。后台手工创建、批量导入等来源的会员不在此统计范围内。如需查看全站汇总数据，请前往「数据统计」仪表盘。",
+            "This page only counts members who signed up via the frontend invite/self-registration link (registration_source = invite_register). Members created by staff or imported in bulk are excluded. For all-source totals, see the Dashboard.",
+          )}
+        </p>
+      </div>
+
       <div className="text-xs text-muted-foreground -mb-2 space-y-2 leading-relaxed">
         <p className="m-0 font-medium text-foreground/90">{t("统计范围（必读）", "What this page measures")}</p>
         <ul className="m-0 list-disc space-y-1.5 pl-4">
           <li>
             {t(
-              "租户范围：仅统计当前租户（与员工账号所属租户或平台管理员「租户视图」所选租户一致），不是全平台汇总。",
-              "Tenant scope: this tenant only (your employee tenant, or the tenant selected in platform admin tenant view) — not the whole platform.",
+              "统计口径：仅限前端自助注册链接注册（registration_source = invite_register）。后台手工创建（admin_create）、批量导入（import）等来源均不计入。",
+              "Scope: invite-link self-registration only (registration_source = invite_register). Staff-created (admin_create) and imported (import) members are excluded.",
             )}
           </li>
           <li>
             {t(
-              "会员范围：仅统计来自前端会员门户自助注册（含邀请链接/落地页注册）的会员数据。员工后台手动录入的会员不计入此处；如需查看全部会员的汇总，请前往「数据统计」仪表盘。",
-              "Members: only members who self-registered via the frontend portal (including invite link / landing page sign-up). Staff-created members are excluded here; for an all-source summary go to the Dashboard.",
+              "租户范围：仅统计当前租户，不是全平台汇总。",
+              "Tenant scope: this tenant only — not the whole platform.",
             )}
           </li>
           <li>
@@ -123,20 +136,20 @@ export function WebsiteDataTab({ tenantId }: WebsiteDataTabProps) {
           </li>
           <li>
             {t(
-              "订单与金额：仅统计上述前端自助注册会员的订单；不含已取消、已删除。积分商城等若单独记账可能不在此汇总。",
-              "Orders & amounts: only from the portal-registered members above; excludes cancelled/deleted. Points-mall flows stored elsewhere may be excluded.",
+              "订单与金额：仅统计自助注册链接来源会员的订单；不含已取消、已删除。",
+              "Orders & amounts: only from invite-link members; excludes cancelled/deleted.",
             )}
           </li>
           <li>
             {t(
-              "在线人数：约 15 分钟内有活动的活跃会员。",
-              "Online: active members with activity in roughly the last 15 minutes.",
+              "在线人数：约 15 分钟内有活动的自助注册链接来源活跃会员。",
+              "Online: invite-link members with activity in roughly the last 15 minutes.",
             )}
           </li>
           <li>
             {t(
-              "与「数据统计」的区别：「数据统计」仪表盘汇总全站所有会员与订单（含员工后台录入），此处仅反映前端门户自助渠道的会员活跃数据。",
-              "Difference from Dashboard: the Dashboard summarizes ALL members & orders (including staff-created); this page only reflects portal self-service channel data.",
+              "与「数据统计」的区别：「数据统计」仪表盘统计全站所有会员与订单（含后台录入），此处仅反映前端自助注册链接渠道的数据。",
+              "Difference from Dashboard: the Dashboard covers ALL members & orders (including staff-created); this page covers invite-link self-registration only.",
             )}
           </li>
         </ul>
@@ -210,7 +223,7 @@ export function WebsiteDataTab({ tenantId }: WebsiteDataTabProps) {
                     <p className="text-2xl font-semibold tabular-nums">{websiteStats.online_now}</p>
                   </div>
                   <div className="rounded-lg border bg-muted/30 p-3">
-                    <p className="text-xs text-muted-foreground">{t("今日注册人数", "Registrations today")}</p>
+                    <p className="text-xs text-muted-foreground">{t("今日注册人数（自助链接）", "Registrations today (invite-link)")}</p>
                     <p className="text-2xl font-semibold tabular-nums">{websiteStats.today.register_count}</p>
                   </div>
                   <div className="rounded-lg border bg-muted/30 p-3">
@@ -229,7 +242,7 @@ export function WebsiteDataTab({ tenantId }: WebsiteDataTabProps) {
                     <p className="text-2xl font-semibold tabular-nums">{websiteStats.in_range.login_users}</p>
                   </div>
                   <div className="rounded-lg border bg-muted/30 p-3">
-                    <p className="text-xs text-muted-foreground">{t("注册人数", "Registrations")}</p>
+                    <p className="text-xs text-muted-foreground">{t("注册人数（自助链接）", "Registrations (invite-link)")}</p>
                     <p className="text-2xl font-semibold tabular-nums">{websiteStats.in_range.register_count}</p>
                   </div>
                   <div className="rounded-lg border bg-muted/30 p-3">
@@ -251,16 +264,24 @@ export function WebsiteDataTab({ tenantId }: WebsiteDataTabProps) {
                     <p className="text-2xl font-semibold tabular-nums">{websiteStats.in_range.card_value_sum.toLocaleString()}</p>
                   </div>
                   <div className="rounded-lg border bg-muted/30 p-3">
-                    <p className="text-xs text-muted-foreground">
-                      {t("累积会员总数（截至范围结束日）", "Cumulative members (by range end)")}
-                    </p>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <p className="text-xs text-muted-foreground">
+                        {t("累积注册人数（截至范围结束日）", "Cumulative sign-ups (by range end)")}
+                      </p>
+                      <span className="rounded bg-amber-100 px-1 py-0.5 text-[9px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 leading-none">
+                        {t("自助注册链接", "Invite-link")}
+                      </span>
+                    </div>
                     <p className="text-2xl font-semibold tabular-nums">
                       {(websiteStats.cumulative_members ?? websiteStats.cumulative_invite_registers).toLocaleString(
                         language === "zh" ? "zh-CN" : "en-US",
                       )}
                     </p>
                     <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">
-                      {t("截至所选结束日当天结束，本租户已创建会员总数（含各注册来源）。", "Total members created in this tenant by end of selected range (all sources).")}
+                      {t(
+                        "截至所选结束日，通过前端自助注册链接注册的累积会员数（仅含 invite_register 来源）。",
+                        "Total members who signed up via invite link by end of selected range (invite_register source only).",
+                      )}
                     </p>
                   </div>
                 </div>

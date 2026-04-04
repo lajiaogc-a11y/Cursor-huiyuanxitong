@@ -61,6 +61,9 @@ export async function getWebsiteStatsService(params: {
   return {
     success: true as const,
     data: {
+      scope: 'invite_register' as const,
+      scope_description: '仅统计来自前端自助注册链接的会员数据（registration_source = invite_register）',
+      data_source_description: '统计范围：前端邀请注册链接注册的用户，不含后台手工创建、批量导入等来源',
       calendar_today: today,
       range: { start_date: startDate, end_date: endDate },
       online_now: n(row.online_now),
@@ -76,8 +79,8 @@ export async function getWebsiteStatsService(params: {
         total_transaction_amount: n(row.range_total_tx),
         card_value_sum: n(row.range_card_value_sum),
       },
-      /** @deprecated 命名历史遗留；与 cumulative_members 相同，均为本租户会员总数（全来源） */
       cumulative_invite_registers: n(row.cumulative_invite_registers),
+      /** 仅含 invite_register 来源的累积会员数 */
       cumulative_members: n(row.cumulative_invite_registers),
     },
   };
