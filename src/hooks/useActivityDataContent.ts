@@ -28,6 +28,7 @@ export interface ActivityDataContentResult {
   memberActivities: any[];
   pointsLedgerData: any[];
   pointsAccountsData: any[];
+  spinCreditsData: any[];
   cachedRates: {
     nairaRate: number;
     cediRate: number;
@@ -75,6 +76,7 @@ async function fetchActivityDataContent(
     memberActivities: activityDataRes.memberActivities || [],
     pointsLedgerData: activityDataRes.pointsLedgerData || [],
     pointsAccountsData: activityDataRes.pointsAccountsData || [],
+    spinCreditsData: activityDataRes.spinCreditsData || [],
     cachedRates,
   };
 }
@@ -100,7 +102,8 @@ export function useActivityDataContent(effectiveTenantId: string | null, useMyTe
         table === 'member_activity' ||
         table === 'points_ledger' ||
         table === 'points_accounts' ||
-        table === 'payment_providers'
+        table === 'payment_providers' ||
+        table === 'spin_credits'
       ) {
         queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
       }
@@ -126,6 +129,7 @@ export function useActivityDataContent(effectiveTenantId: string | null, useMyTe
     memberActivities: data?.memberActivities ?? [],
     pointsLedgerData: data?.pointsLedgerData ?? [],
     pointsAccountsData: data?.pointsAccountsData ?? [],
+    spinCreditsData: data?.spinCreditsData ?? [],
     cachedRates: data?.cachedRates ?? null,
     isLoading,
     refetch,

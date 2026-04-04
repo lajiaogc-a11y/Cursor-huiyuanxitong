@@ -6,6 +6,7 @@ export interface ActivityDataResult {
   memberActivities: unknown[];
   pointsLedgerData: unknown[];
   pointsAccountsData: unknown[];
+  spinCreditsData: unknown[];
 }
 
 export interface ActivityGiftMutationPayload {
@@ -33,6 +34,7 @@ export async function getActivityDataApi(tenantId?: string | null): Promise<Acti
     memberActivities: Array.isArray(d.memberActivities) ? d.memberActivities : [],
     pointsLedgerData: Array.isArray(d.pointsLedgerData) ? d.pointsLedgerData : [],
     pointsAccountsData: Array.isArray(d.pointsAccountsData) ? d.pointsAccountsData : [],
+    spinCreditsData: Array.isArray(d.spinCreditsData) ? d.spinCreditsData : [],
   };
 }
 

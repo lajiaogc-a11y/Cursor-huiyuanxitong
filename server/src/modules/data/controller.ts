@@ -1232,7 +1232,7 @@ export async function getActivityDataController(req: AuthenticatedRequest, res: 
     const queryTenantId = req.query.tenant_id as string | undefined;
     const tenantId = resolveTenantId(req, queryTenantId);
     if (!tenantId) {
-      res.json({ success: true, data: { gifts: [], referrals: [], memberActivities: [], pointsLedgerData: [], pointsAccountsData: [] } });
+      res.json({ success: true, data: { gifts: [], referrals: [], memberActivities: [], pointsLedgerData: [], pointsAccountsData: [], spinCreditsData: [] } });
       return;
     }
     const data = await listActivityDataRepository(tenantId);

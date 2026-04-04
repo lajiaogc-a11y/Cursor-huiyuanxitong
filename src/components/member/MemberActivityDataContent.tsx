@@ -193,6 +193,8 @@ interface MemberActivityRow {
   lotteryReward: number;
   /** 下级次数：所有被推荐人在订单管理中「已完成」的有效交易笔数之和（时间+重置后；不含已取消等） */
   consumptionCount: number;
+  /** 邀抽累次：该用户从 spin_credits 累计获得的抽奖次数（永久累积） */
+  inviteSpinCredits: number;
 }
 
 // 统一时间范围计算（使用系统级时间搜索规则：00:00:00 至 23:59:59.999）
@@ -279,6 +281,7 @@ export default function MemberActivityDataContent() {
     memberActivities,
     pointsLedgerData,
     pointsAccountsData,
+    spinCreditsData,
     cachedRates,
     isLoading: activityDataLoading,
     refetch: refetchActivityData,
@@ -295,6 +298,7 @@ export default function MemberActivityDataContent() {
     { key: 'memberCode', label: t('会员编号', 'Member Code') },
     { key: 'memberName', label: t('会员名称', 'Member name') },
     { key: 'lotterySpinBalance', label: t('抽奖次数', 'Lottery draws') },
+    { key: 'inviteSpinCredits', label: t('邀抽累次', 'Invite spins earned') },
     { key: 'orderCount', label: t('消费次数', 'Consumption count') },
     { key: 'permanentOrderCount', label: t('累积次数', 'Accumulated count') },
     { key: 'accumulatedProfit', label: t('累计利润', 'Total profit') },
@@ -449,9 +453,11 @@ export default function MemberActivityDataContent() {
         (o) => orderMatchesMember(o) && o.status === 'completed' && inScope(o.created_at),
       ).length;
 
-      // 4-6. 赠送金额统计 - 使用数据库字段名（时间 + 重置后）
+      // 4-6. 赠送金额统计 — 从活动赠送汇总，按币种分列（仅时间筛选，不受重置影响）
       const memberGifts = gifts.filter(
-        (g) => g.phone_number === member.phone_number && inScope(g.created_at),
+        (g) =>
+          (g.phone_number === member.phone_number || g.member_id === member.id) &&
+          isInTimeRange(g.created_at),
       );
       
       const giftNgn = memberGifts
@@ -465,6 +471,11 @@ export default function MemberActivityDataContent() {
       const giftUsdt = memberGifts
         .filter(g => g.currency === "USDT")
         .reduce((sum, g) => sum + (Number(g.amount) || 0), 0);
+
+      // 邀抽累次：spin_credits 累计获得的抽奖次数（永久累积）
+      const inviteSpinCredits = (spinCreditsData as { member_id?: string; total_spins?: number | string }[])
+        .filter((sc) => sc.member_id === member.id)
+        .reduce((sum, sc) => sum + Math.max(0, Math.floor(Number(sc.total_spins) || 0)), 0);
 
       // 7. 推荐人数 - 使用数据库字段名
       const memberReferrals = referrals.filter(r => r.referrer_phone === member.phone_number);
@@ -616,10 +627,11 @@ export default function MemberActivityDataContent() {
         consumptionReward,
         lotteryReward,
         consumptionCount,
+        inviteSpinCredits,
       };
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [members, orders, gifts, referrals, memberActivities, pointsLedgerData, pointsAccountsData, dateRange]);
+  }, [members, orders, gifts, referrals, memberActivities, pointsLedgerData, pointsAccountsData, spinCreditsData, dateRange]);
 
   // 搜索过滤并按最新订单时间排序（最新的排在最上面）
   const filteredActivityData = useMemo(() => {
@@ -1266,6 +1278,7 @@ export default function MemberActivityDataContent() {
                   </MobileCardHeader>
                   <MobileCardRow label={t("会员名称", "Member name")} value={row.member.memberDisplayName ?? row.member.memberCode} />
                   <MobileCardRow label={t("抽奖次数", "Lottery draws")} value={String(row.lotterySpinBalance)} />
+                  <MobileCardRow label={t("邀抽累次", "Invite spins")} value={String(row.inviteSpinCredits)} />
                   <MobileCardRow label={t("消费次数", "Consumption count")} value={row.orderCount} />
                   <MobileCardRow label={t("累积次数", "Accumulated count")} value={row.permanentOrderCount} />
                   <MobileCardRow label={t("剩余积分", "Points")} value={<span className={`font-bold ${row.remainingPoints < 0 ? "text-destructive" : "text-primary"}`}>{row.remainingPoints}</span>} highlight />
@@ -1320,6 +1333,7 @@ export default function MemberActivityDataContent() {
                   {isVisible('memberCode') && <TableHead className="text-center whitespace-nowrap px-2">{t("会员编号", "Member Code")}</TableHead>}
                   {isVisible('memberName') && <SortableTableHead sortKey="member.memberDisplayName" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2 max-w-[140px]">{t("会员名称", "Member name")}</SortableTableHead>}
                   {isVisible('lotterySpinBalance') && <SortableTableHead sortKey="lotterySpinBalance" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("抽奖次数", "Lottery draws")}</SortableTableHead>}
+                  {isVisible('inviteSpinCredits') && <SortableTableHead sortKey="inviteSpinCredits" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("邀抽累次", "Invite spins")}</SortableTableHead>}
                   {isVisible('orderCount') && <SortableTableHead sortKey="orderCount" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("消费次数", "Consumption count")}</SortableTableHead>}
                   {isVisible('permanentOrderCount') && <SortableTableHead sortKey="permanentOrderCount" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("累积次数", "Accumulated count")}</SortableTableHead>}
                   {isVisible('accumulatedProfit') && <SortableTableHead sortKey="accumulatedProfit" currentSort={activitySortConfig} onSort={requestActivitySort} className="text-center whitespace-nowrap px-2">{t("累计利润", "Total profit")}</SortableTableHead>}
@@ -1360,6 +1374,9 @@ export default function MemberActivityDataContent() {
                       </TableCell>}
                       {isVisible('lotterySpinBalance') && <TableCell className="text-center font-medium text-violet-600 dark:text-violet-400 tabular-nums">
                         {row.lotterySpinBalance}
+                      </TableCell>}
+                      {isVisible('inviteSpinCredits') && <TableCell className="text-center font-medium text-pink-600 dark:text-pink-400 tabular-nums">
+                        {row.inviteSpinCredits > 0 ? row.inviteSpinCredits : "0"}
                       </TableCell>}
                       {isVisible('orderCount') && <TableCell className="text-center font-medium text-blue-600 dark:text-blue-400">
                         {row.orderCount > 0 ? row.orderCount : "0"}

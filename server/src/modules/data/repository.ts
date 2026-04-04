@@ -1452,7 +1452,7 @@ export async function listActivityDataRepository(tenantId: string | null): Promi
   pointsAccountsData: unknown[];
 }> {
   if (!tenantId) {
-    return { gifts: [], referrals: [], memberActivities: [], pointsLedgerData: [], pointsAccountsData: [] };
+    return { gifts: [], referrals: [], memberActivities: [], pointsLedgerData: [], pointsAccountsData: [], spinCreditsData: [] };
   }
 
   const pick = <T>(label: string, result: PromiseSettledResult<T[]>): T[] => {
@@ -1461,7 +1461,7 @@ export async function listActivityDataRepository(tenantId: string | null): Promi
     return [];
   };
 
-  const [giftsRes, referralsRes, memberActivitiesRes, pointsLedgerRes, pointsAccountsRes] = await Promise.allSettled([
+  const [giftsRes, referralsRes, memberActivitiesRes, pointsLedgerRes, pointsAccountsRes, spinCreditsRes] = await Promise.allSettled([
     query(
       `SELECT ag.* FROM activity_gifts ag
        INNER JOIN employees e ON e.id = ag.creator_id AND e.tenant_id = ?
@@ -1494,6 +1494,13 @@ export async function listActivityDataRepository(tenantId: string | null): Promi
        ORDER BY COALESCE(pa.updated_at, pa.last_updated) DESC`,
       [tenantId]
     ),
+    query(
+      `SELECT sc.member_id, SUM(sc.amount) AS total_spins, source
+       FROM spin_credits sc
+       INNER JOIN members m ON m.id = sc.member_id AND m.tenant_id = ?
+       GROUP BY sc.member_id, sc.source`,
+      [tenantId]
+    ),
   ]);
 
   return {
@@ -1502,5 +1509,6 @@ export async function listActivityDataRepository(tenantId: string | null): Promi
     memberActivities: pick('member_activity', memberActivitiesRes),
     pointsLedgerData: pick('points_ledger', pointsLedgerRes),
     pointsAccountsData: pick('points_accounts', pointsAccountsRes),
+    spinCreditsData: pick('spin_credits', spinCreditsRes),
   };
 }
