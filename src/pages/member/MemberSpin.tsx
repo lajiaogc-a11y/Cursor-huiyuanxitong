@@ -25,13 +25,22 @@ import { normalizeSpinSimFeedLineForMember } from "@/lib/spinSimFeedDisplay";
 /** 滚动条只展示「最新」条数，与首页公告跑马灯同一套分段 + 竖线分隔（避免 flex gap 双份复制时 -50% 接缝错位闪现） */
 const SIM_FEED_DISPLAY_LIMIT = 10;
 
-function spinSimFeedLatestTenFingerprint(items: SpinSimFeedItem[]): string {
-  if (!items.length) return "";
-  return [...items]
+/**
+ * 合并两批 feed items：去重、按 at 倒序、只保留最新 SIM_FEED_DISPLAY_LIMIT 条。
+ * prev = 当前已有的 items，incoming = 新拉取的 items（或局部插入的单条）。
+ */
+function mergeFeedItems(prev: SpinSimFeedItem[], incoming: SpinSimFeedItem[]): SpinSimFeedItem[] {
+  const map = new Map<string, SpinSimFeedItem>();
+  for (const it of [...prev, ...incoming]) {
+    const existing = map.get(it.id);
+    // Prefer the entry with the larger `at` (most recent) for same id
+    if (!existing || (it.at ?? 0) > (existing.at ?? 0)) {
+      map.set(it.id, it);
+    }
+  }
+  return [...map.values()]
     .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))
-    .slice(0, SIM_FEED_DISPLAY_LIMIT)
-    .map((it) => `${it.id}\u001f${it.at}\u001f${it.text}`)
-    .join("\u001e");
+    .slice(0, SIM_FEED_DISPLAY_LIMIT);
 }
 
 /** 仅保留转盘抽奖结果行（排除若接口误混入的其它类型） */
@@ -189,19 +198,36 @@ export default function MemberSpin() {
   const highlightCancelRef = useRef<(() => void) | null>(null);
 
   const [simFeedItems, setSimFeedItems] = useState<SpinSimFeedItem[]>([]);
+  /** 每次 feed 数据真正变化时递增，用作滚动轨道 key 触发动画平滑重启 */
+  const [feedVersion, setFeedVersion] = useState(0);
   const simFeedLastKnownRef = useRef<SpinSimFeedItem[]>([]);
   /** 点击中奖滚动条后暂停 3 秒再继续 */
   const [simFeedClickPaused, setSimFeedClickPaused] = useState(false);
   const simFeedClickPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const simFeedDisplayItems = useMemo(() => {
     const source = simFeedItems.length > 0 ? simFeedItems : simFeedLastKnownRef.current;
     if (!source.length) return [];
+    // Already sorted + limited by mergeFeedItems; just guard in case of direct setState
     const sorted = [...source]
       .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))
       .slice(0, SIM_FEED_DISPLAY_LIMIT);
     if (sorted.length > 0) simFeedLastKnownRef.current = sorted;
     return sorted;
   }, [simFeedItems]);
+
+  /** Update feed state; bump feedVersion only when content actually changed */
+  const applyFeedItems = useCallback((incoming: SpinSimFeedItem[]) => {
+    setSimFeedItems((prev) => {
+      const next = mergeFeedItems(prev, incoming);
+      const prevIds = prev.map((x) => x.id).join(',');
+      const nextIds = next.map((x) => x.id).join(',');
+      if (prevIds !== nextIds) {
+        setFeedVersion((v) => v + 1);
+      }
+      return next;
+    });
+  }, []);
 
   /** 与首页公告一致：`Math.max(14, n * 5)`，n 为当前展示的条数（最多 10） */
   const simFeedMarqueeDurationSec = useMemo(
@@ -313,26 +339,18 @@ export default function MemberSpin() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [member?.id, pullNonce, spinDataRefreshNonce]);
 
+  /** 拉取服务端最新 feed 并合并（兜底轮询 + 抽奖后主动刷新共用） */
+  const refreshSimFeed = useCallback(() => {
+    void getSpinSimFeed().then((incoming) => {
+      if (incoming.length > 0) applyFeedItems(incoming);
+    });
+  }, [applyFeedItems]);
+
   useEffect(() => {
     if (!member) return;
-    let cancelled = false;
-    const loadSim = () => {
-      void getSpinSimFeed().then((incoming) => {
-        if (cancelled) return;
-        setSimFeedItems((prev) => {
-          if (spinSimFeedLatestTenFingerprint(prev) === spinSimFeedLatestTenFingerprint(incoming)) {
-            return prev;
-          }
-          return incoming;
-        });
-      });
-    };
-    loadSim();
-    const id = window.setInterval(loadSim, 12_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
+    refreshSimFeed();
+    const id = window.setInterval(refreshSimFeed, 12_000);
+    return () => window.clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [member?.id, pullNonce]);
 
@@ -430,6 +448,21 @@ export default function MemberSpin() {
           void queryClient.invalidateQueries({ queryKey: memberQueryKeys.spin(member.id) });
           void queryClient.invalidateQueries({ queryKey: memberQueryKeys.points(member.id) });
           void queryClient.invalidateQueries({ queryKey: memberQueryKeys.pointsBreakdown(member.id) });
+
+          // ── 中奖滚动区局部刷新 ──────────────────────────────────────
+          // 1. 仅有实质奖品时才插入 feed（感谢参与不插入以免刷屏）
+          if (prize.type === "points" || prize.type === "custom") {
+            const localItem: SpinSimFeedItem = {
+              id: `local:${Date.now()}`,
+              text: `Congratulations! You won (${prize.name || prize.type}) 🎁🎁🎁!`,
+              at: Date.now(),
+            };
+            applyFeedItems([localItem]);
+          }
+          // 2. 立刻从后端拉最新数据（1s 延迟给服务端写入时间）
+          window.setTimeout(refreshSimFeed, 1_000);
+          // ────────────────────────────────────────────────────────────
+
           setSpinning(false);
           highlightCancelRef.current = null;
         };
@@ -458,7 +491,7 @@ export default function MemberSpin() {
       }
     });
     if (guarded === null) return;
-  }, [member, spinning, remaining, prizes, spinGuard, t, applyQuota, refreshMember]);
+  }, [member, spinning, remaining, prizes, spinGuard, t, applyQuota, refreshMember, applyFeedItems, refreshSimFeed]);
 
   const lotteryLogsOnly = useMemo(
     () => logs.filter((log) => isLotteryPrizeLogType(log.prize_type)),
@@ -667,6 +700,7 @@ export default function MemberSpin() {
             >
               <div className="relative min-w-0 w-full overflow-hidden px-1">
                 <div
+                  key={feedVersion}
                   className="member-spin-sim-feed__track inline-flex w-max max-w-none items-center animate-[marquee_18s_linear_infinite]"
                   style={{ animationDuration: `${simFeedMarqueeDurationSec}s` }}
                 >
