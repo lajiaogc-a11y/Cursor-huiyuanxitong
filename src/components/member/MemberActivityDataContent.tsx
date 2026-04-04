@@ -678,30 +678,19 @@ export default function MemberActivityDataContent() {
     setCurrentPage(1);
   }, [searchTerm, timeRange, customStart, customEnd, pageSize]);
 
-  // 获取会员的积分流水 - 使用从数据库实时读取的数据
-  // 需要同时包含：
-  // 1. 该会员作为下单人的消费积分/兑换记录（member_code 匹配）
-  // 2. 该会员作为推荐人获得的推荐奖励（phone_number 匹配 且 transaction_type 是 referral_*）
+  // 获取会员的完整积分流水 — member_id 优先匹配所有类型，member_code / phone 兜底
   const getMemberPointsHistory = (memberCode: string) => {
-    // 先找到该会员的电话号码
     const member = members.find(m => m.member_code === memberCode);
     const phoneNumber = member?.phone_number || '';
     const mid = member?.id;
 
     return pointsLedgerData
       .filter((e) => {
-        const isDirectMatch = e.member_code === memberCode;
+        if (mid && e.member_id === mid) return true;
+        if (e.member_code === memberCode) return true;
         const tt = String(e.transaction_type || e.type || '').toLowerCase();
-        const isReferralForPhone =
-          phoneNumber && e.phone_number === phoneNumber && (tt === 'referral_1' || tt === 'referral_2');
-        const isLotteryForMember = mid && e.member_id === mid && tt === 'lottery';
-        const refTy = String((e as { reference_type?: string }).reference_type || '').toLowerCase();
-        const isMallRedeem =
-          mid &&
-          e.member_id === mid &&
-          (refTy === 'mall_redemption' || tt === 'mall_redemption');
-
-        return isDirectMatch || isReferralForPhone || isLotteryForMember || isMallRedeem;
+        if (phoneNumber && e.phone_number === phoneNumber && (tt === 'referral_1' || tt === 'referral_2')) return true;
+        return false;
       })
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   };
@@ -1838,22 +1827,13 @@ export default function MemberActivityDataContent() {
                       ) : (
                         (() => {
                           const history = getMemberPointsHistory(selectedMemberForHistory.memberCode);
-                          // 按时间正序计算累计积分（从最早开始）
-                          const sortedAsc = [...history].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-                          let runningTotal = 0;
-                          const entriesWithRunning = sortedAsc.map((entry) => {
+                          return history.map((entry) => {
                             const pe = Number(entry.points_earned ?? entry.amount ?? 0);
-                            const pointsBefore = runningTotal;
-                            const pointsAfter = runningTotal + pe;
-                            runningTotal = pointsAfter;
-                            return { ...entry, pointsBefore, pointsAfter, pe };
-                          });
-                          // 显示时按时间倒序
-                          const displayEntries = [...entriesWithRunning].reverse();
-                          return displayEntries.map((entry) => {
+                            const balAfter = Number((entry as { balance_after?: unknown }).balance_after);
+                            const pointsAfter = Number.isFinite(balAfter) ? balAfter : 0;
+                            const pointsBefore = pointsAfter - pe;
                             const txn = String(entry.transaction_type || entry.type || '').toLowerCase();
                             const ty = String(entry.type || '').toLowerCase();
-                            const pe = Number((entry as { pe?: number }).pe ?? entry.points_earned ?? entry.amount ?? 0);
                             const refTy = String((entry as { reference_type?: string }).reference_type || '').toLowerCase();
                             const isRedemptionType =
                               txn === 'redeem_activity_1' ||
@@ -1898,10 +1878,10 @@ export default function MemberActivityDataContent() {
                                   {pe > 0 ? `+${pe}` : pe}
                                 </TableCell>
                                 <TableCell className="text-center text-muted-foreground">
-                                  {entry.pointsBefore}
+                                  {pointsBefore}
                                 </TableCell>
                                 <TableCell className="text-center font-bold text-primary">
-                                  {entry.pointsAfter}
+                                  {pointsAfter}
                                 </TableCell>
                                 <TableCell className="text-center max-w-[220px] text-xs break-words">
                                   {remarkDisplay}
