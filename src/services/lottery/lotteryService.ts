@@ -167,6 +167,7 @@ export async function getSpinSimFeed(): Promise<SpinSimFeedItem[]> {
 export async function getMemberLotteryPrizes(memberId: string): Promise<{
   prizes: LotteryPrize[];
   probability_notice: string | null;
+  enabled: boolean;
   order_completed_spin_enabled: boolean;
   order_completed_spin_amount: number;
 }> {
@@ -176,12 +177,14 @@ export async function getMemberLotteryPrizes(memberId: string): Promise<{
         success: boolean;
         prizes: LotteryPrize[];
         probability_notice?: string | null;
+        enabled?: boolean;
         order_completed_spin_enabled?: boolean;
         order_completed_spin_amount?: number;
       }>(MEMBER_LOTTERY_PATHS.prizes(memberId), { cache: "no-store" });
       return {
         prizes: r?.prizes ?? [],
         probability_notice: r?.probability_notice ?? null,
+        enabled: r?.enabled !== false,
         order_completed_spin_enabled: r?.order_completed_spin_enabled === true,
         order_completed_spin_amount: Math.max(0, Math.floor(Number(r?.order_completed_spin_amount) || 0)),
       };
@@ -189,6 +192,7 @@ export async function getMemberLotteryPrizes(memberId: string): Promise<{
     {
       prizes: [],
       probability_notice: null,
+      enabled: true,
       order_completed_spin_enabled: false,
       order_completed_spin_amount: 0,
     },

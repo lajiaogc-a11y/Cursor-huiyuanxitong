@@ -20,6 +20,7 @@ export async function loadMemberSpinPrizesAndQuota(memberId: string): Promise<{
   /** 与 remaining 同次接口返回，用于「剩余/今日合计」展示 */
   quotaUsedToday: number;
   probability_notice: string | null;
+  enabled: boolean;
 }> {
   const [prizesRes, quotaRes] = await Promise.allSettled([
     getMemberLotteryPrizes(memberId),
@@ -31,6 +32,7 @@ export async function loadMemberSpinPrizesAndQuota(memberId: string): Promise<{
       : {
           prizes: [] as LotteryPrize[],
           probability_notice: null as string | null,
+          enabled: true,
           order_completed_spin_enabled: false,
           order_completed_spin_amount: 0,
         };
@@ -43,6 +45,7 @@ export async function loadMemberSpinPrizesAndQuota(memberId: string): Promise<{
     quotaRemaining,
     quotaUsedToday,
     probability_notice: pack.probability_notice ?? null,
+    enabled: pack.enabled,
   };
 }
 

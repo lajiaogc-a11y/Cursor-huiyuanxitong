@@ -176,6 +176,7 @@ export default function MemberSpin() {
   const [quotaUsedToday, setQuotaUsedToday] = useState(cached?.quotaUsedToday ?? 0);
   const [quotaLoading, setQuotaLoading] = useState(!cached);
   const [loadError, setLoadError] = useState(false);
+  const [lotteryEnabled, setLotteryEnabled] = useState(true);
   const [logs, setLogs] = useState<LotteryLog[]>(cached?.logs ?? []);
   const [logsTotal, setLogsTotal] = useState(cached?.logsTotal ?? 0);
   const [probabilityNotice, setProbabilityNotice] = useState<string | null>(cached?.probabilityNotice ?? null);
@@ -268,7 +269,8 @@ export default function MemberSpin() {
     setLoadError(false);
     if (!_spinCache.has(member.id)) setQuotaLoading(true);
     loadMemberSpinPrizesAndQuota(member.id)
-      .then(({ prizes: raw, quotaRemaining, quotaUsedToday: used, probability_notice }) => {
+      .then(({ prizes: raw, quotaRemaining, quotaUsedToday: used, probability_notice, enabled }) => {
+        setLotteryEnabled(enabled);
         setProbabilityNotice(probability_notice ?? null);
         const grid = pickGridPrizesForSpinPage(raw);
         if (grid.length > 0) setPrizes(grid);
@@ -466,6 +468,29 @@ export default function MemberSpin() {
   const visibleLogs = historyOpen ? lotteryLogsOnly : lotteryLogsOnly.slice(0, 3);
 
   if (!member) return null;
+
+  if (!lotteryEnabled && !quotaLoading) {
+    return (
+      <div className="member-page-enter relative m-page-bg flex min-h-full flex-col items-center justify-center px-4 pb-24 pt-8 lg:px-8">
+        <MemberPageAmbientOrbs />
+        <div className="relative z-[1] mx-auto w-full max-w-md space-y-4 lg:max-w-lg">
+          <div className="relative overflow-hidden rounded-2xl border border-dashed border-pu-gold/22 bg-gradient-to-b from-pu-gold/[0.08] via-[hsl(var(--pu-m-surface)/0.22)] to-[hsl(var(--pu-m-surface)/0.28)] px-5 py-12 text-center">
+            <div className="relative">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-pu-gold/20 bg-pu-gold/10 text-pu-gold-soft opacity-60">
+                <Gift className="h-7 w-7" strokeWidth={1.75} aria-hidden />
+              </div>
+              <p className="m-0 text-sm font-semibold text-[hsl(var(--pu-m-text))]">
+                {t("抽奖活动暂未开启", "Lottery is not open")}
+              </p>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.65)]">
+                {t("活动开启后即可参与抽奖，请稍后再来。", "The lottery will be available once the event starts. Please check back later.")}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (prizes.length === 0 && !quotaLoading) {
     return (

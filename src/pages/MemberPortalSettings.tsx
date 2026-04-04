@@ -115,7 +115,6 @@ import {
   adminGetLotterySettings,
   adminSaveLotterySettings,
   type LotteryPrize,
-  type LotteryPrizeType,
   type LotterySettings,
 } from '@/services/lottery/lotteryService';
 import {
@@ -1093,43 +1092,7 @@ export default function MemberPortalSettingsPage() {
     }
   };
 
-  const addLotteryPrize = () => {
-    setLotteryPrizes(prev => [...prev, { name: '', type: 'points' as LotteryPrizeType, value: 0, description: null, probability: 0, display_probability: null, image_url: null, sort_order: prev.length }]);
-  };
-  const removeLotteryPrize = (idx: number) => {
-    setLotteryPrizes(prev => prev.filter((_, i) => i !== idx));
-  };
-  const updateLotteryPrize = (idx: number, patch: Partial<LotteryPrize>) => {
-    setLotteryPrizes(prev => prev.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
-  };
-  const saveLotteryPrizes = async () => {
-    if (!isLotteryRateValid) {
-      notify.error(t('所有奖品概率总和必须等于 100%', 'Prize probabilities must total 100%'));
-      return;
-    }
-    if (!hasThanksPrize) {
-      notify.error(t('必须包含一个"感谢参与"类型奖品', 'Must include a "Thanks for participating" prize'));
-      return;
-    }
-    setSavingSpinPrizes(true);
-    try {
-      await adminSaveLotteryPrizes(lotteryPrizes);
-      setLotteryPrizes(await adminGetLotteryPrizes());
-      notify.success(t('奖品配置已保存', 'Prize config saved'));
-    } catch (e: any) {
-      notify.error(e?.message || t('保存失败', 'Save failed'));
-    } finally {
-      setSavingSpinPrizes(false);
-    }
-  };
-  const saveLotterySettingsHandler = async () => {
-    try {
-      await adminSaveLotterySettings(lotterySettings);
-      notify.success(t('抽奖设置已保存', 'Lottery settings saved'));
-    } catch (e: any) {
-      notify.error(e?.message || t('保存失败', 'Save failed'));
-    }
-  };
+  // Old inline lottery handlers removed — LuckySpinTab handles its own save/add/remove internally
   const addMallItem = () => {
     setMallItems((prev) => [
       ...prev,
@@ -1690,7 +1653,7 @@ export default function MemberPortalSettingsPage() {
                 {t("发布上线", "Publish")}
               </Button>
             ) : (
-              <Button onClick={onSubmitForReview} disabled={saving || savingDraft || !canEdit} className="h-9 gap-2 px-4">
+              <Button onClick={onSubmitForReviewClick} disabled={saving || savingDraft || !canEdit} className="h-9 gap-2 px-4">
                 {saving
                   ? <Loader2 className="h-4 w-4 animate-spin" />
                   : <ChevronRight className="h-4 w-4" />}
@@ -3126,7 +3089,7 @@ export default function MemberPortalSettingsPage() {
                       {t("发布上线", "Publish Now")}
                     </Button>
                   ) : (
-                    <Button onClick={onSubmitForReview} disabled={saving || savingDraft || !canEdit} className="gap-2">
+                    <Button onClick={onSubmitForReviewClick} disabled={saving || savingDraft || !canEdit} className="gap-2">
                       {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
                       {t("提交审核", "Submit for Review")}
                     </Button>

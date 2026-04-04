@@ -26,6 +26,7 @@ import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
   adminGetLotteryPrizes,
+  adminGetLotterySettings,
   adminSaveLotteryPrizes,
   adminSaveLotterySettings,
   type LotteryPrize,
@@ -108,6 +109,8 @@ export default function LuckySpinTab({
   const saveLotterySettingsHandler = async () => {
     try {
       await adminSaveLotterySettings(lotterySettings);
+      const fresh = await adminGetLotterySettings();
+      setLotterySettings(fresh);
       notify.success(t('抽奖设置已保存', 'Lottery settings saved'));
     } catch (e: any) {
       notify.error(e?.message || t('保存失败', 'Save failed'));
@@ -204,8 +207,8 @@ export default function LuckySpinTab({
             />
             <p className="text-xs text-muted-foreground">
               {t(
-                "与下方「奖品配置」在同一页维护：请先点「保存设置」写入数据库；「发布管理」发布上线时会将抽奖变更视为待同步内容（与门户版本一并推送）。",
-                "Same page as prizes: click Save Settings to persist. Publishing in Publish tab treats lottery edits as changes to sync with the portal release.",
+                "抽奖配置保存后立即生效，不受「发布管理」影响。点击「保存设置」即写入数据库并实时生效于会员端。",
+                "Lottery settings take effect immediately after saving — independent of the Publish flow. Click Save Settings to persist and go live.",
               )}
             </p>
           </div>
