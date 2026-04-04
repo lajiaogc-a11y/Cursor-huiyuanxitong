@@ -15,12 +15,23 @@ export interface LotteryPrize {
   type: LotteryPrizeType;
   value: number;
   description: string | null;
+  /** 权重值（非负数）；运行时自动归一化，不再强制总和=100 */
   probability: number;
   /** 会员端公示用；不参与抽奖；空则展示真实 probability */
   display_probability?: number | null;
   image_url: string | null;
   sort_order: number;
   enabled?: boolean;
+  /** 发奖成本（积分或点数），用于预算/RTP 计算 */
+  prize_cost?: number;
+  /** 是否启用库存控制 */
+  stock_enabled?: boolean;
+  /** 总库存（-1=不限） */
+  stock_total?: number;
+  /** 已用库存（只读，来自数据库） */
+  stock_used?: number;
+  /** 每日库存上限（-1=不限） */
+  daily_stock_limit?: number;
 }
 
 export type RewardType = 'auto' | 'manual' | 'none';

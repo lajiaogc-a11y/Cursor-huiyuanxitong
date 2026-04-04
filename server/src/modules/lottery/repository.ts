@@ -60,10 +60,16 @@ export async function upsertPrizes(tenantId: string | null, prizes: Omit<Lottery
       const disp =
         p.display_probability == null || !Number.isFinite(Number(p.display_probability))
           ? null
-          : Number(p.display_probability);
+          : Math.max(0, Number(p.display_probability));
+      const stockEnabled = (p as any).stock_enabled ? 1 : 0;
+      const stockTotal = Number.isFinite(Number((p as any).stock_total)) ? Math.floor(Number((p as any).stock_total)) : -1;
+      const dailyStockLimit = Number.isFinite(Number((p as any).daily_stock_limit)) ? Math.floor(Number((p as any).daily_stock_limit)) : -1;
+      const prizeCost = Math.max(0, Number((p as any).prize_cost) || 0);
       await conn.query(
-        `INSERT INTO lottery_prizes (id, tenant_id, name, type, value, description, probability, display_probability, image_url, sort_order, enabled)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+        `INSERT INTO lottery_prizes
+           (id, tenant_id, name, type, value, description, probability, display_probability,
+            image_url, sort_order, enabled, prize_cost, stock_enabled, stock_total, daily_stock_limit)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
         [
           p.id || randomUUID(),
           tenantId,
@@ -75,6 +81,10 @@ export async function upsertPrizes(tenantId: string | null, prizes: Omit<Lottery
           disp,
           p.image_url || null,
           p.sort_order || 0,
+          prizeCost,
+          stockEnabled,
+          stockTotal,
+          dailyStockLimit,
         ],
       );
     }

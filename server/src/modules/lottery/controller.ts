@@ -166,14 +166,15 @@ export async function adminListPrizesController(req: AuthenticatedRequest, res: 
 export async function adminSavePrizesController(req: AuthenticatedRequest, res: Response) {
   const tenantId = req.user?.tenant_id ?? null;
   const { prizes } = req.body;
-  if (!Array.isArray(prizes)) {
+  if (!Array.isArray(prizes) || prizes.length === 0) {
     res.status(400).json({ success: false, error: 'INVALID_PRIZES' });
     return;
   }
 
-  const total = prizes.reduce((sum: number, p: any) => sum + Number(p.probability || 0), 0);
-  if (Math.abs(total - 100) > 0.001) {
-    res.status(400).json({ success: false, error: 'PROBABILITY_SUM_NOT_100', total });
+  // Weight model: any non-negative weight is valid; runtime auto-normalises via pickLotteryPrizeByConfiguredProbability()
+  const anyNegative = prizes.some((p: any) => Number(p.probability ?? 0) < 0);
+  if (anyNegative) {
+    res.status(400).json({ success: false, error: 'NEGATIVE_PROBABILITY' });
     return;
   }
 
@@ -187,7 +188,7 @@ export async function adminSavePrizesController(req: AuthenticatedRequest, res: 
     if (v == null || v === '') return null;
     const n = Number(v);
     if (!Number.isFinite(n)) return null;
-    return Math.min(100, Math.max(0, n));
+    return Math.max(0, n);
   };
 
   const normalized = prizes.map((p: Record<string, unknown>, idx: number) => ({
@@ -197,10 +198,14 @@ export async function adminSavePrizesController(req: AuthenticatedRequest, res: 
     type: p.type as 'points' | 'custom' | 'none',
     value: Number(p.value) || 0,
     description: (p.description as string | null) ?? null,
-    probability: Number(p.probability),
+    probability: Math.max(0, Number(p.probability) || 0),
     display_probability: parseDisplayProbability(p.display_probability),
     image_url: (p.image_url as string | null) ?? null,
     sort_order: Number(p.sort_order) || idx,
+    prize_cost: Math.max(0, Number(p.prize_cost) || 0),
+    stock_enabled: p.stock_enabled ? 1 : 0,
+    stock_total: Number.isFinite(Number(p.stock_total)) ? Math.floor(Number(p.stock_total)) : -1,
+    daily_stock_limit: Number.isFinite(Number(p.daily_stock_limit)) ? Math.floor(Number(p.daily_stock_limit)) : -1,
   }));
 
   await upsertPrizes(tenantId, normalized as Omit<LotteryPrize, 'enabled'>[]);
