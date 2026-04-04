@@ -59,7 +59,7 @@ interface MobileLayoutProps {
 }
 
 const pageTitles: Record<string, { zh: string; en: string }> = {
-  "/staff": { zh: "数据统计", en: "Statistics" },
+  "/staff": { zh: "数据统计", en: "Dashboard" },
   "/staff/exchange-rate": { zh: "汇率计算", en: "Exchange Rate" },
   "/staff/orders": { zh: "订单管理", en: "Orders" },
   "/staff/reports": { zh: "报表管理", en: "Reports" },
@@ -70,7 +70,7 @@ const pageTitles: Record<string, { zh: string; en: string }> = {
   "/staff/merchant-settlement": { zh: "商家结算", en: "Settlement" },
   "/staff/merchants": { zh: "商家管理", en: "Merchants" },
   "/staff/knowledge": { zh: "公司文档", en: "Company Docs" },
-  "/staff/admin/tenants": { zh: "租户管理", en: "Tenant Management" },
+  "/staff/admin/tenants": { zh: "租户管理", en: "Tenants" },
   "/staff/admin/tenant-view": { zh: "租户数据查看", en: "View Tenant Data" },
   "/staff/admin/settings": { zh: "平台设置", en: "Platform Settings" },
   "/staff/settings": { zh: "系统设置", en: "Settings" },
@@ -115,7 +115,7 @@ const tabPageTitles: Record<string, Record<string, { zh: string; en: string }>> 
     api: { zh: "API管理", en: "API" },
     overview: { zh: "设置总览", en: "Overview" },
     "staff-invite": { zh: "员工邀请码", en: "Staff invitation codes" },
-    "member-levels": { zh: "会员等级", en: "Member levels" },
+    "member-levels": { zh: "会员等级", en: "User levels" },
     "staff-devices": { zh: "后台登录设备", en: "Staff login devices" },
     "staff-login-ip": { zh: "登录IP限制", en: "Login IP allowlist" },
     "version-update": { zh: "版本更新", en: "Version update" },
@@ -182,7 +182,7 @@ export function MobileLayout({ children }: MobileLayoutProps) {
     ? platformSubTitle
     : (tabTitles && effectiveTab && tabTitles[effectiveTab])
       ? tabTitles[effectiveTab]
-      : (pageTitles[pathForTitle] || { zh: "GC会员系统", en: "GC Member System" });
+      : (pageTitles[pathForTitle] || { zh: "GC会员系统", en: "FastGC" });
   const isPrimary = primaryPaths.has(location.pathname);
 
   return (

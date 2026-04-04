@@ -172,7 +172,7 @@ export function OrderUsdtTable(props: OrderUsdtTableProps) {
                   </div>
                 </TableHead>
               )}
-              {columnVisibility.isVisible('createdAt') && <SortableTableHead sortKey="createdAt" currentSort={sortConfig} onSort={onSort} className="px-2 whitespace-nowrap text-center">{t("创建时间", "Created At")}</SortableTableHead>}
+              {columnVisibility.isVisible('createdAt') && <SortableTableHead sortKey="createdAt" currentSort={sortConfig} onSort={onSort} className="px-2 whitespace-nowrap text-center">{t("创建时间", "Created at")}</SortableTableHead>}
               {columnVisibility.isVisible('id') && <TableHead className="px-2 whitespace-nowrap text-center">{t("订单ID", "Order ID")}</TableHead>}
               {columnVisibility.isVisible('cardType') && <TableHead className="px-2 whitespace-nowrap text-center">{t("卡片类型", "Card Type")}</TableHead>}
               {columnVisibility.isVisible('cardValue') && <SortableTableHead sortKey="cardValue" currentSort={sortConfig} onSort={onSort} className="px-2 text-center whitespace-nowrap">{t("卡面值", "Card Value")}</SortableTableHead>}

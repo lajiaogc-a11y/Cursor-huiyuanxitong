@@ -268,7 +268,7 @@ export default function Login2FATab() {
                 <TableHead>{t("角色", "Role")}</TableHead>
                 <TableHead>{t("2FA开关", "2FA")}</TableHead>
                 <TableHead>{t("设置新验证码（可选）", "Set new code (optional)")}</TableHead>
-                <TableHead>{t("操作", "Action")}</TableHead>
+                <TableHead>{t("操作", "Actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

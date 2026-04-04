@@ -390,7 +390,7 @@ const ActivityGiftDialog = React.memo(function ActivityGiftDialog({ open, onOpen
             <div className="flex gap-2 pt-1">
               <Button onClick={handleSubmit} size="sm" className="gap-1 h-8">
                 <Plus className="h-3 w-3" />
-                {t("提交", "Submit")}
+                {t("提交", "Save")}
               </Button>
               <Button variant="outline" size="sm" onClick={() => setResetConfirmOpen(true)} className="gap-1 h-8">
                 <RotateCcw className="h-3 w-3" />

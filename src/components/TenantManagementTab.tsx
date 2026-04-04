@@ -357,7 +357,7 @@ export default function TenantManagementTab() {
       return;
     }
     if (superAdminConfirmName.trim() !== selectedEmployee.username) {
-      notify.error(t("确认输入不一致，请输入目标员工账号", "Confirmation mismatch, please input target employee username"));
+      notify.error(t("确认输入不一致，请输入目标员工账号", "Confirmation mismatch, enter target employee username"));
       return;
     }
     setSettingSuperAdmin(superAdminTenant.id);
@@ -820,7 +820,7 @@ export default function TenantManagementTab() {
                 placeholder={selectedEmployee?.username || t("请输入目标员工账号", "Enter target username")}
               />
               <p className="text-xs text-muted-foreground">
-                {t("请准确输入将被设置为总管理员的员工账号", "Please input the exact username to be promoted as super admin")}
+                {t("请准确输入将被设置为总管理员的员工账号", "Enter the exact username to be promoted as super admin")}
               </p>
             </div>
           </div>

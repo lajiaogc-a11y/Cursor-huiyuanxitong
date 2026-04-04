@@ -166,7 +166,7 @@ export default function ExchangeRateSettingsTab() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Globe className="h-5 w-5" />
-            {t("汇率设置 - 国家管理", "Rate Settings - Country Management")}
+            {t("汇率设置 - 国家管理", "Rate Settings - Countries")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">

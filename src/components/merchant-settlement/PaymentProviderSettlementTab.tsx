@@ -79,7 +79,7 @@ export function PaymentProviderSettlementTab({
               <MobileCardRow label={t("订单总额", "Orders")} value={`¥${item.orderTotal.toFixed(2)}`} />
               <MobileCardCollapsible>
                 <MobileCardRow label={t("赠送总额", "Gifts")} value={`¥${item.giftTotal.toFixed(2)}`} />
-                <MobileCardRow label={t("充值总额", "Recharge")} value={`¥${item.rechargeTotal.toFixed(2)}`} />
+                <MobileCardRow label={t("充值总额", "Top-up Total")} value={`¥${item.rechargeTotal.toFixed(2)}`} />
                 {item.postResetAdjustment !== 0 && (
                   <MobileCardRow label={t("重置后调整", "Adjustment")} value={`¥${item.postResetAdjustment.toFixed(2)}`} />
                 )}
@@ -121,7 +121,7 @@ export function PaymentProviderSettlementTab({
               </SortableTableHead>
               <SortableTableHead sortKey="orderTotal" currentSort={sortConfig} onSort={onSort} className="whitespace-nowrap">{t("订单总金额", "Order Total")}</SortableTableHead>
               <SortableTableHead sortKey="giftTotal" currentSort={sortConfig} onSort={onSort} className="whitespace-nowrap">{t("赠送总金额", "Gift Total")}</SortableTableHead>
-              <SortableTableHead sortKey="rechargeTotal" currentSort={sortConfig} onSort={onSort} className="whitespace-nowrap">{t("充值总额", "Recharge Total")}</SortableTableHead>
+              <SortableTableHead sortKey="rechargeTotal" currentSort={sortConfig} onSort={onSort} className="whitespace-nowrap">{t("充值总额", "Top-up Total")}</SortableTableHead>
               <SortableTableHead sortKey="postResetAdjustment" currentSort={sortConfig} onSort={onSort} className="whitespace-nowrap">{t("重置后调整", "Adjustment")}</SortableTableHead>
               <SortableTableHead sortKey="lastResetTime" currentSort={sortConfig} onSort={onSort} className="whitespace-nowrap">{t("最后重置时间", "Last Reset")}</SortableTableHead>
               <th className="text-center p-3 font-medium whitespace-nowrap sticky right-0 z-20 bg-muted shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.15)]">{t("操作", "Actions")}</th>

@@ -271,7 +271,7 @@ export function PermissionVersionManager({
         title={
           <span className="flex items-center gap-2">
             <Archive className="h-5 w-5 shrink-0" />
-            {t('权限版本管理', 'Permission Version Management')}
+            {t('权限版本管理', 'Permission Versions')}
           </span>
         }
         description={t(

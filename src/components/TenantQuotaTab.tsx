@@ -148,7 +148,7 @@ export default function TenantQuotaTab() {
       <div className="rounded-lg border p-4 space-y-3">
         <div className={isMobile ? "space-y-2" : "flex items-center justify-between gap-2"}>
           <div>
-            <h3 className="text-base font-semibold">{t("租户配额管理", "Tenant Quota Management")}</h3>
+            <h3 className="text-base font-semibold">{t("租户配额管理", "Tenant Quota")}</h3>
             <p className="text-sm text-muted-foreground">
               {t("空值表示不限制；可配置超限策略为硬拦截或仅告警（仅告警会放行并提示）。", "Empty value means unlimited. Exceed strategy can be block or warn-only.")}
             </p>
@@ -291,7 +291,7 @@ export default function TenantQuotaTab() {
                 <TableHead>{t("会员上限 / 当前", "Members Limit / Current")}</TableHead>
                 <TableHead>{t("日订单上限 / 今日", "Daily Orders Limit / Today")}</TableHead>
                 <TableHead>{t("超限策略", "Exceed Strategy")}</TableHead>
-                <TableHead>{t("操作", "Action")}</TableHead>
+                <TableHead>{t("操作", "Actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

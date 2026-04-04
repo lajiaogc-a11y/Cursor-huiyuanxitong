@@ -60,7 +60,7 @@ export default function LoginSettingsTab({
               <Input
                 value={settings.welcome_title}
                 onChange={(e) => onSettingsFieldChange('welcome_title', e.target.value)}
-                placeholder={t("例如：会员中心", "e.g. Member Center")}
+                placeholder={t("例如：会员中心", "e.g. VIP Portal")}
               />
               <p className="text-[11px] text-muted-foreground">
                 {t("会员端：有内容则作为主标题；否则为\u300C公司名 + VIP 会员门户\u300D。", "Member app: shown as main title when set; otherwise \u201CCompany + VIP portal\u201D.")}

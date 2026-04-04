@@ -178,7 +178,7 @@ export function WebhookManagementTab() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <WebhookIcon className="h-5 w-5" />
-            {t("Webhook 推送管理", "Webhook Push Management")}
+            {t("Webhook 推送管理", "Webhooks")}
           </CardTitle>
           <CardDescription>
             {t("配置 Webhook 将系统事件实时推送到第三方系统。支持订单创建、会员注册、积分变动等事件。", "Configure Webhooks to push system events to third-party systems in real-time. Supports order creation, member registration, points changes, etc.")}

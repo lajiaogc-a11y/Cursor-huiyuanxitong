@@ -208,7 +208,7 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 const TAB_MAP: Record<string, string> = { members: "members", activity: "activity", gifts: "gifts", points: "points" };
 const TAB_LABELS: Record<string, { zh: string; en: string }> = {
-  members: { zh: "会员数据", en: "Member Data" },
+  members: { zh: "会员数据", en: "User Data" },
   activity: { zh: "活动数据", en: "Activity Data" },
   gifts: { zh: "活动赠送", en: "Activity Gifts" },
   points: { zh: "积分明细", en: "Points Ledger" },

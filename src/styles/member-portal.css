@@ -3090,6 +3090,8 @@ html.member-html .member-points-account-settings--inline .member-points-account-
 /* ── 积分商城 · premium-ui-boost ProductCard（全宽方图 + 角标 + 图底积分条）── */
 .member-pu-product-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   border-radius: 16px;
   overflow: hidden;
   background: hsl(var(--pu-m-surface) / 0.42);
@@ -3209,6 +3211,9 @@ html.member-html .member-points-account-settings--inline .member-points-account-
   box-shadow: 0 4px 14px hsl(0 72% 40% / 0.35);
 }
 .member-pu-product-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   padding: 10px 12px 12px;
 }
 .member-pu-product-card__title {
@@ -3249,6 +3254,9 @@ html.member-html .member-points-account-settings--inline .member-points-account-
 }
 .member-pu-product-card__stock--soldout {
   color: hsl(var(--pu-rose-soft));
+}
+.member-pu-product-card__cta {
+  margin-top: auto;
 }
 .member-pu-product-card__progress {
   margin-bottom: 8px;

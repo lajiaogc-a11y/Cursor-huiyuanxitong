@@ -115,10 +115,10 @@ export default function ProviderManagementDialog({
         <div className="flex flex-col h-[min(82vh,760px)] min-h-[360px]">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col min-h-0">
             <TabsList className={`${isMobile ? 'flex w-full overflow-x-auto [&::-webkit-scrollbar]:hidden' : 'grid w-full grid-cols-4'}`}>
-              {canEditBalance && <TabsTrigger value="add-recharge" className={isMobile ? 'text-xs whitespace-nowrap' : ''}>{t('录入充值', 'Add Recharge')}</TabsTrigger>}
+              {canEditBalance && <TabsTrigger value="add-recharge" className={isMobile ? 'text-xs whitespace-nowrap' : ''}>{t('录入充值', 'Add Top-up')}</TabsTrigger>}
               {canEditBalance && <TabsTrigger value="initial-balance" className={isMobile ? 'text-xs whitespace-nowrap' : ''}>{t('初始余额', 'Initial Balance')}</TabsTrigger>}
               <TabsTrigger value="ledger" className={isMobile ? 'text-xs whitespace-nowrap' : ''}>{t('账本明细', 'Ledger')}</TabsTrigger>
-              <TabsTrigger value="details" className={isMobile ? 'text-xs whitespace-nowrap' : ''}>{t('充值明细', 'Recharge Details')}</TabsTrigger>
+              <TabsTrigger value="details" className={isMobile ? 'text-xs whitespace-nowrap' : ''}>{t('充值明细', 'Top-up Details')}</TabsTrigger>
             </TabsList>
 
             {/* Add Recharge Tab */}
@@ -127,7 +127,7 @@ export default function ProviderManagementDialog({
                 <div className="max-w-lg mx-auto p-4 space-y-5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>{t('充值金额USDT', 'Recharge Amount USDT')}</Label>
+                      <Label>{t('充值金额USDT', 'Top-up Amount (USDT)')}</Label>
                       <Input type="number" placeholder={t('输入USDT金额（支持负数）', 'Enter USDT amount (negative supported)')} value={rechargeAmountUsdt} onChange={(e) => setRechargeAmountUsdt(e.target.value)} />
                     </div>
                     <div className="space-y-2">
@@ -146,7 +146,7 @@ export default function ProviderManagementDialog({
                   </div>
                   <Button onClick={handleSaveRecharge} disabled={isSaving} className="w-full h-10 text-base font-semibold">
                     {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {t('确定录入', 'Submit')}
+                    {t('确定录入', 'Save')}
                   </Button>
                 </div>
               </TabsContent>
@@ -340,7 +340,7 @@ export default function ProviderManagementDialog({
       <DrawerDetail
         open={!!editingRecharge}
         onOpenChange={(o) => !o && setEditingRecharge(null)}
-        title={t('编辑充值记录', 'Edit Recharge')}
+        title={t('编辑充值记录', 'Edit Top-up')}
         sheetMaxWidth="xl"
       >
         {editingRecharge && (

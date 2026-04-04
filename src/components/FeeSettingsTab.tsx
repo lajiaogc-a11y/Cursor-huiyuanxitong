@@ -106,7 +106,7 @@ export default function FeeSettingsTab() {
     <SettingsPageContainer>
       <SettingsSection
         title={t("USDT 设置", "USDT Settings")}
-        description={t("此设置为系统级配置，汇率计算页面和报表管理将自动读取此值", "System-level settings used by Exchange Rate page and Report Management")}
+        description={t("此设置为系统级配置，汇率计算页面和报表管理将自动读取此值", "System-level settings used by Exchange Rate and Reports")}
         icon={DollarSign}
         accent="primary"
       >

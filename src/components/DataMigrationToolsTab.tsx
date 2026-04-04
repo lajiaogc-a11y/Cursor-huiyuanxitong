@@ -651,7 +651,7 @@ export default function DataMigrationToolsTab() {
                   <TableHead>{t("源租户", "Source")}</TableHead>
                   <TableHead>{t("目标租户", "Target")}</TableHead>
                   <TableHead>{t("状态", "Status")}</TableHead>
-                  <TableHead>{t("操作", "Action")}</TableHead>
+                  <TableHead>{t("操作", "Actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

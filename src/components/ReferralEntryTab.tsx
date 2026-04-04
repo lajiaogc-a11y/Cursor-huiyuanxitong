@@ -517,7 +517,7 @@ export default function ReferralEntryTab() {
               disabled={!canSubmit || isSubmitting}
             >
               <UserPlus className="h-4 w-4" />
-              {isSubmitting ? t("提交中...", "Submitting...") : t("确定提交", "Submit")}
+              {isSubmitting ? t("提交中...", "Submitting...") : t("确定提交", "Confirm")}
             </Button>
             
             {/* 提交提示 */}

@@ -2769,7 +2769,7 @@ export default function MemberPortalSettingsPage() {
                             <TableHead className="w-[64px] whitespace-nowrap">{t("日限", "Daily limit")}</TableHead>
                             <TableHead className="w-[64px] whitespace-nowrap">{t("终身", "Life")}</TableHead>
                             <TableHead className="w-[56px] text-center">{t("上架", "On")}</TableHead>
-                            <TableHead className="w-12 text-right">{t("操作", "Action")}</TableHead>
+                            <TableHead className="w-12 text-right">{t("操作", "Actions")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -3372,7 +3372,7 @@ export default function MemberPortalSettingsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void executeSubmitForReview()}>{t("提交", "Submit")}</AlertDialogAction>
+            <AlertDialogAction onClick={() => void executeSubmitForReview()}>{t("提交", "Save")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

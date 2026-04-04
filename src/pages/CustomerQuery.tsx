@@ -94,7 +94,7 @@ export default function CustomerQuery() {
           <div className="mx-auto mb-4">
             <GCLogo size={48} />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">{t('会员自助查询', 'Member Self-Service Query')}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t('会员自助查询', 'Self-Service Query')}</h1>
         </div>
 
         {!result ? (

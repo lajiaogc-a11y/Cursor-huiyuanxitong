@@ -548,7 +548,7 @@ export default function PointsTransactionsTab({
                           </div>
                           <span className="text-xs text-muted-foreground">{formatDateTime(entry.created_at)}</span>
                         </MobileCardHeader>
-                        <MobileCardRow label={t("会员编号", "Member")} value={entry.member_code || "—"} />
+                        <MobileCardRow label={t("会员编号", "User code")} value={entry.member_code || "—"} />
                         <MobileCardRow label={t("电话号码", "Phone")} value={getDisplayPhone(entry.phone_number || '', isAdmin)} />
                         {noteText ? (
                           <MobileCardRow label={t("备注", "Note")} value={noteText} />

@@ -62,17 +62,17 @@ interface MenuItem {
 
 // 侧栏文案以 labelZh/labelEn + 语言切换为准；可见性由权限（navigation 模块）与管理员规则决定
 const allMenuItems: MenuItem[] = [
-  { icon: LayoutDashboard, labelZh: "数据统计", labelEn: "Statistics", path: "/staff", navKey: "dashboard" },
+  { icon: LayoutDashboard, labelZh: "数据统计", labelEn: "Dashboard", path: "/staff", navKey: "dashboard" },
   { icon: Calculator, labelZh: "汇率计算", labelEn: "Exchange Rate", path: "/staff/exchange-rate", navKey: "exchange_rate" },
   { icon: ClipboardList, labelZh: "订单管理", labelEn: "Orders", path: "/staff/orders", navKey: "orders" },
   {
     icon: Star,
     labelZh: "会员管理",
-    labelEn: "Members",
+    labelEn: "Users",
     path: "/staff/members",
     navKey: "members",
     children: [
-      { labelZh: "会员数据", labelEn: "Member Data", path: "/staff/members?tab=members" },
+      { labelZh: "会员数据", labelEn: "User Data", path: "/staff/members?tab=members" },
       { labelZh: "活动数据", labelEn: "Activity Data", path: "/staff/members?tab=activity" },
       { labelZh: "活动赠送", labelEn: "Activity Gifts", path: "/staff/members?tab=gifts" },
       { labelZh: "积分明细", labelEn: "Points Ledger", path: "/staff/members?tab=points" },
@@ -134,7 +134,7 @@ const allMenuItems: MenuItem[] = [
         sectionLabel: "会员配置",
         sectionLabelEn: "Membership",
       },
-      { labelZh: "会员等级", labelEn: "Member levels", path: "/staff/settings?tab=member-levels" },
+      { labelZh: "会员等级", labelEn: "User levels", path: "/staff/settings?tab=member-levels" },
       { labelZh: "活动设置", labelEn: "Activity", path: "/staff/settings?tab=activity" },
       { labelZh: "活动类型", labelEn: "Activity Type", path: "/staff/settings?tab=activityType" },
       { labelZh: "活动分配", labelEn: "Gift Distribution", path: "/staff/settings?tab=giftDistribution" },
@@ -156,7 +156,7 @@ const allMenuItems: MenuItem[] = [
       { labelZh: "设置总览", labelEn: "Overview", path: "/staff/settings?tab=overview" },
     ],
   },
-  { icon: Building2, labelZh: "租户管理", labelEn: "Tenant Management", path: "/staff/admin/tenants", navKey: "platform_tenant_management" },
+  { icon: Building2, labelZh: "租户管理", labelEn: "Tenants", path: "/staff/admin/tenants", navKey: "platform_tenant_management" },
   { icon: Users, labelZh: "租户数据查看", labelEn: "View Tenant Data", path: "/staff/admin/tenant-view", navKey: "platform_tenant_view" },
   { icon: SlidersHorizontal, labelZh: "平台设置", labelEn: "Platform Settings", path: "/staff/admin/settings", navKey: "platform_settings" },
 ];

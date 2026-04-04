@@ -232,7 +232,7 @@ export function ApiKeyManagementTab() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Key className="h-5 w-5" />
-            {t("对外 API 接口管理", "External API Management")}
+            {t("对外 API 接口管理", "External API")}
           </CardTitle>
           <CardDescription>
             {t("管理第三方系统访问本平台数据的 API Key，支持权限控制、IP 白名单、频率限制和请求审计。", "Manage API Keys for third-party access. Supports permission control, IP whitelist, rate limiting, and request auditing.")}

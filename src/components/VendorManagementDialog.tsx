@@ -157,7 +157,7 @@ export default function VendorManagementDialog({
                   </div>
                   <Button onClick={handleSaveWithdrawal} disabled={isSaving} className="w-full h-10 text-base font-semibold">
                     {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {t('确定录入', 'Submit')}
+                    {t('确定录入', 'Save')}
                   </Button>
                 </div>
               </TabsContent>

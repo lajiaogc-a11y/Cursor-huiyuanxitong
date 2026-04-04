@@ -527,7 +527,7 @@ export default function OperationLogs() {
             if (settlement) {
               const exists = settlement.recharges.some(r => String(r.id) === objectIdStr);
               if (exists) {
-                notify.error(t('该充值记录已存在，无需恢复', 'Recharge record already exists'));
+                notify.error(t('该充值记录已存在，无需恢复', 'Top-up record already exists'));
                 return false;
               }
               

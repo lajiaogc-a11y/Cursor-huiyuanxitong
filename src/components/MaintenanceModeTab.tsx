@@ -259,7 +259,7 @@ export default function MaintenanceModeTab() {
                   <TableHead>{t("租户名称", "Tenant Name")}</TableHead>
                   <TableHead>{t("维护开关", "Maintenance")}</TableHead>
                   <TableHead>{t("维护文案", "Message")}</TableHead>
-                  <TableHead>{t("操作", "Action")}</TableHead>
+                  <TableHead>{t("操作", "Actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

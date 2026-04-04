@@ -143,7 +143,7 @@ export default function SystemSettings() {
     "staff-invite": t("员工邀请码", "Staff invitation codes"),
     "staff-login-ip": t("登录IP限制", "Login IP allowlist"),
     "staff-devices": t("后台登录设备", "Staff login devices"),
-    "member-levels": t("会员等级", "Member levels"),
+    "member-levels": t("会员等级", "User levels"),
     "version-update": t("版本更新", "Version update"),
   };
 

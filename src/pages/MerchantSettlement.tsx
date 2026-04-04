@@ -698,7 +698,7 @@ export default function MerchantSettlement() {
       { key: 'realTimeBalance', label: '实时余额', labelEn: 'Real-time Balance', formatter: (v: number) => formatNumberForExport(v) },
       { key: 'orderTotal', label: '订单总金额', labelEn: 'Order Total', formatter: (v: number) => formatNumberForExport(v) },
       { key: 'giftTotal', label: '赠送总金额', labelEn: 'Gift Total', formatter: (v: number) => formatNumberForExport(v) },
-      { key: 'rechargeTotal', label: '充值总额', labelEn: 'Recharge Total', formatter: (v: number) => formatNumberForExport(v) },
+      { key: 'rechargeTotal', label: '充值总额', labelEn: 'Top-up Total', formatter: (v: number) => formatNumberForExport(v) },
       { key: 'postResetAdjustment', label: '重置后调整', labelEn: 'Post-Reset Adjustment', formatter: (v: number) => formatNumberForExport(v) },
       { key: 'lastResetTime', label: '最后重置时间', labelEn: 'Last Reset Time', formatter: (v: string | null) => v || '-' },
     ];
@@ -1076,7 +1076,7 @@ export default function MerchantSettlement() {
       // Skip forceRefreshSettlementCache — cache already updated by save
       await loadData();
       setIsRechargeDialogOpen(false);
-      notify.success(t("充值已录入", "Recharge added"));
+      notify.success(t("充值已录入", "Top-up added"));
     } finally {
       setIsSaving(false);
     }
@@ -1199,7 +1199,7 @@ export default function MerchantSettlement() {
         showSubmissionError(
           t(
             '未找到该充值记录，可能缓存未与服务器同步。请点「刷新」或关闭弹窗后重试。',
-            'Recharge record not found; cache may be out of sync. Refresh the page or reopen the dialog.',
+            'Top-up record not found; cache may be out of sync. Refresh the page or reopen the dialog.',
           ),
         );
         return;
@@ -1213,7 +1213,7 @@ export default function MerchantSettlement() {
       );
       setCurrentRecharges(sortedRecharges);
       setEditingRecharge(null);
-      notify.success(t("充值记录已更新", "Recharge updated"));
+      notify.success(t("充值记录已更新", "Top-up updated"));
       // 通知变动明细对话框刷新
       notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
     } finally {
@@ -1243,7 +1243,7 @@ export default function MerchantSettlement() {
       );
       setCurrentRecharges(sortedRecharges);
       setDeletingRechargeId(null);
-      notify.success(t("充值记录已删除", "Recharge deleted"));
+      notify.success(t("充值记录已删除", "Top-up deleted"));
     } finally {
       setIsSaving(false);
     }
@@ -1849,14 +1849,14 @@ export default function MerchantSettlement() {
           </div>
       </DrawerDetail>
 
-      <DrawerDetail open={isRechargeDialogOpen} onOpenChange={setIsRechargeDialogOpen} title={t("录入充值", "Add Recharge")} sheetMaxWidth="xl">
+      <DrawerDetail open={isRechargeDialogOpen} onOpenChange={setIsRechargeDialogOpen} title={t("录入充值", "Add Top-up")} sheetMaxWidth="xl">
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>{t("代付商家", "Payment Provider")}</Label>
               <Input value={currentProvider} disabled />
             </div>
             <div className="space-y-2">
-              <Label>{t("充值金额USDT", "Recharge Amount USDT")}</Label>
+              <Label>{t("充值金额USDT", "Top-up Amount (USDT)")}</Label>
               <Input 
                 type="number" 
                 placeholder={t("输入USDT金额（支持负数）", "Enter USDT amount (negative allowed)")} 
@@ -1880,7 +1880,7 @@ export default function MerchantSettlement() {
                 value={isNaN(rechargeSettlementTotal) ? 0 : rechargeSettlementTotal.toFixed(2)} 
                 disabled 
               />
-              <p className="text-xs text-muted-foreground">= {t("充值金额USDT", "Recharge USDT")} × {t("USDT汇率", "USDT Rate")}</p>
+              <p className="text-xs text-muted-foreground">= {t("充值金额USDT", "Top-up USDT")} × {t("USDT汇率", "USDT Rate")}</p>
             </div>
             <div className="space-y-2">
               <Label>{t("备注", "Remark")}</Label>
@@ -1904,7 +1904,7 @@ export default function MerchantSettlement() {
       <DrawerDetail
         open={isProviderDetailsDialogOpen}
         onOpenChange={setIsProviderDetailsDialogOpen}
-        title={`${t("充值明细", "Recharge Details")} - ${currentProvider}`}
+        title={`${t("充值明细", "Top-up Details")} - ${currentProvider}`}
         description={t("查看和管理该代付商家的充值记录", "View and manage recharge records for this provider")}
         sheetMaxWidth="4xl"
       >
@@ -1915,7 +1915,7 @@ export default function MerchantSettlement() {
                   <th className="text-left p-3 font-medium">{t("序号", "#")}</th>
                   <th className="text-left p-3 font-medium">{t("录入时间", "Entry Time")}</th>
                   <th className="text-left p-3 font-medium">{t("代付商家", "Payment Provider")}</th>
-                  <th className="text-left p-3 font-medium">{t("充值金额USDT", "Recharge USDT")}</th>
+                  <th className="text-left p-3 font-medium">{t("充值金额USDT", "Top-up USDT")}</th>
                   <th className="text-left p-3 font-medium">{t("USDT汇率", "USDT Rate")}</th>
                   <th className="text-left p-3 font-medium">{t("结算总额", "Settlement Total")}</th>
                   <th className="text-left p-3 font-medium">{t("备注", "Remark")}</th>
@@ -1977,14 +1977,14 @@ export default function MerchantSettlement() {
       <DrawerDetail
         open={!!editingRecharge}
         onOpenChange={(open) => !open && setEditingRecharge(null)}
-        title={t("编辑充值记录", "Edit Recharge")}
+        title={t("编辑充值记录", "Edit Top-up")}
         description={t("修改充值金额和汇率", "Modify recharge amount and rate")}
         sheetMaxWidth="xl"
       >
           {editingRecharge && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>{t("充值金额USDT", "Recharge Amount USDT")}</Label>
+                <Label>{t("充值金额USDT", "Top-up Amount (USDT)")}</Label>
                 <Input
                   type="number"
                   value={editingRecharge.rechargeAmountUsdt}
@@ -2190,7 +2190,7 @@ export default function MerchantSettlement() {
             await loadData();
             const recharges = getRechargesForProvider(currentProvider);
             setCurrentRecharges([...recharges].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-            notify.success(t("充值已录入", "Recharge added"));
+            notify.success(t("充值已录入", "Top-up added"));
           } finally { setIsSaving(false); }
         }}
         onSaveInitialBalance={async (amount) => {
@@ -2214,7 +2214,7 @@ export default function MerchantSettlement() {
             await loadData();
             const recharges = getRechargesForProvider(currentProvider);
             setCurrentRecharges([...recharges].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-            notify.success(t("充值记录已更新", "Recharge updated"));
+            notify.success(t("充值记录已更新", "Top-up updated"));
             notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           } finally { setIsSaving(false); }
         }}
@@ -2228,7 +2228,7 @@ export default function MerchantSettlement() {
             await loadData();
             const recharges = getRechargesForProvider(currentProvider);
             setCurrentRecharges([...recharges].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-            notify.success(t("充值记录已删除", "Recharge deleted"));
+            notify.success(t("充值记录已删除", "Top-up deleted"));
             notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           } finally { setIsSaving(false); }
         }}

@@ -681,7 +681,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
                   disabled={isPlatformAdminReadonlyView || isSubmitting}
                 >
                   <Plus className="h-3 w-3" />
-                  {isSubmitting ? t("提交中...", "Submitting...") : t("提交", "Submit")}
+                  {isSubmitting ? t("提交中...", "Submitting...") : t("提交", "Save")}
                 </Button>
                 <Button
                   type="button"

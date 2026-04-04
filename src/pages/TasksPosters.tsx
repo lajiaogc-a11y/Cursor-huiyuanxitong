@@ -185,7 +185,7 @@ export default function TasksPosters() {
           className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
         >
           <ExternalLink className="h-4 w-4" />
-          {t("去汇率页生成海报", "Go to Rates Page")}
+          {t("去汇率页生成海报", "Go to Rates")}
         </Link>
       </div>
 
@@ -204,7 +204,7 @@ export default function TasksPosters() {
               <Link to="/exchange-rate?tab=rateSettings">
                 <Button>
                   <ImageIcon className="h-4 w-4 mr-2" />
-                  {t("去汇率页", "Go to Rates Page")}
+                  {t("去汇率页", "Go to Rates")}
                 </Button>
               </Link>
             </div>

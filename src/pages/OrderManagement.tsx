@@ -124,7 +124,7 @@ const getCurrencyOptions = (t: (zh: string, en: string) => string) => [
 
 // 普通订单列配置 - 移到组件内部使用 t() 函数
 const getNormalOrderColumns = (t: (zh: string, en: string) => string): ColumnConfig[] => [
-  { key: 'createdAt', label: t('创建时间', 'Created At') },
+  { key: 'createdAt', label: t('创建时间', 'Created at') },
   { key: 'id', label: t('订单ID', 'Order ID') },
   { key: 'cardType', label: t('卡片类型', 'Card Type') },
   { key: 'cardValue', label: t('卡片面值', 'Card Value') },
@@ -149,7 +149,7 @@ const getNormalOrderColumns = (t: (zh: string, en: string) => string): ColumnCon
 
 // USDT订单列配置 - 移到组件内部使用 t() 函数
 const getUsdtOrderColumns = (t: (zh: string, en: string) => string): ColumnConfig[] => [
-  { key: 'createdAt', label: t('创建时间', 'Created At') },
+  { key: 'createdAt', label: t('创建时间', 'Created at') },
   { key: 'id', label: t('订单ID', 'Order ID') },
   { key: 'cardType', label: t('卡片类型', 'Card Type') },
   { key: 'cardValue', label: t('卡片面值', 'Card Value') },

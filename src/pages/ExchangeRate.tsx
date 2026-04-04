@@ -1608,7 +1608,7 @@ export default function ExchangeRate() {
           <AlertDialogFooter>
             <AlertDialogCancel>{t('取消提交', 'Cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmAnomalySubmit} className="bg-amber-600 hover:bg-amber-700">
-              {t('确认提交', 'Confirm Submit')}
+              {t('确认提交', 'Confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -22,7 +22,7 @@ function hapticNavTap() {
 /** 对齐 premium-ui-boost-main `MemberBottomNav.tsx`：深底模糊顶栏 + 激活项顶部金蓝光条与图标强调 */
 const navItems = [
   { path: ROUTES.MEMBER.DASHBOARD, icon: Home, zh: "首页", en: "Home" },
-  { path: ROUTES.MEMBER.POINTS, icon: Gift, zh: "积分", en: "Points" },
+  { path: ROUTES.MEMBER.POINTS, icon: Gift, zh: "商城", en: "Mall" },
   { path: ROUTES.MEMBER.SPIN, icon: Star, zh: "抽奖", en: "Spin" },
   { path: ROUTES.MEMBER.INVITE, icon: Users, zh: "邀请", en: "Invite" },
   { path: ROUTES.MEMBER.SETTINGS, icon: Settings, zh: "设置", en: "Settings" },

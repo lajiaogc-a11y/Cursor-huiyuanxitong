@@ -413,7 +413,7 @@ export default function DataFieldPermissionsPanel() {
                         )}
                         {fieldConfig.isAction && (
                           <Badge variant="outline" className="text-[10px] h-4">
-                            {t('操作', 'Action')}
+                            {t('操作', 'Actions')}
                           </Badge>
                         )}
                       </div>

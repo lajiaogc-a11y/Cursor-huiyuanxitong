@@ -20,7 +20,7 @@ export default function MemberPortalNotFound() {
           <Compass className="h-7 w-7" strokeWidth={1.75} aria-hidden />
         </div>
         <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[hsl(var(--pu-m-text-dim))]">
-          {t("会员中心", "Member")}
+          {t("会员中心", "Portal")}
         </p>
         <h1 className="mb-2 bg-gradient-to-br from-pu-gold-soft via-pu-gold to-pu-gold-deep bg-clip-text text-5xl font-extrabold tracking-tight text-transparent">
           404

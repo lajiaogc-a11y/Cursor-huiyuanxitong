@@ -65,10 +65,10 @@ const tenantMenuGroups: MenuGroup[] = [
     titleZh: "常用功能",
     titleEn: "Frequently Used",
     items: [
-      { icon: LayoutDashboard, labelZh: "数据统计", labelEn: "Statistics", path: "/staff" },
+      { icon: LayoutDashboard, labelZh: "数据统计", labelEn: "Dashboard", path: "/staff" },
       { icon: Calculator, labelZh: "汇率计算", labelEn: "Exchange Rate", path: "/staff/exchange-rate" },
       { icon: ClipboardList, labelZh: "订单管理", labelEn: "Orders", path: "/staff/orders" },
-      { icon: Star, labelZh: "会员数据", labelEn: "Member Data", path: "/staff/members?tab=members" },
+      { icon: Star, labelZh: "会员数据", labelEn: "User Data", path: "/staff/members?tab=members" },
       { icon: Activity, labelZh: "活动数据", labelEn: "Activity Data", path: "/staff/members?tab=activity" },
       { icon: Gift, labelZh: "活动赠送", labelEn: "Activity Gifts", path: "/staff/members?tab=gifts" },
       { icon: List, labelZh: "积分明细", labelEn: "Points Ledger", path: "/staff/members?tab=points" },
@@ -123,7 +123,7 @@ function isMenuPathActive(itemPath: string, pathname: string, search: string): b
 
 /** 平台总管理员专用：放在抽屉最底部（语言/主题/退出之上），不与业务菜单混排滚动 */
 const platformBottomNavItems: MobileMenuItem[] = [
-  { icon: Building2, labelZh: "租户管理", labelEn: "Tenant Management", path: "/staff/admin/tenants" },
+  { icon: Building2, labelZh: "租户管理", labelEn: "Tenants", path: "/staff/admin/tenants" },
   { icon: Users, labelZh: "租户数据查看", labelEn: "View Tenant Data", path: "/staff/admin/tenant-view" },
   { icon: Settings, labelZh: "平台设置", labelEn: "Platform Settings", path: "/staff/admin/settings" },
 ];
