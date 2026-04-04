@@ -31,7 +31,12 @@ export function isMemberFacingPathname(pathname: string): boolean {
 /** 在浏览器内根据当前 URL 与存储偏好得到文案语言（供 toast、store、打印页等使用） */
 export function readEffectiveAppLocale(): AppLocale {
   if (typeof window === "undefined") return readStoredAppLocale();
-  if (isMemberFacingPathname(window.location.pathname)) return "en";
+  if (isMemberFacingPathname(window.location.pathname)) {
+    try {
+      if (navigator.language?.startsWith("zh")) return "zh";
+    } catch { /* non-browser */ }
+    return "en";
+  }
   return readStoredAppLocale();
 }
 

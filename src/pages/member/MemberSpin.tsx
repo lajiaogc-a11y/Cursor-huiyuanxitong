@@ -188,14 +188,18 @@ export default function MemberSpin() {
   const highlightCancelRef = useRef<(() => void) | null>(null);
 
   const [simFeedItems, setSimFeedItems] = useState<SpinSimFeedItem[]>([]);
+  const simFeedLastKnownRef = useRef<SpinSimFeedItem[]>([]);
   /** 点击中奖滚动条后暂停 3 秒再继续 */
   const [simFeedClickPaused, setSimFeedClickPaused] = useState(false);
   const simFeedClickPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const simFeedDisplayItems = useMemo(() => {
-    if (!simFeedItems.length) return [];
-    return [...simFeedItems]
+    const source = simFeedItems.length > 0 ? simFeedItems : simFeedLastKnownRef.current;
+    if (!source.length) return [];
+    const sorted = [...source]
       .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))
       .slice(0, SIM_FEED_DISPLAY_LIMIT);
+    if (sorted.length > 0) simFeedLastKnownRef.current = sorted;
+    return sorted;
   }, [simFeedItems]);
 
   /** 与首页公告一致：`Math.max(14, n * 5)`，n 为当前展示的条数（最多 10） */
@@ -387,7 +391,10 @@ export default function MemberSpin() {
           return;
         }
         const prize = r.prize!;
-        if (typeof r.remaining === "number") setRemaining(r.remaining);
+        if (typeof r.remaining === "number") {
+          setRemaining(r.remaining);
+          setQuotaUsedToday((u) => u + 1);
+        }
         setLastDrawRewardPoints(r.reward_points);
         setLastDrawRewardStatus(r.reward_status);
         setLastDrawMeta({ budget_warning: r.budget_warning, risk_downgraded: r.risk_downgraded });
@@ -638,20 +645,28 @@ export default function MemberSpin() {
                   className="member-spin-sim-feed__track inline-flex w-max max-w-none items-center animate-[marquee_18s_linear_infinite]"
                   style={{ animationDuration: `${simFeedMarqueeDurationSec}s` }}
                 >
-                  {[...simFeedDisplayItems, ...simFeedDisplayItems].map((it, i) => (
-                    <span
-                      key={`${it.id}-${i}`}
-                      className="inline-flex shrink-0 items-center"
-                    >
-                      {i > 0 ? (
+                  {[0, 1].map((copyIdx) => (
+                    <span key={copyIdx} className="inline-flex shrink-0 items-center">
+                      {simFeedDisplayItems.map((it, i) => (
                         <span
-                          className="mx-3 inline-block h-3.5 w-px shrink-0 rounded-full bg-[hsl(var(--pu-m-text)/0.28)] opacity-85"
-                          aria-hidden
-                        />
-                      ) : null}
-                      <span className="whitespace-nowrap px-2 py-1 text-[11px] font-medium text-[hsl(var(--pu-m-text-dim)/0.88)]">
-                        {normalizeSpinSimFeedLineForMember(it.text)}
-                      </span>
+                          key={`${it.id}-${i}`}
+                          className="inline-flex shrink-0 items-center"
+                        >
+                          {i > 0 ? (
+                            <span
+                              className="mx-3 inline-block h-3.5 w-px shrink-0 rounded-full bg-[hsl(var(--pu-m-text)/0.28)] opacity-85"
+                              aria-hidden
+                            />
+                          ) : null}
+                          <span className="whitespace-nowrap px-2 py-1 text-[11px] font-medium text-[hsl(var(--pu-m-text-dim)/0.88)]">
+                            {normalizeSpinSimFeedLineForMember(it.text)}
+                          </span>
+                        </span>
+                      ))}
+                      <span
+                        className="mx-3 inline-block h-3.5 w-px shrink-0 rounded-full bg-[hsl(var(--pu-m-text)/0.28)] opacity-85"
+                        aria-hidden
+                      />
                     </span>
                   ))}
                 </div>

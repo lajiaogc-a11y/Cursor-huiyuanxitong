@@ -342,7 +342,7 @@ function normalizeAnnouncementPopupFrequency(raw: Record<string, unknown>): Anno
   return "off";
 }
 
-function normalizeLoginBadgesField(raw: unknown): string[] {
+export function normalizeLoginBadgesField(raw: unknown): string[] {
   const fromArray = (arr: unknown[]): string[] =>
     arr.map((x) => String(x).trim()).filter((s) => s.length > 0);
   if (Array.isArray(raw)) {

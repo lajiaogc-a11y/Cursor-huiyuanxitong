@@ -40,6 +40,8 @@ import { memberPortalLegalBody } from "@/lib/memberPortalLegalBody";
 import { memberPortalGoldCssVarsFromHex } from "@/utils/memberPortalGoldCssVars";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
 import { cn } from "@/lib/utils";
+import { parseMemberLoginBadge, MEMBER_LOGIN_BADGE_SLOT_COUNT } from "@/lib/memberLoginBadge";
+import { normalizeLoginBadgesField } from "@/services/members/memberPortalSettingsService";
 
 function InviteLandingBrandLogo({
   logoUrl,
@@ -284,22 +286,14 @@ export default function InviteLanding() {
     [themeColor],
   );
 
-  const perks = inviteEnabled
-    ? [
-        {
-          emoji: "🎰",
-          text: t(`${inviteReward} 次免费转盘`, `${inviteReward} free spins`),
-        },
-        {
-          emoji: "💰",
-          text: t("积分商城", "Points mall"),
-        },
-        {
-          emoji: "🎁",
-          text: t("新人礼遇", "Welcome perks"),
-        },
-      ]
-    : [];
+  const loginBadgeSlots = useMemo(() => {
+    const raw = portalSettings?.login_badges;
+    const lines = normalizeLoginBadgesField(raw)
+      .slice(0, MEMBER_LOGIN_BADGE_SLOT_COUNT);
+    return Array.from({ length: MEMBER_LOGIN_BADGE_SLOT_COUNT }, (_, i) =>
+      parseMemberLoginBadge(lines[i] ?? ""),
+    );
+  }, [portalSettings?.login_badges]);
 
   return (
     <div
@@ -405,23 +399,39 @@ export default function InviteLanding() {
               </div>
               <p className="text-xs leading-relaxed text-[hsl(var(--pu-m-text-dim))]">
                 {t(
-                  `您已受邀！注册即可解锁钱包、积分商城与 ${inviteReward} 次欢迎转盘。`,
-                  `You're invited! Unlock your wallet, points mall, and ${inviteReward} welcome spins.`,
+                  `您已受邀！注册即可获得 ${inviteReward} 次免费转盘机会。`,
+                  `You're invited! Sign up to get ${inviteReward} free spins.`,
                 )}
               </p>
             </div>
 
-            {perks.length > 0 ? (
-              <div className="mb-6 flex flex-wrap justify-center gap-2">
-                {perks.map((p) => (
-                  <span
-                    key={p.text}
-                    className="flex items-center gap-1.5 rounded-full border border-[hsl(var(--pu-m-surface-border)/0.2)] bg-[hsl(var(--pu-m-surface)/0.5)] px-3 py-1.5 text-[11px] font-bold text-[hsl(var(--pu-m-text))]"
-                  >
-                    <span aria-hidden>{p.emoji}</span>
-                    {p.text}
-                  </span>
-                ))}
+            {loginBadgeSlots.some((s) => s.icon || s.label) ? (
+              <div className="mb-6 grid grid-cols-3 gap-2.5 [grid-auto-rows:1fr]">
+                {loginBadgeSlots.map((slot, idx) => {
+                  const isEmpty = !slot.icon && !slot.label;
+                  return (
+                    <div
+                      key={idx}
+                      className={cn(
+                        "flex h-full min-h-[5.25rem] flex-col items-stretch rounded-2xl p-2.5 text-center",
+                        isEmpty
+                          ? "border border-dashed border-[hsl(var(--pu-m-surface-border)/0.38)] bg-[hsl(var(--pu-m-surface)/0.12)]"
+                          : "border border-[hsl(var(--pu-m-surface-border)/0.2)] bg-[hsl(var(--pu-m-surface)/0.35)]",
+                      )}
+                    >
+                      <div className="flex min-h-[2rem] flex-shrink-0 items-center justify-center text-[1.25rem] leading-none">
+                        {slot.icon ? (
+                          <span className="select-none" aria-hidden>
+                            {slot.icon}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="flex min-h-0 flex-1 items-start justify-center text-[10px] font-medium leading-snug text-[hsl(var(--pu-m-text-dim))] break-words">
+                        {slot.label}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : null}
 

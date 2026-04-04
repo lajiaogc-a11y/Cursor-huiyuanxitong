@@ -593,8 +593,10 @@ export default function MemberPoints() {
 
   const handleRedeem = useCallback(async () => {
     if (!member || !redeemTarget) return;
+    const targetSnapshot = redeemTarget;
+    const memberId = member.id;
     await redeemGuard(async () => {
-      const cap = redeemableMaxQty(redeemTarget);
+      const cap = redeemableMaxQty(targetSnapshot);
       const qty = cap < 1 ? 0 : Math.max(1, Math.min(Number(redeemQty || 1), cap));
       if (qty < 1) {
         notify.error(
@@ -608,8 +610,8 @@ export default function MemberPoints() {
       setRedeeming(true);
       try {
         const r = await redeemPointsMallItem(
-          member.id,
-          redeemTarget.id,
+          memberId,
+          targetSnapshot.id,
           qty,
           redeemClientRequestIdRef.current || undefined,
         );
@@ -623,29 +625,31 @@ export default function MemberPoints() {
           notify.info(t("该兑换请求已处理过", "This redeem request was already processed"));
         } else {
           notify.success(
-            t(`已兑换：${r.item?.title || redeemTarget.title}`, `Redeemed: ${r.item?.title || redeemTarget.title}`),
+            t(
+              `已兑换：${r.item?.title || targetSnapshot.title}`,
+              `Redeemed: ${r.item?.title || targetSnapshot.title}`,
+            ),
           );
         }
         setRedeemError(null);
         setRedeemTarget(null);
-        await refreshPoints();
+        void refreshPoints().catch(() => {});
         void refreshMember().catch(() => {});
-        void queryClient.invalidateQueries({ queryKey: memberQueryKeys.points(member.id) });
-        void queryClient.invalidateQueries({ queryKey: memberQueryKeys.mall(member.id) });
-        void queryClient.invalidateQueries({ queryKey: memberQueryKeys.profile(member.id) });
-        void queryClient.invalidateQueries({ queryKey: memberQueryKeys.pointsBreakdown(member.id) });
-        try {
-          const [raw, cats] = await Promise.all([
-            loadMemberPointsMallCatalog(member.id),
-            loadMemberPointsMallCategories(member.id),
-          ]);
-          setItems(raw.map(normalizeMallItem));
-          setMallCategories(Array.isArray(cats) ? cats : []);
-        } catch {
-          notify.warning(
-            t("商城列表同步失败，请下拉刷新或稍后重试。", "Catalog sync failed. Pull to refresh or try again later."),
-          );
-        }
+        void queryClient.invalidateQueries({ queryKey: memberQueryKeys.points(memberId) }).catch(() => {});
+        void queryClient.invalidateQueries({ queryKey: memberQueryKeys.mall(memberId) }).catch(() => {});
+        void queryClient.invalidateQueries({ queryKey: memberQueryKeys.profile(memberId) }).catch(() => {});
+        void queryClient.invalidateQueries({ queryKey: memberQueryKeys.pointsBreakdown(memberId) }).catch(() => {});
+        loadMemberPointsMallCatalog(memberId)
+          .then((raw) => {
+            setItems(raw.map(normalizeMallItem));
+            return loadMemberPointsMallCategories(memberId);
+          })
+          .then((cats) => setMallCategories(Array.isArray(cats) ? cats : []))
+          .catch(() => {
+            notify.warning(
+              t("商城列表同步失败，请下拉刷新或稍后重试。", "Catalog sync failed. Pull to refresh or try again later."),
+            );
+          });
         setRedemptionsKey((k) => k + 1);
       } catch (e: unknown) {
         const msg =
@@ -654,8 +658,9 @@ export default function MemberPoints() {
             : memberPortalNetworkToastMessage(t);
         setRedeemError(msg);
         notify.error(msg);
+      } finally {
+        setRedeeming(false);
       }
-      finally { setRedeeming(false); }
     });
   }, [member, redeemTarget, redeemQty, redeemGuard, refreshPoints, refreshMember, queryClient, t]);
 
@@ -1164,7 +1169,13 @@ export default function MemberPoints() {
                       background: "linear-gradient(135deg, hsl(var(--pu-gold)), hsl(var(--pu-gold-soft)))",
                       boxShadow: "0 8px 24px hsl(var(--pu-gold) / 0.25)",
                     }}
-                    onClick={() => void handleRedeem()}
+                    onClick={() => {
+                      handleRedeem().catch((err) => {
+                        console.error("[MemberPoints] handleRedeem uncaught:", err);
+                        notify.error(t("兑换失败，请稍后重试。", "Redeem failed. Try again later."));
+                        setRedeeming(false);
+                      });
+                    }}
                   >
                     {redeeming ? (
                       <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden />

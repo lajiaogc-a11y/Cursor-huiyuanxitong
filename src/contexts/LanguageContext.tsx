@@ -12,9 +12,17 @@ function fixMojibakeUi(s: string): string {
 
 export type Language = 'zh' | 'en';
 
-/** 会员端界面固定英文；员工端与其它公共页使用用户偏好语言 */
+/** 会员端界面根据浏览器语言自动显示中/英文；员工端与其它公共页使用用户偏好语言 */
 function isMemberFacingPath(pathname: string): boolean {
   return isMemberFacingPathname(pathname);
+}
+
+function detectBrowserLang(): Language {
+  try {
+    const lang = navigator.language || "";
+    if (lang.startsWith("zh")) return "zh";
+  } catch { /* SSR / non-browser */ }
+  return "en";
 }
 
 interface LanguageContextType {
@@ -58,7 +66,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [preferredLanguage, setPreferredLanguageState] = useState<Language>(readStoredAppLocale);
 
   const memberFacing = isMemberFacingPath(pathname);
-  const effectiveLanguage: Language = memberFacing ? "en" : preferredLanguage;
+  const effectiveLanguage: Language = memberFacing ? detectBrowserLang() : preferredLanguage;
 
   useEffect(() => {
     document.documentElement.lang = effectiveLanguage === "zh" ? "zh-CN" : "en";
