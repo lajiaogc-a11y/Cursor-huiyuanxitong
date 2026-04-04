@@ -2,14 +2,38 @@ import { notify } from "@/lib/notifyHub";
 
 export type BilingualT = (zh: string, en: string) => string;
 
+declare global {
+  interface Window {
+    AndroidBridge?: {
+      saveBase64ImageToGallery?: (base64: string, filename: string) => void;
+    };
+  }
+}
+
 function removeOverlay(wrap: HTMLElement, objectUrl: string) {
   if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
   URL.revokeObjectURL(objectUrl);
 }
 
-/**
- * 微信 / 部分内置浏览器无法可靠触发下载或系统分享，用全屏图 + 长按保存（H5 通用做法）。
- */
+function isAndroidWebView(): boolean {
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  if (/FastGC-Android/i.test(ua)) return true;
+  return /Android/i.test(ua) && /wv\)|Version\/[\d.]+.*Chrome/i.test(ua);
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      const base64 = result.split(",")[1] || "";
+      resolve(base64);
+    };
+    reader.onerror = () => reject(new Error("FileReader failed"));
+    reader.readAsDataURL(blob);
+  });
+}
+
 export function openLongPressSaveOverlay(objectUrl: string, t: BilingualT): void {
   const wrap = document.createElement("div");
   wrap.setAttribute("role", "dialog");
@@ -59,9 +83,6 @@ export function openLongPressSaveOverlay(objectUrl: string, t: BilingualT): void
   document.body.appendChild(wrap);
 }
 
-/**
- * 将会员邀请海报 PNG 交给系统：优先分享面板（可存相册），微信等走长按预览，桌面走下载。
- */
 export async function saveInvitePosterPngBlob(blob: Blob, filename: string, t: BilingualT): Promise<void> {
   const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
   const isWeChat = /MicroMessenger/i.test(ua);
@@ -74,6 +95,18 @@ export async function saveInvitePosterPngBlob(blob: Blob, filename: string, t: B
       t("已打开预览，请长按图片保存到相册", "Preview opened — long-press the image to save to your gallery."),
     );
     return;
+  }
+
+  // Android WebView: use native bridge to save directly to gallery
+  if (isAndroidWebView() && window.AndroidBridge?.saveBase64ImageToGallery) {
+    try {
+      const base64 = await blobToBase64(blob);
+      window.AndroidBridge.saveBase64ImageToGallery(base64, filename);
+      notify.success(t("海报已保存到相册", "Poster saved to gallery"));
+      return;
+    } catch {
+      // fall through to other methods
+    }
   }
 
   const file = new File([blob], filename, { type: "image/png" });
@@ -100,11 +133,19 @@ export async function saveInvitePosterPngBlob(blob: Blob, filename: string, t: B
 
   const url = URL.createObjectURL(blob);
 
-  // iOS Safari 常忽略 download 属性：用长按预览更可靠
   if (isIOS) {
     openLongPressSaveOverlay(url, t);
     notify.success(
       t("请长按图片保存到相册。", "Long-press the image to save to Photos."),
+    );
+    return;
+  }
+
+  // Android WebView without bridge: use long-press overlay as fallback
+  if (isAndroidWebView()) {
+    openLongPressSaveOverlay(url, t);
+    notify.success(
+      t("请长按图片保存到相册", "Long-press the image to save to gallery"),
     );
     return;
   }
