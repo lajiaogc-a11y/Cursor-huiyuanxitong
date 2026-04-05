@@ -202,7 +202,7 @@ export default function MerchantSettlement() {
   const [activityGifts, setActivityGifts] = useState<any[]>(() => getMsCache()?.activityGifts || []);
 
   // 加载状态
-  const [isLoading, setIsLoading] = useState(!getMsCache()Valid());
+  const [isLoading, setIsLoading] = useState(!msCacheValid());
   const [initError, setInitError] = useState<string | null>(null);
   
   
@@ -231,7 +231,7 @@ export default function MerchantSettlement() {
 
   const initDoneRef = useRef(false);
   useEffect(() => {
-    if (getMsCache()Valid() || initDoneRef.current) return;
+    if (msCacheValid() || initDoneRef.current) return;
     if (!employee) return; // Wait for auth to be ready before loading data
     initDoneRef.current = true;
     const initData = async () => {
