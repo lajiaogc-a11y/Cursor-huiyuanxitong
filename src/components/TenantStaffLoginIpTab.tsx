@@ -45,6 +45,7 @@ export default function TenantStaffLoginIpTab() {
   const [saving, setSaving] = useState(false);
   const [newIp, setNewIp] = useState("");
   const [newLabel, setNewLabel] = useState("");
+  const [removeRuleIp, setRemoveRuleIp] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!effectiveTenantId) {

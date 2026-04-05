@@ -11,7 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CreditCard, Copy, Trash2 } from "lucide-react";
+import { CreditCard, Copy, Trash2, XCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -21,6 +21,7 @@ import {
   subscribeExchangePaymentInfoLedger,
   markExchangePaymentInfoCopied,
   removeExchangePaymentInfoEntry,
+  clearAllExchangePaymentInfoEntries,
   normalizePaymentCopyPayload,
   type ExchangePaymentInfoEntry,
 } from "@/lib/exchangePaymentInfoLedger";
@@ -58,6 +59,7 @@ export function ExchangePaymentInfoPanel() {
   );
   const [pendingCopy, setPendingCopy] = useState<{ id: string; text: string } | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [pendingClearAll, setPendingClearAll] = useState(false);
 
   useEffect(() => {
     if (!effectiveTenantId) return;
@@ -106,15 +108,39 @@ export function ExchangePaymentInfoPanel() {
     notify.success(t("已删除该条付款信息", "Payment info row removed"));
   }, [pendingDeleteId, effectiveTenantId, t]);
 
+  const handleConfirmClearAll = useCallback(() => {
+    if (!effectiveTenantId) {
+      setPendingClearAll(false);
+      return;
+    }
+    clearAllExchangePaymentInfoEntries(effectiveTenantId);
+    setPendingClearAll(false);
+    notify.success(t("已清除所有付款信息", "All payment info cleared"));
+  }, [effectiveTenantId, t]);
+
   if (!effectiveTenantId) return null;
 
   return (
     <>
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <CreditCard className="h-4 w-4" />
-            {t("付款信息", "Payment info")}
+          <CardTitle className="flex items-center justify-between text-base">
+            <span className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              {t("付款信息", "Payment info")}
+            </span>
+            {rows.length > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 gap-1 text-muted-foreground hover:text-destructive"
+                onClick={() => setPendingClearAll(true)}
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                {t("清除", "Clear")}
+              </Button>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -129,7 +155,7 @@ export function ExchangePaymentInfoPanel() {
                   <tr className="border-b bg-muted/50 text-left text-xs text-muted-foreground">
                     <th className="w-[55%] px-2 py-2 font-medium">{t("电话", "Phone")}</th>
                     <th className="w-[28%] px-2 py-2 font-medium">{t("复制", "Copy")}</th>
-                    <th className="w-[17%] px-2 py-2 font-medium">{t("状态", "Status")}</th>
+                    <th className="w-[17%] px-2 py-2 font-medium text-center">{t("状态", "Status")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -148,7 +174,7 @@ export function ExchangePaymentInfoPanel() {
                           {t("复制", "Copy")}
                         </Button>
                       </td>
-                      <td className="px-2 py-1.5 align-middle">
+                      <td className="px-2 py-1.5 align-middle text-center">
                         {row.copied ? (
                           <Button
                             type="button"
@@ -211,6 +237,29 @@ export function ExchangePaymentInfoPanel() {
               onClick={handleConfirmDelete}
             >
               {t("确认删除", "Delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={pendingClearAll} onOpenChange={(open) => !open && setPendingClearAll(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("清除所有付款信息？", "Clear all payment info?")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                "将清除列表中的所有记录，不会撤销已提交的订单。",
+                "This clears all rows from the list. It does not undo any submitted orders.",
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleConfirmClearAll}
+            >
+              {t("确认清除", "Clear all")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

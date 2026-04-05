@@ -426,14 +426,16 @@ export function Sidebar() {
         )}>
           {/* Header */}
           <div className="h-14 shrink-0 flex items-center justify-between border-b border-sidebar-border px-4">
-            <div className="flex items-center">
-              <StaffChromeLogo size={32} />
+            <div className="flex items-center gap-2.5">
+              <StaffChromeLogo size={28} />
+              <span className="font-semibold text-sm tracking-tight text-sidebar-foreground">FastGC</span>
             </div>
             <button 
               onClick={() => setTabletSidebarOpen(false)}
               aria-label={t("关闭菜单", "Close menu")}
+              className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-sidebar-accent transition-colors"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </button>
           </div>
 
@@ -476,9 +478,17 @@ export function Sidebar() {
           collapsed ? "w-16" : "w-52"
         )}
       >
-        {/* Logo */}
-        <div className="h-14 shrink-0 flex items-center justify-center border-b border-sidebar-border px-3">
-          <StaffChromeLogo size={32} />
+        {/* Brand */}
+        <div className={cn(
+          "h-14 shrink-0 flex items-center border-b border-sidebar-border transition-all duration-300",
+          collapsed ? "justify-center px-2" : "px-4 gap-2.5"
+        )}>
+          <StaffChromeLogo size={28} />
+          {!collapsed && (
+            <span className="font-semibold text-sm tracking-tight text-sidebar-foreground truncate">
+              FastGC
+            </span>
+          )}
         </div>
 
         {/* Navigation */}

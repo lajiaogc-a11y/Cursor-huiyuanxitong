@@ -176,3 +176,10 @@ export function removeExchangePaymentInfoEntry(tenantId: string | null | undefin
   writeRows(tid, next);
   notify();
 }
+
+export function clearAllExchangePaymentInfoEntries(tenantId: string | null | undefined): void {
+  if (typeof window === "undefined") return;
+  const tid = normalizeTenantId(tenantId);
+  writeRows(tid, []);
+  notify();
+}

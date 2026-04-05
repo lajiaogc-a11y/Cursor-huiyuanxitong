@@ -17,9 +17,11 @@ import type { AnnouncementItem, AnnouncementPopupFrequency } from "@/services/me
 import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
 import "@/styles/member-portal.css";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
-import { MemberAnnouncementDrawerImage } from "@/components/member/dashboard/MemberAnnouncementDrawerImage";
+import { MemberDashboardBannerSection } from "@/components/member/dashboard/MemberDashboardBannerSection";
 import { MemberDashboardDailyTasks } from "@/components/member/dashboard/MemberDashboardDailyTasks";
 import { MemberDashboardPointsStatGrid } from "@/components/member/dashboard/MemberDashboardPointsStatGrid";
+import { MemberDashboardPortalOverlays } from "@/components/member/dashboard/MemberDashboardPortalOverlays";
+import { MemberDashboardProfileBar } from "@/components/member/dashboard/MemberDashboardProfileBar";
 import { MemberDashboardQuickActions } from "@/components/member/dashboard/MemberDashboardQuickActions";
 import { useMemberSkeletonGate } from "@/hooks/useMemberSkeletonGate";
 import { resolveHomePointsBalanceFooter } from "@/lib/memberPortalBilingualHint";
@@ -61,9 +63,6 @@ export default function MemberDashboard() {
   const showMemberInbox = !!ps.enable_member_inbox;
   const [popupOpen, setPopupOpen] = useState(false);
   const [signOutLoading, setSignOutLoading] = useState(false);
-  const fallbackBannerSlides = useFallbackHomeBannerSlides(t, theme);
-  const [fallbackBannerIdx, setFallbackBannerIdx] = useState(0);
-  const [fallbackBannerSliding, setFallbackBannerSliding] = useState(false);
   const [todayEarned, setTodayEarned] = useState(0);
   const [todayEarnedLoading, setTodayEarnedLoading] = useState(true);
   const [pullRefreshGen, setPullRefreshGen] = useState(0);
