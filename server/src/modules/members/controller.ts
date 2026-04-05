@@ -47,11 +47,7 @@ export async function listMembersController(req: AuthenticatedRequest, res: Resp
 export async function getMemberByIdController(req: AuthenticatedRequest, res: Response): Promise<void> {
   const queryTenantId = req.query.tenant_id as string | undefined;
   const effectiveTenantId = resolveTenantId(req, queryTenantId, { allowPlatformAll: true });
-  const id = req.params.id;
-  if (!id) {
-    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'id required' } });
-    return;
-  }
+  const { id } = req.params;
   try {
     const data = await getMemberByIdService(id, effectiveTenantId);
     res.json({ success: true, data });
@@ -101,11 +97,7 @@ export async function updateMemberController(req: AuthenticatedRequest, res: Res
     res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenant_id required' } });
     return;
   }
-  const id = req.params.id;
-  if (!id) {
-    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'id required' } });
-    return;
-  }
+  const { id } = req.params;
   try {
     const data = await updateMemberService(id, tenantId, req.body);
     res.json({ success: true, data });
@@ -161,11 +153,7 @@ export async function updateMemberByPhoneController(req: AuthenticatedRequest, r
     res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenant_id required' } });
     return;
   }
-  const phone = req.params.phone;
-  if (!phone) {
-    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'phone required' } });
-    return;
-  }
+  const { phone } = req.params;
   try {
     const data = await updateMemberByPhoneService(decodeURIComponent(phone), tenantId, req.body);
     res.json({ success: true, data });
@@ -218,11 +206,7 @@ export async function deleteMemberController(req: AuthenticatedRequest, res: Res
     res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenant_id required' } });
     return;
   }
-  const id = req.params.id;
-  if (!id) {
-    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'id required' } });
-    return;
-  }
+  const { id } = req.params;
   try {
     await deleteMemberService(id, tenantId);
     res.json({ success: true });
@@ -245,11 +229,7 @@ export async function listReferralsController(req: AuthenticatedRequest, res: Re
 
 export async function getReferrerByPhoneController(req: AuthenticatedRequest, res: Response): Promise<void> {
   const effectiveTenantId = resolveTenantId(req, req.query.tenant_id as string | undefined, { allowPlatformAll: true });
-  const phone = decodeURIComponent(req.params.phone || '').trim();
-  if (!phone) {
-    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'phone required' } });
-    return;
-  }
+  const phone = decodeURIComponent(req.params.phone).trim();
   const data = await getReferrerByRefereePhoneService(phone, effectiveTenantId);
   res.json({ success: true, data: data ?? null });
 }
@@ -257,11 +237,7 @@ export async function getReferrerByPhoneController(req: AuthenticatedRequest, re
 export async function getCustomerDetailByPhoneController(req: AuthenticatedRequest, res: Response): Promise<void> {
   const queryTenantId = req.query.tenant_id as string | undefined;
   const effectiveTenantId = resolveTenantId(req, queryTenantId, { allowPlatformAll: true });
-  const phone = decodeURIComponent(req.params.phone || '').trim();
-  if (!phone) {
-    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'phone required' } });
-    return;
-  }
+  const phone = decodeURIComponent(req.params.phone).trim();
   try {
     const syncCc =
       req.query.sync_common_cards === '1' ||
@@ -292,8 +268,8 @@ export async function lookupMemberForReferralController(req: AuthenticatedReques
     return;
   }
   const q = String(req.query.q || '').trim();
-  if (!q || q.length > 64) {
-    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'q required (max 64 chars)' } });
+  if (!q) {
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'q required' } });
     return;
   }
   try {
@@ -317,13 +293,9 @@ export async function bulkCreateMembersController(req: AuthenticatedRequest, res
     res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenant_id required' } });
     return;
   }
-  const body = req.body as { members?: import('./types.js').BulkCreateMemberItem[] };
-  if (!Array.isArray(body?.members) || body.members.length === 0) {
-    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'members array required' } });
-    return;
-  }
+  const { members } = req.body as { members: import('./types.js').BulkCreateMemberItem[] };
   try {
-    const data = await bulkCreateMembersService(tenantId, body.members);
+    const data = await bulkCreateMembersService(tenantId, members);
     res.status(201).json({ success: true, data });
   } catch (e: unknown) {
     const err = e as { code?: string; errno?: number };
