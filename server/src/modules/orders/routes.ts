@@ -29,6 +29,15 @@ const listQuery = z.object({
   tenant_id: z.string().uuid().optional(),
 }).passthrough();
 
+const updateOrderPointsBody = z.object({
+  points_status: z.string().max(50).optional(),
+  order_points: z.number().finite().optional(),
+}).strict();
+
+const updateOrderPointsParams = z.object({
+  id: z.string().min(1, 'id required').max(100),
+});
+
 const router = Router();
 
 router.get('/', authMiddleware, validate({ query: listQuery }), listOrdersController);
@@ -37,6 +46,6 @@ router.get('/usdt-full', authMiddleware, getUsdtOrdersFullController);
 router.get('/meika-fiat-full', authMiddleware, getMeikaFiatOrdersFullController);
 router.get('/meika-usdt-full', authMiddleware, getMeikaUsdtOrdersFullController);
 router.post('/', authMiddleware, validate({ body: createOrderSchema }), createOrderController);
-router.patch('/:id/points', authMiddleware, updateOrderPointsController);
+router.patch('/:id/points', authMiddleware, validate({ params: updateOrderPointsParams, body: updateOrderPointsBody }), updateOrderPointsController);
 
 export default router;
