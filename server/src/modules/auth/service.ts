@@ -162,8 +162,17 @@ export async function loginService(
     return { success: false, error: accessGate.message };
   }
 
-  // 3. 维护模式（平台超管不拦截，RPC 不存在时跳过）
-  if (!emp.is_super_admin) {
+  // H4 fix: compute isPlatformSuperAdmin BEFORE maintenance check so platform admins are never locked out
+  let isPlatformSuperAdmin = emp.is_platform_super_admin ?? false;
+  if (!isPlatformSuperAdmin && (emp.is_super_admin || emp.role === 'admin')) {
+    const empDetail = await getEmployeeByIdRepository(emp.employee_id);
+    if (empDetail?.tenant_code === 'platform') {
+      isPlatformSuperAdmin = true;
+    }
+  }
+
+  // 3. 维护模式（平台超管 + is_super_admin 不拦截）
+  if (!emp.is_super_admin && !isPlatformSuperAdmin) {
     try {
       const maintenance = await getMaintenanceModeStatusRepository(emp.tenant_id ?? null);
       if (maintenance.effectiveEnabled) {
@@ -172,15 +181,6 @@ export async function loginService(
       }
     } catch (_) {
       // RPC 可能不存在，跳过维护模式检查
-    }
-  }
-
-  // 平台管理员判定：平台租户(tenant_code='platform')中 is_super_admin 或 role=admin 的员工
-  let isPlatformSuperAdmin = emp.is_platform_super_admin ?? false;
-  if (!isPlatformSuperAdmin && (emp.is_super_admin || emp.role === 'admin')) {
-    const empDetail = await getEmployeeByIdRepository(emp.employee_id);
-    if (empDetail?.tenant_code === 'platform') {
-      isPlatformSuperAdmin = true;
     }
   }
 

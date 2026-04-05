@@ -22,6 +22,12 @@ export async function getMemberLevelsController(req: AuthenticatedRequest, res: 
 }
 
 export async function putMemberLevelsController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  // H1 fix: require admin role to modify member level rules
+  const role = req.user?.role;
+  if (role !== 'admin' && !req.user?.is_super_admin && !req.user?.is_platform_super_admin) {
+    res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Admin role required' } });
+    return;
+  }
   const tenantId = resolveTenantId(
     req,
     ((req.query.tenant_id as string) ?? (req.body?.tenant_id as string | undefined)) ?? null,

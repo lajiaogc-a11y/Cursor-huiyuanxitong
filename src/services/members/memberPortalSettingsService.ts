@@ -797,7 +797,6 @@ export async function getServerDraft(
     const params = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";
     const r = await apiGet<{ success: boolean; draft?: ServerDraft | null; error?: string }>(
       `/api/member-portal-settings/draft${params}`,
-      PORTAL_SETTINGS_GET,
     );
     return { success: !!r.success, draft: r.draft ?? null, error: r.error };
   } catch (e: unknown) {

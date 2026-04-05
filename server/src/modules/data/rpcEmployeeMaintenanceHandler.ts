@@ -18,11 +18,16 @@ export async function handleRpcEmployeeMaintenanceGroup(ctx: RpcCtx): Promise<Rp
         result = [{ error_code: 'FORBIDDEN' }];
         break;
       }
-      // 密码验证（用于结算确认等场景）
+      // C1 fix: restrict to self-only — caller can only verify their own password
+      const callerUsername = (req.user as Record<string, unknown>)?.username;
+      if (!callerUsername || String(params.p_username) !== String(callerUsername)) {
+        result = [{ error_code: 'FORBIDDEN' }];
+        break;
+      }
       const bcrypt = await import('bcryptjs');
-      const emp = await queryOne<{ password_hash: string }>(
-        'SELECT password_hash FROM employees WHERE username = ?',
-        [params.p_username]
+      const emp = await queryOne<{ password_hash: string; tenant_id: string | null }>(
+        'SELECT password_hash, tenant_id FROM employees WHERE username = ? AND tenant_id <=> ?',
+        [params.p_username, tenantId ?? null]
       );
       if (!emp) {
         result = [{ error_code: 'USER_NOT_FOUND' }];
@@ -230,7 +235,10 @@ export async function handleRpcEmployeeMaintenanceGroup(ctx: RpcCtx): Promise<Rp
     case 'get_tenant_feature_flag': {
       try {
         const flagKey = String(params.p_flag_key || params.flag_key || '');
-        const flagTid = String(params.p_tenant_id || params.tenant_id || tenantId || '');
+        // H3 fix: non-platform users can only read their own tenant's flags
+        const reqTid = String(params.p_tenant_id || params.tenant_id || tenantId || '');
+        const callerTid = req.user?.tenant_id;
+        const flagTid = req.user?.is_platform_super_admin ? reqTid : (callerTid ? String(callerTid) : reqTid);
         if (!flagKey || !flagTid) { result = { enabled: true }; break; }
         const flagRow = await queryOne<{ enabled: number }>(
           `SELECT enabled FROM tenant_feature_flags WHERE tenant_id = ? AND flag_key = ? LIMIT 1`,
@@ -279,7 +287,10 @@ export async function handleRpcEmployeeMaintenanceGroup(ctx: RpcCtx): Promise<Rp
 
     case 'list_tenant_feature_flags': {
       try {
-        const flagTid = String(params.tenant_id || tenantId || '');
+        // H3 fix: non-platform users can only list their own tenant's flags
+        const reqTid = String(params.tenant_id || tenantId || '');
+        const callerTid = req.user?.tenant_id;
+        const flagTid = req.user?.is_platform_super_admin ? reqTid : (callerTid ? String(callerTid) : reqTid);
         if (!flagTid) { result = []; break; }
         result = await query(
           `SELECT id, flag_key, enabled, updated_by, updated_at FROM tenant_feature_flags WHERE tenant_id = ? ORDER BY flag_key`,
@@ -294,7 +305,10 @@ export async function handleRpcEmployeeMaintenanceGroup(ctx: RpcCtx): Promise<Rp
 
     case 'get_login_2fa_settings': {
       try {
-        const tfaTid = String(params.tenant_id || tenantId || '');
+        // H3 fix: non-platform users can only read their own tenant's 2FA settings
+        const reqTid = String(params.tenant_id || tenantId || '');
+        const callerTid = req.user?.tenant_id;
+        const tfaTid = req.user?.is_platform_super_admin ? reqTid : (callerTid ? String(callerTid) : reqTid);
         if (!tfaTid) { result = { enabled: false, method: 'email' }; break; }
         const row = await queryOne<{ enabled: number; method: string }>(
           `SELECT enabled, method FROM login_2fa_settings WHERE tenant_id = ? LIMIT 1`,

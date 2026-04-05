@@ -97,6 +97,16 @@ export async function handleRpcPlatformConfigGroup(ctx: RpcCtx): Promise<RpcDisp
         result = { success: false, message: 'TENANT_REQUIRED', announcement_id: null, recipient_count: 0 };
         break;
       }
+      // H4 fix: non-platform super admins can only publish to their own tenant
+      const isPlatform = !!(req.user as { is_platform_super_admin?: boolean })?.is_platform_super_admin;
+      if (scopeRaw === 'global' && !isPlatform) {
+        result = { success: false, message: 'NO_PERMISSION', announcement_id: null, recipient_count: 0 };
+        break;
+      }
+      if (scopeRaw === 'tenant' && !isPlatform && pTenant !== tenantId) {
+        result = { success: false, message: 'NO_PERMISSION', announcement_id: null, recipient_count: 0 };
+        break;
+      }
       if (!vTitle || !vMessage) {
         result = { success: false, message: 'TITLE_AND_MESSAGE_REQUIRED', announcement_id: null, recipient_count: 0 };
         break;
@@ -210,7 +220,7 @@ export async function handleRpcPlatformConfigGroup(ctx: RpcCtx): Promise<RpcDisp
     }
 
     case 'sync_activity_reward_tiers': {
-      if (req.user?.type === 'member' || !userId) {
+      if (req.user?.type === 'member' || !userId || !req.user?.is_platform_super_admin) {
         res.status(403).json({ data: null, error: { message: 'Forbidden' } });
         return { result: null, responseSent: true };
       }
@@ -245,7 +255,7 @@ export async function handleRpcPlatformConfigGroup(ctx: RpcCtx): Promise<RpcDisp
     }
 
     case 'sync_card_types': {
-      if (req.user?.type === 'member' || !userId) {
+      if (req.user?.type === 'member' || !userId || !req.user?.is_platform_super_admin) {
         res.status(403).json({ data: null, error: { message: 'Forbidden' } });
         return { result: null, responseSent: true };
       }

@@ -335,22 +335,27 @@ export async function updateMemberByPhoneRepository(phone: string, tenantId: str
 }
 
 export async function deleteMemberRepository(id: string, tenantId: string): Promise<void> {
-  // Core FK cleanup (must succeed)
-  await execute(`UPDATE orders SET member_id = NULL WHERE member_id = ?`, [id]);
-  await execute(`UPDATE points_ledger SET member_id = NULL WHERE member_id = ?`, [id]);
-  await execute(`UPDATE activity_gifts SET member_id = NULL WHERE member_id = ?`, [id]);
+  // H5 fix: DELETE owned rows first (before NULLing FK references)
+  try { await execute(`DELETE FROM points_ledger WHERE member_id = ?`, [id]); } catch { /* best-effort */ }
+  try { await execute(`DELETE FROM points_accounts WHERE member_id = ?`, [id]); } catch { /* best-effort */ }
   await execute(`DELETE FROM member_activity WHERE member_id = ?`, [id]);
 
-  // C1 fix: full FK cleanup matching admin delete path to prevent orphaned data
-  try { await execute(`DELETE FROM points_ledger WHERE member_id = ?`, [id]); } catch { /* already NULLed above */ }
-  try { await execute(`DELETE FROM points_accounts WHERE member_id = ?`, [id]); } catch { /* best-effort */ }
-  const fkCleanups = [
+  const deleteCleanups = [
     `DELETE FROM check_ins WHERE member_id = ?`,
     `DELETE FROM spin_credits WHERE member_id = ?`,
     `DELETE FROM spins WHERE member_id = ?`,
     `DELETE FROM redemptions WHERE member_id = ?`,
     `DELETE FROM member_login_logs WHERE member_id = ?`,
     `DELETE FROM member_transactions WHERE member_id = ?`,
+  ];
+  for (const sql of deleteCleanups) {
+    try { await execute(sql, [id]); } catch { /* table may not exist */ }
+  }
+
+  // NULL FK references on shared tables (orders, gifts, referrals, etc.)
+  await execute(`UPDATE orders SET member_id = NULL WHERE member_id = ?`, [id]);
+  await execute(`UPDATE activity_gifts SET member_id = NULL WHERE member_id = ?`, [id]);
+  const nullCleanups = [
     `UPDATE referrals SET referee_id = NULL WHERE referee_id = ?`,
     `UPDATE referrals SET referrer_id = NULL WHERE referrer_id = ?`,
     `UPDATE referral_relations SET referee_id = NULL WHERE referee_id = ?`,
@@ -359,7 +364,7 @@ export async function deleteMemberRepository(id: string, tenantId: string): Prom
     `UPDATE referral_events SET referrer_id = NULL WHERE referrer_id = ?`,
     `UPDATE gift_cards SET member_id = NULL WHERE member_id = ?`,
   ];
-  for (const sql of fkCleanups) {
+  for (const sql of nullCleanups) {
     try { await execute(sql, [id]); } catch { /* table may not exist */ }
   }
 

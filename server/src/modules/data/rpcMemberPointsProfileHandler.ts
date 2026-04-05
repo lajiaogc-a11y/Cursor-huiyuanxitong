@@ -246,6 +246,16 @@ export async function handleRpcMemberPointsProfileGroup(ctx: RpcCtx): Promise<Rp
         result = { success: false, error: 'MISSING_MEMBER_ID' };
         break;
       }
+      // M4 fix: verify member belongs to caller's tenant (unless platform super admin)
+      if (!req.user?.is_platform_super_admin && req.user?.tenant_id) {
+        const memberTenantRow = await import('../../database/index.js').then(db =>
+          db.queryOne<{ tenant_id: string | null }>('SELECT tenant_id FROM members WHERE id = ? LIMIT 1', [memberId])
+        );
+        if (memberTenantRow && memberTenantRow.tenant_id !== req.user.tenant_id) {
+          result = { success: false, error: 'FORBIDDEN' };
+          break;
+        }
+      }
       try {
         const { applyMemberActivityDeltas } = await import('../members/memberActivityAccount.js');
         const deltas: Record<string, number> = {};

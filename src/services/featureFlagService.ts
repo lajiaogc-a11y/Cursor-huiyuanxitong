@@ -28,8 +28,9 @@ export async function getTenantFeatureFlagResult(
       flag_key: flagKey,
     });
     return ok(data?.enabled ?? defaultEnabled);
-  } catch {
-    return ok(defaultEnabled);
+  } catch (e) {
+    // M2 fix: fail-closed — API errors should not enable features
+    return fail("FLAG_FETCH_FAILED", (e as Error).message || "Failed to fetch feature flag");
   }
 }
 

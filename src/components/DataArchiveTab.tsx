@@ -177,7 +177,7 @@ export function DataArchiveTab() {
             <AlertDialogAction
               onClick={() => {
                 setArchiveConfirmOpen(false);
-                void executeArchive();
+                void handleRun();
               }}
             >
               {t('立即归档', 'Archive Now')}

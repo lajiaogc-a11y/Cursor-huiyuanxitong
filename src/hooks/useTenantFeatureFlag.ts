@@ -21,7 +21,8 @@ export function useTenantFeatureFlag(flagKey: FeatureFlagKey, defaultEnabled = t
     }
     setLoading(true);
     const result = await getTenantFeatureFlagResult(tenantId, flagKey, defaultEnabled);
-    setEnabled(result.ok ? result.data : defaultEnabled);
+    // M2 fix: on API error, use false (fail-closed) instead of defaultEnabled
+    setEnabled(result.ok ? result.data : false);
     setLoading(false);
   }, [tenantId, flagKey, defaultEnabled]);
 

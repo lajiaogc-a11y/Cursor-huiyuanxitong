@@ -31,7 +31,7 @@ export async function handleRpcWebhookArchiveMigrationGroup(ctx: RpcCtx): Promis
         [userId],
       );
       const canArchive =
-        !!empArch && (empArch.role === 'admin' || !!empArch.is_super_admin);
+        !!empArch && (empArch.role === 'admin' || !!empArch.is_super_admin || !!req.user?.is_platform_super_admin);
       if (!canArchive) {
         res.status(403).json({ data: null, error: { message: 'Admin only' } });
         return { result: null, responseSent: true };

@@ -1,6 +1,6 @@
 import type { PoolConnection } from 'mysql2/promise';
 import { randomUUID } from 'node:crypto';
-import { query, queryOne, execute } from '../../database/index.js';
+import { query, queryOne, execute, withTransaction } from '../../database/index.js';
 import { pickLevelRuleForTotalPoints } from './compute.js';
 import type { MemberLevelRuleInput, MemberLevelRuleRow } from './types.js';
 
@@ -129,25 +129,28 @@ async function ensureDefaultMemberLevelRulesOnConn(conn: PoolConnection, tenantI
 }
 
 export async function replaceMemberLevelRulesRepository(tenantId: string, rules: MemberLevelRuleInput[]): Promise<MemberLevelRuleRow[]> {
-  await execute(`DELETE FROM member_level_rules WHERE tenant_id = ?`, [tenantId]);
-  for (const r of rules) {
-    const id = randomUUID();
-    await execute(
-      `INSERT INTO member_level_rules (
-         id, tenant_id, level_name, level_name_zh, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
-      [
-        id,
-        tenantId,
-        String(r.level_name || '').trim() || 'Level',
-        String(r.level_name_zh ?? '').trim(),
-        Number(r.required_points) || 0,
-        Number(r.level_order) || 0,
-        r.rate_bonus != null && Number.isFinite(Number(r.rate_bonus)) ? Number(r.rate_bonus) : null,
-        r.priority_level != null && Number.isFinite(Number(r.priority_level)) ? Number(r.priority_level) : null,
-      ],
-    );
-  }
+  // M3 fix: wrap DELETE + INSERTs in a transaction to prevent partial state on crash
+  await withTransaction(async (conn) => {
+    await conn.query(`DELETE FROM member_level_rules WHERE tenant_id = ?`, [tenantId]);
+    for (const r of rules) {
+      const id = randomUUID();
+      await conn.query(
+        `INSERT INTO member_level_rules (
+           id, tenant_id, level_name, level_name_zh, required_points, level_order, rate_bonus, priority_level, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
+        [
+          id,
+          tenantId,
+          String(r.level_name || '').trim() || 'Level',
+          String(r.level_name_zh ?? '').trim(),
+          Number(r.required_points) || 0,
+          Number(r.level_order) || 0,
+          r.rate_bonus != null && Number.isFinite(Number(r.rate_bonus)) ? Number(r.rate_bonus) : null,
+          r.priority_level != null && Number.isFinite(Number(r.priority_level)) ? Number(r.priority_level) : null,
+        ],
+      );
+    }
+  });
   return listMemberLevelRulesRepository(tenantId);
 }
 
