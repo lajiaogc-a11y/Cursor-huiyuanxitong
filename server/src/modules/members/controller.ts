@@ -314,6 +314,21 @@ export async function adminResetMemberPasswordController(req: AuthenticatedReque
     return;
   }
   const memberId = req.params.id;
+
+  // H2 fix: tenant isolation — non-platform admins can only reset their own tenant's members
+  if (!req.user?.is_platform_super_admin && req.user?.tenant_id) {
+    const { queryOne: qo } = await import('../../database/index.js');
+    const memberRow = await qo<{ tenant_id: string | null }>('SELECT tenant_id FROM members WHERE id = ? LIMIT 1', [memberId]);
+    if (!memberRow) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Member not found' } });
+      return;
+    }
+    if (memberRow.tenant_id !== req.user.tenant_id) {
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Cannot reset password for members outside your tenant' } });
+      return;
+    }
+  }
+
   const { new_password } = req.body || {};
   if (!new_password || typeof new_password !== 'string' || new_password.trim().length < 6) {
     res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Password is required and must be at least 6 characters' } });

@@ -427,9 +427,9 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
     }
     try {
       await navigator.clipboard.writeText(pwd);
-      notify.success(`Your password is: ${pwd}`);
+      notify.success(t("密码已复制到剪贴板", "Password copied to clipboard"));
     } catch {
-      notify.info(`Your password is: ${pwd}`);
+      notify.info(t("密码已复制到剪贴板", "Password copied to clipboard"));
     }
   };
 

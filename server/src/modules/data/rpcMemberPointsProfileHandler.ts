@@ -136,17 +136,21 @@ export async function handleRpcMemberPointsProfileGroup(ctx: RpcCtx): Promise<Rp
         result = { success: false, error: 'MISSING_MEMBER_IDENTIFIER' };
         break;
       }
+      if (!tenantId) {
+        result = { success: false, error: 'MISSING_TENANT' };
+        break;
+      }
       try {
         const { withTransaction } = await import('../../database/index.js');
         const { deductPoints } = await import('../points/pointsService.js');
 
         let memberId: string | null = null;
         if (phone) {
-          const m = await dbQuery<{ id: string }>('SELECT id FROM members WHERE phone_number = ? LIMIT 1', [phone]);
+          const m = await dbQuery<{ id: string }>('SELECT id FROM members WHERE phone_number = ? AND tenant_id = ? LIMIT 1', [phone, tenantId]);
           memberId = m[0]?.id ?? null;
         }
         if (!memberId && memberCode) {
-          const m = await dbQuery<{ id: string }>('SELECT id FROM members WHERE member_code = ? LIMIT 1', [memberCode]);
+          const m = await dbQuery<{ id: string }>('SELECT id FROM members WHERE member_code = ? AND tenant_id = ? LIMIT 1', [memberCode, tenantId]);
           memberId = m[0]?.id ?? null;
         }
         if (!memberId) {
@@ -231,6 +235,38 @@ export async function handleRpcMemberPointsProfileGroup(ctx: RpcCtx): Promise<Rp
       );
       break;
     }
+    case 'member_activity_apply_deltas': {
+      if (!assertRpcEmployee(req)) {
+        result = { success: false, error: 'FORBIDDEN' };
+        break;
+      }
+      const memberId = String(params.p_member_id || '').trim();
+      const phone = String(params.p_phone || '').trim();
+      if (!memberId) {
+        result = { success: false, error: 'MISSING_MEMBER_ID' };
+        break;
+      }
+      try {
+        const { applyMemberActivityDeltas } = await import('../members/memberActivityAccount.js');
+        const deltas: Record<string, number> = {};
+        for (const key of [
+          'order_count', 'total_accumulated_ngn', 'total_accumulated_ghs', 'total_accumulated_usdt',
+          'accumulated_profit', 'accumulated_profit_usdt', 'remaining_points', 'accumulated_points',
+          'referral_count', 'referral_points', 'total_gift_ngn', 'total_gift_ghs', 'total_gift_usdt',
+        ]) {
+          const v = params[`p_${key}`];
+          if (v !== undefined && v !== null) deltas[key] = Number(v) || 0;
+        }
+        await applyMemberActivityDeltas(memberId, deltas, phone || null);
+        result = { success: true };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error('[member_activity_apply_deltas]', msg);
+        result = { success: false, error: msg || 'APPLY_FAILED' };
+      }
+      break;
+    }
+
     default:
       return null;
   }

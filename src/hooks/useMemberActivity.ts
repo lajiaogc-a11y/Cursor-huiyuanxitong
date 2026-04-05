@@ -4,6 +4,24 @@
 import { apiGet, apiPost, apiPatch } from '@/api/client';
 import { logger } from '@/lib/logger';
 
+async function applyActivityDeltasViaRpc(
+  memberId: string,
+  phoneNumber: string,
+  deltas: Record<string, number>,
+): Promise<boolean> {
+  try {
+    const res = await apiPost<{ success?: boolean }>('/api/data/rpc/member_activity_apply_deltas', {
+      p_member_id: memberId,
+      p_phone: phoneNumber,
+      ...Object.fromEntries(Object.entries(deltas).map(([k, v]) => [`p_${k}`, v])),
+    });
+    return res?.success !== false;
+  } catch (error) {
+    logger.error('[applyActivityDeltasViaRpc] Failed:', error);
+    return false;
+  }
+}
+
 function unwrapSingle<T>(data: unknown): T | null {
   if (data == null) return null;
   if (Array.isArray(data)) return (data[0] as T) ?? null;
@@ -89,178 +107,72 @@ export async function getMemberActivityByPhone(
   }
 }
 
-// 累加累积金额（订单创建时调用）
+// 累加累积金额（订单创建时调用） — H3 fix: atomic delta via server-side UPSERT
 export async function addAccumulatedAmount(
   memberId: string,
   phoneNumber: string,
   currency: 'NGN' | 'GHS' | 'USDT',
   amount: number
 ): Promise<boolean> {
-  try {
-    // 确保活动记录存在
-    const activity = await getOrCreateMemberActivity(memberId, phoneNumber);
-    if (!activity) {
-      logger.error('Failed to get/create member activity');
-      return false;
-    }
-
-    // 根据币种累加
-    const updateData: Record<string, number> = {};
-    if (currency === 'NGN') {
-      updateData.total_accumulated_ngn = (activity.total_accumulated_ngn || 0) + amount;
-    } else if (currency === 'GHS') {
-      updateData.total_accumulated_ghs = (activity.total_accumulated_ghs || 0) + amount;
-    } else if (currency === 'USDT') {
-      updateData.total_accumulated_usdt = (activity.total_accumulated_usdt || 0) + amount;
-    }
-
-    try {
-      await apiPatch(`/api/data/table/member_activity?id=eq.${encodeURIComponent(activity.id)}`, {
-        data: updateData,
-      });
-    } catch (error) {
-      logger.error('Failed to update accumulated amount:', error);
-      return false;
-    }
-
-    logger.log(`[MemberActivity] Added ${amount} ${currency} to member ${memberId}`);
-    return true;
-  } catch (error) {
-    logger.error('Error in addAccumulatedAmount:', error);
-    return false;
-  }
+  const deltas: Record<string, number> = {};
+  if (currency === 'NGN') deltas.total_accumulated_ngn = amount;
+  else if (currency === 'GHS') deltas.total_accumulated_ghs = amount;
+  else if (currency === 'USDT') deltas.total_accumulated_usdt = amount;
+  const ok = await applyActivityDeltasViaRpc(memberId, phoneNumber, deltas);
+  if (ok) logger.log(`[MemberActivity] Added ${amount} ${currency} to member ${memberId}`);
+  return ok;
 }
 
-// 累加赠送金额（兑换时调用）
+// 累加赠送金额（兑换时调用） — H3 fix: atomic delta via server-side UPSERT
 export async function addGiftAmount(
   memberId: string,
   phoneNumber: string,
   currency: 'NGN' | 'GHS' | 'USDT',
   amount: number
 ): Promise<boolean> {
-  try {
-    // 确保活动记录存在
-    const activity = await getOrCreateMemberActivity(memberId, phoneNumber);
-    if (!activity) {
-      logger.error('Failed to get/create member activity');
-      return false;
-    }
-
-    // 根据币种累加赠送金额
-    const updateData: Record<string, number> = {};
-    if (currency === 'NGN') {
-      updateData.total_gift_ngn = (activity.total_gift_ngn || 0) + amount;
-    } else if (currency === 'GHS') {
-      updateData.total_gift_ghs = (activity.total_gift_ghs || 0) + amount;
-    } else if (currency === 'USDT') {
-      updateData.total_gift_usdt = (activity.total_gift_usdt || 0) + amount;
-    }
-
-    try {
-      await apiPatch(`/api/data/table/member_activity?id=eq.${encodeURIComponent(activity.id)}`, {
-        data: updateData,
-      });
-    } catch (error) {
-      logger.error('Failed to update gift amount:', error);
-      return false;
-    }
-
-    logger.log(`[MemberActivity] Added gift ${amount} ${currency} to member ${memberId}`);
-    return true;
-  } catch (error) {
-    logger.error('Error in addGiftAmount:', error);
-    return false;
-  }
+  const deltas: Record<string, number> = {};
+  if (currency === 'NGN') deltas.total_gift_ngn = amount;
+  else if (currency === 'GHS') deltas.total_gift_ghs = amount;
+  else if (currency === 'USDT') deltas.total_gift_usdt = amount;
+  const ok = await applyActivityDeltasViaRpc(memberId, phoneNumber, deltas);
+  if (ok) logger.log(`[MemberActivity] Added gift ${amount} ${currency} to member ${memberId}`);
+  return ok;
 }
 
-// 更新累积利润（订单创建时调用） - 按币种分流
+// 更新累积利润（订单创建时调用） — H3 fix: atomic delta via server-side UPSERT
 export async function addAccumulatedProfit(
   memberId: string,
   phoneNumber: string,
   profitAmount: number,
   currency?: 'NGN' | 'GHS' | 'USDT'
 ): Promise<boolean> {
-  try {
-    // 确保活动记录存在
-    const activity = await getOrCreateMemberActivity(memberId, phoneNumber);
-    if (!activity) {
-      logger.error('Failed to get/create member activity');
-      return false;
-    }
-
-    // 根据币种分流利润
-    const updateData: Record<string, number> = {};
-    if (currency === 'USDT') {
-      // USDT 订单利润存入 accumulated_profit_usdt
-      const newProfitUsdt = (activity.accumulated_profit_usdt || 0) + profitAmount;
-      updateData.accumulated_profit_usdt = newProfitUsdt;
-      logger.log(`[MemberActivity] Added USDT profit ${profitAmount} to member ${memberId}, new total: ${newProfitUsdt}`);
-    } else {
-      // NGN/GHS 订单利润存入 accumulated_profit (RMB)
-      const newProfit = (activity.accumulated_profit || 0) + profitAmount;
-      updateData.accumulated_profit = newProfit;
-      logger.log(`[MemberActivity] Added RMB profit ${profitAmount} to member ${memberId}, new total: ${newProfit}`);
-    }
-
-    try {
-      await apiPatch(`/api/data/table/member_activity?id=eq.${encodeURIComponent(activity.id)}`, {
-        data: updateData,
-      });
-    } catch (error) {
-      logger.error('Failed to update accumulated profit:', error);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    logger.error('Error in addAccumulatedProfit:', error);
-    return false;
+  const deltas: Record<string, number> = {};
+  if (currency === 'USDT') {
+    deltas.accumulated_profit_usdt = profitAmount;
+  } else {
+    deltas.accumulated_profit = profitAmount;
   }
+  const ok = await applyActivityDeltasViaRpc(memberId, phoneNumber, deltas);
+  if (ok) logger.log(`[MemberActivity] Added ${currency === 'USDT' ? 'USDT' : 'RMB'} profit ${profitAmount} to member ${memberId}`);
+  return ok;
 }
 
-// 减少累积利润（活动赠送兑换时调用） - 按币种分流
+// 减少累积利润（活动赠送兑换时调用） — H3 fix: atomic delta via server-side UPSERT
 export async function deductAccumulatedProfit(
   memberId: string,
   phoneNumber: string,
   giftAmount: number,
   currency?: 'NGN' | 'GHS' | 'USDT'
 ): Promise<boolean> {
-  try {
-    // 确保活动记录存在
-    const activity = await getOrCreateMemberActivity(memberId, phoneNumber);
-    if (!activity) {
-      logger.error('Failed to get/create member activity');
-      return false;
-    }
-
-    // 根据币种分流扣减
-    const updateData: Record<string, number> = {};
-    if (currency === 'USDT') {
-      // USDT 赠送从 accumulated_profit_usdt 扣减
-      const newProfitUsdt = (activity.accumulated_profit_usdt || 0) - giftAmount;
-      updateData.accumulated_profit_usdt = newProfitUsdt;
-      logger.log(`[MemberActivity] Deducted USDT gift ${giftAmount} from member ${memberId}, new profit: ${newProfitUsdt}`);
-    } else {
-      // NGN/GHS 赠送从 accumulated_profit (RMB) 扣减
-      const newProfit = (activity.accumulated_profit || 0) - giftAmount;
-      updateData.accumulated_profit = newProfit;
-      logger.log(`[MemberActivity] Deducted RMB gift ${giftAmount} from member ${memberId}, new profit: ${newProfit}`);
-    }
-
-    try {
-      await apiPatch(`/api/data/table/member_activity?id=eq.${encodeURIComponent(activity.id)}`, {
-        data: updateData,
-      });
-    } catch (error) {
-      logger.error('Failed to deduct accumulated profit:', error);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    logger.error('Error in deductAccumulatedProfit:', error);
-    return false;
+  const deltas: Record<string, number> = {};
+  if (currency === 'USDT') {
+    deltas.accumulated_profit_usdt = -giftAmount;
+  } else {
+    deltas.accumulated_profit = -giftAmount;
   }
+  const ok = await applyActivityDeltasViaRpc(memberId, phoneNumber, deltas);
+  if (ok) logger.log(`[MemberActivity] Deducted ${currency === 'USDT' ? 'USDT' : 'RMB'} gift ${giftAmount} from member ${memberId}`);
+  return ok;
 }
 
 // 获取会员的永久累积数据
@@ -320,119 +232,39 @@ export interface BatchUpdateParams {
 }
 
 /**
- * 🚀 批量更新会员活动数据（单次数据库调用）
- * 合并 addAccumulatedAmount + addAccumulatedProfit 为一次 UPDATE
- * 减少网络往返，提升性能
+ * 批量更新会员活动数据 — H3 fix: atomic delta via server-side UPSERT
+ * The server uses INSERT ... ON DUPLICATE KEY UPDATE for race-safe updates.
  */
 export async function batchUpdateMemberActivity(params: BatchUpdateParams): Promise<boolean> {
-  try {
-    const { memberId, phoneNumber, accumulatedAmount, profitAmount, profitCurrency, incrementOrderCount } = params;
+  const { memberId, phoneNumber, accumulatedAmount, profitAmount, profitCurrency, incrementOrderCount } = params;
 
-    if (!accumulatedAmount && profitAmount === undefined && !incrementOrderCount) {
-      return true;
-    }
-
-    const existingData = await apiGet<{
-      id: string;
-      total_accumulated_ngn?: number | null;
-      total_accumulated_ghs?: number | null;
-      total_accumulated_usdt?: number | null;
-      accumulated_profit?: number | null;
-      accumulated_profit_usdt?: number | null;
-      order_count?: number | null;
-    } | null>(
-      `/api/data/table/member_activity?select=id,total_accumulated_ngn,total_accumulated_ghs,total_accumulated_usdt,accumulated_profit,accumulated_profit_usdt,order_count&member_id=eq.${encodeURIComponent(memberId)}&single=true`
-    );
-
-    if (existingData) {
-      const updateData: Record<string, number | string> = {
-        updated_at: new Date().toISOString(),
-      };
-
-      if (accumulatedAmount) {
-        const { currency, amount } = accumulatedAmount;
-        if (currency === 'NGN') {
-          updateData.total_accumulated_ngn = (Number(existingData.total_accumulated_ngn) || 0) + amount;
-        } else if (currency === 'GHS') {
-          updateData.total_accumulated_ghs = (Number(existingData.total_accumulated_ghs) || 0) + amount;
-        } else if (currency === 'USDT') {
-          updateData.total_accumulated_usdt = (Number(existingData.total_accumulated_usdt) || 0) + amount;
-        }
-      }
-
-      if (profitAmount !== undefined && profitAmount !== 0) {
-        const currency = profitCurrency || accumulatedAmount?.currency;
-        if (currency === 'USDT') {
-          updateData.accumulated_profit_usdt = (Number(existingData.accumulated_profit_usdt) || 0) + profitAmount;
-        } else {
-          updateData.accumulated_profit = (Number(existingData.accumulated_profit) || 0) + profitAmount;
-        }
-      }
-
-      if (incrementOrderCount) {
-        updateData.order_count = (Number(existingData.order_count) || 0) + 1;
-      }
-
-      try {
-        await apiPatch(`/api/data/table/member_activity?id=eq.${encodeURIComponent(existingData.id)}`, {
-          data: updateData,
-        });
-      } catch (updateError) {
-        logger.error('[MemberActivity] Update error:', updateError);
-        return false;
-      }
-    } else {
-      const insertData: Record<string, unknown> = {
-        member_id: memberId,
-        phone_number: phoneNumber,
-        accumulated_points: 0,
-        remaining_points: 0,
-        referral_count: 0,
-        referral_points: 0,
-        total_accumulated_ngn: 0,
-        total_accumulated_ghs: 0,
-        total_accumulated_usdt: 0,
-        total_gift_ngn: 0,
-        total_gift_ghs: 0,
-        total_gift_usdt: 0,
-        accumulated_profit: 0,
-        accumulated_profit_usdt: 0,
-        order_count: 0,
-      };
-
-      if (accumulatedAmount) {
-        const { currency, amount } = accumulatedAmount;
-        if (currency === 'NGN') insertData.total_accumulated_ngn = amount;
-        else if (currency === 'GHS') insertData.total_accumulated_ghs = amount;
-        else if (currency === 'USDT') insertData.total_accumulated_usdt = amount;
-      }
-
-      if (profitAmount !== undefined && profitAmount !== 0) {
-        const currency = profitCurrency || accumulatedAmount?.currency;
-        if (currency === 'USDT') {
-          insertData.accumulated_profit_usdt = profitAmount;
-        } else {
-          insertData.accumulated_profit = profitAmount;
-        }
-      }
-
-      if (incrementOrderCount) {
-        insertData.order_count = 1;
-      }
-
-      try {
-        await apiPost(`/api/data/table/member_activity`, { data: insertData });
-      } catch (insertError) {
-        logger.error('[MemberActivity] Insert error:', insertError);
-        return false;
-      }
-    }
-
+  if (!accumulatedAmount && profitAmount === undefined && !incrementOrderCount) {
     return true;
-  } catch (error) {
-    logger.error('[MemberActivity] Error in batchUpdateMemberActivity:', error);
-    return false;
   }
+
+  const deltas: Record<string, number> = {};
+
+  if (accumulatedAmount) {
+    const { currency, amount } = accumulatedAmount;
+    if (currency === 'NGN') deltas.total_accumulated_ngn = amount;
+    else if (currency === 'GHS') deltas.total_accumulated_ghs = amount;
+    else if (currency === 'USDT') deltas.total_accumulated_usdt = amount;
+  }
+
+  if (profitAmount !== undefined && profitAmount !== 0) {
+    const currency = profitCurrency || accumulatedAmount?.currency;
+    if (currency === 'USDT') {
+      deltas.accumulated_profit_usdt = profitAmount;
+    } else {
+      deltas.accumulated_profit = profitAmount;
+    }
+  }
+
+  if (incrementOrderCount) {
+    deltas.order_count = 1;
+  }
+
+  return applyActivityDeltasViaRpc(memberId, phoneNumber, deltas);
 }
 
 /**

@@ -354,17 +354,6 @@ export function useMembers() {
     }
   };
 
-  /**
-   * @deprecated 请使用 `await updateMemberByPhone`，否则无法感知保存失败且易产生竞态。
-   */
-  const updateMemberByPhoneAsync = (phone: string, updates: Partial<Member>): void => {
-    setTimeout(() => {
-      updateMemberByPhone(phone, updates).catch(err => {
-        console.error('[useMembers] Async update failed:', err);
-      });
-    }, 0);
-  };
-
   const findMemberByPhone = (phone: string): Member | undefined => {
     return members.find(m => m.phoneNumber === phone);
   };
@@ -404,7 +393,6 @@ export function useMembers() {
     addMember,
     updateMember,
     updateMemberByPhone,
-    updateMemberByPhoneAsync,
     deleteMember,
     findMemberByPhone,
     findMemberById,
