@@ -151,12 +151,31 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   // ═══════════════════════════════════════════════════════════════════════
   //  Web PTR: doRefresh (only used in non-Android mode)
   // ═══════════════════════════════════════════════════════════════════════
+  const unmountedRef = useRef(false);
+  useEffect(() => () => { unmountedRef.current = true; }, []);
+
   const doRefresh = useCallback(() => {
     setRefreshing(true);
     stateRef.current.refreshing = true;
     if (navigator.vibrate && !prefersReducedMotion) {
       try { navigator.vibrate(12); } catch { /* noop */ }
     }
+
+    const settle = () => {
+      if (unmountedRef.current) return;
+      setSettling(true);
+      setPullDistance(0);
+      stateRef.current.pullDistance = 0;
+      setTimeout(() => {
+        if (unmountedRef.current) return;
+        setRefreshing(false);
+        setPulling(false);
+        setSettling(false);
+        stateRef.current.refreshing = false;
+        stateRef.current.pulling = false;
+      }, SETTLE_MS);
+    };
+
     queryClient
       .invalidateQueries({
         queryKey: memberQueryKeys.all,
@@ -165,30 +184,10 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
       })
       .then(() => {
         window.dispatchEvent(new CustomEvent(MEMBER_PULL_REFRESH_EVENT));
-        setTimeout(() => {
-          setSettling(true);
-          setPullDistance(0);
-          stateRef.current.pullDistance = 0;
-          setTimeout(() => {
-            setRefreshing(false);
-            setPulling(false);
-            setSettling(false);
-            stateRef.current.refreshing = false;
-            stateRef.current.pulling = false;
-          }, SETTLE_MS);
-        }, 300);
+        setTimeout(() => { if (!unmountedRef.current) settle(); }, 300);
       })
       .catch(() => {
-        setSettling(true);
-        setPullDistance(0);
-        stateRef.current.pullDistance = 0;
-        setTimeout(() => {
-          setRefreshing(false);
-          setPulling(false);
-          setSettling(false);
-          stateRef.current.refreshing = false;
-          stateRef.current.pulling = false;
-        }, SETTLE_MS);
+        settle();
       });
   }, [prefersReducedMotion]);
 

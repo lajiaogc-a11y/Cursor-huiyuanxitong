@@ -89,10 +89,10 @@ export async function resolveMemberScope(
       return { memberId: null, forbidden: true };
     }
   } else if (memberTenant) {
-    // Staff without tenant_id should not access members that belong to a tenant
     console.warn(
       `[resolveMemberScope] Staff ${uid} has no tenant_id but tried to access member ${param} (tenant: ${memberTenant})`,
     );
+    return { memberId: null, forbidden: true };
   }
   return { memberId: param, forbidden: false };
 }

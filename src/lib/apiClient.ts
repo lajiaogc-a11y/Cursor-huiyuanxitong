@@ -327,6 +327,8 @@ async function request<T>(
   fetchInit?: ApiFetchInit,
 ): Promise<T> {
   const url = `${getApiBaseUrl()}${path}`.replace(/([^:])\/\/+/g, '$1/');
+  const abortCtrl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtrl.abort(), 30_000);
   const options: RequestInit = {
     method,
     headers:
@@ -334,11 +336,17 @@ async function request<T>(
     ...fetchInit,
     /** 避免浏览器 HTTP 缓存把动态 API GET 当成静态资源，导致刷新/多标签数据陈旧 */
     cache: fetchInit?.cache ?? 'no-store',
+    signal: abortCtrl.signal,
   };
   if (body !== undefined && method !== 'GET') {
     options.body = JSON.stringify(body);
   }
-  const res = await fetch(url, options);
+  let res: Response;
+  try {
+    res = await fetch(url, options);
+  } finally {
+    clearTimeout(timeoutId);
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     // ── 自动刷新 token：401 且非 refresh 端点、未重试过 ──

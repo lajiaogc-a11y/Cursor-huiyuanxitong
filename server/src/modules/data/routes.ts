@@ -76,7 +76,6 @@ const PUBLIC_RPC_WHITELIST = new Set([
   'validate_invite_and_submit',
   'check_api_rate_limit',
   'get_tenant_feature_flag',
-  'member_get_portal_settings',
 ]);
 
 /** 分享凭证申请 — 与分享领奖共用限流（须在通用 /rpc/:fn 之前注册） */
@@ -197,8 +196,9 @@ router.get('/notifications', async (req: AuthenticatedRequest, res) => {
       };
     });
     res.json({ data: mapped, error: null });
-  } catch {
-    res.json({ data: [], error: null });
+  } catch (err) {
+    console.error('[notifications] query failed:', err);
+    res.status(500).json({ data: null, error: 'Internal error loading notifications' });
   }
 });
 

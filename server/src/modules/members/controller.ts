@@ -343,11 +343,11 @@ export async function adminResetMemberPasswordController(req: AuthenticatedReque
   }
   const memberId = req.params.id;
   const { new_password } = req.body || {};
-  const password = new_password || '123456';
-  if (password.length < 6) {
-    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Password must be at least 6 characters' } });
+  if (!new_password || typeof new_password !== 'string' || new_password.trim().length < 6) {
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Password is required and must be at least 6 characters' } });
     return;
   }
+  const password = new_password.trim();
   try {
     const hash = await bcrypt.hash(password, 10);
     const result = await execute(

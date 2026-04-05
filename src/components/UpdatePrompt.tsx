@@ -90,9 +90,13 @@ export function UpdatePrompt() {
     await hardReloadWebFrontend();
   };
 
+  const cancelTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => { clearTimeout(cancelTimerRef.current); }, []);
+
   const handleCancel = () => {
     setNeedRefresh(false);
-    setTimeout(() => { detectedRef.current = false; }, 10 * 60 * 1000);
+    clearTimeout(cancelTimerRef.current);
+    cancelTimerRef.current = setTimeout(() => { detectedRef.current = false; }, 10 * 60 * 1000);
   };
 
   return (

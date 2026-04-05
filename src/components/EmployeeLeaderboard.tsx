@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Trophy, Medal, Award, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
 import { listEmployeesApi } from "@/api/employees";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -26,6 +27,7 @@ export default function EmployeeLeaderboard() {
   const useMyTenantRpc = !!(effectiveTenantId && employee?.tenant_id && effectiveTenantId === employee.tenant_id);
   const [data, setData] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
   // Only admin/manager can see leaderboard
@@ -34,6 +36,7 @@ export default function EmployeeLeaderboard() {
   const loadLeaderboard = useCallback(async () => {
     if (!canView) return;
     setLoading(true);
+    setLoadError(false);
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -71,6 +74,7 @@ export default function EmployeeLeaderboard() {
       setData(entries);
     } catch (err) {
       console.error("Leaderboard load error:", err);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -131,6 +135,13 @@ export default function EmployeeLeaderboard() {
         {loading ? (
           <div className="space-y-2">
             {[1,2,3].map(i => <Skeleton key={i} className="h-8 w-full" />)}
+          </div>
+        ) : loadError ? (
+          <div className="text-center py-4">
+            <p className="text-sm text-destructive mb-2">{t("加载失败", "Failed to load")}</p>
+            <Button variant="outline" size="sm" onClick={() => loadLeaderboard()}>
+              {t("重试", "Retry")}
+            </Button>
           </div>
         ) : data.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">

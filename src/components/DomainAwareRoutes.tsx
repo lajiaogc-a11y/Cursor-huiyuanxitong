@@ -1,13 +1,14 @@
 /**
  * 域名感知路由 - 主域名展示会员端，员工后台子域名展示管理端
  */
-import { lazy, Suspense, useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { getAdminBaseUrl, isAdminDomain } from "@/config/domains";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { TopProgressBar } from "@/components/TopProgressBar";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
-const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Dashboard = lazyWithRetry(() => import("@/pages/Dashboard"));
 
 /** 根路径 /：主域名 → 会员登录，员工域名 → 员工仪表盘 */
 export function RootRoute() {

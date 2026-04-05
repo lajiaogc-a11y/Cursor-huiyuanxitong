@@ -807,10 +807,11 @@ export default function MemberDashboard() {
                         aria-label={`${t("活动", "Promo")} ${i + 1}`}
                         onClick={() => {
                           setFallbackBannerSliding(true);
-                          window.setTimeout(() => {
+                          const tid = window.setTimeout(() => {
                             setFallbackBannerIdx(i);
                             setFallbackBannerSliding(false);
                           }, 300);
+                          return () => clearTimeout(tid);
                         }}
                         className="rounded-full transition-all duration-300"
                         style={{
@@ -1273,11 +1274,9 @@ export default function MemberDashboard() {
               onClick={() => {
                 if (signOutLoading) return;
                 setSignOutLoading(true);
-                window.setTimeout(() => {
-                  signOut();
-                  setSignOutOpen(false);
-                  setSignOutLoading(false);
-                }, 180);
+                signOut();
+                setSignOutOpen(false);
+                setSignOutLoading(false);
               }}
             >
               {t("退出登录", "Sign out")}

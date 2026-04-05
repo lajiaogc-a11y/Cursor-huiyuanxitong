@@ -223,7 +223,11 @@ export default function AnnouncementsTab() {
 
       {isMobile ? (
         <MobileCardList>
-          {announcements.length === 0 ? (
+          {loading && announcements.length === 0 ? (
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : announcements.length === 0 ? (
             <MobileEmptyState message={t("暂无公告记录", "No announcements")} />
           ) : announcements.map((item) => (
             <MobileCard key={item.id} accent={item.type === "error" ? "danger" : item.type === "warning" ? "warning" : "muted"}>

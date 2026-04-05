@@ -154,7 +154,8 @@ export async function tableSelectController(req: AuthenticatedRequest, res: Resp
     }
   } catch (e) {
     console.error(`[TableProxy] SELECT ${table} error:`, e);
-    res.status(500).json({ data: null, error: { message: (e as Error).message }, count: null });
+    const safeMsg = process.env.NODE_ENV === 'production' ? 'Internal query error' : (e as Error).message;
+    res.status(500).json({ data: null, error: { message: safeMsg }, count: null });
   }
 }
 
