@@ -3,7 +3,6 @@ import { useCallback } from 'react';
 import { notify } from "@/lib/notifyHub";
 import { normalizeCurrencyCode } from '@/config/currencies';
 import {
-  reversePointsOnOrderCancel,
   restorePointsOnOrderRestore,
 } from '@/services/points/pointsService';
 import { mapDbOrderToOrder, mapOrderToDbAsync, calculateOrderPointsAsync, formatBeijingTime } from './utils';
@@ -168,14 +167,13 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
 
         const beforeState = { ...order };
 
-        if (order.points_status === 'added') {
-          const reversed = await reversePointsOnOrderCancel(dbId);
-          if (reversed) {
-            await updateOrderPointsStatusUseCase(dbId, 'reversed');
-          }
-        }
-
         await cancelOrderUseCase(dbId);
+
+        // C1 fix: table proxy handles reverseActivityDataForOrder on status change;
+        // only update points_status flag here to avoid double-reversal.
+        if (order.points_status === 'added') {
+          await updateOrderPointsStatusUseCase(dbId, 'reversed');
+        }
 
         setOrders(prev => prev.map(o => o.dbId === dbId ? { ...o, status: 'cancelled' as const } : o));
 
@@ -314,14 +312,13 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
 
         needsReversal = order.status !== 'cancelled';
 
-        if (needsReversal) {
-          const reversed = await reversePointsOnOrderCancel(dbId);
-          if (reversed && order.points_status === 'added') {
-            await updateOrderPointsStatusUseCase(dbId, 'reversed');
-          }
-        }
-
         await softDeleteOrderUseCase(dbId);
+
+        // C1 fix: table proxy handles reverseActivityDataForOrder on status change;
+        // only update points_status flag here to avoid double-reversal.
+        if (needsReversal && order.points_status === 'added') {
+          await updateOrderPointsStatusUseCase(dbId, 'reversed');
+        }
 
         setOrders(prev => prev.filter(o => o.dbId !== dbId));
       } catch (error) {

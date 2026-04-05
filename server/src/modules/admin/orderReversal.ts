@@ -29,6 +29,15 @@ interface OrderRow {
  */
 export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok: boolean; error?: string }> {
   try {
+    // Idempotency: skip if reversal entries already exist for this order
+    const existing = await queryOne<{ cnt: number }>(
+      `SELECT COUNT(*) AS cnt FROM points_ledger WHERE order_id = ? AND status = 'reversed' AND points_earned < 0`,
+      [orderId],
+    );
+    if (existing && existing.cnt > 0) {
+      return { ok: true };
+    }
+
     const orderData = await queryOne<OrderRow>(
       `SELECT actual_payment, currency, profit_ngn, profit_usdt, member_id, phone_number FROM orders WHERE id = ?`,
       [orderId]

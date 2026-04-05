@@ -22,13 +22,15 @@ interface OrderStats {
   sampleCount: number;
 }
 
-// 缓存统计数据，避免重复查询（5分钟有效）
-let statsCache: { data: OrderStats; timestamp: number } | null = null;
+// Per-tenant cache keyed by tenant_id, 5-min TTL
+const statsCacheMap = new Map<string, { data: OrderStats; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000;
 
-async function getRecentOrderStats(): Promise<OrderStats> {
-  if (statsCache && Date.now() - statsCache.timestamp < CACHE_TTL) {
-    return statsCache.data;
+async function getRecentOrderStats(tenantId?: string): Promise<OrderStats> {
+  const cacheKey = tenantId || '__global__';
+  const cached = statsCacheMap.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
   }
 
   const thirtyDaysAgo = new Date();
@@ -46,9 +48,9 @@ async function getRecentOrderStats(): Promise<OrderStats> {
   let data: { profit_rate: number | null; foreign_rate: number | null; amount: number | null; currency: string | null }[];
   try {
     const iso = thirtyDaysAgo.toISOString();
-    const rows = await apiGet<unknown>(
-      `/api/data/table/orders?select=profit_rate,foreign_rate,amount,currency&is_deleted=eq.false&status=eq.completed&created_at=gte.${encodeURIComponent(iso)}&limit=500`
-    );
+    let url = `/api/data/table/orders?select=profit_rate,foreign_rate,amount,currency&is_deleted=eq.false&status=eq.completed&created_at=gte.${encodeURIComponent(iso)}&limit=500`;
+    if (tenantId) url += `&tenant_id=eq.${encodeURIComponent(tenantId)}`;
+    const rows = await apiGet<unknown>(url);
     data = Array.isArray(rows) ? rows : [];
   } catch (e) {
     console.warn('[orderAnomalyDetection] Failed to load recent orders:', e);
@@ -97,7 +99,7 @@ async function getRecentOrderStats(): Promise<OrderStats> {
     sampleCount: data.length,
   };
 
-  statsCache = { data: stats, timestamp: Date.now() };
+  statsCacheMap.set(cacheKey, { data: stats, timestamp: Date.now() });
   return stats;
 }
 
@@ -109,9 +111,10 @@ export async function detectOrderAnomalies(params: {
   foreignRate: number;
   cardWorth: number;
   currency: string;
+  tenantId?: string;
 }): Promise<AnomalyWarning[]> {
   const warnings: AnomalyWarning[] = [];
-  const stats = await getRecentOrderStats();
+  const stats = await getRecentOrderStats(params.tenantId);
 
   // 样本不足时跳过统计类检测
   if (stats.sampleCount < 5) {
@@ -211,5 +214,5 @@ export async function detectOrderAnomalies(params: {
 
 // 清除缓存（用于测试或强制刷新）
 export function clearAnomalyCache() {
-  statsCache = null;
+  statsCacheMap.clear();
 }

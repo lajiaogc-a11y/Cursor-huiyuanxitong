@@ -332,10 +332,14 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
       whereExec = `${whereExec} AND \`status\` = 'pending'`;
     }
 
-    let preStatusOrders: { id: string; status: unknown; member_id: unknown; tenant_id: unknown }[] | null = null;
-    if (table === 'orders' && mappedData.status !== undefined && whereExec) {
+    const ORDER_FINANCIAL_FIELDS = ['actual_payment', 'profit_ngn', 'profit_usdt', 'amount', 'currency'];
+    const hasStatusChange = table === 'orders' && mappedData.status !== undefined;
+    const hasFinancialChange = table === 'orders' && ORDER_FINANCIAL_FIELDS.some(f => mappedData[f] !== undefined);
+    let preStatusOrders: { id: string; status: unknown; member_id: unknown; tenant_id: unknown;
+      actual_payment?: unknown; profit_ngn?: unknown; profit_usdt?: unknown; currency?: unknown }[] | null = null;
+    if ((hasStatusChange || hasFinancialChange) && whereExec) {
       preStatusOrders = await query(
-        `SELECT id, status, member_id, tenant_id FROM \`orders\` ${whereExec}`,
+        `SELECT id, status, member_id, tenant_id, actual_payment, profit_ngn, profit_usdt, currency FROM \`orders\` ${whereExec}`,
         filterValues,
       );
     }
@@ -392,6 +396,46 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
           } catch (revErr) {
             logger.error('TableProxy', 'UPDATE orders reverseActivityData:', revErr);
           }
+        }
+      }
+    }
+
+    // H3: sync member_activity deltas when financial fields change on a completed order
+    if (hasFinancialChange && preStatusOrders && preStatusOrders.length > 0) {
+      for (const oldRow of preStatusOrders) {
+        const st = String(oldRow.status ?? '').toLowerCase().trim();
+        if (st !== 'completed') continue;
+        const mid = oldRow.member_id != null ? String(oldRow.member_id).trim() : '';
+        if (!mid) continue;
+        try {
+          const newRow = await queryOne<Record<string, unknown>>('SELECT actual_payment, profit_ngn, profit_usdt, currency FROM `orders` WHERE id = ?', [oldRow.id]);
+          if (!newRow) continue;
+          const oldActual = Number(oldRow.actual_payment) || 0;
+          const newActual = Number(newRow.actual_payment) || 0;
+          const oldProfitNgn = Number(oldRow.profit_ngn) || 0;
+          const newProfitNgn = Number(newRow.profit_ngn) || 0;
+          const oldProfitUsdt = Number(oldRow.profit_usdt) || 0;
+          const newProfitUsdt = Number(newRow.profit_usdt) || 0;
+          const cur = String(newRow.currency ?? oldRow.currency ?? '').toUpperCase();
+          const actualDelta = newActual - oldActual;
+          const profitNgnDelta = newProfitNgn - oldProfitNgn;
+          const profitUsdtDelta = newProfitUsdt - oldProfitUsdt;
+          if (actualDelta === 0 && profitNgnDelta === 0 && profitUsdtDelta === 0) continue;
+          const sets: string[] = ['updated_at = NOW()'];
+          const vals: unknown[] = [];
+          if (profitNgnDelta !== 0) { sets.push('accumulated_profit = GREATEST(0, COALESCE(accumulated_profit,0) + ?)'); vals.push(profitNgnDelta); }
+          if (profitUsdtDelta !== 0) { sets.push('accumulated_profit_usdt = GREATEST(0, COALESCE(accumulated_profit_usdt,0) + ?)'); vals.push(profitUsdtDelta); }
+          if (actualDelta !== 0) {
+            if (cur === 'NGN' || cur === 'NAIRA') { sets.push('total_accumulated_ngn = GREATEST(0, COALESCE(total_accumulated_ngn,0) + ?)'); vals.push(actualDelta); }
+            else if (cur === 'GHS' || cur === 'CEDI') { sets.push('total_accumulated_ghs = GREATEST(0, COALESCE(total_accumulated_ghs,0) + ?)'); vals.push(actualDelta); }
+            else if (cur === 'USDT') { sets.push('total_accumulated_usdt = GREATEST(0, COALESCE(total_accumulated_usdt,0) + ?)'); vals.push(actualDelta); }
+          }
+          if (vals.length > 0) {
+            vals.push(mid);
+            await execute(`UPDATE member_activity SET ${sets.join(', ')} WHERE member_id = ?`, vals);
+          }
+        } catch (syncErr) {
+          logger.error('TableProxy', 'UPDATE orders financial sync member_activity:', syncErr);
         }
       }
     }

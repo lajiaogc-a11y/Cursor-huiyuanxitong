@@ -143,6 +143,7 @@ export function mapDbRowToMemberPortalOrderView(dbOrder: any): MemberPortalOrder
   const giftName = String(dbOrder?.gift_card_name ?? '').trim();
   const cardNameSnapshot = String(dbOrder?.card_name ?? '').trim();
   const bestName = giftName || cardNameSnapshot;
+  const status = (dbOrder?.status || 'completed') as 'active' | 'cancelled' | 'completed';
 
   if (isUsdt) {
     const rawCardRate = Number(dbOrder.exchange_rate) || Number(dbOrder.rate) || 0;

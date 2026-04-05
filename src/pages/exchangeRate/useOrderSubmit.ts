@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { notify } from "@/lib/notifyHub";
 import { showSubmissionError } from "@/services/submissionErrorService";
+import { calculatePaymentValue, calculateNormalOrderDerivedValues, calculateUsdtOrderDerivedValues } from "@/lib/orderCalculations";
 import { getCopySettings, generateEnglishCopyText } from "@/components/CopySettingsTab";
 import { getRewardAmountByPointsAndCurrency } from "@/services/activity/activitySettingsService";
 import { determineExchangeCurrency } from "@/services/finance/exchangeService";
@@ -285,26 +286,29 @@ export function useOrderSubmit(p: UseOrderSubmitParams) {
       }
 
       if (p.payUsdt) {
-        const cardWorth = parseFloat(p.cardValue) * parseFloat(p.cardRate);
-        const totalValueUsdt = p.safeUsdtRate > 0 ? cardWorth / p.safeUsdtRate : 0;
+        // H2+M2 fix: use unified calculation to avoid raw division & string precision loss
         const actualPaidUsdt = parseFloat(p.payUsdt);
-        const paymentValue = actualPaidUsdt + p.usdtFeeNum;
-        const profit = parseFloat(p.profitCalculation.usdtProfitU);
-        const profitRateVal = parseFloat(p.profitCalculation.usdtRate);
+        const derived = calculateUsdtOrderDerivedValues({
+          cardValue: parseFloat(p.cardValue),
+          cardRate: parseFloat(p.cardRate),
+          usdtRate: p.safeUsdtRate,
+          actualPaidUsdt,
+          feeUsdt: p.usdtFeeNum,
+        });
 
         const usdtOrderData = {
           createdAt: formatBeijingTime(new Date()),
           cardType: p.cardType,
           cardValue: parseFloat(p.cardValue),
           cardRate: parseFloat(p.cardRate),
-          cardWorth,
+          cardWorth: derived.cardWorth,
           usdtRate: p.safeUsdtRate,
-          totalValueUsdt,
+          totalValueUsdt: derived.totalValueUsdt,
           actualPaidUsdt,
           feeUsdt: p.usdtFeeNum,
-          paymentValue,
-          profit,
-          profitRate: profitRateVal,
+          paymentValue: derived.paymentValue,
+          profit: derived.profit,
+          profitRate: derived.profitRate,
           vendor: p.cardMerchant,
           paymentProvider: p.paymentAgent,
           phoneNumber: p.phoneNumber,
@@ -326,28 +330,28 @@ export function useOrderSubmit(p: UseOrderSubmitParams) {
         let actualPaid = 0;
         let foreignRate = 0;
         let fee = 0;
-        let profit = 0;
-        let profitRateVal = 0;
 
         if (p.payNaira) {
           paymentCurrency = CURRENCIES.NGN.name;
           actualPaid = parseFloat(p.payNaira);
           foreignRate = p.safeNairaRate;
           fee = actualPaid < p.feeSettings.nairaThreshold ? p.feeSettings.nairaFeeBelow : p.feeSettings.nairaFeeAbove;
-          profit = parseFloat(p.profitCalculation.nairaProfitRMB);
-          profitRateVal = parseFloat(p.profitCalculation.nairaRate);
         } else if (p.payCedi) {
           paymentCurrency = CURRENCIES.GHS.name;
           actualPaid = parseFloat(p.payCedi);
           foreignRate = p.safeCediRate;
           fee = actualPaid < p.feeSettings.cediThreshold ? p.feeSettings.cediFeeBelow : p.feeSettings.cediFeeAbove;
-          profit = parseFloat(p.profitCalculation.cediProfitRMB);
-          profitRateVal = parseFloat(p.profitCalculation.cediRate);
         }
 
-        const paymentValue = p.payNaira
-          ? actualPaid / foreignRate + fee
-          : actualPaid * foreignRate + fee;
+        // H2+M2 fix: use unified safe calculation instead of raw division / string intermediates
+        const derived = calculateNormalOrderDerivedValues({
+          cardValue: parseFloat(p.cardValue),
+          cardRate: parseFloat(p.cardRate),
+          actualPaid,
+          foreignRate,
+          fee,
+          currency: paymentCurrency,
+        });
 
         const orderData = {
           createdAt: formatBeijingTime(new Date()),
@@ -355,14 +359,14 @@ export function useOrderSubmit(p: UseOrderSubmitParams) {
           cardValue: parseFloat(p.cardValue),
           cardRate: parseFloat(p.cardRate),
           foreignRate,
-          cardWorth: parseFloat(p.cardValue) * parseFloat(p.cardRate),
+          cardWorth: derived.cardWorth,
           actualPaid,
           fee,
-          paymentValue,
+          paymentValue: derived.paymentValue,
           paymentProvider: p.paymentAgent,
           vendor: p.cardMerchant,
-          profit,
-          profitRate: profitRateVal,
+          profit: derived.profit,
+          profitRate: derived.profitRate,
           phoneNumber: p.phoneNumber,
           memberCode: finalMemberCode,
           demandCurrency: paymentCurrency,
@@ -436,15 +440,16 @@ export function useOrderSubmit(p: UseOrderSubmitParams) {
     if (p.blockReadonly(p.t("提交订单", "submit order"))) return;
     if (isSubmittingOrderRef.current) return;
 
-    if (!p.nairaRate || p.nairaRate <= 0) {
+    // M1 fix: only validate the rate for the currency being used, not all rates
+    if (p.payNaira && (!p.nairaRate || p.nairaRate <= 0)) {
       showSubmissionError(p.t("请填写奈拉汇率", "Please enter Naira rate"));
       return;
     }
-    if (!p.cediRate || p.cediRate <= 0) {
+    if (p.payCedi && (!p.cediRate || p.cediRate <= 0)) {
       showSubmissionError(p.t("请填写赛地汇率", "Please enter Cedi rate"));
       return;
     }
-    if (!p.usdtFee && p.usdtFee !== "0") {
+    if (p.payUsdt && !p.usdtFee && p.usdtFee !== "0") {
       showSubmissionError(p.t("请填写USDT手续费", "Please enter USDT fee"));
       return;
     }
