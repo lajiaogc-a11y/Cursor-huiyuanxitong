@@ -66,7 +66,7 @@ import {
 } from './tableProxy.js';
 
 import { EXTERNAL_API } from '../../config/externalApis.js';
-import { dataRpcPostLimiter, memberGrantSpinShareLimiter, publicInviteSubmitLimiter } from '../../middlewares/rateLimit.js';
+import { dataRpcPostLimiter, memberGrantSpinShareLimiter, publicInviteSubmitLimiter, lotteryDrawBurstLimiter, lotteryDrawLimiter } from '../../middlewares/rateLimit.js';
 
 const router = Router();
 
@@ -90,6 +90,16 @@ router.post(
 router.post(
   '/rpc/member_grant_spin_for_share',
   memberGrantSpinShareLimiter,
+  dataRpcPostLimiter,
+  authMiddleware,
+  rpcProxyController,
+);
+
+/** 抽奖 RPC — 与 HTTP /api/lottery/draw 相同的 burst + 分钟级限流 */
+router.post(
+  '/rpc/member_spin',
+  lotteryDrawBurstLimiter,
+  lotteryDrawLimiter,
   dataRpcPostLimiter,
   authMiddleware,
   rpcProxyController,

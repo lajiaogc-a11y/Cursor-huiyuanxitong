@@ -161,11 +161,11 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
     // ── 1. request_id 幂等（DB 级别）：重复请求返回 success: true + 原始结果 ──
     if (requestId) {
       const dup = await queryOneConn<{
-        id: string; prize_name: string; prize_type: string; prize_value: number;
+        id: string; prize_id: string | null; prize_name: string; prize_type: string; prize_value: number;
         reward_status: string | null; reward_points: number | null; fail_reason: string | null;
       }>(
         conn,
-        `SELECT id, prize_name, prize_type, prize_value, reward_status,
+        `SELECT id, prize_id, prize_name, prize_type, prize_value, reward_status,
                 COALESCE(reward_points, 0) AS reward_points, fail_reason
          FROM lottery_logs WHERE request_id = ? LIMIT 1`,
         [requestId],
@@ -179,7 +179,7 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
         );
         return {
           success: true,
-          prize: { id: dup.id, name: dup.prize_name, type: dup.prize_type, value: dup.prize_value, description: null },
+          prize: { id: dup.prize_id ?? dup.id, name: dup.prize_name, type: dup.prize_type, value: dup.prize_value, description: null },
           remaining: quotaRow?.remaining ?? 0,
           reward_status: (dup.reward_status as DrawResult['reward_status']) ?? 'done',
           reward_points: Number(dup.reward_points ?? 0),
@@ -345,13 +345,14 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
       }
     }
 
-    // ── 7b. 每日库存限制检查 ──
+    // ── 7b. 每日库存限制检查（FOR UPDATE 防并发超发） ──
     const dailyLimit = Number(hit.daily_stock_limit ?? -1);
     if (hit.type !== 'none' && dailyLimit > 0) {
       const dayStart = `${today} 00:00:00`;
       const [dailyRow] = await queryConn<{ cnt: number }>(conn,
         `SELECT COUNT(*) AS cnt FROM lottery_logs
-         WHERE prize_id = ? AND created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
+         WHERE prize_id = ? AND created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
+         FOR UPDATE`,
         [hit.id, dayStart, dayStart],
       );
       if (Number(dailyRow?.cnt ?? 0) >= dailyLimit) {

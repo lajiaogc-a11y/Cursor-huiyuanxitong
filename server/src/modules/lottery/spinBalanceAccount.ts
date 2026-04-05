@@ -66,7 +66,12 @@ export async function addSpinConn(
   source: string,
 ): Promise<{ newBalance: number }> {
   const delta = Math.floor(Number(amount) || 0);
-  if (delta === 0) return { newBalance: 0 };
+  if (delta === 0) {
+    const row = await queryOneConn<{ bal: number }>(
+      conn, 'SELECT COALESCE(lottery_spin_balance, 0) AS bal FROM member_activity WHERE member_id = ?', [memberId],
+    );
+    return { newBalance: Math.max(0, Number(row?.bal ?? 0)) };
+  }
 
   await ensureMemberActivityRowForLotteryConn(conn, memberId);
 

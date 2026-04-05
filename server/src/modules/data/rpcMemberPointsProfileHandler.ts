@@ -3,7 +3,7 @@
  */
 import type { Response } from 'express';
 import type { ResultSetHeader } from 'mysql2';
-import { execute } from '../../database/index.js';
+import { execute, query as dbQuery } from '../../database/index.js';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
 import { assertRpcEmployee, effectiveMemberIdForRpc } from './tableConfig.js';
 
@@ -122,6 +122,80 @@ export async function handleRpcMemberPointsProfileGroup(ctx: RpcCtx): Promise<Rp
       const { sumMemberTodayEarnedPoints } = await import('../points/memberPointsLedgerHistory.js');
       const earned = await sumMemberTodayEarnedPoints(memberId);
       result = { success: true, earned };
+      break;
+    }
+
+    case 'redeem_all_points': {
+      if (!assertRpcEmployee(req)) {
+        result = { success: false, error: 'FORBIDDEN' };
+        break;
+      }
+      const memberCode = String(params.p_member_code || '').trim();
+      const phone = String(params.p_phone || '').trim();
+      if (!memberCode && !phone) {
+        result = { success: false, error: 'MISSING_MEMBER_IDENTIFIER' };
+        break;
+      }
+      try {
+        const { withTransaction } = await import('../../database/index.js');
+        const { deductPoints } = await import('../points/pointsService.js');
+
+        let memberId: string | null = null;
+        if (phone) {
+          const m = await dbQuery<{ id: string }>('SELECT id FROM members WHERE phone_number = ? LIMIT 1', [phone]);
+          memberId = m[0]?.id ?? null;
+        }
+        if (!memberId && memberCode) {
+          const m = await dbQuery<{ id: string }>('SELECT id FROM members WHERE member_code = ? LIMIT 1', [memberCode]);
+          memberId = m[0]?.id ?? null;
+        }
+        if (!memberId) {
+          result = { success: false, error: 'MEMBER_NOT_FOUND' };
+          break;
+        }
+
+        const balRow = await dbQuery<{ balance: number; current_cycle_id: string | null }>(
+          'SELECT COALESCE(balance,0) AS balance, current_cycle_id FROM points_accounts WHERE member_id = ? LIMIT 1',
+          [memberId],
+        );
+        const currentBal = Math.round(Number(balRow[0]?.balance ?? 0));
+        const oldCycleId = balRow[0]?.current_cycle_id ?? null;
+
+        if (currentBal <= 0) {
+          result = { success: false, error: 'INSUFFICIENT_POINTS' };
+          break;
+        }
+
+        const newCycleId = `CYCLE_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        const now = new Date().toISOString();
+
+        await withTransaction(async (conn) => {
+          await deductPoints(conn, {
+            memberId: memberId!,
+            amount: currentBal,
+            type: 'redeem',
+            referenceType: 'points_redeem',
+            description: `积分兑换清零 ${currentBal}`,
+            clampToZero: true,
+          });
+          await conn.query(
+            `UPDATE points_accounts SET points_accrual_start_time = ?, current_cycle_id = ?, last_reset_time = ?, last_updated = ? WHERE member_id = ?`,
+            [now, newCycleId, now, now, memberId],
+          );
+        });
+
+        result = {
+          success: true,
+          redeemedPoints: currentBal,
+          oldCycleId,
+          newCycleId,
+          resetTime: now,
+        };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error('[redeem_all_points]', msg);
+        result = { success: false, error: msg || 'REDEEM_FAILED' };
+      }
       break;
     }
 

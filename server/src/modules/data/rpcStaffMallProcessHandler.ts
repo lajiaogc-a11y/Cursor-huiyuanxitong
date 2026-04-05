@@ -239,6 +239,11 @@ export async function handleRpcStaffMallProcessGroup(ctx: RpcCtx): Promise<RpcDi
                 ],
               );
               await syncPointsLog(conn, String(red.member_id), cost, 'redeem_cancelled', cancelDesc, acct.tenant_id, afterBal);
+              // C3: sync remaining_points after cancel refund
+              await conn.query(
+                'UPDATE member_activity SET remaining_points = ?, updated_at = NOW(3) WHERE member_id = ?',
+                [Math.max(0, afterBal), String(red.member_id)],
+              );
             }
 
             if (mallItemIdRaw && /^[0-9a-f-]{36}$/i.test(mallItemIdRaw)) {
@@ -263,7 +268,8 @@ export async function handleRpcStaffMallProcessGroup(ctx: RpcCtx): Promise<RpcDi
                 `UPDATE points_accounts SET frozen_points = frozen_points - ?, balance = balance + ?, updated_at = NOW(3) WHERE id = ?`,
                 [cost, cost, acct.id],
               );
-              const afterBal = Number(acct.balance) + cost;
+              const [rejectBalRows] = await conn.query('SELECT COALESCE(balance,0) AS b FROM points_accounts WHERE id = ?', [acct.id]);
+              const afterBal = Number((rejectBalRows as { b?: unknown }[])[0]?.b ?? 0);
               const rejectDesc = `Mall redemption rejected, refunded (${String(red.item_title || 'Product')}, ${cost} pts refunded${note ? `, note: ${String(note)}` : ''})`;
               await conn.query(
                 `INSERT INTO points_ledger (id, account_id, member_id, type, amount, balance_after, reference_type, reference_id, description, created_by, tenant_id, created_at)
@@ -281,6 +287,11 @@ export async function handleRpcStaffMallProcessGroup(ctx: RpcCtx): Promise<RpcDi
                 ],
               );
               await syncPointsLog(conn, String(red.member_id), cost, 'redeem_rejected', rejectDesc, acct.tenant_id, afterBal);
+              // C3: sync remaining_points after reject refund
+              await conn.query(
+                'UPDATE member_activity SET remaining_points = ?, updated_at = NOW(3) WHERE member_id = ?',
+                [Math.max(0, afterBal), String(red.member_id)],
+              );
             } else if (cost > 0) {
               await addPoints(conn, {
                 memberId: String(red.member_id),

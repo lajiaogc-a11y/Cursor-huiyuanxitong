@@ -169,7 +169,7 @@ export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok
     // (phone_number can be NULL or mismatched, causing silent skips)
     const resolvedMemberIds = new Map<string, string>();
 
-    // 3. 扣减消费者 remaining_points / accumulated_points
+    // 3. 扣减消费者 accumulated_points（remaining_points 已由 applyPointsLedgerDeltaOnConn 自动同步）
     const consumptionEntries = issuedEntries.filter((e: any) => e.transaction_type === 'consumption');
     for (const entry of consumptionEntries) {
       const pointsToDeduct = entry.points_earned || 0;
@@ -196,22 +196,13 @@ export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok
       }
       if (!memberId) continue;
 
-      const act = await queryOne<{ id: string; remaining_points?: number; accumulated_points?: number }>(
-        `SELECT id, remaining_points, accumulated_points FROM member_activity WHERE member_id = ? LIMIT 1`,
-        [memberId]
+      await execute(
+        `UPDATE member_activity SET accumulated_points = GREATEST(0, COALESCE(accumulated_points, 0) - ?), updated_at = NOW() WHERE member_id = ?`,
+        [pointsToDeduct, memberId]
       );
-
-      if (act) {
-        const newRemaining = Math.max(0, (act.remaining_points || 0) - pointsToDeduct);
-        const newAccumulated = Math.max(0, (act.accumulated_points || 0) - pointsToDeduct);
-        await execute(
-          `UPDATE member_activity SET remaining_points = ?, accumulated_points = ?, updated_at = NOW() WHERE id = ?`,
-          [newRemaining, newAccumulated, act.id]
-        );
-      }
     }
 
-    // 4. 扣减推荐人 remaining_points / referral_points / referral_count
+    // 4. 扣减推荐人 referral_points / referral_count（remaining_points 已由 applyPointsLedgerDeltaOnConn 自动同步）
     const referralEntries = issuedEntries.filter(
       (e: any) => e.transaction_type === 'referral_1' || e.transaction_type === 'referral_2'
     );
@@ -230,19 +221,14 @@ export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok
     }
     for (const [mid, pointsToDeduct] of referrerMap) {
       if (pointsToDeduct <= 0) continue;
-      const act = await queryOne<{ id: string; remaining_points?: number; referral_points?: number; referral_count?: number }>(
-        `SELECT id, remaining_points, referral_points, referral_count FROM member_activity WHERE member_id = ? LIMIT 1`,
-        [mid]
+      await execute(
+        `UPDATE member_activity SET
+           referral_points = GREATEST(0, COALESCE(referral_points, 0) - ?),
+           referral_count = GREATEST(0, COALESCE(referral_count, 0) - 1),
+           updated_at = NOW()
+         WHERE member_id = ?`,
+        [pointsToDeduct, mid]
       );
-      if (act) {
-        const newRemaining = Math.max(0, (act.remaining_points || 0) - pointsToDeduct);
-        const newReferral = Math.max(0, (act.referral_points || 0) - pointsToDeduct);
-        const newCount = Math.max(0, (act.referral_count || 0) - 1);
-        await execute(
-          `UPDATE member_activity SET remaining_points = ?, referral_points = ?, referral_count = ?, updated_at = NOW() WHERE id = ?`,
-          [newRemaining, newReferral, newCount, act.id]
-        );
-      }
     }
 
     return { ok: true };

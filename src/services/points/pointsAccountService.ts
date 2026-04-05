@@ -162,8 +162,20 @@ export async function redeemPoints(
       };
     }
 
-    const member = await resolveMemberForPoints(member_code, phone);
-    if (!member?.id) {
+    const rpcResult = await apiPost<{
+      success: boolean;
+      error?: string;
+      redeemedPoints?: number;
+      oldCycleId?: string | null;
+      newCycleId?: string | null;
+      resetTime?: string | null;
+    }>('/api/data/rpc/redeem_all_points', {
+      p_member_code: member_code,
+      p_phone: phone,
+    });
+
+    if (!rpcResult?.success) {
+      const errCode = rpcResult?.error || 'REDEEM_FAILED';
       return {
         success: false,
         redeemedPoints: 0,
@@ -171,57 +183,23 @@ export async function redeemPoints(
         oldCycleId: null,
         newCycleId: null,
         resetTime: null,
-        error_code: "MEMBER_NOT_FOUND",
-        message: pickBilingual("未找到会员，无法更新积分账户", "Member not found"),
+        error_code: errCode,
+        message: pickBilingual(
+          errCode === 'MEMBER_NOT_FOUND' ? '未找到会员' : errCode === 'INSUFFICIENT_POINTS' ? '当前积分不足' : '兑换失败',
+          errCode === 'MEMBER_NOT_FOUND' ? 'Member not found' : errCode === 'INSUFFICIENT_POINTS' ? 'Insufficient points' : 'Redemption failed',
+        ),
       };
     }
 
-    const now = new Date().toISOString();
-    const newCycleId = generateCycleId();
-    const phoneOut = String(member.phone_number || phone || '').trim();
-    const codeOut = String(member.member_code || member_code || '').trim();
-
-    const existingAccount = await apiGet<Record<string, any> | null>(
-      `/api/data/table/points_accounts?select=*&member_id=eq.${encodeURIComponent(member.id)}&single=true`
-    );
-    const oldCycleId = existingAccount?.current_cycle_id ?? null;
-
-    const patchPayload: Record<string, unknown> = {
-      current_points: 0,
-      last_reset_time: now,
-      points_accrual_start_time: now,
-      current_cycle_id: newCycleId,
-      last_updated: now,
-    };
-    if (codeOut) patchPayload.member_code = codeOut;
-    if (phoneOut) patchPayload.phone = phoneOut;
-
-    if (existingAccount) {
-      await apiPatch(
-        `/api/data/table/points_accounts?member_id=eq.${encodeURIComponent(member.id)}`,
-        { data: patchPayload }
-      );
-    } else {
-      const insertRow: Record<string, unknown> = {
-        member_id: member.id,
-        ...patchPayload,
-      };
-      if (codeOut) insertRow.member_code = codeOut;
-      if (phoneOut) insertRow.phone = phoneOut;
-      await apiPost(`/api/data/table/points_accounts`, {
-        data: insertRow,
-        upsert: true,
-        onConflict: 'member_id',
-      });
-    }
-
+    const codeOut = String(member_code || '').trim();
+    const now = rpcResult.resetTime || new Date().toISOString();
     const account: PointsAccount = {
       member_code: codeOut,
-      phone: phoneOut,
+      phone: String(phone || '').trim(),
       current_points: 0,
       points_accrual_start_time: now,
       last_updated: now,
-      current_cycle_id: newCycleId,
+      current_cycle_id: rpcResult.newCycleId || generateCycleId(),
       last_reset_time: now,
     };
 
@@ -230,21 +208,24 @@ export async function redeemPoints(
     logOperation(
       'activity_gift',
       'update',
-      codeOut || member.id,
-      { oldCycleId },
+      codeOut || phone,
+      { oldCycleId: rpcResult.oldCycleId },
       account,
-      pickBilingual(`会员${codeOut || member.id}兑换积分${currentPoints}，积分清零，周期从${oldCycleId}更新为${newCycleId}`, `Member ${codeOut || member.id} redeemed ${currentPoints} points, points reset, cycle updated from ${oldCycleId} to ${newCycleId}`)
+      pickBilingual(
+        `会员${codeOut || phone}兑换积分${rpcResult.redeemedPoints ?? currentPoints}，积分清零`,
+        `Member ${codeOut || phone} redeemed ${rpcResult.redeemedPoints ?? currentPoints} points`,
+      ),
     );
 
     notifyDataMutation({ table: 'points_accounts', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
 
     return {
       success: true,
-      redeemedPoints: currentPoints,
+      redeemedPoints: rpcResult.redeemedPoints ?? currentPoints,
       account,
-      oldCycleId,
-      newCycleId,
-      resetTime: now,
+      oldCycleId: rpcResult.oldCycleId ?? null,
+      newCycleId: rpcResult.newCycleId ?? null,
+      resetTime: rpcResult.resetTime ?? now,
     };
   } catch (error) {
     console.error('Failed to redeem points:', error);

@@ -607,13 +607,13 @@ export async function getLotteryOperationalRiskStats(
 ): Promise<LotteryOperationalRiskStatsRow | null> {
   return queryOne<LotteryOperationalRiskStatsRow>(
     `SELECT
-         SUM(CASE WHEN client_ip IS NOT NULL AND prize_type = 'none' AND created_at >= ? THEN 0 ELSE 0 END) AS risk_blocked,
+         SUM(CASE WHEN fail_reason LIKE '%RISK%' AND created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY) THEN 1 ELSE 0 END) AS risk_blocked,
          0 AS risk_downgraded,
          SUM(CASE WHEN reward_status = 'failed' THEN 1 ELSE 0 END) AS failed_rewards,
          SUM(CASE WHEN reward_status = 'pending' THEN 1 ELSE 0 END) AS pending_rewards
        FROM lottery_logs
        WHERE tenant_id <=> ?`,
-    [dayStart, tenantId],
+    [dayStart, dayStart, tenantId],
   );
 }
 

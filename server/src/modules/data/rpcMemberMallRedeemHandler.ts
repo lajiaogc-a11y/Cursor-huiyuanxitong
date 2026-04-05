@@ -383,6 +383,12 @@ export async function handleRpcMemberMallRedeemGroup(ctx: RpcCtx): Promise<RpcDi
             [balanceAfterFreeze, cost, acctRow.id],
           );
 
+          // C3: sync remaining_points after freeze
+          await conn.query(
+            'UPDATE member_activity SET remaining_points = ?, updated_at = NOW(3) WHERE member_id = ?',
+            [Math.max(0, balanceAfterFreeze), memberId],
+          );
+
           const redemptionId = randomUUID();
           const freezeLedgerId = randomUUID();
           const freezeDesc =

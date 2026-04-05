@@ -122,6 +122,13 @@ export async function createPointOrder(input: CreatePointOrderInput): Promise<Po
       [balanceAfterFreeze, pointsCost, acct.id],
     );
 
+    // C3: sync remaining_points after freeze
+    await exec(
+      conn,
+      'UPDATE member_activity SET remaining_points = ?, updated_at = NOW(3) WHERE member_id = ?',
+      [Math.max(0, balanceAfterFreeze), memberId],
+    );
+
     // ── fetch member info for denormalized fields ──
     const member = await qOne<{ phone_number: string | null; nickname: string | null }>(
       conn,
@@ -298,7 +305,8 @@ export async function rejectPointOrder(
     );
 
     // ── ledger entry: refund ──
-    const afterBal = Number(acct.balance) + order.points_cost;
+    const afterRow = await qOne<{ balance: number }>(conn, 'SELECT balance FROM points_accounts WHERE id = ?', [acct.id]);
+    const afterBal = Number(afterRow?.balance ?? 0);
     await exec(
       conn,
       `INSERT INTO points_ledger
@@ -316,6 +324,13 @@ export async function rejectPointOrder(
         reviewerId ?? null,
         order.tenant_id,
       ],
+    );
+
+    // C3: sync remaining_points after reject refund
+    await exec(
+      conn,
+      'UPDATE member_activity SET remaining_points = ?, updated_at = NOW(3) WHERE member_id = ?',
+      [Math.max(0, afterBal), order.member_id],
     );
 
     return { ...order, status: 'rejected' as const };

@@ -164,6 +164,14 @@ export async function applyPointsLedgerDeltaOnConn(
     const tp = Number(ptsRow?.total_points) || 0;
     await syncMemberLevelFromTotalOnConn(conn, memberId, ptsRow?.tenant_id ?? null, tp);
   }
+
+  // C3: keep member_activity.remaining_points in sync with points_accounts.balance
+  await exec(
+    conn,
+    `UPDATE member_activity SET remaining_points = ?, updated_at = NOW(3) WHERE member_id = ?`,
+    [Math.max(0, after), memberId],
+  );
+
   return { actualDelta, balanceAfter: after };
 }
 

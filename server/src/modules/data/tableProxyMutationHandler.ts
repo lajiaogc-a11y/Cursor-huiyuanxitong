@@ -284,7 +284,7 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
     // ── C1: 敏感表列级写入保护 ──
     // 关键余额/次数列只能通过专用 service 修改，禁止表代理直接 PATCH
     const BLOCKED_PATCH_COLUMNS: Record<string, Set<string>> = {
-      points_accounts: new Set(['frozen_points', 'total_earned', 'total_spent']),
+      points_accounts: new Set(['balance', 'frozen_points', 'total_earned', 'total_spent']),
       member_activity: new Set(['lottery_spin_balance', 'lottery_free_draws_used', 'lottery_quota_day']),
     };
     const blocked = BLOCKED_PATCH_COLUMNS[table];

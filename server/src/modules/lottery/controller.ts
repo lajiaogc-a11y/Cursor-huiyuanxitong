@@ -535,6 +535,8 @@ export async function adminOperationalStatsController(req: AuthenticatedRequest,
   const today = getToday();
   const dayStart = `${today} 00:00:00`;
 
+  const { query: dbQuery } = await import('../../database/index.js');
+
   const [settings, prizes, todayStats, riskStats, riskBlockedCount] = await Promise.all([
     getLotterySettings(tenantId),
     listEnabledPrizes(tenantId),
@@ -546,9 +548,26 @@ export async function adminOperationalStatsController(req: AuthenticatedRequest,
   const budgetCap = Number(settings?.daily_reward_budget ?? 0);
   const budgetUsed = Number(settings?.daily_reward_used ?? 0);
   const targetRtp = Number(settings?.target_rtp ?? 0);
-  const effectiveCap = budgetCap > 0 && targetRtp > 0
-    ? Math.min(budgetCap, budgetCap * targetRtp / 100)
-    : budgetCap;
+
+  let effectiveCap = budgetCap;
+  if (targetRtp > 0) {
+    let todayOrderPoints = 0;
+    try {
+      const rows = await dbQuery(
+        `SELECT COALESCE(SUM(amount), 0) AS total
+         FROM points_ledger
+         WHERE tenant_id <=> ?
+           AND amount > 0
+           AND (type = 'consumption' OR transaction_type = 'consumption')
+           AND created_at >= ?
+           AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
+        [tenantId, dayStart, dayStart],
+      ) as { total: number }[];
+      todayOrderPoints = Number(rows[0]?.total ?? 0);
+    } catch { /* fallback 0 */ }
+    const rtpBudget = Math.floor(todayOrderPoints * targetRtp / 100);
+    effectiveCap = budgetCap > 0 ? Math.min(budgetCap, rtpBudget) : rtpBudget;
+  }
 
   const costToday = Number(todayStats?.cost_today ?? 0);
   const drawsToday = Number(todayStats?.draws_today ?? 0);

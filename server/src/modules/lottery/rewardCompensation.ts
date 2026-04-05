@@ -13,6 +13,7 @@
  */
 import { withTransaction, query, queryOne, execute } from '../../database/index.js';
 import { fulfillRewardOnConn, type RewardType } from './service.js';
+import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
 
 const MAX_AUTO_RETRY = 3;
 
@@ -100,7 +101,8 @@ export async function retryFailedRewards(tenantId: string | null, batchSize = 20
     `SELECT id, member_id, tenant_id, prize_id, prize_name, prize_type, prize_value,
             COALESCE(prize_cost, 0) AS prize_cost,
             COALESCE(reward_type, 'auto') AS reward_type,
-            COALESCE(retry_count, 0) AS retry_count
+            COALESCE(retry_count, 0) AS retry_count,
+            created_at
      FROM lottery_logs
      WHERE tenant_id <=> ? AND reward_status = 'failed' AND COALESCE(retry_count, 0) < ?
      ORDER BY created_at ASC
@@ -138,10 +140,13 @@ export async function retryFailedRewards(tenantId: string | null, batchSize = 20
         );
 
         if (result.status === 'done' && Number(row.prize_cost) > 0) {
-          await conn.query(
-            'UPDATE lottery_settings SET daily_reward_used = COALESCE(daily_reward_used, 0) + ? WHERE tenant_id <=> ?',
-            [Number(row.prize_cost), row.tenant_id],
-          );
+          const logDate = String(row.created_at ?? '').slice(0, 10);
+          if (logDate === getShanghaiDateString()) {
+            await conn.query(
+              'UPDATE lottery_settings SET daily_reward_used = COALESCE(daily_reward_used, 0) + ? WHERE tenant_id <=> ?',
+              [Number(row.prize_cost), row.tenant_id],
+            );
+          }
         }
         if (result.status === 'done') succeeded++;
         else stillFailed++;
@@ -190,11 +195,12 @@ export async function confirmManualReward(
     );
     if (action === 'done') {
       const [costRows] = await conn.query(
-        'SELECT COALESCE(prize_cost, 0) AS prize_cost, tenant_id FROM lottery_logs WHERE id = ?',
+        'SELECT COALESCE(prize_cost, 0) AS prize_cost, tenant_id, created_at FROM lottery_logs WHERE id = ?',
         [logId],
       );
-      const costRow = (costRows as { prize_cost: number; tenant_id: string | null }[])[0];
-      if (costRow && Number(costRow.prize_cost) > 0) {
+      const costRow = (costRows as { prize_cost: number; tenant_id: string | null; created_at: string }[])[0];
+      const logDate = String(costRow?.created_at ?? '').slice(0, 10);
+      if (costRow && Number(costRow.prize_cost) > 0 && logDate === getShanghaiDateString()) {
         await conn.execute(
           'UPDATE lottery_settings SET daily_reward_used = COALESCE(daily_reward_used, 0) + ? WHERE tenant_id <=> ?',
           [Number(costRow.prize_cost), costRow.tenant_id],
@@ -235,11 +241,13 @@ export async function manualRetryReward(logId: string): Promise<{ ok: boolean; e
     );
     if (res.status === 'done') {
       const [costRows] = await conn.query(
-        'SELECT COALESCE(prize_cost, 0) AS prize_cost FROM lottery_logs WHERE id = ?',
+        'SELECT COALESCE(prize_cost, 0) AS prize_cost, created_at FROM lottery_logs WHERE id = ?',
         [logId],
       );
-      const cost = Number((costRows as { prize_cost?: number }[])[0]?.prize_cost ?? 0);
-      if (cost > 0) {
+      const costRowData = (costRows as { prize_cost?: number; created_at?: string }[])[0];
+      const cost = Number(costRowData?.prize_cost ?? 0);
+      const logDate = String(costRowData?.created_at ?? '').slice(0, 10);
+      if (cost > 0 && logDate === getShanghaiDateString()) {
         await conn.execute(
           'UPDATE lottery_settings SET daily_reward_used = COALESCE(daily_reward_used, 0) + ? WHERE tenant_id <=> ?',
           [cost, row.tenant_id],
