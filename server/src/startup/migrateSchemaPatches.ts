@@ -1446,5 +1446,27 @@ export async function migrateSchemaPatches(): Promise<void> {
     console.warn('[schema-patch] lottery_settings daily_free_spins default fix:', ((e as Error).message || '').slice(0, 120));
   }
 
+  // ── Upgrade lottery_prizes probability/display_probability precision to DECIMAL(16,10) ──
+  try {
+    const [probCol] = await query<{ COLUMN_TYPE: string }>(
+      `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'lottery_prizes' AND COLUMN_NAME = 'probability'`
+    );
+    if (probCol && !probCol.COLUMN_TYPE.includes('16,10')) {
+      await execute(`ALTER TABLE lottery_prizes MODIFY COLUMN probability DECIMAL(16,10) NOT NULL DEFAULT 0 COMMENT '中奖权重'`);
+      console.log('[schema-patch] lottery_prizes.probability upgraded to DECIMAL(16,10)');
+    }
+    const [dispCol] = await query<{ COLUMN_TYPE: string }>(
+      `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'lottery_prizes' AND COLUMN_NAME = 'display_probability'`
+    );
+    if (dispCol && !dispCol.COLUMN_TYPE.includes('16,10')) {
+      await execute(`ALTER TABLE lottery_prizes MODIFY COLUMN display_probability DECIMAL(16,10) NULL COMMENT '前端展示用中奖概率(%)，NULL=展示真实 probability'`);
+      console.log('[schema-patch] lottery_prizes.display_probability upgraded to DECIMAL(16,10)');
+    }
+  } catch (e: unknown) {
+    console.warn('[schema-patch] lottery_prizes precision upgrade:', ((e as Error).message || '').slice(0, 120));
+  }
+
   console.log('[schema-patch] done.');
 }
