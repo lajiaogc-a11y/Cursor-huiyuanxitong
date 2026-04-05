@@ -19,10 +19,10 @@ import type { PoolConnection } from 'mysql2/promise';
 import type { ResultSetHeader } from 'mysql2';
 import { buildMysqlUserLockName, mysqlGetLock, mysqlReleaseLock } from '../../lib/mysqlUserLock.js';
 import { addPoints } from '../points/pointsService.js';
-import { getEffectiveDailyFreeSpinsConn, getLotterySettings, listEnabledPrizes } from './repository.js';
+import { getLotterySettings, listEnabledPrizes } from './repository.js';
 import { pickLotteryPrizeByConfiguredProbability, budgetAwarePrizePick, type BudgetPolicy } from './prizePick.js';
 import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
-import { syncLotteryQuotaDayAndLoadConn } from './spinBalanceAccount.js';
+import { ensureMemberActivityRowForLotteryConn, addSpinConn } from './spinBalanceAccount.js';
 import { evaluateDrawRisk, loadRiskThresholds, recordDrawBurst, type RiskResult } from './riskControl.js';
 
 // ── 内存防抖（仍保留作为热路径快速拦截，DB UNIQUE INDEX 是真正保障）──
@@ -261,12 +261,15 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
       // 确保 prize_cost = 0 的配置不被误拦截。
     }
 
-    // ── 5. 次数配额 ──
-    const dailyFree = await getEffectiveDailyFreeSpinsConn(conn, tenantId);
-    const quotaSnap = await syncLotteryQuotaDayAndLoadConn(conn, memberId, today, dailyFree);
-    const freeRemaining = Math.max(0, dailyFree - quotaSnap.freeDrawsUsed);
-    const totalRemaining = freeRemaining + quotaSnap.balance;
-    if (totalRemaining <= 0) {
+    // ── 5. 次数配额（仅余额，无每日免费） ──
+    await ensureMemberActivityRowForLotteryConn(conn, memberId);
+    const balRow = await queryOneConn<{ lottery_spin_balance: number | string | null }>(
+      conn,
+      'SELECT lottery_spin_balance FROM member_activity WHERE member_id = ? FOR UPDATE',
+      [memberId],
+    );
+    const currentBalance = Math.max(0, Math.floor(Number(balRow?.lottery_spin_balance ?? 0)));
+    if (currentBalance <= 0) {
       return { success: false, error: 'NO_SPIN_QUOTA', remaining: 0 };
     }
 
@@ -356,36 +359,14 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
       }
     }
 
-    // ── 8. 扣减配额 ──
-    let newRemaining = 0;
-    let spinConsumeSource = '';
-    if (freeRemaining > 0) {
-      await execConn(
-        conn,
-        'UPDATE member_activity SET lottery_free_draws_used = COALESCE(lottery_free_draws_used, 0) + 1, updated_at = NOW(3) WHERE member_id = ?',
-        [memberId],
-      );
-      const nextFreeUsed = quotaSnap.freeDrawsUsed + 1;
-      newRemaining = Math.max(0, dailyFree - nextFreeUsed) + quotaSnap.balance;
-      spinConsumeSource = 'daily_free_draw';
-    } else {
-      const [ur] = await conn.query(
-        'UPDATE member_activity SET lottery_spin_balance = COALESCE(lottery_spin_balance, 0) - 1, updated_at = NOW(3) WHERE member_id = ? AND COALESCE(lottery_spin_balance, 0) >= 1',
-        [memberId],
-      );
-      const aff = Number((ur as ResultSetHeader).affectedRows ?? 0);
-      if (aff !== 1) {
-        return { success: false, error: 'NO_SPIN_QUOTA', remaining: 0 };
-      }
-      newRemaining = Math.max(0, dailyFree - quotaSnap.freeDrawsUsed) + (quotaSnap.balance - 1);
-      spinConsumeSource = 'lottery_draw';
+    // ── 8. 扣减配额 (unified via addSpinConn) ──
+    let newRemaining: number;
+    try {
+      const { newBalance } = await addSpinConn(conn, memberId, -1, 'lottery_draw');
+      newRemaining = newBalance;
+    } catch {
+      return { success: false, error: 'NO_SPIN_QUOTA', remaining: 0 };
     }
-
-    // Record spin consumption in spin_credits for audit trail
-    await execConn(conn,
-      `INSERT INTO spin_credits (id, member_id, source, amount, created_at) VALUES (?, ?, ?, -1, NOW(3))`,
-      [randomUUID(), memberId, spinConsumeSource],
-    );
 
     // ── 9. 写抽奖日志（Phase 4: 含 prize_cost / reward_type，初始 reward_status='pending'） ──
     const logId = randomUUID();
@@ -598,24 +579,22 @@ export async function getQuota(memberId: string) {
   const today = getShanghaiDateString();
   const dayStart = `${today} 00:00:00`;
 
-  return withTransaction(async (conn) => {
-    const dailyFree = await getEffectiveDailyFreeSpinsConn(conn, tenantId);
-    const snap = await syncLotteryQuotaDayAndLoadConn(conn, memberId, today, dailyFree);
-    const freeRem = Math.max(0, dailyFree - snap.freeDrawsUsed);
-    const remaining = freeRem + snap.balance;
+  const balRow = await queryOne<{ lottery_spin_balance: number | string | null }>(
+    'SELECT COALESCE(lottery_spin_balance, 0) AS lottery_spin_balance FROM member_activity WHERE member_id = ?',
+    [memberId],
+  );
+  const balance = Math.max(0, Math.floor(Number(balRow?.lottery_spin_balance ?? 0)));
 
-    const usedRow = await queryOneConn<{ cnt: number }>(
-      conn,
-      `SELECT COUNT(*) as cnt FROM lottery_logs
-       WHERE member_id = ?
-         AND created_at >= ?
-         AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
-      [memberId, dayStart, dayStart],
-    );
-    const usedToday = usedRow?.cnt ?? 0;
+  const usedRow = await queryOne<{ cnt: number }>(
+    `SELECT COUNT(*) as cnt FROM lottery_logs
+     WHERE member_id = ?
+       AND created_at >= ?
+       AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
+    [memberId, dayStart, dayStart],
+  );
+  const usedToday = usedRow?.cnt ?? 0;
 
-    return { remaining, daily_free: dailyFree, credits: snap.balance, used_today: usedToday, enabled };
-  });
+  return { remaining: balance, daily_free: 0, credits: balance, used_today: usedToday, enabled };
 }
 
 /**

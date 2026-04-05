@@ -39,7 +39,7 @@ import { cn } from "@/lib/utils";
 import {
   portalSettingsEmptyShellClass,
   portalSettingsEmptyIconWrapClass,
-} from "@/pages/member-portal/shared";
+} from "@/components/common/EmptyState";
 import type { MemberPortalSettings } from "@/services/members/memberPortalSettingsService";
 import type { PointsMallCategory, PointsMallItem } from "@/services/members/memberPointsMallService";
 import { SectionTitle } from "./shared";

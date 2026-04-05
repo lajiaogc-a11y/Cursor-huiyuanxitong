@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
-import { apiGet } from '@/api/client';
+import { listRolePermissionsByModuleOrder } from '@/services/staff/rolePermissionsTableService';
 import { saveRolePermissions } from '@/services/staff/dataApi/permissionsAndSettings';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
@@ -80,7 +80,7 @@ export default function PermissionSettingsTab() {
 
   const fetchPermissions = useCallback(async () => {
     try {
-      const data = await apiGet<unknown>(`/api/data/table/role_permissions?select=*&order=module_name.asc`);
+      const data = await listRolePermissionsByModuleOrder();
       const typedData = (Array.isArray(data) ? data : []).map((r: Record<string, unknown>) => ({
         ...(r as RolePermission),
         role: String(r.role || '') as PermissionRole,

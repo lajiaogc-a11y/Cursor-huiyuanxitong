@@ -222,8 +222,7 @@ function maskPhone(phone: string): string {
   return `${s.slice(0, 3)}***${s.slice(-5)}`;
 }
 
-// 注: 活动赠送数据现在完全从 Supabase 数据库加载
-// localStorage 版本已弃用
+// 注: 活动赠送数据由后端 API / 数据库加载；localStorage 版本已弃用
 
 // 计算赠送价值
 function calculateGiftValue(currency: string, amount: number, rate: number, fee: number): number {

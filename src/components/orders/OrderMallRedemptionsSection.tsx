@@ -41,7 +41,7 @@ import {
   processMyPointsMallRedemptionOrder,
   type PointsMallRedemptionOrder,
 } from "@/services/members/memberPointsMallService";
-import { apiPost } from "@/api/client";
+import { verifyCurrentUserPasswordApi } from "@/services/auth/authApiService";
 import { OrderPagination } from "./OrderPagination";
 import { cn } from "@/lib/utils";
 
@@ -233,10 +233,8 @@ export function OrderMallRedemptionsSection({
     setCancelVerifying(true);
     setCancelAuthError("");
     try {
-      const verifyRes = await apiPost<{ success?: boolean; valid?: boolean }>("/api/auth/verify-password", {
-        password: cancelPassword,
-      });
-      if (!verifyRes || verifyRes.valid !== true) {
+      const valid = await verifyCurrentUserPasswordApi(cancelPassword);
+      if (!valid) {
         setCancelAuthError(t("密码验证失败，请重新输入", "Password verification failed, please try again"));
         setCancelVerifying(false);
         return;

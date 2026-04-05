@@ -5,7 +5,7 @@ import type { PoolConnection } from 'mysql2/promise';
 import { query, queryOne, execute, withTransaction } from '../../database/index.js';
 import { randomUUID } from 'crypto';
 import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
-import { incrementLotterySpinBalanceConn } from './spinBalanceAccount.js';
+import { addSpinConn } from './spinBalanceAccount.js';
 
 async function queryOneConn<T = unknown>(
   conn: PoolConnection,
@@ -290,6 +290,7 @@ export async function getSpinsUsedToday(memberId: string): Promise<number> {
  * Effective daily free spins: prefer `lottery_settings` (authoritative when row exists);
  * fall back to `member_portal_settings.daily_free_spins_per_day`; default 0 (not 1)
  * so tenants that never configured lottery don't silently gift free spins.
+ * @deprecated No longer used by lottery `draw()` / `getQuota()`; settings row still used elsewhere (budget, RTP, enabled).
  */
 export async function getEffectiveDailyFreeSpins(tenantId: string | null): Promise<number> {
   const lotteryRow = await queryOne<{ daily_free_spins: number }>(
@@ -307,7 +308,9 @@ export async function getEffectiveDailyFreeSpins(tenantId: string | null): Promi
   return Math.max(0, Number(portalRow?.daily_free_spins_per_day ?? 0));
 }
 
-/** Transaction-scoped variant of getEffectiveDailyFreeSpins */
+/** Transaction-scoped variant of getEffectiveDailyFreeSpins
+ * @deprecated No longer used by lottery `draw()` / `getQuota()`.
+ */
 export async function getEffectiveDailyFreeSpinsConn(
   conn: PoolConnection,
   tenantId: string | null,
@@ -535,11 +538,7 @@ export async function grantOrderCompletedSpinCredits(args: {
     );
     if (dup) return { granted: false, amount: 0 };
 
-    await conn.query(
-      'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
-      [memberId, amount, source],
-    );
-    await incrementLotterySpinBalanceConn(conn, memberId, amount, `order_completed:${args.orderId}`);
+    await addSpinConn(conn, memberId, amount, source);
     return { granted: true, amount };
   });
 }
@@ -549,4 +548,74 @@ export async function grantOrderCompletedSpinCredits(args: {
 export async function getMemberTenantId(memberId: string): Promise<string | null> {
   const r = await queryOne<{ tenant_id: string | null }>('SELECT tenant_id FROM members WHERE id = ?', [memberId]);
   return r?.tenant_id ?? null;
+}
+
+/** 与 lottery_settings 同步时更新门户侧每日免费次数展示 */
+export async function updateMemberPortalDailyFreeSpinsPerDay(tenantId: string, dailyFreeSpins: number): Promise<void> {
+  await execute(
+    'UPDATE member_portal_settings SET daily_free_spins_per_day = ? WHERE tenant_id = ?',
+    [dailyFreeSpins, tenantId],
+  );
+}
+
+export type LotteryOperationalTodayStatsRow = {
+  draws_today: number;
+  cost_today: number;
+  winners_today: number;
+  points_awarded_today: number;
+};
+
+export async function getLotteryOperationalTodayStats(
+  tenantId: string | null,
+  dayStart: string,
+): Promise<LotteryOperationalTodayStatsRow | null> {
+  return queryOne<LotteryOperationalTodayStatsRow>(
+    `SELECT
+         COUNT(*) AS draws_today,
+         COALESCE(SUM(CASE WHEN prize_type <> 'none' AND reward_status = 'done' THEN COALESCE(prize_cost, 0) ELSE 0 END), 0) AS cost_today,
+         SUM(CASE WHEN prize_type <> 'none' THEN 1 ELSE 0 END) AS winners_today,
+         COALESCE(SUM(CASE WHEN prize_type = 'points' AND reward_status = 'done' THEN prize_value ELSE 0 END), 0) AS points_awarded_today
+       FROM lottery_logs
+       WHERE tenant_id <=> ?
+         AND created_at >= ?
+         AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
+    [tenantId, dayStart, dayStart],
+  );
+}
+
+export type LotteryOperationalRiskStatsRow = {
+  risk_blocked: number;
+  risk_downgraded: number;
+  failed_rewards: number;
+  pending_rewards: number;
+};
+
+export async function getLotteryOperationalRiskStats(
+  tenantId: string | null,
+  dayStart: string,
+): Promise<LotteryOperationalRiskStatsRow | null> {
+  return queryOne<LotteryOperationalRiskStatsRow>(
+    `SELECT
+         SUM(CASE WHEN client_ip IS NOT NULL AND prize_type = 'none' AND created_at >= ? THEN 0 ELSE 0 END) AS risk_blocked,
+         0 AS risk_downgraded,
+         SUM(CASE WHEN reward_status = 'failed' THEN 1 ELSE 0 END) AS failed_rewards,
+         SUM(CASE WHEN reward_status = 'pending' THEN 1 ELSE 0 END) AS pending_rewards
+       FROM lottery_logs
+       WHERE tenant_id <=> ?`,
+    [dayStart, tenantId],
+  );
+}
+
+export async function countLotteryRiskBlockedToday(
+  tenantId: string | null,
+  dayStart: string,
+): Promise<number> {
+  const row = await queryOne<{ cnt: number }>(
+    `SELECT COUNT(*) AS cnt FROM lottery_logs
+     WHERE tenant_id <=> ?
+       AND created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
+       AND fail_reason LIKE '%RISK%'`,
+    [tenantId, dayStart, dayStart],
+  );
+  return row?.cnt ?? 0;
 }

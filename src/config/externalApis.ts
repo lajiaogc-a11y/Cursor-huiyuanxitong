@@ -4,7 +4,7 @@
  *
  * 历史 Edge 函数 slug 常量（仅供文档/兼容引用）；实际请求由 Node 提供，例如 USDT：`GET /api/data/fetch-usdt-rates`。
  */
-/** 历史 Edge slug 名（与旧 Supabase 部署对齐；当前请走 Node `/api/data/*`） */
+/** 历史 Edge slug 名（与旧云端 Edge 命名对齐；当前请走 Node `/api/data/*`） */
 export const LEGACY_EDGE_SLUGS = {
   FETCH_USDT_RATES: "fetch-usdt-rates",
   GET_CLIENT_IP: "get-client-ip",
@@ -15,9 +15,9 @@ export const LEGACY_EDGE_SLUGS = {
 
 export type LegacyEdgeSlug = (typeof LEGACY_EDGE_SLUGS)[keyof typeof LEGACY_EDGE_SLUGS];
 
-/** @deprecated 不再连接 Supabase；请使用 getApiBaseUrl() + `/api/...` */
+/** @deprecated 请使用 getApiBaseUrl() + `/api/...`；本函数固定返回同源 `/api/data/${slug}` */
 export function buildSupabaseEdgeUrl(
-  _supabaseBaseUrl: string | undefined,
+  _dbBaseUrl: string | undefined,
   slug: LegacyEdgeSlug
 ): string {
   return `/api/data/${slug}`;

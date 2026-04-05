@@ -21,11 +21,11 @@ import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
 import { useExportConfirm } from "@/hooks/useExportConfirm";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { useLanguage } from "@/contexts/LanguageContext";
-import {
-  DATE_RANGES, type DateRangeKey,
-  ACTION_MAP, getActionLabel, getActionBadgeClass,
-  getDateRangeSql, PaginationBar, StatCard, MemberPortalLogsEmpty,
-} from "./shared";
+import { DATE_RANGES, type DateRangeKey, getDateRangeSql } from "@/lib/dateFilter";
+import { ACTION_MAP, getActionLabel, getActionBadgeClass } from "@/lib/operationLogFormatters";
+import { PaginationBar } from "@/components/common/PaginationBar";
+import { StatCard } from "@/components/common/StatCard";
+import { MemberPortalLogsEmpty } from "@/components/common/EmptyState";
 
 export function AdminOperationLogsTab() {
   const { t } = useLanguage();

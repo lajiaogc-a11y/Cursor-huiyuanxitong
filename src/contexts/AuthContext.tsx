@@ -40,7 +40,7 @@ function isProductionEnvironment(): boolean {
   return !devPatterns.some(pattern => pattern.test(hostname));
 }
 
-// 获取客户端IP地址（走后端 API，不再直连 Supabase Edge Function）
+// 获取客户端 IP（走后端 /api/auth/client-ip）
 async function getClientIp(): Promise<string | null> {
   try {
     const res = await fetch('/api/auth/client-ip', { cache: 'no-store' });
@@ -66,7 +66,7 @@ interface IpValidationResult {
   message?: string;
 }
 
-/** 走后端公开接口，按平台「IP 访问控制」中的国家/地区策略校验（无需 Supabase Edge） */
+/** 走后端公开接口，按平台「IP 访问控制」中的国家/地区策略校验 */
 async function checkIpAccess(): Promise<IpValidationResult> {
   try {
     const base = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
@@ -541,8 +541,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             realName: authUser.real_name,
           });
 
-          // Supabase auth session 已移除 - 认证完全走后端 JWT
-
           syncUserData(authUser.id).finally(finishInit);
         } else {
           setSharedDataTenantId(null);
@@ -622,7 +620,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setAuthStep(_t('验证账号...', 'Verifying account...'));
 
-      // 本地开发环境跳过限流和 IP 校验，直接调用登录 API（避免 Supabase check_api_rate_limit 400 等阻塞）
+      // 本地开发环境跳过限流和 IP 校验，直接调用登录 API（避免旧版 Edge 限流等阻塞）
       if (isProductionEnvironment()) {
         const clientIp = await getClientIp();
         try {
@@ -694,8 +692,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: authUser.role,
         realName: authUser.real_name,
       });
-
-      // Supabase auth session 已移除 - 认证完全走后端 JWT
 
       preloadSharedData().catch(console.error);
       syncUserData(authUser.id).catch(console.error);

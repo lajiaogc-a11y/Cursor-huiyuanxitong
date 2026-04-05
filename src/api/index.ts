@@ -1,6 +1,6 @@
 /**
  * API 封装层 - 统一入口
- * 所有 hooks 仅通过此层调用，禁止直接访问 Supabase
+ * 所有 hooks 仅通过此层调用
  */
 
 export * from './auth';

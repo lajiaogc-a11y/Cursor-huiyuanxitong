@@ -1,7 +1,12 @@
 import { Router, type Request, type Response } from 'express';
 import { authMiddleware, type AuthenticatedRequest } from '../../middlewares/auth.js';
-import { execute, queryOne } from '../../database/index.js';
 import { config } from '../../config/index.js';
+import {
+  type UploadedImageRow,
+  selectUploadedImageById,
+  insertUploadedImageS3Row,
+  insertUploadedImageMysqlRow,
+} from './repository.js';
 import { ensureWebpForReadResponse, transcodeToWebp } from '../../lib/uploadImageWebp.js';
 import {
   buildS3ObjectKey,
@@ -18,17 +23,7 @@ function toWebpFileName(raw: unknown): string {
   return `${base || 'image'}.webp`;
 }
 
-interface ImageRow {
-  data: Buffer | null;
-  content_type: string;
-  tenant_id: string | null;
-  created_by: string | null;
-  storage_backend: string | null;
-  s3_key: string | null;
-  visibility: string | null;
-}
-
-async function loadImagePayload(row: ImageRow): Promise<{ buffer: Buffer; contentType: string }> {
+async function loadImagePayload(row: UploadedImageRow): Promise<{ buffer: Buffer; contentType: string }> {
   const backend = (row.storage_backend || 'mysql').toLowerCase();
   if (backend === 's3' && row.s3_key) {
     if (!config.s3.enabled) {
@@ -46,11 +41,11 @@ async function loadImagePayload(row: ImageRow): Promise<{ buffer: Buffer; conten
   throw err;
 }
 
-function isPrivateVisibility(row: ImageRow): boolean {
+function isPrivateVisibility(row: UploadedImageRow): boolean {
   return (row.visibility || 'public').toLowerCase() === 'private';
 }
 
-async function ensurePrivateAccess(req: Request, res: Response, row: ImageRow): Promise<boolean> {
+async function ensurePrivateAccess(req: Request, res: Response, row: UploadedImageRow): Promise<boolean> {
   const authReq = req as AuthenticatedRequest;
   let settled = false;
   const authDone = await new Promise<boolean>((resolve) => {
@@ -104,11 +99,7 @@ router.get('/image/:id/presign', authMiddleware, async (req: Request, res: Respo
     return;
   }
 
-  const row = await queryOne<ImageRow>(
-    `SELECT data, content_type, tenant_id, created_by, storage_backend, s3_key, visibility
-     FROM uploaded_images WHERE id = ?`,
-    [id],
-  );
+  const row = await selectUploadedImageById(id);
   if (!row) {
     res.status(404).json({ error: 'NOT_FOUND' });
     return;
@@ -219,17 +210,25 @@ router.post('/image', authMiddleware, async (req: Request, res: Response) => {
       res.status(502).json({ error: 'S3_UPLOAD_FAILED', message: 'Could not store image in S3' });
       return;
     }
-    await execute(
-      `INSERT INTO uploaded_images (id, tenant_id, data, content_type, file_name, size_bytes, created_by, storage_backend, s3_key, visibility)
-       VALUES (?, ?, NULL, ?, ?, ?, ?, 's3', ?, ?)`,
-      [id, tid, 'image/webp', outName, webpBuf.length, user.id, s3Key, visibility],
-    );
+    await insertUploadedImageS3Row({
+      id,
+      tenantId: tid,
+      fileName: outName,
+      sizeBytes: webpBuf.length,
+      createdBy: user.id,
+      s3Key,
+      visibility,
+    });
   } else {
-    await execute(
-      `INSERT INTO uploaded_images (id, tenant_id, data, content_type, file_name, size_bytes, created_by, storage_backend, s3_key, visibility)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'mysql', NULL, ?)`,
-      [id, tid, webpBuf, 'image/webp', outName, webpBuf.length, user.id, visibility],
-    );
+    await insertUploadedImageMysqlRow({
+      id,
+      tenantId: tid,
+      webpBuf,
+      fileName: outName,
+      sizeBytes: webpBuf.length,
+      createdBy: user.id,
+      visibility,
+    });
   }
 
   const url = `/api/upload/image/${id}`;
@@ -243,11 +242,7 @@ router.get('/image/:id', async (req: Request, res: Response) => {
     return;
   }
 
-  const row = await queryOne<ImageRow>(
-    `SELECT data, content_type, tenant_id, created_by, storage_backend, s3_key, visibility
-     FROM uploaded_images WHERE id = ?`,
-    [id],
-  );
+  const row = await selectUploadedImageById(id);
   if (!row) {
     res.status(404).json({ error: 'NOT_FOUND' });
     return;

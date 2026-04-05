@@ -1,31 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
-import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { trackRender } from "@/lib/performanceUtils";
-import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
 import { useLanguage } from "@/contexts/LanguageContext";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { StickyScrollTableContainer } from "@/components/ui/sticky-scroll-table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -42,31 +20,28 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, RefreshCw, Pencil, Trash2, ChevronDown, Download, KeyRound, UsersRound, Copy, X } from "lucide-react";
+import { RefreshCw, ChevronDown, Download } from "lucide-react";
 import TableImportButton from "@/components/TableImportButton";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobileCardActions, MobilePagination, MobileEmptyState } from "@/components/ui/mobile-data-card";
-import { MobileFilterBar } from "@/components/ui/mobile-filter-bar";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
 import { useExportConfirm } from "@/hooks/useExportConfirm";
 import { exportTableToXLSX } from "@/services/dataExportImportService";
 import { notify } from "@/lib/notifyHub";
 import { useMembers, Member } from "@/hooks/useMembers";
-import { logOperation } from "@/stores/auditLogStore";
-import { getCurrencyBadgeColor, normalizeCurrencyCode, CURRENCIES } from "@/config/currencies";
+import { logOperation } from "@/services/audit/auditLogService";
 import { useCustomerSources } from "@/hooks/useCustomerSources";
-import { useCards, type CardItem } from "@/hooks/useMerchantConfig";
+import { useCards } from "@/hooks/useMerchantConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDisplayPhone } from "@/lib/phoneMask";
 import { adminGetMemberReferrals, adminSetMemberInitialPassword } from "@/services/members/memberAdminRpcService";
 import { MEMBER_LEVELS } from "@/config/memberLevels";
-import { formatBeijingDateHM } from "@/lib/beijingTime";
-import { getMemberPortalDisplayName } from "@/lib/memberDisplayName";
-import { PageHeader, PageActions, FilterBar, KPIGrid } from "@/components/common";
+import { formatBeijingDateHM, formatBeijingDate } from "@/lib/beijingTime";
+import { PageHeader, PageActions, KPIGrid } from "@/components/common";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { useDebouncedValue } from "@/hooks/useDebounce";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { MemberManagementFilterSection } from "@/pages/memberManagement/MemberManagementFilterSection";
+import { MemberManagementDesktopTable } from "@/pages/memberManagement/MemberManagementDesktopTable";
+import { MemberManagementMobileList } from "@/pages/memberManagement/MemberManagementMobileList";
 
 const memberLevels = [...MEMBER_LEVELS];
 
@@ -286,31 +261,6 @@ export default function MemberManagement() {
     }
   };
 
-  // 使用全局币种配置的Badge颜色
-  const getCurrencyBadgeColorLocal = (currency: string) => {
-    // 先尝试规范化币种代码
-    const normalizedCode = normalizeCurrencyCode(currency);
-    if (normalizedCode) {
-      return getCurrencyBadgeColor(normalizedCode);
-    }
-    return "bg-gray-100 text-gray-700 border-gray-200";
-  };
-
-  const getLevelBadgeColor = (level: string) => {
-    switch (level) {
-      case "A":
-        return "bg-amber-100 text-amber-700 border-amber-200";
-      case "B":
-        return "bg-sky-100 text-sky-700 border-sky-200";
-      case "C":
-        return "bg-violet-100 text-violet-700 border-violet-200";
-      case "D":
-        return "bg-gray-100 text-gray-700 border-gray-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
-
   return (
     <div className="h-full flex flex-col gap-4">
       <PageHeader
@@ -346,103 +296,36 @@ export default function MemberManagement() {
       <KPIGrid items={memberKpiItems} />
 
       {!isMobile && (
-        <FilterBar>
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative min-w-0 max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-[1]" aria-hidden />
-              <Input
-                placeholder={t("members.searchPlaceholder")}
-                value={searchDraft}
-                data-staff-page-search
-                onChange={(e) => {
-                  setSearchDraft(e.target.value);
-                  setSearchError("");
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    setFilterQuery(searchDraft);
-                  }
-                }}
-                onPaste={(e) => {
-                  e.preventDefault();
-                  const raw = e.clipboardData.getData("text");
-                  const pasted = raw.replace(/[\r\n\t]/g, "").trim();
-                  setSearchDraft(pasted);
-                  setSearchError("");
-                }}
-                className={cn("pl-9 pr-9", searchError && "border-destructive")}
-                autoComplete="off"
-                name="member-search"
-                data-lpignore="true"
-                aria-describedby="member-search-hint"
-                aria-invalid={!!searchError}
-              />
-              {searchDraft ? (
-                <button
-                  type="button"
-                  className="absolute right-2 top-1/2 z-[1] -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  onClick={() => {
-                    setSearchDraft("");
-                    setFilterQuery("");
-                    setSearchError("");
-                  }}
-                  aria-label={t("清空搜索", "Clear search")}
-                >
-                  <X className="h-4 w-4" aria-hidden />
-                </button>
-              ) : null}
-              <p id="member-search-hint" className="mt-1 text-[11px] text-muted-foreground">
-                {t("粘贴时会自动去掉空格与符号。", "Paste automatically strips spaces and symbols.")}
-              </p>
-              {searchError ? (
-                <span className="mt-1 block text-xs text-destructive" role="alert">
-                  {searchError}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        </FilterBar>
+        <MemberManagementFilterSection
+          isMobile={false}
+          searchDraft={searchDraft}
+          setSearchDraft={setSearchDraft}
+          searchError={searchError}
+          setSearchError={setSearchError}
+          setFilterQuery={setFilterQuery}
+          t={t}
+          handleRefresh={handleRefresh}
+          refetch={refetch}
+          isAdmin={isAdmin}
+          requestExport={exportConfirm.requestExport}
+        />
       )}
 
       <Card className="flex min-h-0 flex-1 flex-col">
         {isMobile && (
-          <CardHeader className="shrink-0 px-2.5 pb-2 pt-2">
-            <div className="space-y-2">
-              <MobileFilterBar
-                searchValue={searchDraft}
-                onSearchChange={(v) => {
-                  setSearchDraft(v);
-                  setSearchError("");
-                }}
-                placeholder={t("members.searchPlaceholder")}
-                onRefresh={handleRefresh}
-                actions={
-                  <div className="flex items-center gap-1.5">
-                    <TableImportButton tableName="members" onImportComplete={refetch} />
-                    {isAdmin && (
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-10 w-10 shrink-0 touch-manipulation rounded-lg"
-                        onClick={() =>
-                          exportConfirm.requestExport(async () => {
-                            const r = await exportTableToXLSX("members", false);
-                            if (r.success) notify.success(t("已导出 Excel（.xlsx）", "Exported as Excel (.xlsx)"));
-                            else if (r.error) notify.error(r.error);
-                          })
-                        }
-                        aria-label="Export"
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                }
-              />
-              {searchError ? <span className="text-xs text-destructive">{searchError}</span> : null}
-            </div>
-          </CardHeader>
+          <MemberManagementFilterSection
+            isMobile
+            searchDraft={searchDraft}
+            setSearchDraft={setSearchDraft}
+            searchError={searchError}
+            setSearchError={setSearchError}
+            setFilterQuery={setFilterQuery}
+            t={t}
+            handleRefresh={handleRefresh}
+            refetch={refetch}
+            isAdmin={isAdmin}
+            requestExport={exportConfirm.requestExport}
+          />
         )}
         <CardContent className="flex min-h-0 flex-1 flex-col p-4">
           <div className="text-sm text-muted-foreground mb-3 p-3 bg-muted/30 rounded-lg shrink-0">
@@ -450,416 +333,49 @@ export default function MemberManagement() {
           </div>
           <div className="flex-1 min-h-0">
             {isMobile ? (
-              <MobileCardList>
-                {paginatedMembers.length === 0 ? (
-                  <MobileEmptyState message={filteredMembers.length === 0 ? t('members.noMembers') : t('members.currentPageEmpty')} />
-                ) : paginatedMembers.map((member) => (
-                  <MobileCard key={member.id} accent="info">
-                    <MobileCardHeader>
-                      <div className="min-w-0">
-                        <span className="font-medium text-sm block">{getDisplayPhone(member.phoneNumber, isAdmin)}</span>
-                        <span className="text-[11px] text-muted-foreground font-mono">{member.memberCode}</span>
-                      </div>
-                      <Badge className={getLevelBadgeColor(member.level)}>
-                        {member.level}{t('级', '')}
-                      </Badge>
-                    </MobileCardHeader>
-                    <MobileCardRow
-                      label={t("用户名称", "Display name")}
-                      value={getMemberPortalDisplayName(member) || "—"}
-                    />
-                    <MobileCardRow
-                      label={t('注册时间', 'Registered')}
-                      value={member.createdAt ? formatDate(member.createdAt) : '-'}
-                    />
-                    <MobileCardRow label={t('members.commonCards')} value={
-                      member.commonCards && member.commonCards.length > 0
-                        ? <div className="flex gap-1 flex-wrap justify-end">{member.commonCards.map(c => <Badge key={c} variant="outline" className="bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-800 text-[10px]">{c}</Badge>)}</div>
-                        : "-"
-                    } />
-                    <MobileCardCollapsible>
-                      <MobileCardRow
-                        label={t("推荐人电话", "Referrer phone")}
-                        value={member.referrerPhone ? getDisplayPhone(member.referrerPhone, isAdmin) : "-"}
-                        mono
-                      />
-                      <MobileCardRow label={t("推荐人编号", "Referrer code")} value={member.referrerMemberCode || "-"} mono />
-                      <MobileCardRow label={t('members.bankCard')} value={member.bankCard || "-"} />
-                      <MobileCardRow label={t('members.feature')} value={member.customerFeature || "-"} />
-                      <MobileCardRow label={t('备注', 'Remark')} value={member.remark || "-"} />
-                    </MobileCardCollapsible>
-                    <MobileCardActions>
-                      <Button size="sm" variant="outline" className="flex-1 h-9 touch-manipulation" onClick={() => handleEdit(member)}>
-                        <Pencil className="h-3 w-3 mr-1" />{t('编辑', 'Edit')}
-                      </Button>
-                      {isAdmin && (
-                        <Button size="sm" variant="outline" className="h-9 w-9 touch-manipulation" onClick={() => handleOpenSetPassword(member)} title={t('设置密码', 'Set Password')}>
-                          <KeyRound className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      {isAdmin && (
-                        <Button size="sm" variant="outline" className="h-9 w-9 touch-manipulation" onClick={() => handleCopyPassword(member)} title={t('复制密码', 'Copy Password')}>
-                          <Copy className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      {isAdmin && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="outline" className="h-9 w-9 text-destructive border-destructive/30 touch-manipulation" aria-label="Delete"><Trash2 className="h-3.5 w-3.5" /></Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>{t('members.confirmDelete')}</AlertDialogTitle><AlertDialogDescription>{t('members.deleteWarning')}</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>{t('取消', 'Cancel')}</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(member.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{t('删除', 'Delete')}</AlertDialogAction></AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </MobileCardActions>
-                  </MobileCard>
-                ))}
-                <MobilePagination currentPage={currentPage} totalPages={totalPages} totalItems={filteredMembers.length} onPageChange={setCurrentPage} pageSize={pageSize} onPageSizeChange={setPageSize} />
-              </MobileCardList>
+              <MemberManagementMobileList
+                paginatedMembers={paginatedMembers}
+                filteredMembers={filteredMembers}
+                currentPage={currentPage}
+                setCurrentPage={setCurrentPage}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                setPageSize={setPageSize}
+                isAdmin={isAdmin}
+                t={t}
+                formatDate={formatDate}
+                onEdit={handleEdit}
+                onOpenSetPassword={handleOpenSetPassword}
+                onCopyPassword={handleCopyPassword}
+                onDelete={handleDelete}
+              />
             ) : (
-            <TooltipProvider delayDuration={200}>
-            <StickyScrollTableContainer>
-              <Table className="text-sm">
-                <TableHeader className="sticky top-0 z-10">
-                  <TableRow>
-                  <TableHead className="text-center">{t('members.phone')}</TableHead>
-                  <TableHead className="text-center">{t('members.memberCode')}</TableHead>
-                  <TableHead className="text-center max-w-[140px]">{t("用户名称", "Display name")}</TableHead>
-                  <TableHead className="text-center">{t('注册时间', 'Registered')}</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">{t("推荐人电话", "Referrer phone")}</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">{t("推荐人编号", "Referrer code")}</TableHead>
-                  <TableHead className="text-center">{t('members.level')}</TableHead>
-                  <TableHead className="text-center">{t('members.commonCards')}</TableHead>
-                  <TableHead className="text-center">{t('members.currencyPreference')}</TableHead>
-                  <TableHead className="text-center">{t('members.bankCard')}</TableHead>
-                  <TableHead className="text-center">{t('members.feature')}</TableHead>
-                  <TableHead className="text-center">{t('members.source')}</TableHead>
-                  <TableHead className="text-center">{t('备注', 'Remark')}</TableHead>
-                  <TableHead className="text-center">{t('members.recorder')}</TableHead>
-                  <TableHead className="text-center w-[100px]">{t('操作', 'Actions')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading && members.length === 0 ? (
-                  Array.from({ length: 8 }).map((_, i) => (
-                    <TableRow key={`sk-${i}`}>
-                      {Array.from({ length: 14 }).map((__, j) => (
-                        <TableCell key={j} className="py-2">
-                          <Skeleton className="h-7 w-full" />
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : paginatedMembers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={14} className="text-center py-10 text-muted-foreground">
-                      <div className="flex flex-col items-center gap-3">
-                        <p className="text-sm">
-                          {filteredMembers.length === 0
-                            ? members.length === 0
-                              ? t("members.noMembers")
-                              : t("无匹配结果", "No matches")
-                            : t("members.currentPageEmpty")}
-                        </p>
-                        {members.length === 0 && !loading ? (
-                          <Button variant="outline" size="sm" onClick={() => void refetch()}>
-                            {t("重试", "Retry")}
-                          </Button>
-                        ) : null}
-                        {filteredMembers.length === 0 && members.length > 0 ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSearchDraft("");
-                              setFilterQuery("");
-                            }}
-                          >
-                            {t("清空搜索", "Clear search")}
-                          </Button>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedMembers.map((member) => (
-                    <TableRow key={member.id}>
-                      <TableCell className="font-medium text-center">{getDisplayPhone(member.phoneNumber, isAdmin)}</TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="outline" className="font-mono">
-                          {member.memberCode}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center max-w-[160px]">
-                        <span className="truncate inline-block max-w-full" title={getMemberPortalDisplayName(member)}>
-                          {getMemberPortalDisplayName(member) || "—"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center text-sm text-muted-foreground tabular-nums">
-                        {member.createdAt ? formatDate(member.createdAt) : '-'}
-                      </TableCell>
-                      <TableCell className="text-center max-w-[120px]">
-                        {member.referrerPhone ? (
-                          <span
-                            className={`text-xs font-mono ${members.some((m) => m.phoneNumber === member.referrerPhone) ? "text-muted-foreground" : "text-destructive"}`}
-                            title={member.referrerPhone}
-                          >
-                            {getDisplayPhone(member.referrerPhone, isAdmin)}
-                            {!members.some((m) => m.phoneNumber === member.referrerPhone) && " ⚠"}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center max-w-[100px]">
-                        {member.referrerMemberCode ? (
-                          <Badge
-                            variant="outline"
-                            className={`text-xs font-mono w-fit mx-auto max-w-full truncate ${
-                              members.some((m) => m.memberCode === member.referrerMemberCode)
-                                ? "text-muted-foreground"
-                                : "border-destructive/50 text-destructive"
-                            }`}
-                            title={member.referrerMemberCode}
-                          >
-                            {member.referrerMemberCode}
-                            {!members.some((m) => m.memberCode === member.referrerMemberCode) && " ⚠"}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge className={getLevelBadgeColor(member.level)}>
-                          {member.level}{t('级', '')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex gap-1 flex-wrap justify-center max-w-[120px] mx-auto">
-                          {member.commonCards && member.commonCards.length > 0 ? (
-                            member.commonCards.map((card) => (
-                              <Badge
-                                key={card}
-                                variant="outline"
-                                className="bg-purple-100 text-purple-700 border-purple-200 text-xs"
-                              >
-                                {card}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex gap-1 flex-wrap justify-center">
-                          {(member.preferredCurrency ?? []).map((currency) => (
-                            <Badge
-                              key={currency}
-                              variant="outline"
-                              className={getCurrencyBadgeColorLocal(currency)}
-                            >
-                              {currency}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className="max-w-[100px] truncate text-xs text-center">
-                        {member.bankCard || "-"}
-                      </TableCell>
-                      <TableCell className="max-w-[100px] truncate text-center">
-                        {member.customerFeature || "-"}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {member.sourceChannel ? (
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
-                            {member.sourceChannel}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="max-w-[100px] truncate text-center">
-                        {member.remark || "-"}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground text-center">
-                        {member.recorder || "-"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-center gap-1">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => handleEdit(member)}
-                                aria-label="Edit"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">{t("编辑", "Edit")}</TooltipContent>
-                          </Tooltip>
-                          {isAdmin && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleOpenSetPassword(member)}
-                                  aria-label="Set password"
-                                >
-                                  <KeyRound className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top">{t("设置密码", "Set password")}</TooltipContent>
-                            </Tooltip>
-                          )}
-                          {isAdmin && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleCopyPassword(member)}
-                                  aria-label="Copy password"
-                                >
-                                  <Copy className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top">{t("复制密码", "Copy password")}</TooltipContent>
-                            </Tooltip>
-                          )}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => handleViewReferrals(member)}
-                                aria-label="View referrals"
-                              >
-                                <UsersRound className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">{t("查看推荐人", "View referrals")}</TooltipContent>
-                          </Tooltip>
-                          {isAdmin && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="inline-flex">
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-destructive hover:text-destructive"
-                                        aria-label="Delete"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>{t("members.confirmDelete")}</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          {t("members.deleteWarning")}
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() => handleDelete(member.id)}
-                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                        >
-                                          {t("删除", "Delete")}
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent side="top">{t("删除", "Delete")}</TooltipContent>
-                            </Tooltip>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-           </StickyScrollTableContainer>
-            </TooltipProvider>
+              <MemberManagementDesktopTable
+                members={members}
+                loading={loading}
+                paginatedMembers={paginatedMembers}
+                filteredMembers={filteredMembers}
+                currentPage={currentPage}
+                setCurrentPage={setCurrentPage}
+                pageSize={pageSize}
+                setPageSize={setPageSize}
+                pageSizeOptions={pageSizeOptions}
+                totalPages={totalPages}
+                isAdmin={isAdmin}
+                t={t}
+                formatDate={formatDate}
+                refetch={refetch}
+                setSearchDraft={setSearchDraft}
+                setFilterQuery={setFilterQuery}
+                onEdit={handleEdit}
+                onOpenSetPassword={handleOpenSetPassword}
+                onCopyPassword={handleCopyPassword}
+                onViewReferrals={handleViewReferrals}
+                onDelete={handleDelete}
+              />
             )}
           </div>
-          
-          {/* 分页控件 - 仅桌面端显示（移动端已有 MobilePagination） */}
-          {!isMobile && (
-          <div className="flex items-center justify-between mt-4 pt-4 border-t shrink-0">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>{t('members.total')} {filteredMembers.length} {t('members.items')}</span>
-              <span>|</span>
-              <span>{t('members.perPage')}</span>
-              <Select 
-                value={pageSize.toString()} 
-                onValueChange={(v) => setPageSize(parseInt(v))}
-              >
-                <SelectTrigger className="h-8 w-20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {pageSizeOptions.map((size) => (
-                    <SelectItem key={size} value={size.toString()}>{size}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-              >
-                {t('首页', 'First')}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
-                {t('上一页', 'Previous')}
-              </Button>
-              <span className="px-3 text-sm">
-                {currentPage} / {totalPages || 1}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage >= totalPages}
-              >
-                {t('下一页', 'Next')}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage >= totalPages}
-              >
-                {t('末页', 'Last')}
-              </Button>
-            </div>
-          </div>
-          )}
+
         </CardContent>
       </Card>
 

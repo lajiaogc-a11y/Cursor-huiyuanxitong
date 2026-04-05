@@ -3,7 +3,7 @@
  */
 import { Router, type Response } from 'express';
 import { memberAuthMiddleware, type MemberAuthenticatedRequest } from '../memberAuth/middleware.js';
-import { getInviteRankingTop5 } from './ranking.js';
+import { getInviteRankingTop5 } from './service.js';
 
 const router = Router();
 

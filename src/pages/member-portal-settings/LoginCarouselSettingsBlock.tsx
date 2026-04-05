@@ -26,7 +26,7 @@ import { SectionTitle } from "./shared";
 import {
   portalSettingsEmptyShellClass,
   portalSettingsEmptyIconWrapClass,
-} from "../member-portal/shared";
+} from "@/components/common/EmptyState";
 import { BANNER_MAX_DIMENSION } from "@/lib/imageClientCompress";
 
 export type LoginCarouselFormRow = Omit<LoginCarouselSlideItem, "sort_order">;

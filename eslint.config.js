@@ -35,27 +35,6 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "off",
     },
   },
-  
-  {
-    files: ["src/pages/**/*.{ts,tsx}"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: ["@/integrations/supabase/*"],
-              message: "pages 层禁止直接访问 Supabase，请经由 hooks/useCases/service 入口。",
-            },
-            {
-              group: ["@/infrastructure/**"],
-              message: "pages 层禁止直接依赖 infrastructure，请改为调用 hooks 或 application useCases。",
-            },
-          ],
-        },
-      ],
-    },
-  },
   {
     files: ["src/hooks/**/*.{ts,tsx}"],
     rules: {

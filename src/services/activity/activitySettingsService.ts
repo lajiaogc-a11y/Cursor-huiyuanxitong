@@ -4,7 +4,7 @@
 import { CurrencyCode } from "@/config/currencies";
 import { loadSharedData, saveSharedData, saveSharedDataSync } from '@/services/finance/sharedDataService';
 import { syncActivityRewardTiersToDatabase } from '@/services/activity/activityRewardTierSyncService';
-import { logOperation } from '@/stores/auditLogStore';
+import { logOperation } from '@/services/audit/auditLogService';
 
 // 累积兑换奖励档位 - 支持三种货币
 export interface AccumulatedRewardTier {

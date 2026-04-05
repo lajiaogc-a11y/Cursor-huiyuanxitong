@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { logOperation } from "@/stores/auditLogStore";
+import { logOperation } from "@/services/audit/auditLogService";
 import { StickyScrollTableContainer } from "@/components/ui/sticky-scroll-table";
 import {
   AlertDialog,

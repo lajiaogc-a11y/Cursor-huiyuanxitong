@@ -1,6 +1,5 @@
 /**
- * Giftcards API Service - 通过 Backend API 操作 cards/vendors/payment_providers
- * 替代 supabase.from('cards'|'vendors'|'payment_providers') 直连
+ * Giftcards API Service - 通过 Backend API 操作 cards / vendors / payment_providers
  */
 import { apiGet, apiPost, apiPut, apiDelete, unwrapApiData } from '@/api/client';
 

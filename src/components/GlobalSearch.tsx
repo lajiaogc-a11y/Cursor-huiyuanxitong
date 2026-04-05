@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { DrawerDetail } from '@/components/shell/DrawerDetail';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { apiGet } from '@/api/client';
+import { searchMembersForGlobalSearch, searchCardsForGlobalSearch } from '@/services/globalSearchService';
 import { getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getTenantOrdersFull, getTenantUsdtOrdersFull } from '@/services/tenantService';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
@@ -74,10 +74,7 @@ export function GlobalSearch() {
       const searchResults: SearchResult[] = [];
       
       // Search members by phone or member_code（表代理 or=）
-      const orParam = encodeURIComponent(`phone_number.ilike.%${q}%,member_code.ilike.%${q}%`);
-      const members = await apiGet<Array<{ id: string; phone_number: string; member_code: string }>>(
-        `/api/data/table/members?select=id,phone_number,member_code&or=${orParam}&limit=5`
-      );
+      const members = await searchMembersForGlobalSearch(q);
       (Array.isArray(members) ? members : []).forEach((m: { id: string; phone_number: string; member_code: string }) => {
         searchResults.push({
           type: 'member',
@@ -108,9 +105,7 @@ export function GlobalSearch() {
         });
       });
 
-      const cards = await apiGet<{ id: string; name: string; status: string }[]>(
-        `/api/data/table/cards?select=id,name,status&name=ilike.${encodeURIComponent(`%${q}%`)}&limit=5`
-      );
+      const cards = await searchCardsForGlobalSearch(q);
       (Array.isArray(cards) ? cards : []).forEach((c: { id: string; name: string; status: string }) => {
         searchResults.push({
           type: 'merchant',

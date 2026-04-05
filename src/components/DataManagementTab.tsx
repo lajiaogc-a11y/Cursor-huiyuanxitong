@@ -20,7 +20,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { isProductionLocked } from "@/services/system/productionLockService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
-import { logOperation } from "@/stores/auditLogStore";
+import { logOperation } from "@/services/audit/auditLogService";
 import { queryClient } from "@/lib/queryClient";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 import {

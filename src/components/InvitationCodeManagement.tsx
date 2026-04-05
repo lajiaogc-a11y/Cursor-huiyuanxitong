@@ -24,28 +24,21 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Copy, RefreshCw, Loader2, Ticket, ShieldAlert } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
-import { apiGet, apiPost } from "@/api/client";
+import {
+  listInvitationCodes,
+  generateInvitationCodeRpc,
+  type InvitationCodeRow,
+} from "@/services/invitationCodeService";
 import { deleteInvitationCode, toggleInvitationCodeActive } from "@/services/staff/invitationCodeTableService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { cn } from "@/lib/utils";
 
-interface InvitationCode {
-  id: string;
-  code: string;
-  max_uses: number;
-  used_count: number;
-  is_active: boolean;
-  created_by: string | null;
-  created_at: string;
-  expires_at: string | null;
-}
-
 export default function InvitationCodeManagement() {
   const { employee } = useAuth();
   const { t } = useLanguage();
-  const [codes, setCodes] = useState<InvitationCode[]>([]);
+  const [codes, setCodes] = useState<InvitationCodeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [maxUses, setMaxUses] = useState(1);
@@ -54,10 +47,8 @@ export default function InvitationCodeManagement() {
 
   const fetchCodes = useCallback(async () => {
     try {
-      const data = await apiGet<InvitationCode[]>(
-        "/api/data/table/invitation_codes?select=*&order=created_at.desc",
-      );
-      setCodes(Array.isArray(data) ? data : []);
+      const data = await listInvitationCodes();
+      setCodes(data);
     } catch (error) {
       console.error("Failed to fetch invitation codes:", error);
     } finally {
@@ -86,10 +77,7 @@ export default function InvitationCodeManagement() {
       const generatedCodes: string[] = [];
 
       for (let i = 0; i < batchCount; i++) {
-        const code = await apiPost<string>("/api/data/rpc/generate_invitation_code", {
-          p_max_uses: maxUses,
-          p_creator_id: employee.id,
-        });
+        const code = await generateInvitationCodeRpc(maxUses, employee.id);
         if (code) generatedCodes.push(code);
       }
 

@@ -1,7 +1,7 @@
 /**
  * 会员端认证上下文
  * 与员工 AuthContext 隔离，会员通过手机号+密码登录
- * 数据通过 @/services/memberPortal/memberAuthService 获取，禁止直接访问 Supabase
+ * 数据通过 @/services/memberPortal/memberAuthService 获取，禁止绕过服务层直连数据接口
  *
  * 登录态真源：JWT（member_access_token）。member_session（localStorage）仅为展示用资料缓存（不含密码），
  * 不作为权限或业务真源；无 token 时必须视为未登录。

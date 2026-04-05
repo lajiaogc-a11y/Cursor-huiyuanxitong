@@ -1,6 +1,5 @@
 /**
- * Auth API Service - 通过 Backend API 进行认证
- * 替代 supabase.auth
+ * Auth API Service - 通过 Backend API 进行认证（JWT）
  */
 import { apiGet, apiPost } from '@/api/client';
 import { ApiError } from '@/lib/apiClient';
@@ -98,6 +97,58 @@ let _cachedPlatformTenantId: string | null = null;
 /** 获取后端下发的平台租户 ID（首次从 /me 获取后缓存） */
 export function getPlatformTenantId(): string | null {
   return _cachedPlatformTenantId;
+}
+
+/** 校验当前登录员工的密码（/api/auth/verify-password，与 /api/admin/verify-password 不同） */
+export async function verifyAuthPasswordApi(password: string): Promise<{ success?: boolean; valid?: boolean }> {
+  return apiPost<{ success?: boolean; valid?: boolean }>('/api/auth/verify-password', { password });
+}
+
+export interface RegisterStaffPayload {
+  username: string;
+  password: string;
+  realName: string;
+  invitationCode?: string;
+}
+
+export interface RegisterStaffResponse {
+  success: boolean;
+  error_code?: string;
+  assigned_status?: string;
+  message?: string;
+}
+
+/** 员工注册（公开页，可无 JWT） */
+export async function registerStaffApi(payload: RegisterStaffPayload): Promise<RegisterStaffResponse> {
+  return apiPost<RegisterStaffResponse>('/api/auth/register', {
+    username: payload.username,
+    password: payload.password,
+    realName: payload.realName,
+    invitationCode: payload.invitationCode,
+  });
+}
+
+/** 任意已登录员工可调用，校验当前 JWT 对应账号密码（非 /api/admin/verify-password） */
+export async function verifyCurrentUserPasswordApi(password: string): Promise<boolean> {
+  const res = await apiPost<{ success?: boolean; valid?: boolean }>('/api/auth/verify-password', { password });
+  return (res as { valid?: boolean })?.valid === true;
+}
+
+export type VerifyEmployeeLoginDetailedRow = { verified?: boolean; error_code?: string };
+
+/** RPC：校验员工登录（详细错误码），用于敏感操作前二次确认 */
+export async function verifyEmployeeLoginDetailedApi(
+  username: string,
+  password: string,
+): Promise<VerifyEmployeeLoginDetailedRow | null> {
+  const data = await apiPost<
+    VerifyEmployeeLoginDetailedRow[] | VerifyEmployeeLoginDetailedRow
+  >('/api/data/rpc/verify_employee_login_detailed', {
+    p_username: username,
+    p_password: password,
+  });
+  const row = Array.isArray(data) ? data[0] : data;
+  return row && typeof row === 'object' ? row : null;
 }
 
 /** 获取当前用户信息 */

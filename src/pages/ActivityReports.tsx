@@ -2,31 +2,10 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { StickyScrollTableContainer } from "@/components/ui/sticky-scroll-table";
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
-import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobileCardActions, MobilePagination, MobileEmptyState } from "@/components/ui/mobile-data-card";
-import { DrawerDetail } from "@/components/shell/DrawerDetail";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Search, RefreshCw, Gift, List, Users, Activity, Download, Edit, Trash2, Upload } from "lucide-react";
+import { Search, RefreshCw, Download } from "lucide-react";
 import TableImportButton from "@/components/TableImportButton";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
 import { useExportConfirm } from "@/hooks/useExportConfirm";
@@ -49,163 +28,28 @@ import MemberActivityDataContent from "@/components/member/MemberActivityDataCon
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-import { calculateTransactionFee } from "@/lib/feeCalculation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getDisplayPhone } from "@/lib/phoneMask";
 import { useNameResolvers } from "@/hooks/useNameResolver";
 import { useCurrencies } from "@/components/CurrencySelect";
 import { usePaymentProviders } from "@/hooks/useMerchantConfig";
-import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
 import { useAuditWorkflow } from "@/hooks/useAuditWorkflow";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 import { useMembers } from "@/hooks/useMembers";
-import { safeNumber } from "@/lib/safeCalc";
-import { formatBeijingTime } from "@/lib/beijingTime";
-import { formatDisplayGiftNumber } from "@/lib/giftNumber";
 import { cn } from "@/lib/utils";
-import { getActivityDataApi, patchActivityGiftApi, deleteActivityGiftApi } from "@/services/staff/dataApi";
-import { getEmployeeNameById } from "@/services/members/nameResolver";
+import { deleteActivityGiftApi } from "@/services/staff/dataApi";
 import { listEmployeesApi } from "@/api/employees";
-import { logOperation } from "@/stores/auditLogStore";
-
-interface ActivityRecord {
-  id: string;
-  giftNumber?: string;
-  order: number;
-  time: string;
-  currency: string;
-  amount: string;
-  rate: number;
-  phone: string;
-  paymentAgent: string;
-  giftType: string;
-  fee: number;
-  giftValue: number;
-  remark: string;
-  recorder: string;
-  creatorId: string; // 录入人ID
-  createdAt: string;
-}
-
-// 计算赠送价值
-const calculateGiftValue = (currency: string, amount: string, rate: number, fee: number): number => {
-  const amountNum = parseFloat(amount) || 0;
-  if (!amountNum || !rate) return 0;
-  
-  if (currency === "NGN") {
-    return Math.abs(amountNum) / rate + fee;
-  } else {
-    return Math.abs(amountNum) * rate + fee;
-  }
-};
-
-/** 与 handleSave 非管理员分支变更检测一致，供主按钮「提交审核 / 确认修改」 */
-function computeActivityGiftFieldChanges(
-  form: {
-    currency: string;
-    amount: string;
-    rate: string;
-    phone: string;
-    paymentAgent: string;
-    giftType: string;
-    remark: string;
-  },
-  record: ActivityRecord,
-): { fieldKey: string; oldValue: unknown; newValue: unknown }[] {
-  const changes: { fieldKey: string; oldValue: unknown; newValue: unknown }[] = [];
-  const rate = parseFloat(form.rate) || 0;
-  if (form.currency !== record.currency) {
-    changes.push({ fieldKey: "currency", oldValue: record.currency, newValue: form.currency });
-  }
-  if (form.amount !== record.amount) {
-    changes.push({ fieldKey: "amount", oldValue: record.amount, newValue: form.amount });
-  }
-  if (rate !== record.rate) {
-    changes.push({ fieldKey: "rate", oldValue: record.rate, newValue: rate });
-  }
-  if (form.phone !== record.phone) {
-    changes.push({ fieldKey: "phone_number", oldValue: record.phone, newValue: form.phone });
-  }
-  if (form.paymentAgent !== record.paymentAgent) {
-    changes.push({ fieldKey: "payment_agent", oldValue: record.paymentAgent, newValue: form.paymentAgent });
-  }
-  if (form.giftType !== record.giftType) {
-    changes.push({ fieldKey: "gift_type", oldValue: record.giftType, newValue: form.giftType });
-  }
-  if (form.remark !== record.remark) {
-    changes.push({ fieldKey: "remark", oldValue: record.remark, newValue: form.remark });
-  }
-  return changes;
-}
-
-// 从 Supabase 数据库加载活动赠送记录
-const loadActivityRecordsFromDB = async (tenantId?: string | null): Promise<ActivityRecord[]> => {
-  try {
-    const activityData = await getActivityDataApi(tenantId);
-
-    return (activityData.gifts || []).map((gift: any, index: number) => {
-      const rate = safeNumber(gift.rate);
-      const fee = gift.fee !== undefined ? safeNumber(gift.fee) : calculateTransactionFee(gift.currency, String(gift.amount ?? '0'));
-      const giftValue = gift.gift_value !== undefined
-        ? safeNumber(gift.gift_value)
-        : calculateGiftValue(gift.currency, String(gift.amount ?? '0'), rate, fee);
-      
-      // 录入人姓名：只通过 creator_id 从员工表实时获取，不使用 name 快照
-      const recorder = gift.creator_id 
-        ? getEmployeeNameById(gift.creator_id) 
-        : '';
-      
-      return {
-        id: gift.id,
-        giftNumber: gift.gift_number || '',
-        order: index + 1,
-        time: formatBeijingTime(gift.created_at),
-        currency: gift.currency,
-        amount: String(gift.amount),
-        rate,
-        phone: gift.phone_number,
-        paymentAgent: gift.payment_agent || "",
-        giftType: gift.gift_type || "",
-        fee: safeNumber(fee),
-        giftValue: safeNumber(giftValue),
-        remark: gift.remark || "",
-        recorder,
-        creatorId: gift.creator_id || "",
-        createdAt: gift.created_at,
-      };
-    });
-  } catch (error) {
-    console.error('Failed to load activity gifts from DB:', error);
-    return [];
-  }
-};
-
-const updateActivityRecordInDB = async (id: string, record: Partial<ActivityRecord>, creatorId?: string): Promise<boolean> => {
-  try {
-    const updateData: Record<string, unknown> = {
-      currency: record.currency,
-      amount: parseFloat(record.amount || '0'),
-      rate: record.rate,
-      phone_number: record.phone,
-      payment_agent: record.paymentAgent,
-      gift_type: record.giftType,
-      fee: record.fee,
-      gift_value: record.giftValue,
-      remark: record.remark,
-    };
-    if (creatorId !== undefined) {
-      updateData.creator_id = creatorId || null;
-    }
-    const updated = await patchActivityGiftApi(id, updateData);
-    if (!updated) throw new Error('update failed');
-    return true;
-  } catch (error) {
-    console.error('Failed to update activity gift:', error);
-    return false;
-  }
-};
-
-const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+import { logOperation } from "@/services/audit/auditLogService";
+import {
+  type ActivityRecord,
+  type ActivityGiftEditForm,
+  calculateGiftValue,
+  computeActivityGiftFieldChanges,
+  loadActivityRecordsFromDB,
+  updateActivityRecordInDB,
+} from "@/pages/activityReports/activityGiftsData";
+import ActivityGiftsTabContent from "@/pages/activityReports/ActivityGiftsTabContent";
+import ActivityGiftEditDrawer from "@/pages/activityReports/ActivityGiftEditDrawer";
+import { calculateTransactionFee } from "@/lib/feeCalculation";
 
 const TAB_MAP: Record<string, string> = { members: "members", activity: "activity", gifts: "gifts", points: "points" };
 const TAB_LABELS: Record<string, { zh: string; en: string }> = {
@@ -290,7 +134,7 @@ export default function ActivityReports() {
     membersList.forEach(m => map.set(m.phoneNumber, m.memberCode));
     return map;
   }, [membersList]);
-const [editFormData, setEditFormData] = useState({
+const [editFormData, setEditFormData] = useState<ActivityGiftEditForm>({
     currency: "NGN",
     amount: "",
     rate: "",
@@ -298,7 +142,7 @@ const [editFormData, setEditFormData] = useState({
     paymentAgent: "",
     giftType: "",
     remark: "",
-    creatorId: "", // 录入人ID - 只有总管理员可以修改
+    creatorId: "",
   });
   const [activityGiftPreferSubmitReview, setActivityGiftPreferSubmitReview] = useState(false);
 
@@ -824,190 +668,22 @@ const [editFormData, setEditFormData] = useState({
 
           <TabsContent value="gifts" className="mt-4 flex-1 min-h-0 flex flex-col">
             <ErrorBoundary>
-            <Card className="flex-1 min-h-0 flex flex-col">
-              <CardContent className="pt-4 flex-1 min-h-0 flex flex-col">
-                {useCompactLayout ? (
-                  <>
-                    <MobileCardList>
-                      {paginatedRecords.length === 0 ? (
-                        <MobileEmptyState message={t("暂无活动赠送数据", "No activity gift data")} />
-                      ) : (
-                        paginatedRecords.map((record) => (
-                          <MobileCard key={record.id} accent="default">
-                            <MobileCardHeader>
-                              <div className="flex items-center gap-2">
-                                <Badge variant="secondary">{record.currency}</Badge>
-                                <span className="font-semibold">{record.amount}</span>
-                              </div>
-                              <span className="text-xs text-muted-foreground">{record.time}</span>
-                            </MobileCardHeader>
-                            <MobileCardRow label={t("赠送编号", "Gift ID")} value={formatDisplayGiftNumber(record.giftNumber, record.id)} />
-                            <MobileCardRow label={t("电话号码", "Phone")} value={getDisplayPhone(record.phone, isAdmin)} />
-                            <MobileCardRow label={t("代付商家", "Agent")} value={resolvePaymentProviderName(record.paymentAgent)} />
-                            <MobileCardRow label={t("赠送价值", "Gift Value")} value={record.giftValue.toFixed(2)} highlight />
-                            <MobileCardCollapsible>
-                              <MobileCardRow label={t("汇率", "Rate")} value={record.rate} />
-                              <MobileCardRow label={t("手续费", "Fee")} value={record.fee} />
-                              <MobileCardRow label={t("类型", "Type")} value={
-                                record.giftType ? (
-                                  record.giftType === 'activity_1' ? '活动1兑换' : 
-                                  record.giftType === 'activity_2' ? '活动2兑换' : 
-                                  resolveActivityTypeLabel(record.giftType)
-                                ) : '-'
-                              } />
-                              <MobileCardRow label={t("备注", "Remark")} value={record.remark || '-'} />
-                              <MobileCardRow label={t("录入人", "Recorder")} value={record.recorder} />
-                            </MobileCardCollapsible>
-                            <MobileCardActions>
-                              <Button variant="ghost" size="sm" className="h-9 flex-1 touch-manipulation" onClick={() => handleEdit(record)}>
-                                <Edit className="h-4 w-4 mr-1" />{t("编辑", "Edit")}
-                              </Button>
-                              <Button variant="ghost" size="sm" className="h-9 flex-1 touch-manipulation text-destructive hover:text-destructive" onClick={() => handleDeleteClick(record)}>
-                                <Trash2 className="h-4 w-4 mr-1" />{t("删除", "Delete")}
-                              </Button>
-                            </MobileCardActions>
-                          </MobileCard>
-                        ))
-                      )}
-                      <MobilePagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        totalItems={filteredRecords.length}
-                        onPageChange={setCurrentPage}
-                        pageSize={pageSize}
-                        onPageSizeChange={setPageSize}
-                      />
-                    </MobileCardList>
-                  </>
-                ) : (
-                <StickyScrollTableContainer minWidth="1400px">
-                  <Table className="text-xs">
-                    <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
-                        <TableRow className="bg-muted/50">
-                        <TableHead className="w-[60px] text-center px-1.5">{t("排序", "Order")}</TableHead>
-                        <TableHead className="w-[110px] text-center px-1.5 font-mono">{t("赠送编号", "Gift ID")}</TableHead>
-                        <TableHead className="w-[160px] text-center px-1.5">{t("录入时间", "Time")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("赠送币种", "Currency")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("赠送金额", "Amount")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("汇率", "Rate")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("电话号码", "Phone")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("代付商家", "Agent")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("类型", "Type")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("手续费", "Fee")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("赠送价值", "Gift Value")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("备注", "Remark")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("录入人", "Recorder")}</TableHead>
-                        <TableHead className="w-[100px] text-center px-1.5">{t("操作", "Actions")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedRecords.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={14} className="text-center py-12 text-muted-foreground">
-                            {t("暂无活动赠送数据", "No activity gift data")}
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        paginatedRecords.map((record) => (
-                          <TableRow key={record.id}>
-                            <TableCell className="text-center px-1.5">{record.order}</TableCell>
-                            <TableCell className="text-center px-1.5 font-mono text-muted-foreground text-xs">{formatDisplayGiftNumber(record.giftNumber, record.id)}</TableCell>
-                            <TableCell className="text-center px-1.5">{record.time}</TableCell>
-                            <TableCell className="text-center px-1.5">
-                              <Badge variant="secondary">{record.currency}</Badge>
-                            </TableCell>
-                            <TableCell className="text-center px-1.5">{record.amount}</TableCell>
-                            <TableCell className="text-center px-1.5">{record.rate}</TableCell>
-                            <TableCell className="text-center px-1.5">{getDisplayPhone(record.phone, isAdmin)}</TableCell>
-                            <TableCell className="text-center px-1.5">{resolvePaymentProviderName(record.paymentAgent)}</TableCell>
-                            <TableCell className="text-center px-1.5">
-                              {record.giftType && (
-                                <Badge variant="outline">
-                                  {record.giftType === 'activity_1' ? '活动1兑换' : 
-                                   record.giftType === 'activity_2' ? '活动2兑换' : 
-                                   resolveActivityTypeLabel(record.giftType)}
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-center px-1.5">{record.fee}</TableCell>
-                            <TableCell className="text-center px-1.5">{record.giftValue.toFixed(2)}</TableCell>
-                            <TableCell className="text-muted-foreground max-w-[150px] truncate text-center px-1.5">{record.remark}</TableCell>
-                            <TableCell className="text-center px-1.5">{record.recorder}</TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-9 w-9 touch-manipulation"
-                                  onClick={() => handleEdit(record)}
-                                  aria-label="Edit"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-9 w-9 touch-manipulation text-destructive hover:text-destructive"
-                                  onClick={() => handleDeleteClick(record)}
-                                  aria-label="Delete"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </StickyScrollTableContainer>
-                )}
-
-                {/* Pagination - 仅桌面端显示（移动/平板端已有 MobilePagination） */}
-                {!useCompactLayout && filteredRecords.length > 0 && (
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>{t("每页显示", "Per page")}</span>
-                      <Select value={pageSize.toString()} onValueChange={(v) => setPageSize(Number(v))}>
-                        <SelectTrigger className="w-20 h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PAGE_SIZE_OPTIONS.map(size => (
-                            <SelectItem key={size} value={size.toString()}>{size}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <span>{t("条", "items")}</span>
-                      <span className="ml-4">
-                        {t("共", "Total")} {filteredRecords.length} {t("条记录", "records")}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                      >
-                        {t("上一页", "Previous")}
-                      </Button>
-                      <span className="text-sm text-muted-foreground px-2">
-                        {currentPage} / {totalPages || 1}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        disabled={currentPage >= totalPages}
-                      >
-                        {t("下一页", "Next")}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              <ActivityGiftsTabContent
+                useCompactLayout={useCompactLayout}
+                paginatedRecords={paginatedRecords}
+                filteredRecords={filteredRecords}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                setPageSize={setPageSize}
+                setCurrentPage={setCurrentPage}
+                isAdmin={isAdmin}
+                t={t}
+                resolvePaymentProviderName={resolvePaymentProviderName}
+                resolveActivityTypeLabel={resolveActivityTypeLabel}
+                onEdit={handleEdit}
+                onDeleteClick={handleDeleteClick}
+              />
             </ErrorBoundary>
           </TabsContent>
 
@@ -1038,127 +714,29 @@ const [editFormData, setEditFormData] = useState({
       </AlertDialog>
 
 
-      <DrawerDetail
+      <ActivityGiftEditDrawer
         open={isDialogOpen}
         onOpenChange={(open) => {
           setIsDialogOpen(open);
           if (!open) setEditingRecord(null);
         }}
         title={t("编辑记录", "Edit Record")}
-        sheetMaxWidth="2xl"
-      >
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>{t("赠送币种", "Currency")}</Label>
-              <Select value={editFormData.currency} onValueChange={(v) => setEditFormData({ ...editFormData, currency: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("请选择币种", "Select currency")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {currencies.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>
-                      {c.code} - {c.name_zh}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t("赠送金额", "Amount")}</Label>
-              <Input
-                value={editFormData.amount}
-                onChange={(e) => setEditFormData({ ...editFormData, amount: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t("汇率", "Rate")}</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={editFormData.rate}
-                onChange={(e) => setEditFormData({ ...editFormData, rate: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t("电话号码", "Phone")}</Label>
-              <Input
-                value={editFormData.phone}
-                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t("代付商家", "Agent")}</Label>
-              <Select value={editFormData.paymentAgent} onValueChange={(v) => setEditFormData({ ...editFormData, paymentAgent: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("请选择代付商家", "Select agent")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {activeProviders.filter(p => p.status === "active").map((provider) => (
-                    <SelectItem key={provider.id} value={provider.name}>
-                      {provider.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t("类型", "Type")}</Label>
-              <Select value={editFormData.giftType} onValueChange={(v) => setEditFormData({ ...editFormData, giftType: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("请选择类型", "Select type")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {/* 从系统设置活动类型读取，显示活动类型名称 */}
-                  {Array.from(activityTypeMap.values()).filter((entry) => entry.isActive).map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {/* 录入人 - 只有总管理员可以看到和修改 */}
-            {employee?.is_super_admin && (
-              <div className="space-y-2">
-                <Label>{t("录入人", "Recorder")}</Label>
-                <Select value={editFormData.creatorId} onValueChange={(v) => setEditFormData({ ...editFormData, creatorId: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("请选择录入人", "Select recorder")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {employeeList.map((emp) => (
-                      <SelectItem key={emp.id} value={emp.id}>
-                        {emp.realName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div className={`space-y-2 ${employee?.is_super_admin ? '' : 'col-span-2'}`}>
-              <Label>{t("备注", "Remark")}</Label>
-              <Input
-                value={editFormData.remark}
-                onChange={(e) => setEditFormData({ ...editFormData, remark: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4 mt-4">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              {t("取消", "Cancel")}
-            </Button>
-            <Button
-              onClick={handleSave}
-              className={cn(!isAdmin && activityGiftPreferSubmitReview && "bg-amber-500 text-white hover:bg-amber-600")}
-            >
-              {isAdmin
-                ? t("确认修改", "Confirm Edit")
-                : activityGiftPreferSubmitReview
-                  ? t("提交审核", "Submit for Review")
-                  : t("确认修改", "Confirm Edit")}
-            </Button>
-          </div>
-      </DrawerDetail>
+        editFormData={editFormData}
+        setEditFormData={setEditFormData}
+        currencies={currencies}
+        activeProviders={activeProviders}
+        activityTypeEntries={Array.from(activityTypeMap.values())}
+        employeeList={employeeList}
+        showRecorderSelect={!!employee?.is_super_admin}
+        isAdmin={isAdmin}
+        activityGiftPreferSubmitReview={activityGiftPreferSubmitReview}
+        saveButtonLabelAdmin={t("确认修改", "Confirm Edit")}
+        saveButtonLabelReview={t("提交审核", "Submit for Review")}
+        saveButtonLabelDefault={t("确认修改", "Confirm Edit")}
+        cancelLabel={t("取消", "Cancel")}
+        t={t}
+        onSave={handleSave}
+      />
 
       <ExportConfirmDialog
         open={exportConfirm.open}

@@ -1,6 +1,6 @@
 /**
  * Phone Extractor - pool import, extract, return, stats
- * 数据访问统一通过 @/api/phonePool，禁止直接访问 Supabase
+ * 数据访问统一通过 @/api/phonePool
  */
 import { fail, getErrorMessage, ok, ServiceResult } from "@/services/serviceResult";
 import * as phonePoolApi from "@/api/phonePool";

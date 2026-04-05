@@ -6,22 +6,18 @@ import type { AuthenticatedRequest } from '../../middlewares/auth.js';
 import { resolveTenantIdForActivityDataList } from '../memberPortalSettings/activityDataTenant.js';
 import { insertOperationLogRepository } from '../data/repository.js';
 import {
-  listFakeUsersForTenant,
-  updateFakeUserBaseFields,
-  setFakeUserActive,
-  resetFakeUserGrowth,
-  seedFiftyFakeUsers,
-  getFakeUser,
-  totalInviteCount,
-  deleteAllFakeUsersForTenant,
-  randomizeBaseInviteCountsForTenant,
-  getGrowthSettingsMerged,
-  upsertInviteLeaderboardGrowthSettings,
-  resetGrowthCycleForTenant,
-  type InviteFakeUserRow,
-  type InviteLeaderboardGrowthScheduleDto,
-} from './repository.js';
-import { runInviteLeaderboardFakeGrowthJob } from './fakeGrowthJob.js';
+  listInviteLeaderboardFakeUsers,
+  patchInviteLeaderboardFakeUser,
+  toggleInviteLeaderboardFakeUserActive,
+  resetInviteLeaderboardFakeUserGrowth,
+  deleteAllInviteLeaderboardFakes,
+  randomizeInviteLeaderboardFakeBaseCounts,
+  seedInviteLeaderboardFakeUsers,
+  getInviteLeaderboardGrowthSettingsDto,
+  patchInviteLeaderboardGrowthSettings,
+  runInviteLeaderboardGrowthJobNow,
+  resetInviteLeaderboardGrowthCycle,
+} from './service.js';
 
 function staffIp(req: AuthenticatedRequest): string | null {
   const forwarded = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim();
@@ -77,22 +73,6 @@ function canReplaceSeed(req: AuthenticatedRequest): boolean {
   return !!(req.user?.is_super_admin || req.user?.is_platform_super_admin || role === 'admin');
 }
 
-function serializeFakeRow(r: InviteFakeUserRow) {
-  return {
-    id: r.id,
-    name: r.name,
-    base_invite_count: r.base_invite_count,
-    auto_increment_count: r.auto_increment_count,
-    total_invite_count: totalInviteCount(r),
-    growth_cycles: r.growth_cycles,
-    max_growth_cycles: r.max_growth_cycles,
-    is_active: !!r.is_active,
-    next_growth_at: r.next_growth_at ?? null,
-    created_at: r.created_at,
-    updated_at: r.updated_at,
-  };
-}
-
 export async function listInviteLeaderboardFakeUsersController(req: AuthenticatedRequest, res: Response): Promise<void> {
   if (!assertEmployee(req, res)) return;
   const resolved = resolveTenantIdForActivityDataList(req);
@@ -101,8 +81,8 @@ export async function listInviteLeaderboardFakeUsersController(req: Authenticate
     return;
   }
   try {
-    const rows = await listFakeUsersForTenant(resolved.tenantId);
-    res.json({ success: true, rows: rows.map(serializeFakeRow) });
+    const rows = await listInviteLeaderboardFakeUsers(resolved.tenantId);
+    res.json({ success: true, rows });
   } catch (e) {
     res.status(500).json({ success: false, error: (e as Error).message || 'Failed' });
   }
@@ -130,19 +110,17 @@ export async function patchInviteLeaderboardFakeUserController(req: Authenticate
   if (body.base_invite_count != null) patch.base_invite_count = Number(body.base_invite_count);
 
   try {
-    const beforeRow = await getFakeUser(resolved.tenantId, id);
-    if (!beforeRow) {
-      res.status(404).json({ success: false, error: 'NOT_FOUND' });
-      return;
-    }
-    const ok = await updateFakeUserBaseFields(resolved.tenantId, id, patch);
-    if (!ok) {
+    const outcome = await patchInviteLeaderboardFakeUser(resolved.tenantId, id, patch);
+    if (!outcome.ok) {
+      if (outcome.error === 'NOT_FOUND') {
+        res.status(404).json({ success: false, error: 'NOT_FOUND' });
+        return;
+      }
       res.status(400).json({ success: false, error: 'NO_CHANGES' });
       return;
     }
-    const afterRow = await getFakeUser(resolved.tenantId, id);
-    await audit(req, 'update', id, 'Invite leaderboard fake user edit', serializeFakeRow(beforeRow), afterRow ? serializeFakeRow(afterRow) : null);
-    res.json({ success: true, row: afterRow ? serializeFakeRow(afterRow) : null });
+    await audit(req, 'update', id, 'Invite leaderboard fake user edit', outcome.before, outcome.after);
+    res.json({ success: true, row: outcome.after });
   } catch (e) {
     res.status(500).json({ success: false, error: (e as Error).message || 'Failed' });
   }
@@ -167,15 +145,13 @@ export async function postInviteLeaderboardFakeUserToggleController(req: Authent
   }
   const isActive = b.is_active;
   try {
-    const beforeRow = await getFakeUser(resolved.tenantId, id);
-    if (!beforeRow) {
+    const outcome = await toggleInviteLeaderboardFakeUserActive(resolved.tenantId, id, isActive);
+    if (!outcome.ok) {
       res.status(404).json({ success: false, error: 'NOT_FOUND' });
       return;
     }
-    await setFakeUserActive(resolved.tenantId, id, isActive);
-    const afterRow = await getFakeUser(resolved.tenantId, id);
-    await audit(req, 'toggle_active', id, isActive ? 'Enable fake user' : 'Disable fake user', serializeFakeRow(beforeRow), afterRow ? serializeFakeRow(afterRow) : null);
-    res.json({ success: true, row: afterRow ? serializeFakeRow(afterRow) : null });
+    await audit(req, 'toggle_active', id, isActive ? 'Enable fake user' : 'Disable fake user', outcome.before, outcome.after);
+    res.json({ success: true, row: outcome.after });
   } catch (e) {
     res.status(500).json({ success: false, error: (e as Error).message || 'Failed' });
   }
@@ -197,15 +173,13 @@ export async function postInviteLeaderboardFakeUserResetGrowthController(
   }
   const id = String(req.params.id || '').trim();
   try {
-    const beforeRow = await getFakeUser(resolved.tenantId, id);
-    if (!beforeRow) {
+    const outcome = await resetInviteLeaderboardFakeUserGrowth(resolved.tenantId, id);
+    if (!outcome.ok) {
       res.status(404).json({ success: false, error: 'NOT_FOUND' });
       return;
     }
-    await resetFakeUserGrowth(resolved.tenantId, id);
-    const afterRow = await getFakeUser(resolved.tenantId, id);
-    await audit(req, 'reset_growth', id, 'Reset auto-growth', serializeFakeRow(beforeRow), afterRow ? serializeFakeRow(afterRow) : null);
-    res.json({ success: true, row: afterRow ? serializeFakeRow(afterRow) : null });
+    await audit(req, 'reset_growth', id, 'Reset auto-growth', outcome.before, outcome.after);
+    res.json({ success: true, row: outcome.after });
   } catch (e) {
     res.status(500).json({ success: false, error: (e as Error).message || 'Failed' });
   }
@@ -223,7 +197,7 @@ export async function postInviteLeaderboardDeleteAllFakesController(req: Authent
     return;
   }
   try {
-    const deleted = await deleteAllFakeUsersForTenant(resolved.tenantId);
+    const { deleted } = await deleteAllInviteLeaderboardFakes(resolved.tenantId);
     await audit(req, 'delete_all_fakes', null, 'Delete all invite leaderboard fake users', null, { deleted });
     res.json({ success: true, deleted });
   } catch (e) {
@@ -255,7 +229,7 @@ export async function postInviteLeaderboardRandomizeFakeBaseController(req: Auth
     max = t;
   }
   try {
-    const updated = await randomizeBaseInviteCountsForTenant(resolved.tenantId, min, max);
+    const { updated } = await randomizeInviteLeaderboardFakeBaseCounts(resolved.tenantId, min, max);
     await audit(req, 'randomize_fake_base', null, 'Randomize base invite counts', { min, max }, { updated });
     res.json({ success: true, updated, min, max });
   } catch (e) {
@@ -280,28 +254,23 @@ export async function postInviteLeaderboardSeedController(req: AuthenticatedRequ
     return;
   }
   try {
-    const { inserted } = await seedFiftyFakeUsers(resolved.tenantId, replace);
-    await audit(req, 'seed', null, replace ? 'Replace and initialize 50 fake users' : 'Initialize 50 fake users', { replace }, { inserted });
-    if (!replace && inserted === 0) {
+    const seedOutcome = await seedInviteLeaderboardFakeUsers(resolved.tenantId, replace);
+    await audit(
+      req,
+      'seed',
+      null,
+      replace ? 'Replace and initialize 50 fake users' : 'Initialize 50 fake users',
+      { replace },
+      { inserted: seedOutcome.ok ? seedOutcome.inserted : 0 },
+    );
+    if (!seedOutcome.ok) {
       res.status(409).json({ success: false, error: 'ALREADY_SEEDED', message: 'Fake users already exist, use replace to overwrite' });
       return;
     }
-    res.json({ success: true, inserted });
+    res.json({ success: true, inserted: seedOutcome.inserted });
   } catch (e) {
     res.status(500).json({ success: false, error: (e as Error).message || 'Failed' });
   }
-}
-
-function serializeGrowthSettings(d: InviteLeaderboardGrowthScheduleDto) {
-  return {
-    auto_growth_enabled: d.auto_growth_enabled,
-    growth_segment_hours: d.growth_segment_hours,
-    growth_delta_min: d.growth_delta_min,
-    growth_delta_max: d.growth_delta_max,
-    growth_segment_started_at: d.growth_segment_started_at,
-    last_fake_growth_at: d.last_fake_growth_at,
-    next_fake_growth_at: d.next_fake_growth_at,
-  };
 }
 
 export async function getInviteLeaderboardGrowthSettingsController(
@@ -315,8 +284,8 @@ export async function getInviteLeaderboardGrowthSettingsController(
     return;
   }
   try {
-    const row = await getGrowthSettingsMerged(resolved.tenantId);
-    res.json({ success: true, settings: serializeGrowthSettings(row) });
+    const settings = await getInviteLeaderboardGrowthSettingsDto(resolved.tenantId);
+    res.json({ success: true, settings });
   } catch (e) {
     res.status(500).json({ success: false, error: (e as Error).message || 'Failed' });
   }
@@ -352,10 +321,13 @@ export async function patchInviteLeaderboardGrowthSettingsController(
     return;
   }
   try {
-    const before = await getGrowthSettingsMerged(resolved.tenantId);
-    const after = await upsertInviteLeaderboardGrowthSettings(resolved.tenantId, patch);
-    await audit(req, 'growth_settings', null, 'Invite leaderboard auto-growth strategy', serializeGrowthSettings(before), serializeGrowthSettings(after));
-    res.json({ success: true, settings: serializeGrowthSettings(after) });
+    const outcome = await patchInviteLeaderboardGrowthSettings(resolved.tenantId, patch);
+    if (!outcome.ok) {
+      res.status(400).json({ success: false, error: 'empty body' });
+      return;
+    }
+    await audit(req, 'growth_settings', null, 'Invite leaderboard auto-growth strategy', outcome.before, outcome.after);
+    res.json({ success: true, settings: outcome.after });
   } catch (e) {
     res.status(500).json({ success: false, error: (e as Error).message || 'Failed' });
   }
@@ -369,7 +341,7 @@ export async function postInviteLeaderboardRunGrowthNowController(req: Authentic
     return;
   }
   try {
-    const result = await runInviteLeaderboardFakeGrowthJob();
+    const result = await runInviteLeaderboardGrowthJobNow();
     await audit(req, 'run_growth_job', null, 'Manually run invite leaderboard fake user growth task', null, result);
     res.json({
       success: result.ok,
@@ -396,10 +368,9 @@ export async function postInviteLeaderboardResetCycleController(req: Authenticat
     return;
   }
   try {
-    const before = await getGrowthSettingsMerged(resolved.tenantId);
-    const after = await resetGrowthCycleForTenant(resolved.tenantId);
-    await audit(req, 'reset_growth_cycle', null, 'Reset invite leaderboard growth cycle', serializeGrowthSettings(before), serializeGrowthSettings(after));
-    res.json({ success: true, settings: serializeGrowthSettings(after) });
+    const { before, after } = await resetInviteLeaderboardGrowthCycle(resolved.tenantId);
+    await audit(req, 'reset_growth_cycle', null, 'Reset invite leaderboard growth cycle', before, after);
+    res.json({ success: true, settings: after });
   } catch (e) {
     res.status(500).json({ success: false, error: (e as Error).message || 'Failed' });
   }

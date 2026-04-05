@@ -8,8 +8,8 @@ import { apiGet, apiPatch, ApiError } from '@/api/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
 import { notify } from "@/lib/notifyHub";
-import { logOperation } from '@/stores/auditLogStore';
-/** audit_records JSON 列（替代 Supabase Json） */
+import { logOperation } from '@/services/audit/auditLogService';
+/** audit_records JSON 列（MySQL JSON） */
 export type AuditJson =
   | string
   | number

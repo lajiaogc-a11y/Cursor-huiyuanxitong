@@ -4,7 +4,6 @@
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
 import bcrypt from 'bcryptjs';
-import { execute } from '../../database/index.js';
 import {
   listMembersService,
   getMemberByIdService,
@@ -18,6 +17,7 @@ import {
   bulkCreateMembersService,
   lookupMemberForReferralService,
 } from './service.js';
+import { updateMemberPasswordHashByMemberId } from './repository.js';
 
 function resolveTenantId(
   req: AuthenticatedRequest,
@@ -350,11 +350,7 @@ export async function adminResetMemberPasswordController(req: AuthenticatedReque
   const password = new_password.trim();
   try {
     const hash = await bcrypt.hash(password, 10);
-    const result = await execute(
-      'UPDATE members SET password_hash = ?, must_change_password = 1, updated_at = NOW() WHERE id = ?',
-      [hash, memberId],
-    );
-    const affected = result?.affectedRows ?? 0;
+    const affected = await updateMemberPasswordHashByMemberId(memberId, hash);
     if (affected === 0) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Member not found' } });
       return;

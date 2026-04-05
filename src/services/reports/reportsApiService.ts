@@ -1,6 +1,5 @@
 /**
- * Reports API Service - 报表数据
- * 替代 useReportData 中的 Supabase 直连
+ * Reports API Service - 报表数据（经后端 API，替代旧版 useReportData 直连）
  */
 import { apiGet, unwrapApiData } from '@/api/client';
 

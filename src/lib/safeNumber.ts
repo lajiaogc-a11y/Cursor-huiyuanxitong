@@ -1,7 +1,7 @@
 /**
  * Safe number formatting module.
  *
- * MySQL DECIMAL columns arrive as strings while Supabase returns numbers.
+ * MySQL DECIMAL columns often arrive as strings; normalize before formatting.
  * Instead of scattering `Number(x).toFixed(d)` across 50+ call sites we
  * patch the prototypes once at boot so existing `.toFixed()` calls never crash.
  *

@@ -1,6 +1,6 @@
 // ============= 综合风险评分服务 =============
 // 多维度风险信号合成，计算实时风险分数
-// 已从 Supabase 直连改为后端 API 调用
+// 数据走后端 API
 
 import { apiGet, apiPost } from '@/api/client';
 

@@ -240,3 +240,32 @@ export function formatDateRangeForDisplay(range: DateRange): string {
   if (!range.start || !range.end) return '全部时间';
   return `${formatDateForDisplay(range.start)} - ${formatDateForDisplay(range.end)}`;
 }
+
+// ─── Member portal diagnostics: SQL p_date_from (Shanghai calendar day start) ───
+
+export const DATE_RANGES = [
+  { key: "all", zh: "全部", en: "All" },
+  { key: "today", zh: "今天", en: "Today" },
+  { key: "7d", zh: "近7天", en: "7 Days" },
+  { key: "30d", zh: "近30天", en: "30 Days" },
+] as const;
+
+export type DateRangeKey = (typeof DATE_RANGES)[number]["key"];
+
+export function getDateRangeSql(range: DateRangeKey): string | undefined {
+  if (range === "all") return undefined;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: SHANGHAI, year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? "";
+  if (range === "today") {
+    return `${get("year")}-${get("month")}-${get("day")} 00:00:00`;
+  }
+  const days = range === "7d" ? 7 : 30;
+  const d = new Date(Date.now() - days * 86400000);
+  const dp = new Intl.DateTimeFormat("en-CA", {
+    timeZone: SHANGHAI, year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(d);
+  const dg = (t: Intl.DateTimeFormatPartTypes) => dp.find((p) => p.type === t)?.value ?? "";
+  return `${dg("year")}-${dg("month")}-${dg("day")} 00:00:00`;
+}

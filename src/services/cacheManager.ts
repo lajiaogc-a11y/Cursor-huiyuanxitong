@@ -109,7 +109,7 @@ export const CACHE_KEYS = {
 // ============= Realtime 订阅管理 =============
 
 /**
- * 订阅表变更，自动清除相关缓存（轮询实现，原 supabase realtime 已移除）
+ * 订阅表变更，自动清除相关缓存（轮询实现，无服务器推送）
  */
 export function subscribeTableChanges(
   tableName: string,
@@ -250,7 +250,7 @@ export function cleanupCacheManager(): void {
 // ============= 统一广播订阅（减少连接开销）=============
 
 /**
- * 订阅核心表变更（轮询实现，原 supabase realtime 已移除）
+ * 订阅核心表变更（轮询实现，无服务器推送）
  */
 export function subscribeCoreTables(onUpdate: () => void): () => void {
   const timer = setInterval(onUpdate, 30000);

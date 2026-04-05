@@ -208,7 +208,7 @@ export async function fetchAuditLogsPage(
   isExport = false,
 ): Promise<{ logs: AuditLogEntry[]; totalCount: number; distinctOperators: string[]; moduleCounts: Record<string, number> }> {
   try {
-    // 优先使用 API（绕过 RLS，Supabase 客户端无 auth.uid() 导致 RLS 返回空）
+    // 优先使用专用日志 API（完整鉴权与租户过滤）
     try {
       const { getOperationLogsApi } = await import('@/services/data/dataApiService');
       const result = await getOperationLogsApi({

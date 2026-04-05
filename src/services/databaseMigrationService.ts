@@ -177,8 +177,8 @@ function generatePoliciesSQL(): string {
   return `-- ============================================
 -- Row Level Security Policies
 -- Generated: ${new Date().toISOString()}
--- NOTE: These policies are designed for Supabase.
--- If not using Supabase, you may skip this file.
+-- NOTE: RLS is a PostgreSQL feature; adapt policies to your host and auth model.
+-- If you do not use RLS, you may skip defining policies beyond ENABLE ROW LEVEL SECURITY.
 -- ============================================
 
 -- Enable RLS on all tables
@@ -193,7 +193,7 @@ ALTER TABLE public.operation_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_records ENABLE ROW LEVEL SECURITY;
 
 -- Note: Full RLS policies are complex and depend on your auth setup.
--- Please refer to the original Supabase project for complete policy definitions.
+-- Refer to your project's security model for complete policy definitions.
 -- The above statements just enable RLS; actual policies need to be defined
 -- based on your authentication and authorization requirements.
 `;

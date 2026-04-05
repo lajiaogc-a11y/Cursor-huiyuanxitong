@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from "react";
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from "react-router-dom";
 import { TablePageSkeleton } from "@/components/skeletons/TablePageSkeleton";
 import {
@@ -22,30 +21,10 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const ErrorReportsPanel = lazy(() => import("@/components/ErrorReportsPanel"));
-import { safeNumber } from "@/lib/safeCalc";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { StickyScrollTableContainer } from "@/components/ui/sticky-scroll-table";
-import { TablePagination } from "@/components/ui/table-pagination";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,56 +35,37 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { RefreshCw, Search, Eye, RotateCcw, Shield, Lock, Loader2, Download, CheckSquare, AlertTriangle } from "lucide-react";
-import { ModuleCoverageDashboard } from "@/components/ModuleCoverageDashboard";
-import { Checkbox } from "@/components/ui/checkbox";
+import { RefreshCw, Eye, RotateCcw, Loader2, AlertTriangle } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
 import {
-  fetchAuditLogsPage,
   AuditLogEntry,
-  ModuleType,
-  MODULE_NAMES,
-  OPERATION_NAMES,
-  OperationType,
   getObjectDiff,
   isRestorableModule,
   logOperation,
   markLogAsRestored,
   getModuleName,
-  getOperationName,
-  normalizeOperationTypeKey,
   refreshAuditLogCache,
-} from "@/stores/auditLogStore";
-import DateRangeFilter from "@/components/DateRangeFilter";
-import {
-  TimeRangeType,
-  DateRange,
-  getTimeRangeDates,
-} from "@/lib/dateFilter";
+} from "@/services/audit/auditLogService";
 import { translateFieldName, formatDisplayValue, formatLogFieldValue, getReadableObjectId, cleanDescription, HIDDEN_LOG_FIELDS, formatIpAddress } from "@/lib/fieldLabelMap";
 import { summarizeOperationLogPayloadIssues } from "@/lib/operationLogPayload";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
-import { exportToCSV, formatDateTimeForExport } from "@/lib/exportUtils";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
 import { useExportConfirm } from "@/hooks/useExportConfirm";
+import { useOperationLogsTable } from "@/hooks/useOperationLogsTable";
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
-import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobileCardActions, MobilePagination, MobileEmptyState } from "@/components/ui/mobile-data-card";
-import { MobileFilterBar } from "@/components/ui/mobile-filter-bar";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { saveSharedData, loadSharedData } from "@/services/finance/sharedDataService";
 import { PageHeader, KPIGrid, ErrorState } from "@/components/common";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { AdminOperationLogsTab } from "@/pages/member-portal/AdminOperationLogsTab";
-
-function operationLogsTabFromSearch(sp: URLSearchParams): "logs" | "errors" | "member" {
-  const v = sp.get("tab");
-  if (v === "errors" || v === "member") return v;
-  return "logs";
-}
+import { operationLogsTabFromSearch, filterHiddenFields } from "@/pages/operationLogs/operationLogsHelpers";
+import { OperationLogsFilterPanel } from "@/pages/operationLogs/OperationLogsFilterPanel";
+import { OperationLogsLogsSection } from "@/pages/operationLogs/OperationLogsLogsSection";
+import { OperationLogOperationBadge } from "@/pages/operationLogs/OperationLogOperationBadge";
 
 // Legacy support
 export interface OperationLog {
@@ -162,103 +122,29 @@ export default function OperationLogs() {
     );
   };
   const useCompactLayout = isMobile || isTablet;
-  const queryClient = useQueryClient();
   const exportConfirm = useExportConfirm();
   const effectiveTenantId = employee?.is_platform_super_admin
     ? (viewingTenantId || null)
     : (viewingTenantId || employee?.tenant_id || null);
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [moduleFilter, setModuleFilter] = useState<string>("all");
-  const [operationFilter, setOperationFilter] = useState<string>("all");
-  const [operatorFilter, setOperatorFilter] = useState<string>("all");
-  const [restoreStatusFilter, setRestoreStatusFilter] = useState<string>("all");
   const [viewingLog, setViewingLog] = useState<AuditLogEntry | null>(null);
   const [restoreConfirm, setRestoreConfirm] = useState<AuditLogEntry | null>(null);
   const [restorePreview, setRestorePreview] = useState<AuditLogEntry | null>(null);
-  
-  // 批量恢复状态
-  const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
   const [batchRestoreConfirm, setBatchRestoreConfirm] = useState(false);
   const [batchRestoring, setBatchRestoring] = useState(false);
   const [batchPreviewOpen, setBatchPreviewOpen] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
-  
-  // 日期筛选状态
-  const [selectedRange, setSelectedRange] = useState<TimeRangeType>("近7天");
-  const [dateRange, setDateRange] = useState<DateRange>(() => getTimeRangeDates("近7天"));
-  
-  // 分页状态 - 固定每页50条
-  const PAGE_SIZE = 50;
-  const [currentPage, setCurrentPage] = useState(1);
 
-  const { data: auditLogsPage, isLoading: loading, isError: isErrorLogs } = useQuery({
-    queryKey: ['operation-logs', effectiveTenantId ?? '', currentPage, searchTerm, moduleFilter, operationFilter, operatorFilter, restoreStatusFilter, dateRange],
-    queryFn: async () => {
-      return fetchAuditLogsPage(currentPage, PAGE_SIZE, {
-        module: moduleFilter,
-        operationType: operationFilter,
-        operatorAccount: operatorFilter,
-        restoreStatus: restoreStatusFilter,
-        searchTerm: searchTerm || undefined,
-        tenantId: effectiveTenantId,
-        dateRange: dateRange.start || dateRange.end ? { start: dateRange.start, end: dateRange.end } : undefined,
-      });
-    },
-    refetchOnMount: 'always',
-    retry: 3,
-    enabled: activeTab === "logs",
+  const table = useOperationLogsTable({
+    activeTab,
+    effectiveTenantId,
+    userIsAdmin,
+    language,
+    t,
   });
+
   const isAdmin = () => {
     return userIsAdmin;
-  };
-
-  // Realtime handled centrally by dataRefreshManager → TABLE_QUERY_KEYS['operation_logs']
-
-  // 处理日期范围变化
-  const handleDateRangeChange = (range: TimeRangeType, start?: Date, end?: Date) => {
-    setSelectedRange(range);
-    if (range === "自定义" && start && end) {
-      setDateRange(getTimeRangeDates(range, start, end));
-    } else {
-      setDateRange(getTimeRangeDates(range));
-    }
-  };
-
-  const handleRefresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['operation-logs'] });
-    notify.success(t("日志已刷新", "Logs refreshed"));
-  };
-
-  const [exporting, setExporting] = useState(false);
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const allData = await fetchAuditLogsPage(1, 10000, {
-        module: moduleFilter,
-        operationType: operationFilter,
-        operatorAccount: operatorFilter,
-        restoreStatus: restoreStatusFilter,
-        searchTerm: searchTerm || undefined,
-        tenantId: effectiveTenantId,
-        dateRange: dateRange.start || dateRange.end ? { start: dateRange.start, end: dateRange.end } : undefined,
-      }, true);
-      exportToCSV(allData.logs, [
-        { key: 'timestamp', label: '时间', labelEn: 'Time', formatter: (v) => formatDateTimeForExport(v) },
-        { key: 'operatorAccount', label: '操作员', labelEn: 'Operator' },
-        { key: 'operatorRole', label: '角色', labelEn: 'Role' },
-        { key: 'module', label: '模块', labelEn: 'Module', formatter: (v) => getModuleName(v as ModuleType, language as 'zh' | 'en') },
-        { key: 'operationType', label: '操作类型', labelEn: 'Operation', formatter: (v) => getOperationName(v as OperationType, language as 'zh' | 'en') },
-        { key: 'objectId', label: '对象ID', labelEn: 'Object ID' },
-        { key: 'objectDescription', label: '描述', labelEn: 'Description' },
-        { key: 'isRestored', label: '已恢复', labelEn: 'Restored', formatter: (v) => v ? t('是', 'Yes') : t('否', 'No') },
-      ], t('操作审计日志', 'Audit Logs'), language === 'en');
-      notify.success(t(`已导出 ${allData.logs.length} 条记录`, `Exported ${allData.logs.length} records`));
-    } catch {
-      notify.error(t("导出失败", "Export failed"));
-    } finally {
-      setExporting(false);
-    }
   };
 
   const getDiffDisplay = (log: AuditLogEntry) => {
@@ -298,9 +184,9 @@ export default function OperationLogs() {
       // 根据模块执行恢复 - 通过后端 API
       switch (log.module) {
         case 'member_management': {
-          void queryClient.invalidateQueries({ queryKey: ['members'] });
-          void queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
-          void queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['members'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['activity-data-content'] });
           // 检查记录是否还存在
           const currentMember = await getMemberRow(String(log.objectId ?? ""));
           
@@ -357,7 +243,7 @@ export default function OperationLogs() {
           break;
         }
         case 'employee_management': {
-          void queryClient.invalidateQueries({ queryKey: ['employees-management'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['employees-management'] });
           const currentEmployee = await getEmployeeRow(String(log.objectId ?? ""));
           
           const restoreData = { ...log.beforeData };
@@ -380,11 +266,11 @@ export default function OperationLogs() {
           // 通过后端 API 执行订单恢复
           await restoreOrderFromAudit(restoreAuditBody);
           
-          queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
-          queryClient.invalidateQueries({ queryKey: ['orders'] });
-          queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
-          queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
-          queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
+          table.queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
+          table.queryClient.invalidateQueries({ queryKey: ['orders'] });
+          table.queryClient.invalidateQueries({ queryKey: ['usdt-orders'] });
+          table.queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
+          table.queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
           notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           break;
@@ -392,56 +278,56 @@ export default function OperationLogs() {
         case 'activity_gift': {
           await restoreActivityGiftFromAudit(restoreAuditBody);
           
-          void queryClient.invalidateQueries({ queryKey: ['activity-records'] });
-          void queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
-          void queryClient.invalidateQueries({ queryKey: ['points-ledger'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['activity-records'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['member-activity-page-data'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['points-ledger'] });
           notifyDataMutation({ table: 'activity_gifts', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
           break;
         }
         case 'card_management': {
           await restoreCardFromAudit(restoreAuditBody);
-          void queryClient.invalidateQueries({ queryKey: ['vendors'] });
-          void queryClient.invalidateQueries({ queryKey: ['shared-config'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['vendors'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           break;
         }
         case 'vendor_management': {
           await restoreVendorFromAudit(restoreAuditBody);
-          void queryClient.invalidateQueries({ queryKey: ['vendors'] });
-          void queryClient.invalidateQueries({ queryKey: ['shared-config'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['vendors'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           break;
         }
         case 'provider_management': {
           await restorePaymentProviderFromAudit(restoreAuditBody);
-          void queryClient.invalidateQueries({ queryKey: ['vendors'] });
-          void queryClient.invalidateQueries({ queryKey: ['shared-config'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['vendors'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           break;
         }
         case 'activity_type': {
           await restoreActivityTypeFromAudit(restoreAuditBody);
-          void queryClient.invalidateQueries({ queryKey: ['shared-config'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           break;
         }
         case 'currency_settings': {
           await restoreCurrencyFromAudit(restoreAuditBody);
-          void queryClient.invalidateQueries({ queryKey: ['shared-config'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           break;
         }
         case 'customer_source': {
           await restoreCustomerSourceFromAudit(restoreAuditBody);
-          void queryClient.invalidateQueries({ queryKey: ['shared-config'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           break;
         }
         case 'referral': {
           await restoreReferralFromAudit(restoreAuditBody);
-          void queryClient.invalidateQueries({ queryKey: ['referral-relations'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['referral-relations'] });
           break;
         }
         case 'system_settings': {
           const currentData = await loadSharedData(log.objectId as any);
           await saveSharedData(log.objectId as any, log.beforeData);
           
-          void queryClient.invalidateQueries({ queryKey: ['shared-config'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           logOperation('system_settings', 'restore', log.objectId, currentData, log.beforeData,
             `恢复系统设置: ${log.objectDescription || log.objectId}`);
           break;
@@ -715,8 +601,8 @@ export default function OperationLogs() {
               return false;
             }
           }
-          void queryClient.invalidateQueries({ queryKey: ['merchant-settlement'] });
-          void queryClient.invalidateQueries({ queryKey: ['shared-config'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['merchant-settlement'] });
+          void table.queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           break;
         }
         default:
@@ -725,9 +611,9 @@ export default function OperationLogs() {
       }
 
       const markedOk = await markLogAsRestored(log.id, employee?.id, effectiveTenantId);
-      const { refreshAuditLogCache: refresh } = await import('@/stores/auditLogStore');
+      const { refreshAuditLogCache: refresh } = await import('@/services/audit/auditLogService');
       await refresh();
-      await queryClient.invalidateQueries({ queryKey: ['operation-logs'] });
+      await table.queryClient.invalidateQueries({ queryKey: ['operation-logs'] });
       if (markedOk) {
         notify.success(t("数据已恢复，并生成了恢复操作日志", "Data restored and logged"));
       } else {
@@ -749,111 +635,17 @@ export default function OperationLogs() {
     }
   };
 
-  const getOperationBadge = (type: OperationType) => {
-    const key = normalizeOperationTypeKey(type) as OperationType;
-    const colors: Record<OperationType, string> = {
-      create: "bg-green-500",
-      update: "bg-blue-500",
-      cancel: "bg-yellow-500",
-      restore: "bg-cyan-500",
-      delete: "bg-red-500",
-      audit: "bg-orange-500",
-      reject: "bg-rose-500",
-      status_change: "bg-purple-500",
-      force_logout: "bg-gray-500",
-      batch_delete: "bg-red-600",
-      mysql_mysqldump: "bg-indigo-500",
-      knowledge_category_patch_delegated: "bg-teal-500",
-      shared_data_upsert_delegated: "bg-teal-500",
-    };
-    return <Badge className={colors[key] ?? 'bg-gray-500'}>{getOperationName(type, language as 'zh' | 'en')}</Badge>;
-  };
-
-  const getLogAccent = (type: OperationType): "default" | "success" | "danger" | "info" => {
-    switch (normalizeOperationTypeKey(type) as OperationType) {
-      case 'delete':
-      case 'batch_delete':
-      case 'cancel':
-      case 'reject':
-        return 'danger';
-      case 'create':
-        return 'success';
-      case 'update':
-      case 'status_change':
-      case 'knowledge_category_patch_delegated':
-      case 'shared_data_upsert_delegated':
-        return 'info';
-      case 'mysql_mysqldump':
-        return 'info';
-      default:
-        return 'default';
-    }
-  };
-
-  // 服务端分页：直接使用接口返回的当前页数据
-  const filteredLogs = auditLogsPage?.logs ?? [];
-  const totalCount = auditLogsPage?.totalCount ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const paginatedLogs = filteredLogs;
-  
-  // 筛选条件变化时重置分页
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, moduleFilter, operationFilter, operatorFilter, restoreStatusFilter, dateRange]);
-
-  const canRestore = (log: AuditLogEntry) => {
-    // 撤回初始余额操作不可恢复（任何人都不行）
-    const isUndoOperation = String(log.objectDescription ?? '').includes('撤回');
-    return isAdmin() && log.beforeData && isRestorableModule(log.module) && !log.isRestored && normalizeOperationTypeKey(log.operationType) !== 'restore' && !isUndoOperation;
-  };
-
-  // 可批量恢复的日志
-  const restorableLogs = useMemo(() => {
-    return filteredLogs.filter(log => canRestore(log));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredLogs]);
-
-  const logKpiItems = useMemo(
-    () => [
-      { label: t("总记录数", "Total records"), value: String(totalCount) },
-      { label: t("本页", "This page"), value: String(paginatedLogs.length) },
-      { label: t("可恢复（本页）", "Restorable (page)"), value: String(restorableLogs.length) },
-      { label: t("已选中", "Selected"), value: String(selectedLogs.size) },
-    ],
-    [totalCount, paginatedLogs.length, restorableLogs.length, selectedLogs.size, t],
-  );
-
-  // 全选/取消全选
-  const handleSelectAll = () => {
-    if (selectedLogs.size === restorableLogs.length) {
-      setSelectedLogs(new Set());
-    } else {
-      setSelectedLogs(new Set(restorableLogs.map(log => log.id)));
-    }
-  };
-
-  // 单选
-  const handleSelectLog = (logId: string) => {
-    const newSelected = new Set(selectedLogs);
-    if (newSelected.has(logId)) {
-      newSelected.delete(logId);
-    } else {
-      newSelected.add(logId);
-    }
-    setSelectedLogs(newSelected);
-  };
-
   // 批量恢复
   const handleBatchRestore = async () => {
-    if (selectedLogs.size === 0) return;
+    if (table.selectedLogs.size === 0) return;
     
     setBatchRestoring(true);
     let successCount = 0;
     let failCount = 0;
     
-    for (const logId of selectedLogs) {
-      const log = filteredLogs.find(l => l.id === logId);
-      if (log && canRestore(log)) {
+    for (const logId of table.selectedLogs) {
+      const log = table.filteredLogs.find(l => l.id === logId);
+      if (log && table.canRestore(log)) {
         const ok = await handleRestore(log, true);
         if (ok) {
           successCount++;
@@ -865,7 +657,7 @@ export default function OperationLogs() {
     
     setBatchRestoring(false);
     setBatchRestoreConfirm(false);
-    setSelectedLogs(new Set());
+    table.setSelectedLogs(new Set());
     
     if (successCount > 0) {
       notify.success(t(`批量恢复完成: ${successCount} 条成功${failCount > 0 ? `, ${failCount} 条失败` : ''}`, `Batch restore done: ${successCount} succeeded${failCount > 0 ? `, ${failCount} failed` : ''}`));
@@ -874,7 +666,7 @@ export default function OperationLogs() {
     }
     
     await refreshAuditLogCache();
-    await queryClient.invalidateQueries({ queryKey: ['operation-logs'] });
+    await table.queryClient.invalidateQueries({ queryKey: ['operation-logs'] });
   };
 
   const formatValue = (value: any, fieldKey?: string): string => {
@@ -890,14 +682,6 @@ export default function OperationLogs() {
       viewingLog.afterData,
     );
   }, [viewingLog, language]);
-
-  // 过滤隐藏字段
-  const filterHiddenFields = (data: any): [string, any][] => {
-    if (!data || typeof data !== 'object') return [];
-    return Object.entries(data).filter(
-      ([key]) => !HIDDEN_LOG_FIELDS.has(key) && !key.startsWith('__'),
-    );
-  };
 
   return (
     <div className="flex flex-col h-full gap-4">
@@ -931,7 +715,7 @@ export default function OperationLogs() {
         </TabsContent>
 
         <TabsContent value="logs" className="mt-0 flex flex-1 flex-col gap-4">
-          {isErrorLogs ? (
+          {table.isErrorLogs ? (
             <div className="flex flex-col gap-4 py-8">
               <ErrorState
                 title={t("操作日志加载失败", "Operation logs failed to load")}
@@ -941,13 +725,13 @@ export default function OperationLogs() {
                 variant="outline"
                 size="sm"
                 className="w-fit"
-                onClick={() => queryClient.invalidateQueries({ queryKey: ["operation-logs"] })}
+                onClick={() => table.queryClient.invalidateQueries({ queryKey: ["operation-logs"] })}
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
                 {t("重试", "Retry")}
               </Button>
             </div>
-          ) : loading ? (
+          ) : table.loading ? (
             <TablePageSkeleton />
           ) : (
           <>
@@ -958,451 +742,57 @@ export default function OperationLogs() {
                 "Staff audit trail (operation_logs): filter by time and module, export; admins can open details and restore some changes.",
               )}
             />
-            <KPIGrid items={logKpiItems} />
+            <KPIGrid items={table.logKpiItems} />
           </div>
-      {useCompactLayout ? (
-        <>
-          {/* Mobile: compact filter area */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5">
-              <div className="flex-1 min-w-0 overflow-x-auto mobile-tabs-scroll">
-                <DateRangeFilter
-                  value={selectedRange}
-                  onChange={handleDateRangeChange}
-                  dateRange={dateRange}
-                />
-              </div>
-              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-lg touch-manipulation" aria-label="Refresh" onClick={handleRefresh}>
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-9 w-9 shrink-0 rounded-lg touch-manipulation"
-                aria-label="Export"
-                disabled={exporting}
-                onClick={() => exportConfirm.requestExport(handleExport)}
-              >
-                {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              </Button>
-            </div>
-
-            <MobileFilterBar
-              searchValue={searchTerm}
-              onSearchChange={setSearchTerm}
-              placeholder={t("搜索操作人、描述...", "Search operator, desc...")}
-              activeFilterCount={[moduleFilter !== 'all', operationFilter !== 'all', operatorFilter !== 'all', restoreStatusFilter !== 'all'].filter(Boolean).length}
-              filterContent={
-                <>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Select value={moduleFilter} onValueChange={setModuleFilter}>
-                      <SelectTrigger className="h-10 text-xs touch-manipulation">
-                        <SelectValue placeholder={t("模块", "Module")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">{t('全部模块', 'All Modules')}</SelectItem>
-                        {Object.keys(MODULE_NAMES).map((key) => (
-                          <SelectItem key={key} value={key}>{getModuleName(key as ModuleType, language as 'zh' | 'en')}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={operationFilter} onValueChange={setOperationFilter}>
-                      <SelectTrigger className="h-10 text-xs touch-manipulation">
-                        <SelectValue placeholder={t('操作', 'Operation')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">{t('全部操作', 'All Operations')}</SelectItem>
-                        {Object.keys(OPERATION_NAMES).map((key) => (
-                          <SelectItem key={key} value={key}>{getOperationName(key as OperationType, language as 'zh' | 'en')}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={operatorFilter} onValueChange={setOperatorFilter}>
-                      <SelectTrigger className="h-10 text-xs touch-manipulation">
-                        <SelectValue placeholder={t("操作人", "Operator")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">{t("全部操作人", "All Operators")}</SelectItem>
-                        {Array.from(new Set(filteredLogs.map(log => log.operatorAccount))).map((account) => (
-                          <SelectItem key={String(account ?? '')} value={String(account ?? '')}>{String(account ?? '')}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={restoreStatusFilter} onValueChange={setRestoreStatusFilter}>
-                      <SelectTrigger className="h-10 text-xs touch-manipulation">
-                        <SelectValue placeholder={t("恢复状态", "Restore")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">{t("全部状态", "All Status")}</SelectItem>
-                        <SelectItem value="restored">{t("已恢复", "Restored")}</SelectItem>
-                        <SelectItem value="not_restored">{t("未恢复", "Not Restored")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {(moduleFilter !== 'all' || operationFilter !== 'all' || operatorFilter !== 'all' || restoreStatusFilter !== 'all') && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-10 w-full text-muted-foreground touch-manipulation"
-                      onClick={() => {
-                        setModuleFilter('all');
-                        setOperationFilter('all');
-                        setOperatorFilter('all');
-                        setRestoreStatusFilter('all');
-                      }}
-                    >
-                      {t("清除筛选", "Clear")}
-                    </Button>
-                  )}
-                </>
-              }
-            />
-          </div>
-
-          {/* Mobile: summary bar + batch actions */}
-          <div className="flex items-center justify-between px-0.5">
-            <div className="flex items-center gap-1.5">
-              <Shield className="h-4 w-4 text-primary" />
-              <span className="text-xs font-medium text-foreground">{t("操作日志", "Logs")}</span>
-              <span className="text-[11px] text-muted-foreground tabular-nums">({totalCount})</span>
-            </div>
-            {isAdmin() && selectedLogs.size > 0 && (
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setBatchPreviewOpen(true)}
-                  className="h-8 text-xs text-blue-600 border-blue-300 touch-manipulation"
-                >
-                  <Eye className="h-3 w-3 mr-0.5" />
-                  {t("预览", "Preview")} ({selectedLogs.size})
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setBatchRestoreConfirm(true)}
-                  className="h-8 text-xs text-amber-600 border-amber-300 touch-manipulation"
-                >
-                  <RotateCcw className="h-3 w-3 mr-0.5" />
-                  {t("批量恢复", "Batch")} ({selectedLogs.size})
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Mobile: card list */}
-          <MobileCardList>
-            {paginatedLogs.length === 0 ? (
-              <MobileEmptyState message={t("暂无审计日志记录", "No audit logs found")} />
-            ) : paginatedLogs.map((log) => (
-              <MobileCard key={log.id} accent={getLogAccent(log.operationType)} className={log.isRestored ? 'opacity-50' : ''}>
-                <div className="flex items-start gap-2.5">
-                  {isAdmin() && canRestore(log) && (
-                    <Checkbox
-                      checked={selectedLogs.has(log.id)}
-                      onCheckedChange={() => handleSelectLog(log.id)}
-                      className="mt-0.5 h-5 w-5 touch-manipulation shrink-0"
-                      aria-label={t("选择此记录", "Select")}
-                    />
-                  )}
-                  <div className="flex-1 min-w-0 space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <span className="font-medium text-[13px] block truncate">{log.operatorAccount}</span>
-                        <span className="text-[11px] text-muted-foreground tabular-nums">{formatBeijingTime(log.timestamp)}</span>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {getOperationBadge(log.operationType)}
-                        {log.isRestored && <Badge variant="outline" className="text-[10px] px-1">{t("已恢复", "Done")}</Badge>}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-xs">
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">
-                        {getModuleName(log.module, language as 'zh' | 'en')}
-                      </Badge>
-                      <span className="text-muted-foreground truncate min-w-0" title={String(log.objectDescription || log.objectId || '')}>
-                        {log.objectDescription ? cleanDescription(String(log.objectDescription)).slice(0, 30) : getReadableObjectId(log)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <MobileCardCollapsible>
-                  <MobileCardRow label={t("对象ID", "Object")} value={getReadableObjectId(log)} mono />
-                  <MobileCardRow label={t("角色", "Role")} value={formatLogFieldValue('role', log.operatorRole, language as 'zh' | 'en')} />
-                  <MobileCardRow label="IP" value={formatIpAddress(log.ipAddress != null ? String(log.ipAddress) : undefined, language as 'zh' | 'en')} mono />
-                  {log.objectDescription && (
-                    <MobileCardRow label={t("描述", "Desc")} value={cleanDescription(String(log.objectDescription))} />
-                  )}
-                </MobileCardCollapsible>
-
-                <div className="flex items-center gap-2 pt-1.5">
-                  <Button size="sm" variant="outline" className="flex-1 h-9 text-xs touch-manipulation" onClick={() => setViewingLog(log)}>
-                    <Eye className="h-3.5 w-3.5 mr-1" />{t("详情", "Details")}
-                  </Button>
-                  {canRestore(log) && (
-                    <Button size="sm" variant="outline" className="flex-1 h-9 text-xs touch-manipulation text-amber-600 border-amber-200 dark:border-amber-800" onClick={() => setRestoreConfirm(log)}>
-                      <RotateCcw className="h-3.5 w-3.5 mr-1" />{t("恢复", "Restore")}
-                    </Button>
-                  )}
-                </div>
-              </MobileCard>
-            ))}
-            <MobilePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalCount} onPageChange={setCurrentPage} pageSize={PAGE_SIZE} />
-          </MobileCardList>
-        </>
-      ) : (
-      <>
-      {/* Desktop: filter area */}
-      <Card className="p-3 sm:p-4 shrink-0">
-        <div className="space-y-3">
-          <div className="flex items-start gap-2">
-            <div className="flex-1 min-w-0">
-              <DateRangeFilter
-                value={selectedRange}
-                onChange={handleDateRangeChange}
-                dateRange={dateRange}
-              />
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <Button variant="outline" size="sm" onClick={handleRefresh}>
-                <RefreshCw className="h-4 w-4" />
-                <span className="ml-1">{t("刷新", "Refresh")}</span>
-              </Button>
-              <Button variant="outline" size="sm" disabled={exporting} onClick={() => exportConfirm.requestExport(handleExport)}>
-                {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                <span className="ml-1">{exporting ? t("导出中…", "Exporting…") : t("导出", "Export")}</span>
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={t("搜索操作人、对象ID、描述...", "Search operator, object, desc...")}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-9"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Select value={moduleFilter} onValueChange={setModuleFilter}>
-                <SelectTrigger className="w-28 h-9">
-                  <SelectValue placeholder={t("模块", "Module")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('全部模块', 'All Modules')}</SelectItem>
-                  {Object.keys(MODULE_NAMES).map((key) => (
-                    <SelectItem key={key} value={key}>{getModuleName(key as ModuleType, language as 'zh' | 'en')}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={operationFilter} onValueChange={setOperationFilter}>
-                <SelectTrigger className="w-24 h-9">
-                  <SelectValue placeholder={t('操作', 'Operation')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('全部操作', 'All Operations')}</SelectItem>
-                  {Object.keys(OPERATION_NAMES).map((key) => (
-                    <SelectItem key={key} value={key}>{getOperationName(key as OperationType, language as 'zh' | 'en')}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={operatorFilter} onValueChange={setOperatorFilter}>
-                <SelectTrigger className="w-28 h-9">
-                  <SelectValue placeholder={t("操作人", "Operator")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("全部操作人", "All Operators")}</SelectItem>
-                  {(auditLogsPage?.distinctOperators ?? []).map((account) => (
-                    <SelectItem key={account} value={account}>{account}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={restoreStatusFilter} onValueChange={setRestoreStatusFilter}>
-                <SelectTrigger className="w-28 h-9">
-                  <SelectValue placeholder={t("恢复状态", "Restore")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("全部状态", "All Status")}</SelectItem>
-                  <SelectItem value="restored">{t("已恢复", "Restored")}</SelectItem>
-                  <SelectItem value="not_restored">{t("未恢复", "Not Restored")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {(moduleFilter !== 'all' || operationFilter !== 'all' || operatorFilter !== 'all' || restoreStatusFilter !== 'all' || searchTerm) && (
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="h-9 text-muted-foreground"
-                onClick={() => {
-                  setModuleFilter('all');
-                  setOperationFilter('all');
-                  setOperatorFilter('all');
-                  setRestoreStatusFilter('all');
-                  setSearchTerm('');
-                }}
-              >
-                {t("清除筛选", "Clear")}
-              </Button>
-            )}
-          </div>
-        </div>
-      </Card>
-
-      {/* Module Coverage Dashboard */}
-      <ModuleCoverageDashboard logs={filteredLogs} serverModuleCounts={auditLogsPage?.moduleCounts} totalCount={totalCount} />
-
-      <Card>
-        <CardHeader className="py-3 px-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Shield className="h-5 w-5 text-primary" />
-              <Badge variant="outline" className="text-xs gap-1">
-                <Lock className="h-3 w-3" />
-                {t("只读", "Read-only")}
-              </Badge>
-              <span className="text-sm text-muted-foreground">
-                ({totalCount}{t("条", " items")})
-              </span>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {isAdmin() && selectedLogs.size > 0 && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setBatchPreviewOpen(true)}
-                    className="text-blue-600 hover:text-blue-700 border-blue-300"
-                  >
-                    <Eye className="h-4 w-4 mr-1" />
-                    {t("预览选中", "Preview")} ({selectedLogs.size})
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setBatchRestoreConfirm(true)}
-                    className="text-amber-600 hover:text-amber-700 border-amber-300"
-                  >
-                    <CheckSquare className="h-4 w-4 mr-1" />
-                    {t("批量恢复", "Batch Restore")} ({selectedLogs.size})
-                  </Button>
-                </>
-              )}
-              <span className="text-sm font-normal text-muted-foreground">
-                {t("日志仅追加不可删改；管理员可将数据恢复到修改前状态，恢复操作本身也会被记录", "Logs are append-only; admins can restore data to a prior state — each restore is also logged")}
-              </span>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <StickyScrollTableContainer minWidth="1200px">
-            <Table className="text-xs">
-              <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
-                <TableRow className="bg-muted/50">
-                  {isAdmin() && (
-                    <TableHead className="w-[40px]">
-                      <Checkbox
-                        checked={restorableLogs.length > 0 && selectedLogs.size === restorableLogs.length}
-                        onCheckedChange={handleSelectAll}
-                        aria-label="全选可恢复的记录"
-                      />
-                    </TableHead>
-                  )}
-                  <TableHead className="whitespace-nowrap px-1.5">{t("操作时间", "Time")}</TableHead>
-                  <TableHead className="whitespace-nowrap px-1.5">{t("操作人", "Operator")}</TableHead>
-                  <TableHead className="whitespace-nowrap px-1.5">{t("角色", "Role")}</TableHead>
-                  <TableHead className="whitespace-nowrap px-1.5">{t("操作模块", "Module")}</TableHead>
-                  <TableHead className="whitespace-nowrap px-1.5">{t("操作对象ID", "Object ID")}</TableHead>
-                  <TableHead className="whitespace-nowrap px-1.5">{t("操作类型", "Type")}</TableHead>
-                  <TableHead className="whitespace-nowrap px-1.5">IP</TableHead>
-                  <TableHead className="whitespace-nowrap px-1.5 text-center sticky right-0 z-20 bg-muted shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.15)]">{t("操作", "Actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedLogs.map((log) => (
-                  <TableRow key={log.id} className={log.isRestored ? 'opacity-50' : ''}>
-                    {isAdmin() && (
-                      <TableCell>
-                        {canRestore(log) ? (
-                          <Checkbox
-                            checked={selectedLogs.has(log.id)}
-                            onCheckedChange={() => handleSelectLog(log.id)}
-                            aria-label="选择此记录"
-                          />
-                        ) : (
-                          <span className="w-4 h-4 block" />
-                        )}
-                      </TableCell>
-                    )}
-                    <TableCell className="font-mono whitespace-nowrap px-1.5">
-                      {formatBeijingTime(log.timestamp)}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap px-1.5">{log.operatorAccount}</TableCell>
-                    <TableCell className="text-muted-foreground whitespace-nowrap px-1.5">{formatLogFieldValue('role', log.operatorRole, language as 'zh' | 'en')}</TableCell>
-                    <TableCell className="whitespace-nowrap px-1.5">{getModuleName(log.module, language as 'zh' | 'en')}</TableCell>
-                    <TableCell
-                      className="max-w-[160px] truncate px-1.5"
-                      title={String(log.objectDescription || log.objectId || '')}
-                    >
-                      {getReadableObjectId(log)}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap px-1.5">
-                      {getOperationBadge(log.operationType)}
-                      {log.isRestored && <Badge variant="outline" className="ml-1 text-xs">{t("已恢复", "Restored")}</Badge>}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground whitespace-nowrap px-1.5">{formatIpAddress(log.ipAddress != null ? String(log.ipAddress) : undefined, language as 'zh' | 'en')}</TableCell>
-                    <TableCell className="text-center whitespace-nowrap px-1.5 sticky right-0 z-10 bg-background shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">
-                      <div className="flex items-center justify-center gap-1">
-                        <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setViewingLog(log)}>
-                          <Eye className="h-3 w-3 mr-1" />
-                          {t("详情", "Details")}
-                        </Button>
-                        {canRestore(log) && (
-                          <>
-                            <Button variant="ghost" size="sm" className="h-7 px-2 text-blue-600 hover:text-blue-700"
-                              onClick={() => setRestorePreview(log)}>
-                              <Eye className="h-3 w-3 mr-1" />
-                              {t("预览", "Preview")}
-                            </Button>
-                            <Button variant="ghost" size="sm" className="h-7 px-2 text-amber-600 hover:text-amber-700"
-                              onClick={() => setRestoreConfirm(log)}>
-                              <RotateCcw className="h-3 w-3 mr-1" />
-                              {t("恢复", "Restore")}
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {paginatedLogs.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={isAdmin() ? 9 : 8} className="text-center text-muted-foreground py-8">
-                      {t("暂无审计日志记录", "No audit logs found")}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </StickyScrollTableContainer>
-          
-          {/* Pagination */}
-          <TablePagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalCount}
-            pageSize={PAGE_SIZE}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={() => {}}
-            pageSizeOptions={[50]}
+          <OperationLogsFilterPanel
+            useCompactLayout={useCompactLayout}
+            t={t}
+            language={language as "zh" | "en"}
+            selectedRange={table.selectedRange}
+            dateRange={table.dateRange}
+            onDateRangeChange={table.handleDateRangeChange}
+            onRefresh={table.handleRefresh}
+            exporting={table.exporting}
+            exportConfirm={exportConfirm}
+            onExport={table.handleExport}
+            searchTerm={table.searchTerm}
+            onSearchTermChange={table.setSearchTerm}
+            moduleFilter={table.moduleFilter}
+            onModuleFilterChange={table.setModuleFilter}
+            operationFilter={table.operationFilter}
+            onOperationFilterChange={table.setOperationFilter}
+            operatorFilter={table.operatorFilter}
+            onOperatorFilterChange={table.setOperatorFilter}
+            restoreStatusFilter={table.restoreStatusFilter}
+            onRestoreStatusFilterChange={table.setRestoreStatusFilter}
+            filteredLogs={table.filteredLogs}
+            distinctOperators={table.auditLogsPage?.distinctOperators}
+            onClearFilters={table.clearFilters}
           />
-        </CardContent>
-      </Card>
-      </>
-      )}
+          <OperationLogsLogsSection
+            useCompactLayout={useCompactLayout}
+            t={t}
+            language={language as "zh" | "en"}
+            isAdmin={isAdmin}
+            filteredLogs={table.filteredLogs}
+            serverModuleCounts={table.auditLogsPage?.moduleCounts}
+            totalCount={table.totalCount}
+            paginatedLogs={table.paginatedLogs}
+            totalPages={table.totalPages}
+            currentPage={table.currentPage}
+            onPageChange={table.setCurrentPage}
+            pageSize={table.PAGE_SIZE}
+            canRestore={table.canRestore}
+            selectedLogs={table.selectedLogs}
+            onSelectLog={table.handleSelectLog}
+            onSelectAll={table.handleSelectAll}
+            restorableLogs={table.restorableLogs}
+            onViewDetail={setViewingLog}
+            onRestoreConfirm={setRestoreConfirm}
+            onRestorePreview={setRestorePreview}
+            onBatchPreviewOpen={() => setBatchPreviewOpen(true)}
+            onBatchRestoreConfirmOpen={() => setBatchRestoreConfirm(true)}
+          />
 
       <DrawerDetail
         open={!!viewingLog}
@@ -1444,7 +834,9 @@ export default function OperationLogs() {
               </div>
               <div className={isMobile ? "flex items-center justify-between" : ""}>
                 <Label className="text-xs text-muted-foreground">{t("操作类型", "Type")}</Label>
-                <div>{getOperationBadge(viewingLog.operationType)}</div>
+                <div>
+                  <OperationLogOperationBadge type={viewingLog.operationType} language={language as "zh" | "en"} />
+                </div>
               </div>
               <div className={isMobile ? "" : "col-span-2"}>
                 <Label className="text-xs text-muted-foreground">{t("操作对象", "Object")}</Label>
@@ -1562,7 +954,9 @@ export default function OperationLogs() {
               </div>
               <div className={isMobile ? "flex items-center justify-between" : ""}>
                 <Label className="text-xs text-muted-foreground">{t("操作类型", "Type")}</Label>
-                <div>{getOperationBadge(restoreConfirm.operationType)}</div>
+                <div>
+                <OperationLogOperationBadge type={restoreConfirm.operationType} language={language as "zh" | "en"} />
+              </div>
               </div>
               <div className={isMobile ? "flex items-center justify-between" : ""}>
                 <Label className="text-xs text-muted-foreground">{t("对象", "Object")}</Label>
@@ -1653,7 +1047,9 @@ export default function OperationLogs() {
               </div>
               <div className={isMobile ? "flex items-center justify-between" : ""}>
                 <Label className="text-xs text-muted-foreground">{t("操作类型", "Type")}</Label>
-                <div>{getOperationBadge(restorePreview.operationType)}</div>
+                <div>
+                <OperationLogOperationBadge type={restorePreview.operationType} language={language as "zh" | "en"} />
+              </div>
               </div>
               <div className={isMobile ? "flex items-center justify-between" : ""}>
                 <Label className="text-xs text-muted-foreground">{t("操作时间", "Time")}</Label>
@@ -1728,22 +1124,22 @@ export default function OperationLogs() {
         title={
           <span className="flex items-center gap-2">
             <Eye className="h-5 w-5 shrink-0" />
-            {t(`批量恢复预览 (${selectedLogs.size} 条记录)`, `Batch Restore Preview (${selectedLogs.size} items)`)}
+            {t(`批量恢复预览 (${table.selectedLogs.size} 条记录)`, `Batch Restore Preview (${table.selectedLogs.size} items)`)}
           </span>
         }
         sheetMaxWidth="4xl"
       >
         <div className="space-y-4">
           <div className="space-y-3">
-            {Array.from(selectedLogs).map((logId) => {
-              const log = filteredLogs.find((l) => l.id === logId);
+            {Array.from(table.selectedLogs).map((logId) => {
+              const log = table.filteredLogs.find((l) => l.id === logId);
               if (!log) return null;
               return (
                 <div key={logId} className="rounded-lg border bg-muted/30 p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">{getModuleName(log.module, language as "zh" | "en")}</Badge>
-                      {getOperationBadge(log.operationType)}
+                      <OperationLogOperationBadge type={log.operationType} language={language as "zh" | "en"} />
                     </div>
                     <span className="font-mono text-xs text-muted-foreground">{formatBeijingTime(log.timestamp)}</span>
                   </div>
@@ -1790,8 +1186,8 @@ export default function OperationLogs() {
           <AlertDialogHeader>
             <AlertDialogTitle>{t("确认批量恢复？", "Confirm Batch Restore?")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t(`您已选择 ${selectedLogs.size} 条记录进行批量恢复。此操作将把这些数据恢复到修改前的状态。每条恢复操作都会被记录在审计日志中。`,
-                `You have selected ${selectedLogs.size} records for batch restore. This will restore data to previous states. Each restore will be logged.`)}
+              {t(`您已选择 ${table.selectedLogs.size} 条记录进行批量恢复。此操作将把这些数据恢复到修改前的状态。每条恢复操作都会被记录在审计日志中。`,
+                `You have selected ${table.selectedLogs.size} records for batch restore. This will restore data to previous states. Each restore will be logged.`)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1803,7 +1199,7 @@ export default function OperationLogs() {
                   {t("恢复中...", "Restoring...")}
                 </>
               ) : (
-                t(`确认恢复 ${selectedLogs.size} 条`, `Confirm Restore ${selectedLogs.size} items`)
+                t(`确认恢复 ${table.selectedLogs.size} 条`, `Confirm Restore ${table.selectedLogs.size} items`)
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1813,6 +1209,7 @@ export default function OperationLogs() {
           )}
         </TabsContent>
       </Tabs>
+
       <ExportConfirmDialog
         open={exportConfirm.open}
         onOpenChange={exportConfirm.handleOpenChange}

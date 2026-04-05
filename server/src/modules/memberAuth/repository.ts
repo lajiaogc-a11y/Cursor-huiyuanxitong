@@ -226,7 +226,7 @@ export async function recordMemberLoginRepository(memberId: string, tenantId: st
  */
 export async function grantReferralSpinsOnFirstLogin(memberId: string): Promise<void> {
   const { withTransaction } = await import('../../database/index.js');
-  const { incrementLotterySpinBalanceConn } = await import('../lottery/spinBalanceAccount.js');
+  const { addSpinConn } = await import('../lottery/spinBalanceAccount.js');
 
   const regEvent = await queryOne<{
     tenant_id: string;
@@ -280,18 +280,10 @@ export async function grantReferralSpinsOnFirstLogin(memberId: string): Promise<
     }
 
     if (referrerGranted) {
-      await conn.query(
-        'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
-        [regEvent.referrer_id, rewardSpins, 'referral'],
-      );
-      await incrementLotterySpinBalanceConn(conn, regEvent.referrer_id, rewardSpins, 'referral');
+      await addSpinConn(conn, regEvent.referrer_id, rewardSpins, 'referral');
     }
 
-    await conn.query(
-      'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
-      [memberId, rewardSpins, 'invite_welcome'],
-    );
-    await incrementLotterySpinBalanceConn(conn, memberId, rewardSpins, 'invite_welcome');
+    await addSpinConn(conn, memberId, rewardSpins, 'invite_welcome');
   });
 }
 

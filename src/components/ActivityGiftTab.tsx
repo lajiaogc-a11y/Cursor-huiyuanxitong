@@ -37,7 +37,6 @@ import { markInputActive } from "@/lib/performanceUtils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getActivityTypesApi } from "@/services/staff/dataApi";
-import { apiGet } from "@/api/client";
 import { loadSharedData, saveSharedData } from "@/services/finance/sharedDataService";
 
 interface ActivityGift {
@@ -136,6 +135,18 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
   const { employee } = useAuth();
   const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant({ allowOperationalMutations: true });
   const { members, findMemberByPhone } = useMembers();
+
+  const resolveMemberForGift = useCallback(
+    (input: string) => {
+      const trimmed = input.trim();
+      const byPhone = findMemberByPhone(trimmed);
+      if (byPhone) return { id: byPhone.id, phoneNumber: byPhone.phoneNumber };
+      const byCode = members.find((m) => m.memberCode === trimmed);
+      if (byCode) return { id: byCode.id, phoneNumber: byCode.phoneNumber };
+      return null;
+    },
+    [findMemberByPhone, members],
+  );
   const { activeProviders } = usePaymentProviders();
   const { addGift } = useActivityGifts();
   const { t } = useLanguage();
@@ -244,7 +255,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
   }, [currency, amount, calculatedFee, effectiveRate]);
 
   // Handle phone number or member code change - 支持电话号码和会员编号两种查询
-  const handlePhoneNumberChange = async (value: string) => {
+  const handlePhoneNumberChange = (value: string) => {
     // 保留原始输入（允许字母用于会员编号）
     const trimmedValue = value.trim();
     setPhoneNumber(trimmedValue);
@@ -265,22 +276,13 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
         return;
       }
       
-      // 从数据库实时查询会员
       if (limitedValue.length >= 8) {
-        try {
-          const dbMember = await apiGet<Record<string, unknown> | null>(
-            `/api/data/table/members?select=*&phone_number=eq.${encodeURIComponent(limitedValue)}&single=true`
-          );
-
-          if (dbMember && dbMember.id) {
-            setMemberError("");
-            notify.success(t(`会员匹配: ${dbMember.member_code}`, `Member matched: ${String(dbMember.member_code ?? '')}`));
-          } else {
-            setMemberError(t("未找到会员", "Member not found"));
-          }
-        } catch (err) {
-          console.error('查询会员出错:', err);
-          setMemberError(t("查询失败", "Query failed"));
+        const m = findMemberByPhone(limitedValue);
+        if (m) {
+          setMemberError("");
+          notify.success(t(`会员匹配: ${m.memberCode}`, `Member matched: ${m.memberCode}`));
+        } else {
+          setMemberError(t("未找到会员", "Member not found"));
         }
       } else {
         setMemberError("");
@@ -288,21 +290,13 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
     } else {
       // 会员编号逻辑 - 支持字母和数字
       if (trimmedValue.length >= 2) {
-        try {
-          const dbMember = await apiGet<Record<string, unknown> | null>(
-            `/api/data/table/members?select=*&member_code=eq.${encodeURIComponent(trimmedValue)}&single=true`
-          );
-
-          if (dbMember && dbMember.id) {
-            setMemberError("");
-            setPhoneNumber(String(dbMember.phone_number ?? ''));
-            notify.success(t(`会员匹配: ${dbMember.member_code}`, `Member matched: ${String(dbMember.member_code ?? '')}`));
-          } else {
-            setMemberError(t("未找到会员", "Member not found"));
-          }
-        } catch (err) {
-          console.error('查询会员出错:', err);
-          setMemberError(t("查询失败", "Query failed"));
+        const m = members.find((x) => x.memberCode === trimmedValue);
+        if (m) {
+          setMemberError("");
+          setPhoneNumber(m.phoneNumber);
+          notify.success(t(`会员匹配: ${m.memberCode}`, `Member matched: ${m.memberCode}`));
+        } else {
+          setMemberError(t("未找到会员", "Member not found"));
         }
       } else {
         setMemberError("");
@@ -314,7 +308,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (isPlatformAdminReadonlyView) {
       notify.error(t("平台总管理查看租户时为只读，无法提交活动赠送", "Read-only in admin view, cannot submit activity gift"));
       return;
@@ -336,17 +330,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
       return;
     }
 
-    let member = findMemberByPhone(phoneNumber);
-    if (!member) {
-      try {
-        const dbMember = await apiGet<Record<string, unknown> | null>(
-          `/api/data/table/members?select=*&phone_number=eq.${encodeURIComponent(phoneNumber)}&single=true`
-        );
-        if (dbMember?.id) {
-          member = { id: dbMember.id, phoneNumber: dbMember.phone_number } as any;
-        }
-      } catch { /* DB lookup optional fallback */ }
-    }
+    const member = resolveMemberForGift(phoneNumber);
     if (!member) {
       notify.error(t('activityGift.memberNotFoundError'));
       return;
@@ -357,17 +341,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
 
   const executeSubmit = async () => {
     if (isPlatformAdminReadonlyView) return;
-    let member = findMemberByPhone(phoneNumber);
-    if (!member) {
-      try {
-        const dbMember = await apiGet<Record<string, unknown> | null>(
-          `/api/data/table/members?select=*&phone_number=eq.${encodeURIComponent(phoneNumber)}&single=true`
-        );
-        if (dbMember?.id) {
-          member = { id: dbMember.id, phoneNumber: dbMember.phone_number } as any;
-        }
-      } catch { /* ignore */ }
-    }
+    const member = resolveMemberForGift(phoneNumber);
     if (!member) {
       notify.error(t('activityGift.memberNotFoundError'));
       setConfirmOpen(false);

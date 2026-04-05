@@ -30,7 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFieldPermissions } from "@/hooks/useFieldPermissions";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { logOperation } from "@/stores/auditLogStore";
+import { logOperation } from "@/services/audit/auditLogService";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuditRecords, LegacyAuditItem } from "@/hooks/useAuditRecords";

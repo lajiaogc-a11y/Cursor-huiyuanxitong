@@ -15,9 +15,9 @@ import {
   runCancelOrderSideEffects,
   runRestoreOrderSideEffects,
   runDeleteOrderSideEffects,
-} from '@/application/order/useCases/orderSideEffectUseCases';
+} from '@/services/orders/orderSideEffectOrchestrator';
 import { checkMyTenantQuotaResult, getQuotaExceededText, getQuotaSoftExceededText } from '@/services/tenantQuotaService';
-import { canMutateOrderInCurrentView } from '@/domain/order/rules/canMutateOrder';
+import { canMutateOrderInCurrentView } from '@/lib/order/canMutateOrder';
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
   cancelOrderUseCase,
@@ -27,7 +27,7 @@ import {
   softDeleteOrderUseCase,
   updateOrderPointsStatusUseCase,
   updateOrderUseCase,
-} from '@/application/order/useCases/orderLifecycleUseCases';
+} from '@/services/orders/orderLifecycleUseCases';
 
 export interface UseOrderMutationsParams {
   orders: Order[];

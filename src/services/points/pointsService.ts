@@ -1,13 +1,12 @@
 // ============= Points Service - 积分明细核心服务 =============
 // 积分明细是"事件驱动型数据"，所有积分明细都来源于「订单新增」这一事件
 // 积分状态与订单状态强绑定（正常 → 已发放，取消/删除 → 已回收）
-//
-// 已从 Supabase 直连改为后端 API 调用 / stub
+// 读写走后端 API
 
 import { apiGet, apiPost } from '@/api/client';
 import { CurrencyCode } from '@/config/currencies';
 import { getPointsSettingsAsync, PointsSettings } from '@/services/points/pointsSettingsService';
-import { logOperation } from '@/stores/auditLogStore';
+import { logOperation } from '@/services/audit/auditLogService';
 import { loadSharedData } from '@/services/finance/sharedDataService';
 import { notifyDataMutation } from '@/services/system/dataRefreshManager';
 

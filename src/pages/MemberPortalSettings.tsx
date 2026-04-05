@@ -15,6 +15,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { showServiceErrorToast } from "@/services/serviceErrorToast";
 import { withTimeout } from "@/lib/withTimeout";
+import { fetchRemoteFrontendBuildTime } from "@/lib/frontendVersion";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -64,7 +65,7 @@ import {
 import {
   portalSettingsEmptyShellClass,
   portalSettingsEmptyIconWrapClass,
-} from "./member-portal/shared";
+} from "@/components/common/EmptyState";
 import { WebsiteDataTab } from "./member-portal-settings/WebsiteDataTab";
 import { ActivityDataTab } from "./member-portal-settings/ActivityDataTab";
 import { InviteSimulationSettingsTab } from "./member-portal-settings/InviteSimulationSettingsTab";
@@ -355,14 +356,13 @@ export default function MemberPortalSettingsPage() {
     async (userInitiated = false) => {
       if (userInitiated) setCheckingVersion(true);
       const fetchOnce = async (): Promise<string> => {
-        const res = await withTimeout(
-          fetch(`/version.json?t=${Date.now()}`, { cache: "no-store" }),
+        const build = await withTimeout(
+          fetchRemoteFrontendBuildTime(),
           15000,
           t("请求超时", "Request timed out"),
         );
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as { buildTime?: string };
-        return String(data?.buildTime || "").trim();
+        if (build === undefined) throw new Error("version.json unavailable");
+        return build;
       };
       const fetchWithRetry = async (): Promise<string> => {
         try {

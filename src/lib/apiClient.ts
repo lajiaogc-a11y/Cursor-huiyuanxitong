@@ -89,7 +89,7 @@ export function clearMemberAccessToken(): void {
   }
 }
 
-/** 根据请求 path 与当前路由解析 Bearer（Supabase 代理与 apiClient 共用） */
+/** 根据请求 path 与当前路由解析 Bearer（表数据代理与 apiClient 共用） */
 export function resolveBearerTokenForPath(path: string): string | null {
   if (typeof localStorage === 'undefined') return null;
   /** 员工登录态接口：勿在会员端误带会员 JWT（会 401 并曾触发全局清会员态） */

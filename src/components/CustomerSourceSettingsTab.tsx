@@ -38,7 +38,7 @@ import {
   deleteCustomerSource,
   CustomerSource,
 } from "@/hooks/useCustomerSources";
-import { logOperation } from "@/stores/auditLogStore";
+import { logOperation } from "@/services/audit/auditLogService";
 
 export default function CustomerSourceSettingsTab() {
   const { t } = useLanguage();
@@ -122,7 +122,7 @@ export default function CustomerSourceSettingsTab() {
 
     await updateCustomerSource(editingId!, { name: editingName.trim() });
     
-    const { logOperation } = await import('@/stores/auditLogStore');
+    const { logOperation } = await import('@/services/audit/auditLogService');
     logOperation('customer_source', 'update', editingId!, { name: oldSource?.name }, { name: editingName.trim() }, `更新客户来源: ${editingName.trim()}`);
     
     setEditingId(null);

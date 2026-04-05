@@ -1,6 +1,6 @@
 // ============= Global Operator Service =============
 // 提供全局操作员信息获取，避免依赖 localStorage
-// 从 Supabase session 获取用户信息
+// 从后端 /me（JWT）获取用户信息
 // 使用统一的 CacheManager 进行缓存管理
 
 import { 

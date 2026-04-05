@@ -16,8 +16,11 @@ import {
   getMemberTenantId,
   listEnabledPrizes,
   type LotteryPrize,
+  updateMemberPortalDailyFreeSpinsPerDay,
+  getLotteryOperationalTodayStats,
+  getLotteryOperationalRiskStats,
+  countLotteryRiskBlockedToday,
 } from './repository.js';
-import { execute } from '../../database/index.js';
 import { resolveTenantIdForActivityDataList } from '../memberPortalSettings/activityDataTenant.js';
 import {
   listPendingRewards,
@@ -34,7 +37,6 @@ import {
 import {
   reconcileAll,
 } from './reconciliationTasks.js';
-import { query, queryOne } from '../../database/index.js';
 import {
   runRewardRetry,
   runStockReconcile,
@@ -370,10 +372,7 @@ export async function adminSaveSettingsController(req: AuthenticatedRequest, res
 
   await upsertLotterySettings(tenantId, n, enabled !== false, noticePatch, orderSpin, budgetPatch);
   if (tenantId) {
-    await execute(
-      'UPDATE member_portal_settings SET daily_free_spins_per_day = ? WHERE tenant_id = ?',
-      [n, tenantId],
-    );
+    await updateMemberPortalDailyFreeSpinsPerDay(tenantId, n);
   }
   res.json({ success: true });
 }
@@ -536,50 +535,13 @@ export async function adminOperationalStatsController(req: AuthenticatedRequest,
   const today = getToday();
   const dayStart = `${today} 00:00:00`;
 
-  const [settings, prizes, todayStats, riskStats] = await Promise.all([
+  const [settings, prizes, todayStats, riskStats, riskBlockedCount] = await Promise.all([
     getLotterySettings(tenantId),
     listEnabledPrizes(tenantId),
-    queryOne<{
-      draws_today: number;
-      cost_today: number;
-      winners_today: number;
-      points_awarded_today: number;
-    }>(
-      `SELECT
-         COUNT(*) AS draws_today,
-         COALESCE(SUM(CASE WHEN prize_type <> 'none' AND reward_status = 'done' THEN COALESCE(prize_cost, 0) ELSE 0 END), 0) AS cost_today,
-         SUM(CASE WHEN prize_type <> 'none' THEN 1 ELSE 0 END) AS winners_today,
-         COALESCE(SUM(CASE WHEN prize_type = 'points' AND reward_status = 'done' THEN prize_value ELSE 0 END), 0) AS points_awarded_today
-       FROM lottery_logs
-       WHERE tenant_id <=> ?
-         AND created_at >= ?
-         AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
-      [tenantId, dayStart, dayStart],
-    ),
-    queryOne<{
-      risk_blocked: number;
-      risk_downgraded: number;
-      failed_rewards: number;
-      pending_rewards: number;
-    }>(
-      `SELECT
-         SUM(CASE WHEN client_ip IS NOT NULL AND prize_type = 'none' AND created_at >= ? THEN 0 ELSE 0 END) AS risk_blocked,
-         0 AS risk_downgraded,
-         SUM(CASE WHEN reward_status = 'failed' THEN 1 ELSE 0 END) AS failed_rewards,
-         SUM(CASE WHEN reward_status = 'pending' THEN 1 ELSE 0 END) AS pending_rewards
-       FROM lottery_logs
-       WHERE tenant_id <=> ?`,
-      [dayStart, tenantId],
-    ),
+    getLotteryOperationalTodayStats(tenantId, dayStart),
+    getLotteryOperationalRiskStats(tenantId, dayStart),
+    countLotteryRiskBlockedToday(tenantId, dayStart),
   ]);
-
-  const riskBlockedRow = await queryOne<{ cnt: number }>(
-    `SELECT COUNT(*) AS cnt FROM lottery_logs
-     WHERE tenant_id <=> ?
-       AND created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
-       AND fail_reason LIKE '%RISK%'`,
-    [tenantId, dayStart, dayStart],
-  );
 
   const budgetCap = Number(settings?.daily_reward_budget ?? 0);
   const budgetUsed = Number(settings?.daily_reward_used ?? 0);
@@ -626,7 +588,7 @@ export async function adminOperationalStatsController(req: AuthenticatedRequest,
     stock: stockInfo,
     risk: {
       enabled: Number(settings?.risk_control_enabled) === 1,
-      blocked_today: Number(riskBlockedRow?.cnt ?? 0),
+      blocked_today: Number(riskBlockedCount ?? 0),
       failed_rewards: Number(riskStats?.failed_rewards ?? 0),
       pending_rewards: Number(riskStats?.pending_rewards ?? 0),
     },

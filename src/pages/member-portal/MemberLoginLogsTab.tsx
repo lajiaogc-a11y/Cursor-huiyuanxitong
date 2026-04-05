@@ -18,14 +18,10 @@ import {
 import { adminListMemberLoginLogs } from "@/services/memberPortal/memberPortalDiagnosticsRpcService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatBeijingTime } from "@/lib/beijingTime";
-import {
-  DATE_RANGES,
-  type DateRangeKey,
-  getDateRangeSql,
-  PaginationBar,
-  StatCard,
-  MemberPortalLogsEmpty,
-} from "./shared";
+import { DATE_RANGES, type DateRangeKey, getDateRangeSql } from "@/lib/dateFilter";
+import { PaginationBar } from "@/components/common/PaginationBar";
+import { StatCard } from "@/components/common/StatCard";
+import { MemberPortalLogsEmpty } from "@/components/common/EmptyState";
 
 export type MemberLoginLogRow = {
   id: string;

@@ -261,7 +261,7 @@ X-RateLimit-Reset: 2024-01-27T10:00:00Z`}
                 <CardTitle>{t("Base URL（Node / MySQL API）", "Base URL (Node / MySQL API)")}</CardTitle>
                 <CardDescription>
                   {t(
-                    "数据与认证均由本系统 Node 服务 + MySQL 提供，不再依赖 Supabase。REST 入口为同源 /api/... 或 VITE_API_BASE + /api；员工表数据走 /api/data/table/…（Bearer 员工 JWT）。",
+                    "数据与认证均由本系统 Node 服务 + MySQL 提供。REST 入口为同源 /api/... 或 VITE_API_BASE + /api；员工表数据走 /api/data/table/…（Bearer 员工 JWT）。",
                     'Data and auth are served by this Node API and MySQL only. REST lives at same-origin /api/... or VITE_API_BASE + /api; staff table access uses /api/data/table/… with a staff Bearer JWT.'
                   )}
                 </CardDescription>

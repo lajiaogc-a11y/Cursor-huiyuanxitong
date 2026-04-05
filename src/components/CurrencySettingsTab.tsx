@@ -35,7 +35,7 @@ import {
   deleteCurrencyById,
 } from "@/services/staff/currencyMutationsService";
 import { useCurrencies, type Currency } from "@/hooks/useCurrencies";
-import { logOperation } from "@/stores/auditLogStore";
+import { logOperation } from "@/services/audit/auditLogService";
 
 export default function CurrencySettingsTab() {
   const { t } = useLanguage();

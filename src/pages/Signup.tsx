@@ -7,7 +7,9 @@ import { Lock, User, UserPlus, Loader2, Wifi, WifiOff, RefreshCw, Eye, EyeOff, S
 import { notify } from "@/lib/notifyHub";
 import { validatePassword, getPasswordStrength } from "@/lib/passwordValidation";
 import { GCLogo } from "@/components/GCLogo";
-import { apiPost, apiGet } from "@/api/client";
+import { registerStaffApi } from "@/services/auth/authApiService";
+import { hasAnyEmployeeRecordsForSignup } from "@/services/employees/employeeSignupReadiness";
+import { getCurrenciesApi } from "@/services/staff/dataApi";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
   DropdownMenu,
@@ -40,8 +42,8 @@ export default function Signup() {
 
   const checkFirstUser = async () => {
     try {
-      const rows = await apiGet<unknown[]>(`/api/data/table/employees?select=id&limit=1`);
-      setIsFirstUser(!rows || rows.length === 0);
+      const hasAny = await hasAnyEmployeeRecordsForSignup();
+      setIsFirstUser(!hasAny);
     } catch {
       setIsFirstUser(false);
     }
@@ -51,7 +53,7 @@ export default function Signup() {
     setNetworkStatus('checking');
     const startTime = Date.now();
     try {
-      await apiGet("/api/data/currencies");
+      await getCurrenciesApi();
       setNetworkLatency(Date.now() - startTime);
       setNetworkStatus('ok');
     } catch {
@@ -97,15 +99,12 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const res = await apiPost<{ success: boolean; error_code?: string; assigned_status?: string; message?: string }>(
-        '/api/auth/register',
-        {
-          username: username.trim(),
-          password,
-          realName: realName.trim(),
-          invitationCode: isFirstUser ? undefined : invitationCode.trim(),
-        }
-      );
+      const res = await registerStaffApi({
+        username: username.trim(),
+        password,
+        realName: realName.trim(),
+        invitationCode: isFirstUser ? undefined : invitationCode.trim(),
+      });
 
       if (!res.success) {
         switch (res.error_code) {

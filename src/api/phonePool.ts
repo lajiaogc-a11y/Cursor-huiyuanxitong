@@ -1,6 +1,6 @@
 /**
  * 号码池 API - 提取、归还、消耗、统计
- * hooks 仅通过此层调用，禁止直接访问 Supabase
+ * hooks 仅通过此层调用
  */
 import { apiClient } from '@/lib/apiClient';
 

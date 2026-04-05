@@ -9,7 +9,7 @@ import { Gift, Info, Link2, Share2, SlidersHorizontal, Users, Image as ImageIcon
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import type { MemberPortalSettings } from "@/services/members/memberPortalSettingsService";
-import { apiPost } from "@/api/client";
+import { uploadImageDataUrlApi } from "@/services/uploadService";
 import { POSTER_FRAMES, type PosterFrame } from "@/lib/invitePosterFrames";
 import { SectionTitle } from "./shared";
 import { notify } from "@/lib/notifyHub";
@@ -360,7 +360,7 @@ function PosterSettingsSection({
         reader.onerror = () => rej(new Error("read failed"));
         reader.readAsDataURL(file);
       });
-      const resp = await apiPost<{ success: boolean; url?: string; error?: string }>("/api/upload/image", {
+      const resp = await uploadImageDataUrlApi({
         data: dataUrl,
         file_name: file.name,
       });

@@ -5,7 +5,7 @@ import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
 import { apiPost, apiPatch, apiDelete } from '@/api/client';
-import { logOperation } from '@/stores/auditLogStore';
+import { logOperation } from '@/services/audit/auditLogService';
 import { getActivityTypesApi } from '@/services/staff/dataApi';
 import { pickBilingual } from '@/lib/appLocale';
 

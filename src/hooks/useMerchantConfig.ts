@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { notify } from "@/lib/notifyHub";
-import { logOperation } from '@/stores/auditLogStore';
+import { logOperation } from '@/services/audit/auditLogService';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { fetchMerchantCards, fetchMerchantVendors, fetchMerchantPaymentProviders } from '@/services/finance/merchantConfigReadService';
 import {

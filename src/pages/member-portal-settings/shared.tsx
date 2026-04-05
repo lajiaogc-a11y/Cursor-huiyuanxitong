@@ -2,12 +2,13 @@
  * 共享组件 — MemberPortalSettings 子 tab 通用
  */
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import {
   portalSettingsEmptyShellClass,
   portalSettingsEmptyIconWrapClass,
-} from "../member-portal/shared";
+} from "@/components/common/EmptyState";
 
 export function SwitchRow({
   label,
@@ -38,7 +39,7 @@ export function SwitchRow({
   );
 }
 
-export function SectionTitle({ children, className }: { children: React.ReactNode; className?: string }) {
+export function SectionTitle({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <p className={cn("text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 mt-6 first:mt-0", className)}>
       {children}

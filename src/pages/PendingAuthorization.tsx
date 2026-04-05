@@ -7,7 +7,7 @@ import { notify } from "@/lib/notifyHub";
 import { GCLogo } from "@/components/GCLogo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiGet } from "@/api/client";
+import { getEmployeeById } from "@/services/employees/employeeCrudService";
 
 export default function PendingAuthorization() {
   const navigate = useNavigate();
@@ -28,9 +28,7 @@ export default function PendingAuthorization() {
     
     setIsRefreshing(true);
     try {
-      const emp = await apiGet<{ status?: string } | null>(
-        `/api/data/table/employees?select=status&id=eq.${encodeURIComponent(employee.id)}&single=true`
-      );
+      const emp = await getEmployeeById(employee.id);
 
       if (emp?.status === 'active') {
         notify.success(t('pending.approved'));

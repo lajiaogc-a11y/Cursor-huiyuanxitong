@@ -1,4 +1,4 @@
-import { logOperation } from "@/stores/auditLogStore";
+import { logOperation } from "@/services/audit/auditLogService";
 import { normalizeCurrencyCode } from "@/config/currencies";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 import { createPointsOnOrderCreate } from "@/services/points/pointsService";

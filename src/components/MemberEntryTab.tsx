@@ -31,7 +31,7 @@ import {
 import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
 import { useMemberEntryFormPersistence, generateMemberCode } from "@/hooks/useMemberEntryFormPersistence";
 import { findMemberByPhoneOrCode } from "@/lib/memberLookup";
-import { logOperation } from "@/stores/auditLogStore";
+import { logOperation } from "@/services/audit/auditLogService";
 import { getCustomerSourcesApi } from "@/services/staff/dataApi";
 import { MEMBER_LEVELS } from "@/config/memberLevels";
 import { mapDbMemberToMember } from "@/lib/mappers/memberMapper";

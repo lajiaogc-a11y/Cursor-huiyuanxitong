@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
 import { apiGet, apiPost } from '@/api/client';
 import { notify } from "@/lib/notifyHub";
-import { logOperation } from '@/stores/auditLogStore';
+import { logOperation } from '@/services/audit/auditLogService';
 import { getEmployeeNameById, getActivityTypeLabelByValue } from '@/services/members/nameResolver';
 import { logGiftBalanceChange } from '@/services/finance/balanceLogService';
 import { notifyDataMutation } from '@/services/system/dataRefreshManager';

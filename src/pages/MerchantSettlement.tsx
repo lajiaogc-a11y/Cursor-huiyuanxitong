@@ -68,7 +68,7 @@ import {
 } from "@/services/finance/merchantConfigReadService";
 import { listEmployeesApi } from "@/api/employees";
 import { getActivityDataApi } from "@/services/staff/dataApi";
-import { apiPost } from "@/api/client";
+import { verifyAuthPasswordApi } from "@/services/auth/authApiService";
 import { useMerchantNameResolver } from "@/hooks/useNameResolver";
 import ShiftHandoverHistoryTab from "@/components/ShiftHandoverHistoryTab";
 import {
@@ -808,9 +808,7 @@ export default function MerchantSettlement() {
     setIsUndoVerifying(true);
     setUndoAuthError('');
     try {
-      const verifyRes = await apiPost<{ success?: boolean; valid?: boolean }>('/api/auth/verify-password', {
-        password: undoPassword,
-      });
+      const verifyRes = await verifyAuthPasswordApi(undoPassword);
       if (!verifyRes || verifyRes.valid !== true) {
         const msg =
           verifyRes?.valid === false
@@ -1076,9 +1074,7 @@ export default function MerchantSettlement() {
     setIsUndoVerifying(true);
     setUndoAuthError('');
     try {
-      const verifyRes = await apiPost<{ success?: boolean; valid?: boolean }>('/api/auth/verify-password', {
-        password: undoPassword,
-      });
+      const verifyRes = await verifyAuthPasswordApi(undoPassword);
       if (!verifyRes || verifyRes.valid !== true) {
         const msg =
           verifyRes?.valid === false

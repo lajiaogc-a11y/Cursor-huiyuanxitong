@@ -1,7 +1,6 @@
 /**
  * 数据刷新管理器
- * 原 supabase realtime 订阅已改为 stub（空实现）
- * 保留 notifyDataMutation 用于手动/mutation 触发刷新
+ * 无服务器推送时由 notifyDataMutation / 跨标签页事件等触发刷新；实时通道为 stub，可后续接 WebSocket/SSE
  */
 
 import { emitDataRefresh, emitLegacyEvents, queueQueryInvalidations } from '@/services/system/dataConsistencyHub';
@@ -86,7 +85,7 @@ export function notifyDataMutation(payload: DataRefreshPayload): Promise<void> {
 
 /**
  * 初始化数据刷新管理器
- * STUB: 原 supabase realtime channel 订阅已移除，返回空清理函数
+ * 实时 channel 为 stub；仅注册跨标签页会员列表同步等，返回清理函数
  * 后续可替换为 WebSocket / SSE 等实时方案
  */
 export function initDataRefreshManager(): () => void {

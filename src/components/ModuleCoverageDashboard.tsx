@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp, BarChart3, FileText, Layers, TrendingUp } from "lucide-react";
-import { AuditLogEntry, MODULE_NAMES, ModuleType } from "@/stores/auditLogStore";
+import { AuditLogEntry, MODULE_NAMES, ModuleType } from "@/services/audit/auditLogService";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ModuleCoverageDashboardProps {

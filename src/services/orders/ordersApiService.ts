@@ -1,6 +1,5 @@
 /**
- * Orders API Service - 通过 Backend API 操作订单
- * 替代 tenantService RPC 与 supabase.from('orders') 直连
+ * Orders API Service - 通过 Backend API 操作订单（替代旧版 RPC / 表直连）
  */
 import { apiGet, apiPost, apiPatch, unwrapApiData } from '@/api/client';
 import type { OrderListSummary } from '@/types/orderListSummary';

@@ -41,7 +41,7 @@ import { Input } from "@/components/ui/input";
 import { Pencil, Trash2, KeyRound, Copy } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
 import { useMembers, Member } from "@/hooks/useMembers";
-import { logOperation } from "@/stores/auditLogStore";
+import { logOperation } from "@/services/audit/auditLogService";
 import { getCurrencyBadgeColor, normalizeCurrencyCode } from "@/config/currencies";
 import { useCustomerSources } from "@/hooks/useCustomerSources";
 import { useCards } from "@/hooks/useMerchantConfig";

@@ -234,7 +234,7 @@ export async function loadMultipleSharedData(keys: SharedDataKey[]): Promise<Rec
 
 // ============= 实时订阅 =============
 
-// 订阅共享数据变更 - 定时轮询（原 supabase realtime 已移除）
+// 订阅共享数据变更 - 定时轮询（无推送时的兜底刷新）
 export function subscribeToSharedData(
   callback: (key: SharedDataKey, value: any) => void
 ): () => void {

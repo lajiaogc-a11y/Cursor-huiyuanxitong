@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
 import { formatMemberLocalTime } from "@/lib/memberLocalTime";
-import { Gift, History, Trophy, Star, Sparkles, ChevronDown, Info } from "lucide-react";
+import { Gift, History, Trophy, Star, ChevronDown, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LoadingButton } from "@/components/ui/LoadingButton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -19,7 +18,7 @@ import {
   type DrawResult,
   type LotteryLog,
 } from "@/services/memberPortal/memberLotteryPageService";
-import { getSpinSimFeed, type SpinSimFeedItem } from "@/services/lottery/lotteryService";
+import { getSpinSimFeed, type SpinSimFeedItem, type QuotaResult } from "@/services/lottery/lotteryService";
 import { normalizeSpinSimFeedLineForMember } from "@/lib/spinSimFeedDisplay";
 
 /** 滚动条只展示「最新」条数，与首页公告跑马灯同一套分段 + 竖线分隔（避免 flex gap 双份复制时 -50% 接缝错位闪现） */
@@ -48,7 +47,6 @@ function isLotteryPrizeLogType(prizeType: string | undefined): boolean {
   const t = String(prizeType || "").toLowerCase();
   return t === "points" || t === "custom" || t === "none" || t === "miss";
 }
-import type { QuotaResult } from "@/services/lottery/lotteryService";
 import {
   getMemberSpinAudioContext,
   playMemberSpinMiss,
@@ -59,7 +57,13 @@ import { runMemberSpinHighlightAnimation } from "./spin/memberSpinHighlightAnima
 import { queryClient } from "@/lib/queryClient";
 import { memberQueryKeys } from "@/lib/memberQueryKeys";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
-import { DrawerDetail } from "@/components/shell/DrawerDetail";
+import { SpinWheel } from "@/components/member/SpinWheel";
+import { SpinResultDrawer } from "@/components/member/SpinResultDrawer";
+import {
+  formatPrizeListDisplayProbability,
+  prizeDisplayTier,
+  spinWheelPrizeMainText,
+} from "@/components/member/spinWheelDisplay";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/routes/constants";
 import { memberPortalNetworkToastMessage } from "@/lib/memberPortalUx";
@@ -67,84 +71,8 @@ import { fireMemberSpinWinConfetti } from "@/lib/memberPortalConfetti";
 import { MemberEmptyStateCta } from "@/components/member/MemberEmptyStateCta";
 import "@/styles/member-portal.css";
 
-const GRID_ORDER = [
-  { row: 0, col: 0 },
-  { row: 0, col: 1 },
-  { row: 0, col: 2 },
-  { row: 1, col: 2 },
-  { row: 2, col: 2 },
-  { row: 2, col: 1 },
-  { row: 2, col: 0 },
-  { row: 1, col: 0 },
-];
-
 /** Member spin history: show at most this many latest rows (no extra pagination on page). */
 const SPIN_LOG_LIMIT = 100;
-
-/** 积分类：后台配置的数值；非有限数字时返回 null */
-function spinPrizePointsValue(p: LotteryPrize): number | null {
-  if (p.type !== "points") return null;
-  const v = Number(p.value);
-  return Number.isFinite(v) ? v : null;
-}
-
-/**
- * 转盘格子 / 奖品列表主文案：不展示几等奖与概率；积分类只强调后台 value（如 积分 10 / Points 10）
- */
-function spinWheelPrizeMainText(t: (z: string, e: string) => string, prize: LotteryPrize): string {
-  const pts = spinPrizePointsValue(prize);
-  if (pts != null) return t(`积分 ${pts}`, `Points ${pts}`);
-  if (prize.type === "custom") return prize.name?.trim() || t("实物奖品", "Prize");
-  return prize.name?.trim() || t("谢谢参与", "Thanks for playing");
-}
-
-function prizeDisplayTier(p: LotteryPrize): "legendary" | "epic" | "rare" | "common" | "miss" {
-  if (p.type === "none") return "miss";
-  const raw = Number(p.probability);
-  if (!Number.isFinite(raw)) return "common";
-  if (raw <= 0) return "common";
-  if (raw < 0.05) return "legendary";
-  if (raw < 1) return "epic";
-  if (raw < 15) return "rare";
-  return "common";
-}
-
-function prizeTierIconColor(tier: ReturnType<typeof prizeDisplayTier>): string {
-  switch (tier) {
-    case "legendary": return "text-pu-gold-soft";
-    case "epic": return "text-pu-rose-soft";
-    case "rare": return "text-pu-emerald-soft";
-    default: return "text-[hsl(var(--pu-m-text-dim)/0.5)]";
-  }
-}
-
-function prizeTierBadgeBg(tier: ReturnType<typeof prizeDisplayTier>): string {
-  switch (tier) {
-    case "legendary": return "bg-pu-gold/20 ring-pu-gold/30";
-    case "epic": return "bg-pu-rose/15 ring-pu-rose/25";
-    case "rare": return "bg-pu-emerald/15 ring-pu-emerald/25";
-    default: return "bg-pu-gold/10 ring-pu-gold/15";
-  }
-}
-
-/**
- * 会员端「活动奖品」列表右侧概率：优先后台「展示用概率」；
- * 未配置展示概率时按 lotteryService 约定回退为真实 probability（转盘格子上仍不显示）。
- */
-function formatPrizeListDisplayProbability(p: LotteryPrize): string | null {
-  const pick =
-    p.display_probability != null && Number.isFinite(Number(p.display_probability))
-      ? Number(p.display_probability)
-      : Number(p.probability);
-  if (!Number.isFinite(pick)) return null;
-  return `${pick.toFixed(4)}%`;
-}
-
-/**
- * 九宫格奖品格：与页面上方「今日抽奖次数」卡同一套 m-glass + 金边 + 金→玫瑰晕（iOS 式圆角框架根色）
- */
-const SPIN_PRIZE_CELL_FRAME =
-  "m-glass relative flex min-h-0 min-w-0 overflow-hidden rounded-2xl border border-pu-gold/20 bg-[hsl(var(--pu-m-surface)/0.45)] shadow-sm";
 
 const _spinCache = new Map<
   string,
@@ -374,8 +302,6 @@ export default function MemberSpin() {
     []
   );
 
-  const prizeCount = prizes.length;
-
   const handleSpin = useCallback(async () => {
     if (!member || spinning) return;
     if (remaining <= 0) {
@@ -512,6 +438,11 @@ export default function MemberSpin() {
     if (guarded === null) return;
   }, [member, spinning, remaining, prizes, spinGuard, t, applyQuota, refreshMember, applyFeedItems, refreshSimFeed]);
 
+  const handleSpinAgain = useCallback(() => {
+    setShowResult(false);
+    window.setTimeout(() => void handleSpin(), 300);
+  }, [handleSpin]);
+
   const lotteryLogsOnly = useMemo(
     () => logs.filter((log) => isLotteryPrizeLogType(log.prize_type)),
     [logs],
@@ -581,68 +512,6 @@ export default function MemberSpin() {
       </div>
     );
   }
-
-  const resultModalContent = () => {
-    if (!result) return null;
-    if (result.type === "points") {
-      const displayPoints = lastDrawRewardPoints ?? result.value;
-      const rewardFailed = lastDrawRewardStatus === 'failed';
-      return (
-        <div className="px-1 py-3 text-center">
-          <div className="mb-2 text-5xl" role="img" aria-hidden>
-            {rewardFailed ? '⚠️' : '🎉'}
-          </div>
-          <p className="m-0 mb-1 text-xl font-extrabold text-pu-gold-soft">
-            {rewardFailed
-              ? t('积分发放异常，请稍后查看账户', 'Points delivery issue. Please check your account later.')
-              : t(`恭喜获得 ${displayPoints} 积分！`, `Congrats! You won ${displayPoints} points!`)}
-          </p>
-          <p className="m-0 text-[13px] text-[hsl(var(--pu-m-text-dim)/0.85)]">
-            {rewardFailed
-              ? t('系统将自动补发，无需重复操作', 'System will auto-retry. No action needed.')
-              : t("积分已发放到账户", "Points credited to your account")}
-          </p>
-        </div>
-      );
-    }
-    if (result.type === "custom") {
-      return (
-        <div className="px-1 py-3 text-center">
-          <div className="mb-2 text-5xl" role="img" aria-hidden>
-            🎁
-          </div>
-          <p className="m-0 mb-1 text-xl font-extrabold text-pu-emerald-soft">
-            {t(`中奖：${result.name}`, `You won: ${result.name}`)}
-          </p>
-          {result.description ? (
-            <p className="mx-auto mb-3 max-w-sm text-[13px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.85)]">
-              {result.description}
-            </p>
-          ) : null}
-          <div className="inline-block rounded-xl border border-pu-emerald/30 bg-pu-emerald/12 px-3.5 py-2 text-xs font-semibold text-pu-emerald-soft">
-            {t("奖品将由客服为您处理", "Prize will be processed by customer service")}
-          </div>
-        </div>
-      );
-    }
-    return (
-      <div className="px-1 py-3 text-center">
-        <div className="mb-2 text-5xl" role="img" aria-hidden>
-          😊
-        </div>
-        <p className="m-0 mb-1 text-lg font-bold text-[hsl(var(--pu-m-text))]">
-          {t("感谢参与！", "Thanks for playing!")}
-        </p>
-        <p className="m-0 text-[13px] text-[hsl(var(--pu-m-text-dim)/0.8)]">
-          {lastDrawMeta?.risk_downgraded
-            ? t("操作频率较高，请稍后再试可获得更好奖品。", "High activity detected. Try again later for better rewards.")
-            : lastDrawMeta?.budget_warning === "BUDGET_EXCEEDED" || lastDrawMeta?.budget_warning === "RTP_LIMIT_REACHED"
-              ? t("今日奖池接近上限，明天会有更多惊喜！", "Today's prizes are running low. More surprises tomorrow!")
-              : t("下次好运！", "Better luck next time!")}
-        </p>
-      </div>
-    );
-  };
 
   const spinLogEmoji = (prizeType: string) => {
     if (prizeType === "points") return "🎁";
@@ -727,136 +596,16 @@ export default function MemberSpin() {
         {/* ── Main content area ── */}
         <main className="relative mx-auto w-full max-w-md flex-1 space-y-5 px-5 lg:max-w-lg">
 
-          {/* ── Spin Grid ── */}
-          <div id="member-spin-wheel" className="scroll-mt-24">
-            <div className="relative m-glass overflow-hidden rounded-2xl border border-pu-gold/15 p-4 shadow-sm">
-              <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.04] to-transparent" />
-              <div
-                className="relative grid aspect-square w-full grid-cols-3 grid-rows-3 gap-2.5"
-                role="group"
-                aria-label={t("转盘九宫格", "Spin wheel grid")}
-              >
-            {Array.from({ length: 9 }).map((_, cellIdx) => {
-              if (cellIdx === 4) {
-                return (
-                  <LoadingButton
-                    key="go-btn"
-                    type="button"
-                    variant="ghost"
-                    loading={spinning}
-                    disabled={spinning || remaining <= 0}
-                    className={cn(
-                      "btn-spin relative !flex !h-full !min-h-0 !w-full !min-w-0 flex-col touch-manipulation items-center justify-center gap-0.5 rounded-xl border-0 bg-transparent p-0 text-inherit shadow-none outline-none transition-opacity duration-150 hover:bg-transparent focus-visible:ring-2 focus-visible:ring-[hsl(var(--pu-gold))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pu-m-surface))] [&_svg]:text-white",
-                      spinning ? "cursor-wait opacity-80" : remaining <= 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer",
-                      "motion-reduce:transition-none",
-                    )}
-                    onClick={() => void handleSpin()}
-                    aria-busy={spinning}
-                    aria-disabled={remaining <= 0}
-                    aria-label={
-                      spinning
-                        ? t("抽奖进行中…", "Spinning…")
-                        : remaining <= 0
-                          ? t("次数不足", "No draws left")
-                          : t("抽奖", "Draw")
-                    }
-                  >
-                    {!spinning && (
-                      <span className="pointer-events-none absolute inset-0 rounded-[inherit] spin-ring" />
-                    )}
-                    {!spinning && (
-                      <Sparkles size={22} className="text-white drop-shadow-[0_1px_2px_rgb(0_0_0_/_0.25)]" aria-hidden />
-                    )}
-                    <span className="text-sm font-extrabold text-white [text-shadow:0_1px_2px_rgb(0_0_0_/_0.2)]">
-                      {spinning ? t("抽奖中", "Spinning") : t("抽奖", "Draw")}
-                    </span>
-                    <span className="text-[10px] font-bold text-[hsl(0_0%_100%_/_0.78)]">
-                      {t(`剩余 ${remaining} 次`, `${remaining} left`)}
-                    </span>
-                  </LoadingButton>
-                );
-              }
-
-              const row = Math.floor(cellIdx / 3);
-              const col = cellIdx % 3;
-              const prizeIdx = GRID_ORDER.findIndex(
-                (g) => g.row === row && g.col === col
-              );
-              if (prizeIdx < 0 || prizeIdx >= prizeCount) {
-                return (
-                  <div
-                    key={cellIdx}
-                    className={cn(SPIN_PRIZE_CELL_FRAME, "items-center justify-center rounded-xl")}
-                  >
-                    <Star className="relative z-10 h-4 w-4 text-[hsl(var(--pu-m-text-dim)/0.15)]" aria-hidden />
-                  </div>
-                );
-              }
-              const prize = prizes[prizeIdx];
-              const isActive = activeIndex === prizeIdx;
-              const isWinner = showResult && result?.id === prize.id && !spinning;
-              const wheelMain = spinWheelPrizeMainText(t, prize);
-              const tier = prizeDisplayTier(prize);
-
-              const highlightClass = isActive
-                ? "ring-2 ring-pu-gold scale-[1.03] shadow-pu-glow-gold"
-                : isWinner
-                  ? "ring-2 ring-pu-gold scale-[1.05] shadow-pu-glow-gold"
-                  : "motion-safe:hover:scale-[1.01]";
-
-              return (
-                <div
-                  key={cellIdx}
-                  className={cn(
-                    SPIN_PRIZE_CELL_FRAME,
-                    "flex flex-col items-center justify-center gap-0.5 rounded-xl p-1.5 transition-all duration-150 motion-reduce:transition-none",
-                    highlightClass,
-                  )}
-                >
-                  <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.04] to-transparent" />
-                  {isActive && (
-                    <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.12] to-transparent" />
-                  )}
-                  {isWinner && (
-                    <div className="pointer-events-none absolute inset-0 animate-pulse rounded-[inherit] bg-gradient-to-br from-pu-gold/[0.15] to-pu-rose/[0.05] motion-reduce:animate-none" />
-                  )}
-                  <div className={cn(
-                    "relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset",
-                    prizeTierBadgeBg(tier),
-                  )}>
-                    {prize.type === "points" ? (
-                      <Star className={cn("h-3 w-3", prizeTierIconColor(tier))} strokeWidth={2} aria-hidden />
-                    ) : prize.type === "none" ? (
-                      <Sparkles className={cn("h-3 w-3", prizeTierIconColor(tier))} strokeWidth={2} aria-hidden />
-                    ) : (
-                      <Gift className={cn("h-3 w-3", prizeTierIconColor(tier))} strokeWidth={2} aria-hidden />
-                    )}
-                  </div>
-                  <span
-                    className={cn(
-                      "relative z-10 line-clamp-2 w-full max-w-full px-0.5 text-center text-[10px] font-bold leading-tight tabular-nums",
-                      isActive ? "text-pu-gold-soft" : "text-[hsl(var(--pu-m-text)/0.85)]",
-                    )}
-                  >
-                    {wheelMain}
-                  </span>
-                </div>
-              );
-            })}
-            </div>
-
-            {remaining > 0 && !spinning && (
-              <p className="relative mt-2.5 text-center text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.65)]">
-                {t("再试一次，更大惊喜等你！", "Try again for a bigger reward!")}
-              </p>
-            )}
-            {remaining <= 0 && !spinning && (
-              <p className="relative mt-2.5 text-center text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.5)]">
-                {t("签到、邀请或分享可获取更多次数", "Check in, invite friends or share to earn more spins")}
-              </p>
-            )}
-            </div>
-          </div>
+          <SpinWheel
+            prizes={prizes}
+            activeIndex={activeIndex}
+            spinning={spinning}
+            remaining={remaining}
+            showResult={showResult}
+            result={result}
+            onSpin={handleSpin}
+            t={t}
+          />
 
           {/* ── Prizes list (collapsible) ── */}
           <Collapsible open={prizesPanelOpen} onOpenChange={setPrizesPanelOpen}>
@@ -993,53 +742,18 @@ export default function MemberSpin() {
           </section>
         </main>
 
-        <DrawerDetail
+        <SpinResultDrawer
           open={showResult}
           onOpenChange={setShowResult}
-          variant="member"
-          title={
-            <span className="inline-flex items-center gap-2">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-pu-gold/30 bg-gradient-to-br from-pu-gold/20 to-pu-gold/[0.05]">
-                <Trophy className="text-pu-gold-soft" size={16} strokeWidth={2.2} aria-hidden />
-              </span>
-              {t("抽奖结果", "Spin result")}
-            </span>
-          }
-          description={
-            result?.type === "points"
-              ? t("积分已计入您的账户", "Points were credited to your account")
-              : result?.type === "custom"
-                ? t("您获得的奖品", "Your prize")
-                : t("谢谢参与", "Thanks for playing")
-          }
-          sheetMaxWidth="xl"
-        >
-          <div className="space-y-4">
-            {resultModalContent()}
-            <div className="flex flex-col gap-2.5 border-t border-pu-gold/10 pt-4">
-              {remaining > 0 && (
-                <Button
-                  type="button"
-                  className="btn-glow h-11 w-full rounded-xl border-0 text-[15px] font-bold text-[hsl(var(--pu-primary-foreground))] shadow-[0_4px_14px_hsl(var(--pu-gold)/0.25)] hover:opacity-95"
-                  onClick={() => {
-                    setShowResult(false);
-                    setTimeout(handleSpin, 300);
-                  }}
-                >
-                  {t("再抽一次", "Spin again")}
-                </Button>
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 w-full rounded-xl border-[hsl(var(--pu-m-surface-border)/0.2)] bg-[hsl(var(--pu-m-surface)/0.5)] text-sm text-[hsl(var(--pu-m-text)/0.9)] hover:bg-[hsl(var(--pu-m-surface)/0.7)]"
-                onClick={() => setShowResult(false)}
-              >
-                {t("关闭", "Close")}
-              </Button>
-            </div>
-          </div>
-        </DrawerDetail>
+          result={result}
+          lastDrawRewardPoints={lastDrawRewardPoints}
+          lastDrawRewardStatus={lastDrawRewardStatus}
+          lastDrawMeta={lastDrawMeta}
+          remaining={remaining}
+          onClose={() => setShowResult(false)}
+          onSpinAgain={handleSpinAgain}
+          t={t}
+        />
         </div>
       </div>
   );

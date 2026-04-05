@@ -15,7 +15,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { notify } from "@/lib/notifyHub";
 import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
-import { apiPost } from "@/api/client";
+import { verifyEmployeeLoginDetailedApi } from "@/services/auth/authApiService";
 import {
   extractPhonesResult,
   consumePhonesResult,
@@ -145,14 +145,7 @@ export function PhoneExtractPanel() {
     }
     setVerifyingPassword(true);
     try {
-      const data = await apiPost<Array<{ verified?: boolean; error_code?: string }> | { verified?: boolean; error_code?: string }>(
-        "/api/data/rpc/verify_employee_login_detailed",
-        {
-          p_username: employee.username,
-          p_password: confirmPassword,
-        },
-      );
-      const row = Array.isArray(data) ? data[0] : data;
+      const row = await verifyEmployeeLoginDetailedApi(employee.username, confirmPassword);
       if (!row || row.error_code) return false;
       return !!row.verified;
     } catch {

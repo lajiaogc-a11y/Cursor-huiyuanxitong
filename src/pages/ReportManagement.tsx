@@ -1,22 +1,9 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  TableFooter,
-} from "@/components/ui/table";
-import { StickyScrollTableContainer } from "@/components/ui/sticky-scroll-table";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
-import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobilePagination, MobileEmptyState } from "@/components/ui/mobile-data-card";
 import { notify } from "@/lib/notifyHub";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMerchantNameResolver } from "@/hooks/useNameResolver";
@@ -30,7 +17,7 @@ import {
 } from "@/lib/dateFilter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { getFeeSettings, FeeSettings, getGiftDistributionSettings, getEmployeeManualGiftRatios, updateEmployeeManualGiftRatio } from "@/services/system/systemSettingsService";
+import { getGiftDistributionSettings, getEmployeeManualGiftRatios, updateEmployeeManualGiftRatio } from "@/services/system/systemSettingsService";
 
 import { trackRender } from "@/lib/performanceUtils";
 import {
@@ -42,7 +29,7 @@ import {
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
 import { useExportConfirm } from "@/hooks/useExportConfirm";
 import { exportToCSV, formatNumberForExport, formatPercentForExport } from "@/lib/exportUtils";
-import { SortableTableHead, useSortableData, SortConfig } from "@/components/ui/sortable-table-head";
+import { useSortableData, SortConfig } from "@/components/ui/sortable-table-head";
 import { printTable } from "@/lib/printUtils";
 import {
   Select,
@@ -55,84 +42,23 @@ import { lazy, Suspense } from "react";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 const ProfitComparisonTab = lazyWithRetry(() => import("@/components/ProfitComparisonTab"));
 
-// ============= 类型定义 =============
-
-interface EmployeeProfitData {
-  employeeId: string;
-  employeeName: string;       // 员工姓名（real_name）
-  orderCount: number;         // 订单总数（赛地/奈拉 + USDT模式）
-  profitNgn: number;          // NGN/GHS正利润（利润 > 0）
-  profitUsdt: number;         // USDT正利润（利润 > 0）
-  errorProfitNgn: number;     // NGN/GHS负利润（错单，利润 < 0）
-  errorProfitUsdt: number;    // USDT负利润（错单，利润 < 0）
-  activityGiftRatio: number;  // 活动赠送占比
-  activityGiftAmount: number; // 活动赠送金额
-  manualGiftRatio: number;    // 手动设置占比（0-100）
-  manualGiftAmount: number;   // 承担活动金额
-}
-
-interface CardReportData {
-  cardType: string;
-  orderCount: number;
-  cardValueSum: number;
-  profitNgn: number;
-  profitUsdt: number;
-}
-
-interface VendorReportData {
-  vendorId: string;
-  vendorName: string;
-  orderCount: number;
-  cardValueSum: number;
-  profitNgn: number;
-  profitUsdt: number;
-}
-
-// 代付报表数据类型
-interface PaymentProviderReportData {
-  providerId: string;
-  providerName: string;
-  orderCount: number;         // 订单数量（已完成的）
-  paymentValueNgnGhs: number; // 代付总额(人) - NGN/GHS模式的代付价值总和
-  paymentValueUsdt: number;   // 代付总额(USDT) - USDT模式的代付价值总和
-}
-
-interface DailyReportData {
-  date: string;
-  orderCount: number;
-  cardValueSum: number;
-  paymentValueNgnGhs: number; // 代付价值（奈赛）总和
-  paymentValueUsdt: number; // 代付价值USDT总和
-  activityAmount: number;
-  profitNgn: number;
-  profitUsdt: number;
-  totalProfit: number; // 总利润(人)
-}
-
-// 每月报表数据类型
-interface MonthlyReportData {
-  month: string;           // YYYY/MM
-  orderCount: number;
-  cardValueSum: number;
-  paymentValueNgnGhs: number;
-  paymentValueUsdt: number;
-  activityAmount: number;
-  profitNgn: number;
-  profitUsdt: number;
-  totalProfit: number;
-}
-
-// 需求4：活动报表数据类型 - 按日期+活动类型分组
-interface ActivityReportData {
-  date: string;
-  activityType: string;
-  activityTypeLabel: string;
-  giftNgn: number;
-  giftGhs: number;
-  giftUsdt: number;
-  giftValueTotal: number;
-  effectCount: number;
-}
+import type {
+  EmployeeProfitData,
+  CardReportData,
+  VendorReportData,
+  PaymentProviderReportData,
+  DailyReportData,
+  MonthlyReportData,
+  ActivityReportData,
+} from "./reports/reportTypes";
+import { formatReportNumber } from "./reports/formatReportNumber";
+import { EmployeeProfitReportTab } from "./reports/EmployeeProfitReportTab";
+import { CardReportTab } from "./reports/CardReportTab";
+import { VendorReportTab } from "./reports/VendorReportTab";
+import { PaymentProviderReportTab } from "./reports/PaymentProviderReportTab";
+import { DailyReportTab } from "./reports/DailyReportTab";
+import { MonthlyReportTab } from "./reports/MonthlyReportTab";
+import { ActivityReportTab } from "./reports/ActivityReportTab";
 
 // 分页配置
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
@@ -1098,26 +1024,26 @@ export default function ReportManagement() {
       case 'employee':
         headers = ['员工姓名', '订单总数', '利润(NGN/GHS)', '利润(USDT)', '错单(NGN/GHS)', '错单(USDT)', '活动赠送占比', '活动赠送金额', '手动设置占比', '承担活动金额'];
         rows = filteredEmployeeProfitData.map(item => [
-          item.employeeName, item.orderCount, formatNumber(item.profitNgn), formatNumber(item.profitUsdt),
-          formatNumber(item.errorProfitNgn), formatNumber(item.errorProfitUsdt),
-          `${(item.activityGiftRatio * 100).toFixed(2)}%`, formatNumber(item.activityGiftAmount),
-          `${item.manualGiftRatio.toFixed(2)}%`, formatNumber(item.manualGiftAmount)
+          item.employeeName, item.orderCount, formatReportNumber(item.profitNgn), formatReportNumber(item.profitUsdt),
+          formatReportNumber(item.errorProfitNgn), formatReportNumber(item.errorProfitUsdt),
+          `${(item.activityGiftRatio * 100).toFixed(2)}%`, formatReportNumber(item.activityGiftAmount),
+          `${item.manualGiftRatio.toFixed(2)}%`, formatReportNumber(item.manualGiftAmount)
         ]);
         title = '员工利润报表';
         break;
       case 'card':
         headers = ['卡片类型', '订单数量', '卡价值总额', '利润(NGN/GHS)', '利润(USDT)'];
         rows = cardReportData.map(item => [
-          resolveCardName(item.cardType), item.orderCount, formatNumber(item.cardValueSum),
-          formatNumber(item.profitNgn), formatNumber(item.profitUsdt)
+          resolveCardName(item.cardType), item.orderCount, formatReportNumber(item.cardValueSum),
+          formatReportNumber(item.profitNgn), formatReportNumber(item.profitUsdt)
         ]);
         title = '卡片报表';
         break;
       case 'vendor':
         headers = ['卡商名称', '订单数量', '核销面值总额', '利润(NGN/GHS)', '利润(USDT)'];
         rows = vendorReportData.map(item => [
-          resolveVendorOrProviderName(item.vendorName), item.orderCount, formatNumber(item.cardValueSum),
-          formatNumber(item.profitNgn), formatNumber(item.profitUsdt)
+          resolveVendorOrProviderName(item.vendorName), item.orderCount, formatReportNumber(item.cardValueSum),
+          formatReportNumber(item.profitNgn), formatReportNumber(item.profitUsdt)
         ]);
         title = '卡商报表';
         break;
@@ -1125,25 +1051,25 @@ export default function ReportManagement() {
         headers = ['商家名称', '订单数量', '代付总额(人)', '代付总额(USDT)'];
         rows = paymentProviderReportData.map(item => [
           resolveVendorOrProviderName(item.providerName), item.orderCount,
-          formatNumber(item.paymentValueNgnGhs), formatNumber(item.paymentValueUsdt)
+          formatReportNumber(item.paymentValueNgnGhs), formatReportNumber(item.paymentValueUsdt)
         ]);
         title = '代付报表';
         break;
       case 'daily':
         headers = ['日期', '订单数量', '卡价值总额', '代付价值(奈赛)', '代付价值USDT', '活动发放', '利润(人)', '利润(USDT)', '总利润(人)'];
         rows = dailyReportData.map(item => [
-          item.date, item.orderCount, formatNumber(item.cardValueSum), formatNumber(item.paymentValueNgnGhs),
-          formatNumber(item.paymentValueUsdt), formatNumber(item.activityAmount),
-          formatNumber(item.profitNgn), formatNumber(item.profitUsdt), formatNumber(item.totalProfit)
+          item.date, item.orderCount, formatReportNumber(item.cardValueSum), formatReportNumber(item.paymentValueNgnGhs),
+          formatReportNumber(item.paymentValueUsdt), formatReportNumber(item.activityAmount),
+          formatReportNumber(item.profitNgn), formatReportNumber(item.profitUsdt), formatReportNumber(item.totalProfit)
         ]);
         title = '每日报表';
         break;
       case 'monthly':
         headers = ['月份', '订单数量', '卡价值总额', '代付价值(奈赛)', '代付价值USDT', '活动发放', '利润(人)', '利润(USDT)', '总利润(人)'];
         rows = monthlyReportData.map(item => [
-          item.month, item.orderCount, formatNumber(item.cardValueSum), formatNumber(item.paymentValueNgnGhs),
-          formatNumber(item.paymentValueUsdt), formatNumber(item.activityAmount),
-          formatNumber(item.profitNgn), formatNumber(item.profitUsdt), formatNumber(item.totalProfit)
+          item.month, item.orderCount, formatReportNumber(item.cardValueSum), formatReportNumber(item.paymentValueNgnGhs),
+          formatReportNumber(item.paymentValueUsdt), formatReportNumber(item.activityAmount),
+          formatReportNumber(item.profitNgn), formatReportNumber(item.profitUsdt), formatReportNumber(item.totalProfit)
         ]);
         title = '每月报表';
         break;
@@ -1304,11 +1230,6 @@ export default function ReportManagement() {
     );
   };
 
-  // 格式化数字显示
-  const formatNumber = (num: number) => {
-    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
   return (
     <div className="flex flex-col h-full gap-2 overflow-x-hidden">
       <ReportFilters
@@ -1340,581 +1261,118 @@ export default function ReportManagement() {
             </div>
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsContent value="employee" className="mt-0 flex flex-col">
-                {useCompactLayout ? (
-                  <MobileCardList>
-                    {paginatedEmployeeData.length === 0 ? (
-                      <MobileEmptyState message={t("暂无数据", "No data")} />
-                    ) : paginatedEmployeeData.map((item) => (
-                      <MobileCard key={item.employeeId} accent="default">
-                        <MobileCardHeader>
-                          <span className="font-medium text-sm">{item.employeeName}</span>
-                          <Badge variant="outline" className="text-xs">{item.orderCount} {t("单", "orders")}</Badge>
-                        </MobileCardHeader>
-                        <MobileCardRow label={t("利润(NGN/GHS)", "Profit NGN/GHS")} value={formatNumber(item.profitNgn)} highlight />
-                        <MobileCardRow label={t("利润(USDT)", "Profit USDT")} value={formatNumber(item.profitUsdt)} highlight />
-                        <MobileCardCollapsible>
-                          <MobileCardRow label={t("错单(NGN/GHS)", "Loss NGN/GHS")} value={<span className="text-destructive">{formatNumber(item.errorProfitNgn)}</span>} />
-                          <MobileCardRow label={t("错单(USDT)", "Loss USDT")} value={<span className="text-destructive">{formatNumber(item.errorProfitUsdt)}</span>} />
-                          <MobileCardRow label={t("活动赠送占比", "Gift Ratio")} value={`${(item.activityGiftRatio * 100).toFixed(2)}%`} />
-                          <MobileCardRow label={t("活动赠送金额", "Gift Amount")} value={formatNumber(item.activityGiftAmount)} />
-                          <MobileCardRow label={t("手动设置占比", "Manual Ratio")} value={`${item.manualGiftRatio.toFixed(2)}%`} />
-                          <MobileCardRow label={t("承担活动金额", "Manual Amount")} value={formatNumber(item.manualGiftAmount)} />
-                        </MobileCardCollapsible>
-                      </MobileCard>
-                    ))}
-                    <MobilePagination currentPage={employeePage} totalPages={employeeTotalPages} totalItems={sortedEmployeeData.length} onPageChange={setEmployeePage} pageSize={employeePageSize} onPageSizeChange={(s) => { setEmployeePageSize(s); setEmployeePage(1); }} />
-                  </MobileCardList>
-                ) : (
-                <>
-                <StickyScrollTableContainer minWidth="1400px">
-                  <Table className="text-xs">
-                    <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
-                      <TableRow>
-                        <SortableTableHead sortKey="employeeName" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">{t("员工姓名", "Employee")}</SortableTableHead>
-                        <SortableTableHead sortKey="orderCount" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">{t("订单总数", "Orders")}</SortableTableHead>
-                        <SortableTableHead sortKey="profitNgn" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">{t("利润(NGN/GHS)", "Profit NGN/GHS")}</SortableTableHead>
-                        <SortableTableHead sortKey="profitUsdt" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">{t("利润(USDT)", "Profit USDT")}</SortableTableHead>
-                        <SortableTableHead sortKey="errorProfitNgn" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">{t("错单(NGN/GHS)", "Loss NGN/GHS")}</SortableTableHead>
-                        <SortableTableHead sortKey="errorProfitUsdt" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">{t("错单(USDT)", "Loss USDT")}</SortableTableHead>
-                        <SortableTableHead sortKey="activityGiftRatio" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">{t("活动赠送占比", "Gift Ratio")}</SortableTableHead>
-                        <SortableTableHead sortKey="activityGiftAmount" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">{t("活动赠送金额", "Gift Amount")}</SortableTableHead>
-                        <SortableTableHead sortKey="manualGiftRatio" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">{t("手动设置占比", "Manual Ratio")}</SortableTableHead>
-                        <SortableTableHead sortKey="manualGiftAmount" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">{t("承担活动金额", "Manual Amount")}</SortableTableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedEmployeeData.map((item) => (
-                          <TableRow key={item.employeeId}>
-                            <TableCell className="text-center font-medium px-1.5">{item.employeeName}</TableCell>
-                            <TableCell className="text-center px-1.5">{item.orderCount}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.profitNgn)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.profitUsdt)}</TableCell>
-                            <TableCell className="text-center text-destructive px-1.5">{formatNumber(item.errorProfitNgn)}</TableCell>
-                            <TableCell className="text-center text-destructive px-1.5">{formatNumber(item.errorProfitUsdt)}</TableCell>
-                            <TableCell className="text-center text-primary px-1.5">{(item.activityGiftRatio * 100).toFixed(2)}%</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.activityGiftAmount)}</TableCell>
-                            <TableCell className="text-center px-1.5">
-                              {canEditManualRatio ? (
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  max={100}
-                                  step={0.01}
-                                  value={item.manualGiftRatio}
-                                  onChange={(e) => handleManualRatioChange(item.employeeId, e.target.value)}
-                                  className="w-20 h-7 text-center text-xs mx-auto"
-                                  placeholder="0"
-                                />
-                              ) : (
-                                <span>{item.manualGiftRatio.toFixed(2)}%</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-center font-medium px-1.5">{formatNumber(item.manualGiftAmount)}</TableCell>
-                          </TableRow>
-                        ))}
-                      {sortedEmployeeData.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
-                            {t("暂无数据", "No data")}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                    <TableFooter className="bg-muted/50 font-semibold">
-                      <TableRow>
-                        <TableCell className="text-center px-1.5">{t("合计", "Total")}</TableCell>
-                        <TableCell className="text-center px-1.5">{employeeSummary.orderCount}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(employeeSummary.profitNgn)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(employeeSummary.profitUsdt)}</TableCell>
-                        <TableCell className="text-center text-destructive px-1.5">{formatNumber(employeeSummary.errorProfitNgn)}</TableCell>
-                        <TableCell className="text-center text-destructive px-1.5">{formatNumber(employeeSummary.errorProfitUsdt)}</TableCell>
-                        <TableCell className="text-center px-1.5">-</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(employeeSummary.activityGiftAmount)}</TableCell>
-                        <TableCell className="text-center px-1.5">-</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(employeeSummary.manualGiftAmount)}</TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                </StickyScrollTableContainer>
-                {renderPaginationControls({
-                  currentPage: employeePage,
-                  totalPages: employeeTotalPages,
-                  totalItems: sortedEmployeeData.length,
-                  pageSize: employeePageSize,
-                  onPageChange: setEmployeePage,
-                  onPageSizeChange: setEmployeePageSize,
-                })}
-                </>
-                )}
-              </TabsContent>
+              <EmployeeProfitReportTab
+                t={t}
+                useCompactLayout={useCompactLayout}
+                paginatedEmployeeData={paginatedEmployeeData}
+                sortedEmployeeDataLength={sortedEmployeeData.length}
+                employeePage={employeePage}
+                employeeTotalPages={employeeTotalPages}
+                employeePageSize={employeePageSize}
+                setEmployeePage={setEmployeePage}
+                setEmployeePageSize={setEmployeePageSize}
+                employeeSortConfig={employeeSortConfig}
+                requestEmployeeSort={requestEmployeeSort}
+                employeeSummary={employeeSummary}
+                canEditManualRatio={canEditManualRatio}
+                onManualRatioChange={handleManualRatioChange}
+                renderPaginationControls={renderPaginationControls}
+              />
 
-              {/* 卡片报表 */}
-              <TabsContent value="card" className="mt-0 flex flex-col">
-                {useCompactLayout ? (
-                  <MobileCardList>
-                    {paginatedCardData.length === 0 ? (
-                      <MobileEmptyState message={t("暂无数据", "No data")} />
-                    ) : paginatedCardData.map((item, index) => (
-                      <MobileCard key={index} accent="default">
-                        <MobileCardHeader>
-                          <span className="font-medium text-sm">{resolveCardName(item.cardType)}</span>
-                          <Badge variant="outline" className="text-xs">{item.orderCount} {t("单", "orders")}</Badge>
-                        </MobileCardHeader>
-                        <MobileCardRow label={t("卡价值总额", "Card Value")} value={formatNumber(item.cardValueSum)} highlight />
-                        <MobileCardRow label={t("利润(NGN/GHS)", "Profit NGN/GHS")} value={formatNumber(item.profitNgn)} />
-                        <MobileCardRow label={t("利润(USDT)", "Profit USDT")} value={formatNumber(item.profitUsdt)} />
-                      </MobileCard>
-                    ))}
-                    <MobilePagination currentPage={cardPage} totalPages={cardTotalPages} totalItems={sortedCardData.length} onPageChange={setCardPage} pageSize={cardPageSize} onPageSizeChange={(s) => { setCardPageSize(s); setCardPage(1); }} />
-                  </MobileCardList>
-                ) : (
-                <StickyScrollTableContainer minWidth="800px">
-                  <Table className="text-xs">
-                    <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
-                      <TableRow>
-                        <TableHead className="text-center px-1.5">{t("卡片类型", "Card Type")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("订单数量", "Orders")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("卡价值总额", "Card Value")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("利润(NGN/GHS)", "Profit NGN/GHS")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("利润(USDT)", "Profit USDT")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedCardData.map((item, index) => (
-                          <TableRow key={index}>
-                            <TableCell className="text-center font-medium px-1.5">{resolveCardName(item.cardType)}</TableCell>
-                            <TableCell className="text-center px-1.5">{item.orderCount}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.cardValueSum)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.profitNgn)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.profitUsdt)}</TableCell>
-                          </TableRow>
-                        ))}
-                      {sortedCardData.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                            {t("暂无数据", "No data")}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                    <TableFooter className="bg-muted/50 font-semibold">
-                      <TableRow>
-                        <TableCell className="text-center px-1.5">{t("合计", "Total")}</TableCell>
-                        <TableCell className="text-center px-1.5">{cardSummary.orderCount}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(cardSummary.cardValueSum)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(cardSummary.profitNgn)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(cardSummary.profitUsdt)}</TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                </StickyScrollTableContainer>
-                )}
-                {!isMobile && renderPaginationControls({
-                  currentPage: cardPage,
-                  totalPages: cardTotalPages,
-                  totalItems: sortedCardData.length,
-                  pageSize: cardPageSize,
-                  onPageChange: setCardPage,
-                  onPageSizeChange: setCardPageSize,
-                })}
-              </TabsContent>
+              <CardReportTab
+                t={t}
+                useCompactLayout={useCompactLayout}
+                isMobile={isMobile}
+                paginatedCardData={paginatedCardData}
+                sortedCardDataLength={sortedCardData.length}
+                cardPage={cardPage}
+                cardTotalPages={cardTotalPages}
+                cardPageSize={cardPageSize}
+                setCardPage={setCardPage}
+                setCardPageSize={setCardPageSize}
+                cardSummary={cardSummary}
+                resolveCardName={(id) => resolveCardName(id)}
+                renderPaginationControls={renderPaginationControls}
+              />
 
-              {/* 卡商报表 */}
-              <TabsContent value="vendor" className="mt-0 flex flex-col">
-                {useCompactLayout ? (
-                  <MobileCardList>
-                    {paginatedVendorData.length === 0 ? (
-                      <MobileEmptyState message={t("暂无数据", "No data")} />
-                    ) : paginatedVendorData.map((item) => (
-                      <MobileCard key={item.vendorId} accent="default">
-                        <MobileCardHeader>
-                          <span className="font-medium text-sm">{resolveVendorOrProviderName(item.vendorName)}</span>
-                          <Badge variant="outline" className="text-xs">{item.orderCount} {t("单", "orders")}</Badge>
-                        </MobileCardHeader>
-                        <MobileCardRow label={t("核销面值总额", "Verified Value")} value={formatNumber(item.cardValueSum)} highlight />
-                        <MobileCardRow label={t("利润(NGN/GHS)", "Profit NGN/GHS")} value={formatNumber(item.profitNgn)} />
-                        <MobileCardRow label={t("利润(USDT)", "Profit USDT")} value={formatNumber(item.profitUsdt)} />
-                      </MobileCard>
-                    ))}
-                    <MobilePagination currentPage={vendorPage} totalPages={vendorTotalPages} totalItems={sortedVendorData.length} onPageChange={setVendorPage} pageSize={vendorPageSize} onPageSizeChange={(s) => { setVendorPageSize(s); setVendorPage(1); }} />
-                  </MobileCardList>
-                ) : (
-                <StickyScrollTableContainer minWidth="800px">
-                  <Table className="text-xs">
-                    <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
-                      <TableRow>
-                        <TableHead className="text-center px-1.5">{t("卡商名称", "Vendor")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("订单数量", "Orders")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("核销面值总额", "Verified Value")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("利润(NGN/GHS)", "Profit NGN/GHS")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("利润(USDT)", "Profit USDT")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedVendorData.map((item) => (
-                          <TableRow key={item.vendorId}>
-                            <TableCell className="text-center font-medium px-1.5">{resolveVendorOrProviderName(item.vendorName)}</TableCell>
-                            <TableCell className="text-center px-1.5">{item.orderCount}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.cardValueSum)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.profitNgn)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.profitUsdt)}</TableCell>
-                          </TableRow>
-                        ))}
-                      {sortedVendorData.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                            {t("暂无数据", "No data")}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                    <TableFooter className="bg-muted/50 font-semibold">
-                      <TableRow>
-                        <TableCell className="text-center px-1.5">{t("合计", "Total")}</TableCell>
-                        <TableCell className="text-center px-1.5">{vendorSummary.orderCount}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(vendorSummary.cardValueSum)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(vendorSummary.profitNgn)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(vendorSummary.profitUsdt)}</TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                </StickyScrollTableContainer>
-                )}
-                {!isMobile && renderPaginationControls({
-                  currentPage: vendorPage,
-                  totalPages: vendorTotalPages,
-                  totalItems: sortedVendorData.length,
-                  pageSize: vendorPageSize,
-                  onPageChange: setVendorPage,
-                  onPageSizeChange: setVendorPageSize,
-                })}
-              </TabsContent>
+              <VendorReportTab
+                t={t}
+                useCompactLayout={useCompactLayout}
+                isMobile={isMobile}
+                paginatedVendorData={paginatedVendorData}
+                sortedVendorDataLength={sortedVendorData.length}
+                vendorPage={vendorPage}
+                vendorTotalPages={vendorTotalPages}
+                vendorPageSize={vendorPageSize}
+                setVendorPage={setVendorPage}
+                setVendorPageSize={setVendorPageSize}
+                vendorSummary={vendorSummary}
+                resolveVendorOrProviderName={(id) => resolveVendorOrProviderName(id)}
+                renderPaginationControls={renderPaginationControls}
+              />
 
-              {/* 代付报表 */}
-              <TabsContent value="provider" className="mt-0 flex flex-col">
-                {useCompactLayout ? (
-                  <MobileCardList>
-                    {paginatedProviderData.length === 0 ? (
-                      <MobileEmptyState message={t("暂无数据", "No data")} />
-                    ) : paginatedProviderData.map((item) => (
-                      <MobileCard key={item.providerId} accent="default">
-                        <MobileCardHeader>
-                          <span className="font-medium text-sm">{resolveVendorOrProviderName(item.providerName)}</span>
-                          <Badge variant="outline" className="text-xs">{item.orderCount} {t("单", "orders")}</Badge>
-                        </MobileCardHeader>
-                        <MobileCardRow label={t("代付总额(人)", "Payment NGN/GHS")} value={formatNumber(item.paymentValueNgnGhs)} highlight />
-                        <MobileCardRow label={t("代付总额(USDT)", "Payment USDT")} value={formatNumber(item.paymentValueUsdt)} />
-                      </MobileCard>
-                    ))}
-                    <MobilePagination currentPage={providerPage} totalPages={providerTotalPages} totalItems={sortedProviderData.length} onPageChange={setProviderPage} pageSize={providerPageSize} onPageSizeChange={(s) => { setProviderPageSize(s); setProviderPage(1); }} />
-                  </MobileCardList>
-                ) : (
-                <StickyScrollTableContainer minWidth="700px">
-                  <Table className="text-xs">
-                    <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
-                      <TableRow>
-                        <SortableTableHead sortKey="providerName" currentSort={providerSortConfig} onSort={requestProviderSort} className="text-center px-1.5">{t("商家名称", "Provider")}</SortableTableHead>
-                        <SortableTableHead sortKey="orderCount" currentSort={providerSortConfig} onSort={requestProviderSort} className="text-center px-1.5">{t("订单数量", "Orders")}</SortableTableHead>
-                        <SortableTableHead sortKey="paymentValueNgnGhs" currentSort={providerSortConfig} onSort={requestProviderSort} className="text-center px-1.5">{t("代付总额(人)", "Payment NGN/GHS")}</SortableTableHead>
-                        <SortableTableHead sortKey="paymentValueUsdt" currentSort={providerSortConfig} onSort={requestProviderSort} className="text-center px-1.5">{t("代付总额(USDT)", "Payment USDT")}</SortableTableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedProviderData.map((item) => (
-                          <TableRow key={item.providerId}>
-                            <TableCell className="text-center font-medium px-1.5">{resolveVendorOrProviderName(item.providerName)}</TableCell>
-                            <TableCell className="text-center px-1.5">{item.orderCount}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.paymentValueNgnGhs)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.paymentValueUsdt)}</TableCell>
-                          </TableRow>
-                        ))}
-                      {sortedProviderData.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                            {t("暂无数据", "No data")}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                    <TableFooter className="bg-muted/50 font-semibold">
-                      <TableRow>
-                        <TableCell className="text-center px-1.5">{t("合计", "Total")}</TableCell>
-                        <TableCell className="text-center px-1.5">{providerSummary.orderCount}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(providerSummary.paymentValueNgnGhs)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(providerSummary.paymentValueUsdt)}</TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                </StickyScrollTableContainer>
-                )}
-                {!isMobile && renderPaginationControls({
-                  currentPage: providerPage,
-                  totalPages: providerTotalPages,
-                  totalItems: sortedProviderData.length,
-                  pageSize: providerPageSize,
-                  onPageChange: setProviderPage,
-                  onPageSizeChange: setProviderPageSize,
-                })}
-              </TabsContent>
+              <PaymentProviderReportTab
+                t={t}
+                useCompactLayout={useCompactLayout}
+                isMobile={isMobile}
+                paginatedProviderData={paginatedProviderData}
+                sortedProviderDataLength={sortedProviderData.length}
+                providerPage={providerPage}
+                providerTotalPages={providerTotalPages}
+                providerPageSize={providerPageSize}
+                setProviderPage={setProviderPage}
+                setProviderPageSize={setProviderPageSize}
+                providerSortConfig={providerSortConfig}
+                requestProviderSort={requestProviderSort}
+                providerSummary={providerSummary}
+                resolveVendorOrProviderName={(id) => resolveVendorOrProviderName(id)}
+                renderPaginationControls={renderPaginationControls}
+              />
 
-              {/* 每日报表 */}
-              <TabsContent value="daily" className="mt-0 flex flex-col">
-                {useCompactLayout ? (
-                  <MobileCardList>
-                    {paginatedDailyData.length === 0 ? (
-                      <MobileEmptyState message={t("暂无数据", "No data")} />
-                    ) : paginatedDailyData.map((item, index) => (
-                      <MobileCard key={index} accent="default">
-                        <MobileCardHeader>
-                          <span className="font-medium text-sm">{item.date}</span>
-                          <Badge variant="outline" className="text-xs">{item.orderCount} {t("单", "orders")}</Badge>
-                        </MobileCardHeader>
-                        <MobileCardRow label={t("卡价值总额", "Card Value")} value={formatNumber(item.cardValueSum)} />
-                        <MobileCardRow label={t("总利润(人)", "Total Profit")} value={formatNumber(item.totalProfit)} highlight />
-                        <MobileCardCollapsible>
-                          <MobileCardRow label={t("代付(奈赛)", "Pay NGN/GHS")} value={formatNumber(item.paymentValueNgnGhs)} />
-                          <MobileCardRow label={t("代付(USDT)", "Pay USDT")} value={formatNumber(item.paymentValueUsdt)} />
-                          <MobileCardRow label={t("活动发放", "Activity")} value={formatNumber(item.activityAmount)} />
-                          <MobileCardRow label={t("利润(人)", "Profit NGN")} value={formatNumber(item.profitNgn)} />
-                          <MobileCardRow label={t("利润(USDT)", "Profit USDT")} value={formatNumber(item.profitUsdt)} />
-                        </MobileCardCollapsible>
-                      </MobileCard>
-                    ))}
-                    <MobilePagination currentPage={dailyPage} totalPages={dailyTotalPages} totalItems={sortedDailyData.length} onPageChange={setDailyPage} pageSize={dailyPageSize} onPageSizeChange={(s) => { setDailyPageSize(s); setDailyPage(1); }} />
-                  </MobileCardList>
-                ) : (
-                <StickyScrollTableContainer minWidth="1200px">
-                  <Table className="text-xs">
-                    <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
-                      <TableRow>
-                        <TableHead className="text-center px-1.5">{t("日期", "Date")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("订单数量", "Orders")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("卡价值总额", "Card Value")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("代付价值（奈赛）总和", "Payment NGN/GHS")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("代付价值USDT总和", "Payment USDT")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("活动发放", "Activity")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("利润(人)", "Profit NGN/GHS")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("利润(USDT)", "Profit USDT")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("总利润(人)", "Total Profit")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedDailyData.map((item, index) => (
-                          <TableRow key={index}>
-                            <TableCell className="text-center font-medium px-1.5">{item.date}</TableCell>
-                            <TableCell className="text-center px-1.5">{item.orderCount}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.cardValueSum)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.paymentValueNgnGhs)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.paymentValueUsdt)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.activityAmount)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.profitNgn)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.profitUsdt)}</TableCell>
-                            <TableCell className="text-center font-medium px-1.5">{formatNumber(item.totalProfit)}</TableCell>
-                          </TableRow>
-                        ))}
-                      {sortedDailyData.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                            {t("暂无数据", "No data")}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                    <TableFooter className="bg-muted/50 font-semibold">
-                      <TableRow>
-                        <TableCell className="text-center px-1.5">{t("合计", "Total")}</TableCell>
-                        <TableCell className="text-center px-1.5">{dailySummary.orderCount}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(dailySummary.cardValueSum)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(dailySummary.paymentValueNgnGhs)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(dailySummary.paymentValueUsdt)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(dailySummary.activityAmount)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(dailySummary.profitNgn)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(dailySummary.profitUsdt)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(dailySummary.totalProfit)}</TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                </StickyScrollTableContainer>
-                )}
-                {!isMobile && renderPaginationControls({
-                  currentPage: dailyPage,
-                  totalPages: dailyTotalPages,
-                  totalItems: sortedDailyData.length,
-                  pageSize: dailyPageSize,
-                  onPageChange: setDailyPage,
-                  onPageSizeChange: setDailyPageSize,
-                })}
-              </TabsContent>
+              <DailyReportTab
+                t={t}
+                useCompactLayout={useCompactLayout}
+                isMobile={isMobile}
+                paginatedDailyData={paginatedDailyData}
+                sortedDailyDataLength={sortedDailyData.length}
+                dailyPage={dailyPage}
+                dailyTotalPages={dailyTotalPages}
+                dailyPageSize={dailyPageSize}
+                setDailyPage={setDailyPage}
+                setDailyPageSize={setDailyPageSize}
+                dailySummary={dailySummary}
+                renderPaginationControls={renderPaginationControls}
+              />
 
-              {/* 每月报表 */}
-              <TabsContent value="monthly" className="mt-0 flex flex-col">
-                {useCompactLayout ? (
-                  <MobileCardList>
-                    {paginatedMonthlyData.length === 0 ? (
-                      <MobileEmptyState message={t("暂无数据", "No data")} />
-                    ) : paginatedMonthlyData.map((item, index) => (
-                      <MobileCard key={index} accent="default">
-                        <MobileCardHeader>
-                          <span className="font-medium text-sm">{item.month}</span>
-                          <Badge variant="outline" className="text-xs">{item.orderCount} {t("单", "orders")}</Badge>
-                        </MobileCardHeader>
-                        <MobileCardRow label={t("卡价值总额", "Card Value")} value={formatNumber(item.cardValueSum)} />
-                        <MobileCardRow label={t("总利润(人)", "Total Profit")} value={formatNumber(item.totalProfit)} highlight />
-                        <MobileCardCollapsible>
-                          <MobileCardRow label={t("代付(奈赛)", "Pay NGN/GHS")} value={formatNumber(item.paymentValueNgnGhs)} />
-                          <MobileCardRow label={t("代付(USDT)", "Pay USDT")} value={formatNumber(item.paymentValueUsdt)} />
-                          <MobileCardRow label={t("活动发放", "Activity")} value={formatNumber(item.activityAmount)} />
-                          <MobileCardRow label={t("利润(人)", "Profit NGN")} value={formatNumber(item.profitNgn)} />
-                          <MobileCardRow label={t("利润(USDT)", "Profit USDT")} value={formatNumber(item.profitUsdt)} />
-                        </MobileCardCollapsible>
-                      </MobileCard>
-                    ))}
-                    <MobilePagination currentPage={monthlyPage} totalPages={monthlyTotalPages} totalItems={sortedMonthlyData.length} onPageChange={setMonthlyPage} pageSize={monthlyPageSize} onPageSizeChange={(s) => { setMonthlyPageSize(s); setMonthlyPage(1); }} />
-                  </MobileCardList>
-                ) : (
-                <StickyScrollTableContainer minWidth="1200px">
-                  <Table className="text-xs">
-                    <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
-                      <TableRow>
-                        <TableHead className="text-center px-1.5">{t("月份", "Month")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("订单数量", "Orders")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("卡价值总额", "Card Value")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("代付价值（奈赛）总和", "Payment NGN/GHS")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("代付价值USDT总和", "Payment USDT")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("活动发放", "Activity")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("利润(人)", "Profit NGN/GHS")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("利润(USDT)", "Profit USDT")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("总利润(人)", "Total Profit")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedMonthlyData.map((item, index) => (
-                          <TableRow key={index}>
-                            <TableCell className="text-center font-medium px-1.5">{item.month}</TableCell>
-                            <TableCell className="text-center px-1.5">{item.orderCount}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.cardValueSum)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.paymentValueNgnGhs)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.paymentValueUsdt)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.activityAmount)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.profitNgn)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.profitUsdt)}</TableCell>
-                            <TableCell className="text-center font-medium px-1.5">{formatNumber(item.totalProfit)}</TableCell>
-                          </TableRow>
-                        ))}
-                      {sortedMonthlyData.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                            {t("暂无数据", "No data")}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                    <TableFooter className="bg-muted/50 font-semibold">
-                      <TableRow>
-                        <TableCell className="text-center px-1.5">{t("合计", "Total")}</TableCell>
-                        <TableCell className="text-center px-1.5">{monthlySummary.orderCount}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(monthlySummary.cardValueSum)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(monthlySummary.paymentValueNgnGhs)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(monthlySummary.paymentValueUsdt)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(monthlySummary.activityAmount)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(monthlySummary.profitNgn)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(monthlySummary.profitUsdt)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(monthlySummary.totalProfit)}</TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                </StickyScrollTableContainer>
-                )}
-                {!isMobile && renderPaginationControls({
-                  currentPage: monthlyPage,
-                  totalPages: monthlyTotalPages,
-                  totalItems: sortedMonthlyData.length,
-                  pageSize: monthlyPageSize,
-                  onPageChange: setMonthlyPage,
-                  onPageSizeChange: setMonthlyPageSize,
-                })}
-              </TabsContent>
+              <MonthlyReportTab
+                t={t}
+                useCompactLayout={useCompactLayout}
+                isMobile={isMobile}
+                paginatedMonthlyData={paginatedMonthlyData}
+                sortedMonthlyDataLength={sortedMonthlyData.length}
+                monthlyPage={monthlyPage}
+                monthlyTotalPages={monthlyTotalPages}
+                monthlyPageSize={monthlyPageSize}
+                setMonthlyPage={setMonthlyPage}
+                setMonthlyPageSize={setMonthlyPageSize}
+                monthlySummary={monthlySummary}
+                renderPaginationControls={renderPaginationControls}
+              />
 
-              {/* 活动报表 */}
-              <TabsContent value="activity" className="mt-0 flex flex-col">
-                {useCompactLayout ? (
-                  <MobileCardList>
-                    {paginatedActivityData.length === 0 ? (
-                      <MobileEmptyState message={t("暂无数据", "No data")} />
-                    ) : paginatedActivityData.map((item, index) => (
-                      <MobileCard key={index} accent="default">
-                        <MobileCardHeader>
-                          <span className="font-medium text-sm">{item.date}</span>
-                          <Badge variant="outline" className="text-xs">{item.activityTypeLabel}</Badge>
-                        </MobileCardHeader>
-                        <MobileCardRow label={t("赠送价值(人)", "Gift Value")} value={formatNumber(item.giftValueTotal)} highlight />
-                        <MobileCardRow label={t("赠送效果", "Effect")} value={item.effectCount} />
-                        <MobileCardCollapsible>
-                          <MobileCardRow label={t("赠送奈拉", "Gift NGN")} value={formatNumber(item.giftNgn)} />
-                          <MobileCardRow label={t("赠送赛迪", "Gift GHS")} value={formatNumber(item.giftGhs)} />
-                          <MobileCardRow label={t("赠送USDT", "Gift USDT")} value={formatNumber(item.giftUsdt)} />
-                        </MobileCardCollapsible>
-                      </MobileCard>
-                    ))}
-                    <MobilePagination currentPage={activityPage} totalPages={activityTotalPages} totalItems={sortedActivityData.length} onPageChange={setActivityPage} pageSize={activityPageSize} onPageSizeChange={(s) => { setActivityPageSize(s); setActivityPage(1); }} />
-                  </MobileCardList>
-                ) : (
-                <StickyScrollTableContainer minWidth="900px">
-                  <Table className="text-xs">
-                    <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
-                      <TableRow>
-                        <TableHead className="text-center px-1.5">{t("日期", "Date")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("活动类型", "Activity Type")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("赠送奈拉", "Gift NGN")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("赠送赛迪", "Gift GHS")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("赠送USDT", "Gift USDT")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("赠送价值(人)", "Gift Value")}</TableHead>
-                        <TableHead className="text-center px-1.5">{t("赠送效果", "Effect Count")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedActivityData.map((item, index) => (
-                          <TableRow key={index}>
-                            <TableCell className="text-center font-medium px-1.5">{item.date}</TableCell>
-                            <TableCell className="text-center px-1.5">{item.activityTypeLabel}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.giftNgn)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.giftGhs)}</TableCell>
-                            <TableCell className="text-center px-1.5">{formatNumber(item.giftUsdt)}</TableCell>
-                            <TableCell className="text-center font-medium px-1.5">{formatNumber(item.giftValueTotal)}</TableCell>
-                            <TableCell className="text-center font-medium px-1.5">{item.effectCount}</TableCell>
-                          </TableRow>
-                        ))}
-                      {sortedActivityData.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                            {t("暂无数据", "No data")}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                    <TableFooter className="bg-muted/50 font-semibold">
-                      <TableRow>
-                        <TableCell className="text-center px-1.5" colSpan={2}>{t("合计", "Total")}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(activitySummary.giftNgn)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(activitySummary.giftGhs)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(activitySummary.giftUsdt)}</TableCell>
-                        <TableCell className="text-center px-1.5">{formatNumber(activitySummary.giftValueTotal)}</TableCell>
-                        <TableCell className="text-center px-1.5">{activitySummary.effectCount}</TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                </StickyScrollTableContainer>
-                )}
-                {!isMobile && renderPaginationControls({
-                  currentPage: activityPage,
-                  totalPages: activityTotalPages,
-                  totalItems: sortedActivityData.length,
-                  pageSize: activityPageSize,
-                  onPageChange: setActivityPage,
-                  onPageSizeChange: setActivityPageSize,
-                })}
-              </TabsContent>
+              <ActivityReportTab
+                t={t}
+                useCompactLayout={useCompactLayout}
+                isMobile={isMobile}
+                paginatedActivityData={paginatedActivityData}
+                sortedActivityDataLength={sortedActivityData.length}
+                activityPage={activityPage}
+                activityTotalPages={activityTotalPages}
+                activityPageSize={activityPageSize}
+                setActivityPage={setActivityPage}
+                setActivityPageSize={setActivityPageSize}
+                activitySummary={activitySummary}
+                renderPaginationControls={renderPaginationControls}
+              />
               <TabsContent value="compare" className="mt-0">
                 <Suspense fallback={<div className="flex items-center justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>}>
                   <ProfitComparisonTab />

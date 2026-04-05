@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiPost, apiPatch, apiDelete } from '@/api/client';
 import { getCustomerSourcesApi } from '@/services/staff/dataApi';
-import { logOperation } from '@/stores/auditLogStore';
+import { logOperation } from '@/services/audit/auditLogService';
 
 type CustomerSourceRow = {
   id: string;

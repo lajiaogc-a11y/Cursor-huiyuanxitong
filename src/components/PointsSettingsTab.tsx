@@ -59,6 +59,7 @@ function describeAutoFetchInterval(
   return t(`每 ${label} 小时自动采集国际汇率`, `Auto-fetch rates every ${label} hours`);
 }
 import { usePointsSettingsData } from "@/hooks/usePointsSettingsData";
+import { useMembers } from "@/hooks/useMembers";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CURRENCIES } from "@/config/currencies";
 import { formatBeijingTime } from "@/lib/beijingTime";
@@ -66,6 +67,7 @@ import { formatBeijingTime } from "@/lib/beijingTime";
 export default function PointsSettingsTab() {
   const { t } = useLanguage();
   const { employee } = useAuth();
+  const { members, loading: membersLoading } = useMembers();
   const { settings: hookSettings, loading: isLoading, refetch } = usePointsSettingsData();
   const [settings, setSettings] = useState<PointsSettings | null>(hookSettings);
   const [isAutoUpdating, setIsAutoUpdating] = useState(false);
@@ -180,7 +182,6 @@ export default function PointsSettingsTab() {
     }
     
     try {
-      const { apiGet } = await import('@/api/client');
       const { deletePointsLedgerByMemberCodes, deletePointsAccountsByMemberCodes } = await import('@/services/staff/pointsTableService');
       const tenantId = employee?.tenant_id;
       if (!tenantId) {
@@ -188,18 +189,18 @@ export default function PointsSettingsTab() {
         return;
       }
 
-      const tenantMembers = await apiGet<Array<{ member_code?: string | null }>>(
-        `/api/data/table/members?select=member_code&tenant_id=eq.${encodeURIComponent(tenantId)}&limit=5000`
-      );
-      const list = Array.isArray(tenantMembers) ? tenantMembers : [];
+      if (membersLoading) {
+        notify.error(t("会员列表加载中，请稍后再试", "Member list is still loading, please try again"));
+        return;
+      }
 
-      if (!list.length) {
+      if (members.length === 0) {
         console.error('Failed to fetch tenant members: empty');
         notify.error(t("获取租户会员失败", "Failed to fetch tenant members"));
         return;
       }
 
-      const memberCodes = list.map((m) => String(m.member_code || '').trim()).filter(Boolean);
+      const memberCodes = members.map((m) => String(m.memberCode || '').trim()).filter(Boolean);
       if (memberCodes.length === 0) {
         notify.info(t("当前租户无会员数据", "No members in current tenant"));
         setIsClearDialogOpen(false);

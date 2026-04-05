@@ -53,7 +53,7 @@ import { patchActivityGiftRemark } from "@/services/staff/activityGiftTableServi
 import { redeemPointsAndRecordRpc } from "@/services/members/memberPointsRedeemRpcService";
 import { getMemberPointsSummary, MemberPointsSummary } from "@/services/points/pointsCalculationService";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
-import { logOperation } from "@/stores/auditLogStore";
+import { logOperation } from "@/services/audit/auditLogService";
 import { useCalculatorSubmit } from "@/components/calculator/useCalculatorSubmit";
 import { CalculatorRedeemSection } from "@/components/calculator/CalculatorRedeemSection";
 

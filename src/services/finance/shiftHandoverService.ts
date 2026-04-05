@@ -2,7 +2,7 @@
 // 管理交班记录和接班人列表
 
 import { apiPost, apiPatch, apiDelete } from '@/api/client';
-import { logOperation } from '@/stores/auditLogStore';
+import { logOperation } from '@/services/audit/auditLogService';
 import { getCurrentOperatorSync } from '@/services/members/operatorService';
 
 function unwrapSingle<T>(data: unknown): T | null {

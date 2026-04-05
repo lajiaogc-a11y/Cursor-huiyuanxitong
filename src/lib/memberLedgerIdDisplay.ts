@@ -1,4 +1,4 @@
-/** Max length before we shorten (backend UUIDs / Supabase ids are often 36+ chars). */
+/** Max length before we shorten (backend UUIDs are often 36+ chars). */
 const LONG_ID_THRESHOLD = 18;
 const HEAD_LEN = 6;
 const TAIL_LEN = 4;

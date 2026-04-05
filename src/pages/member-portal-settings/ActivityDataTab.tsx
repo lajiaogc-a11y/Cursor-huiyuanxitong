@@ -27,11 +27,11 @@ import {
 } from "@/services/members/memberPortalSettingsService";
 // lottery imports removed — tab relocated to OrderManagement
 import { cn } from "@/lib/utils";
+import { PaginationBar } from "@/components/common/PaginationBar";
 import {
-  PaginationBar,
   portalSettingsEmptyShellClass,
   portalSettingsEmptyIconWrapClass,
-} from "../member-portal/shared";
+} from "@/components/common/EmptyState";
 import { formatBeijingTime } from "@/lib/beijingTime";
 const CHECKIN_ADMIN_PAGE_SIZE = 50;
 const SPIN_CREDITS_ADMIN_PAGE_SIZE = 50;

@@ -1,6 +1,5 @@
 /**
  * Members API Service - 通过 @/api/members 操作会员数据
- * 禁止直接访问 Supabase
  */
 import * as membersApi from '@/api/members';
 

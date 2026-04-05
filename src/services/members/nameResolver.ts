@@ -181,7 +181,7 @@ async function loadCards(): Promise<void> {
     return;
   }
   try {
-    // 优先使用 API（带 JWT 鉴权，返回租户数据），避免 RLS 导致 supabase 直连返回空
+    // 优先使用 API（带 JWT 鉴权，返回租户数据），避免客户端表查询在无服务端会话时返回空
     try {
       const data = await listCardsApi();
       cardsData.byId.clear();

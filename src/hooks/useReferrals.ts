@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
 import { apiGet, apiPost, apiDelete } from '@/api/client';
 import { notify } from "@/lib/notifyHub";
-import { logOperation } from '@/stores/auditLogStore';
+import { logOperation } from '@/services/audit/auditLogService';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export interface ReferralRelation {

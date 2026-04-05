@@ -1,6 +1,5 @@
 /**
- * Admin API Service - 数据管理/归档
- * 替代 DataManagementTab 中的 Supabase 直连
+ * Admin API Service - 数据管理/归档（经后端 API，替代旧版管理页直连）
  */
 import { apiPost, apiDelete, unwrapApiData } from '@/api/client';
 

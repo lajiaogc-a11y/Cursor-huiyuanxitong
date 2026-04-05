@@ -26,7 +26,7 @@ import {
   listLotteryPointsRowsForTenant,
   sumLotteryPointsPositiveForTenant,
 } from './lotteryPointsAdmin.js';
-import { queryOne } from '../../database/index.js';
+import { selectMemberTenantIdByMemberId } from './repository.js';
 import {
   countSpinCreditsForTenant,
   listSpinCreditsForTenant,
@@ -257,10 +257,7 @@ export async function getSettingsByMemberController(
   // M10: staff must belong to same tenant as the queried member
   if (req.user?.type !== 'member' && req.user?.tenant_id) {
     try {
-      const memberTenant = await queryOne<{ tenant_id: string | null }>(
-        'SELECT tenant_id FROM members WHERE id = ? LIMIT 1',
-        [memberId]
-      );
+      const memberTenant = await selectMemberTenantIdByMemberId(memberId);
       if (memberTenant && memberTenant.tenant_id !== req.user.tenant_id) {
         res.status(403).json({ success: false, error: 'CROSS_TENANT_FORBIDDEN' });
         return;
@@ -404,10 +401,7 @@ export async function listSpinWheelPrizesByMemberController(
   // M10: staff must belong to same tenant as the queried member
   if (req.user?.type !== 'member' && req.user?.tenant_id) {
     try {
-      const memberTenant = await queryOne<{ tenant_id: string | null }>(
-        'SELECT tenant_id FROM members WHERE id = ? LIMIT 1',
-        [memberId]
-      );
+      const memberTenant = await selectMemberTenantIdByMemberId(memberId);
       if (memberTenant && memberTenant.tenant_id !== req.user.tenant_id) {
         res.status(403).json({ success: false, error: 'CROSS_TENANT_FORBIDDEN' });
         return;

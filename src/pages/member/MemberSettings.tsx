@@ -1,29 +1,13 @@
 import { useState, useEffect, useCallback, type CSSProperties } from "react";
 import { useLocation, Navigate, Link } from "react-router-dom";
-import {
-  User,
-  Lock,
-  Camera,
-  ChevronRight,
-  ChevronDown,
-  LogOut,
-  ShoppingCart,
-  ShieldCheck,
-  Coins,
-  Loader2,
-  Mail,
-} from "lucide-react";
+import { Camera, ChevronRight, LogOut, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { ROUTES } from "@/routes/constants";
 import { useMemberLocalAvatar } from "@/hooks/useMemberLocalAvatar";
-import { MemberPointsAccountSettings } from "@/components/member/MemberPointsAccountSettings";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { displayMemberLevelLabel } from "@/lib/memberLevelDisplay";
 import { mapDbRowToMemberPortalOrderView, type MemberPortalOrderView } from "@/hooks/orders/utils";
-import { resolveCardName, tryRecoverMisdecodedUtf8 } from "@/services/members/nameResolver";
 import { notify } from "@/lib/notifyHub";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { memberQueryKeys } from "@/lib/memberQueryKeys";
@@ -41,14 +25,15 @@ import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
 import { broadcastMembersListStale, notifyDataMutation } from "@/services/system/dataRefreshManager";
 import "@/styles/member-portal.css";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
-import { cn } from "@/lib/utils";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
-import { MemberPointsValueSkeleton, MemberStackedRowSkeleton } from "@/components/member/MemberPageLoadingShell";
-import { MemberEmptyStateCta } from "@/components/member/MemberEmptyStateCta";
+import { MemberPointsValueSkeleton } from "@/components/member/MemberPageLoadingShell";
 import { useMemberPointsBreakdown } from "@/hooks/useMemberPointsBreakdown";
 import { useMemberAnimatedCount } from "@/hooks/useMemberAnimatedCount";
 import { useMemberSkeletonGate } from "@/hooks/useMemberSkeletonGate";
 import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
+import { MemberSettingsAccountSection } from "@/pages/member/settings/MemberSettingsAccountSection";
+import { MemberSettingsPointsLedgerSection } from "@/pages/member/settings/MemberSettingsPointsLedgerSection";
+import { MemberSettingsOrdersSection } from "@/pages/member/settings/MemberSettingsOrdersSection";
 
 function MemberSettingsSupportAgentAvatar({
   agent,
@@ -85,80 +70,6 @@ function MemberSettingsSupportAgentAvatar({
 function formatMemberSettingsPhone(raw: string | null | undefined): string {
   const s = String(raw ?? "").trim();
   return s;
-}
-
-function fmtSettingsLedgerPts(n: number) {
-  return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
-
-function MemberSettingsLedgerCard({
-  row,
-  ledgerCategory,
-  themeColor,
-  t,
-}: {
-  row: MemberPointsLedgerRow;
-  ledgerCategory: MemberLedgerCategory;
-  themeColor: string;
-  t: (zh: string, en: string) => string;
-}) {
-  const isAll = ledgerCategory === "all";
-  const pts = Number(row.points);
-  const isNeg = pts < 0;
-  const bb = Number(row.balance_before);
-  const ba = Number(row.balance_after);
-  const dur = 520;
-  const animPts = useMemberAnimatedCount(pts, { enabled: true, durationMs: dur });
-  const animBb = useMemberAnimatedCount(bb, { enabled: true, durationMs: dur + 70 });
-  const animBa = useMemberAnimatedCount(ba, { enabled: true, durationMs: dur + 140 });
-  const orderFmt = formatMemberLedgerRowOrderDisplay(row);
-  const orderDisplay = orderFmt.display;
-  const orderTitle = row.order_number ? undefined : orderFmt.fullTitle;
-  const idLabel =
-    isAll && !row.order_id && !row.reference_id && row.description
-      ? t("类型", "Type")
-      : t("订单号", "Order ID");
-  const idDisplay =
-    isAll && !row.order_id && !row.reference_id && row.description
-      ? row.description
-      : orderDisplay;
-  const typeLabel = ledgerActivityTypeLabel(row.type, t);
-
-  return (
-    <div className="member-ledger-card">
-      <div className="member-ledger-card__row">
-        <div className="flex items-center gap-1.5">
-          <span className="member-ledger-card__label">{idLabel}</span>
-          {isAll && (
-            <span
-              className={cn(
-                "rounded-md px-1.5 py-px text-[9px] font-semibold",
-                isNeg ? "bg-pu-rose/12 text-rose-300" : "bg-pu-emerald/12 text-emerald-300",
-              )}
-            >
-              {typeLabel}
-            </span>
-          )}
-        </div>
-        <span
-          className={cn("shrink-0 text-[15px] font-extrabold tabular-nums", isNeg ? "text-rose-300" : "")}
-          style={!isNeg ? { color: themeColor } : undefined}
-        >
-          {isNeg ? "" : "+"}
-          {fmtSettingsLedgerPts(animPts)}
-        </span>
-      </div>
-      <div className="member-ledger-card__id" title={orderTitle}>
-        {idDisplay}
-      </div>
-      <div className="mt-1.5 flex items-center justify-between">
-        <span className="member-ledger-card__time m-0">{formatMemberLocalTime(row.earned_at)}</span>
-        <span className="tabular-nums text-[10px] text-[hsl(var(--pu-m-text-dim)/0.45)]">
-          {fmtSettingsLedgerPts(animBb)} → {fmtSettingsLedgerPts(animBa)}
-        </span>
-      </div>
-    </div>
-  );
 }
 
 export default function MemberSettings() {
@@ -523,528 +434,60 @@ export default function MemberSettings() {
 
         {/* ── Content ── */}
         <div className="member-page-body flex flex-1 flex-col">
-          <div className="mb-5">
-            <h3 className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-pu-gold-soft/90">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-pu-gold-soft/90" aria-hidden />
-              {t("账号管理", "ACCOUNT")}
-            </h3>
-            <div className="m-glass overflow-hidden rounded-2xl border border-pu-gold/12">
-            <div className="member-settings-row">
-              <button
-                type="button"
-                className="member-settings-trigger"
-                onClick={() => setExpandedSection(expandedSection === "avatar" ? null : "avatar")}
-                aria-expanded={expandedSection === "avatar"}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-[hsl(var(--pu-m-surface-border)/0.32)]"
-                    style={{ background: `color-mix(in srgb, ${themeColor} 14%, transparent)` }}
-                  >
-                    <Camera size={15} color={themeColor} />
-                  </div>
-                  <div className="min-w-0 text-left">
-                    <p className="m-0 text-sm font-semibold text-[hsl(var(--pu-m-text))]">
-                      {t("账户设置", "Account settings")}
-                    </p>
-                    <p className="m-0 text-xs text-[hsl(var(--pu-m-text-dim)/0.55)]">
-                      {t("头像与资料照片", "Profile photo")}
-                    </p>
-                  </div>
-                </div>
-                <ChevronRight
-                  size={12}
-                  className={cn(
-                    "shrink-0 text-[hsl(var(--pu-m-text-dim)/0.35)] transition-transform duration-200",
-                    expandedSection === "avatar" && "rotate-90",
-                  )}
-                />
-              </button>
-              {expandedSection === "avatar" && (
-                <div className="member-settings-expand">
-                  <MemberPointsAccountSettings
-                    variant="inline"
-                    avatarUrl={settingsAvatarUrl}
-                    displayInitial={displayName}
-                    onPickAvatar={setSettingsAvatarFromFile}
-                    onClearAvatar={clearSettingsAvatar}
-                    t={t}
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="member-settings-row">
-              <button type="button" className="member-settings-trigger" onClick={() => setExpandedSection(expandedSection === "nickname" ? null : "nickname")} aria-expanded={expandedSection === "nickname"}>
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
-                    style={{ background: `color-mix(in srgb, ${themeColor} 14%, transparent)` }}
-                  >
-                    <User size={15} color={themeColor} />
-                  </div>
-                  <div className="min-w-0 text-left">
-                    <p className="m-0 text-sm font-semibold text-[hsl(var(--pu-m-text))]">
-                      {t("修改昵称", "Change nickname")}
-                    </p>
-                    <p className="m-0 text-xs text-[hsl(var(--pu-m-text-dim)/0.55)]">
-                      {member.nickname || t("未设置", "Not set")}
-                    </p>
-                  </div>
-                </div>
-                <ChevronRight
-                  size={12}
-                  className={cn(
-                    "shrink-0 text-[hsl(var(--pu-m-text-dim)/0.35)] transition-transform duration-200",
-                    expandedSection === "nickname" && "rotate-90",
-                  )}
-                />
-              </button>
-              {expandedSection === "nickname" && (
-                <div className="member-settings-expand">
-                  <div className="flex flex-wrap gap-2">
-                    <div className="relative min-w-0 flex-[1_1_160px]">
-                      <User
-                        size={16}
-                        color={themeColor}
-                        className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
-                        aria-hidden
-                      />
-                      <Input
-                        value={nickname}
-                        onChange={(e) => setNickname(e.target.value)}
-                        placeholder={t("输入新昵称", "Enter new nickname")}
-                        className={settingsInputClass}
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      size="lg"
-                      disabled={savingNickname}
-                      className="h-12 shrink-0 rounded-xl border-0 px-5 font-bold text-[hsl(var(--pu-primary-foreground))] hover:opacity-95"
-                      style={{
-                        background:
-                          "linear-gradient(135deg, hsl(var(--pu-gold)), hsl(var(--pu-gold-soft)))",
-                      }}
-                      onClick={() => void handleSaveNickname()}
-                    >
-                      {savingNickname ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden /> : null}
-                      {t("保存", "Save")}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="member-settings-row">
-              <button
-                type="button"
-                className="member-settings-trigger"
-                onClick={() => notify.info(t("维护中", "Under maintenance"))}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-[hsl(var(--pu-m-surface-border)/0.32)]"
-                    style={{ background: `color-mix(in srgb, ${themeColor} 14%, transparent)` }}
-                  >
-                    <Mail size={15} color={themeColor} aria-hidden />
-                  </div>
-                  <div className="min-w-0 text-left">
-                    <p className="m-0 text-sm font-semibold text-[hsl(var(--pu-m-text))]">
-                      {t("绑定邮箱", "Bind email")}
-                    </p>
-                    <p className="m-0 text-xs text-[hsl(var(--pu-m-text-dim)/0.55)]">
-                      {t("暂未绑定", "Not bound")}
-                    </p>
-                  </div>
-                </div>
-                <ChevronRight size={12} className="shrink-0 text-[hsl(var(--pu-m-text-dim)/0.35)]" aria-hidden />
-              </button>
-            </div>
-
-            <div className="member-settings-row">
-              <button type="button" className="member-settings-trigger" onClick={() => setExpandedSection(expandedSection === "password" ? null : "password")} aria-expanded={expandedSection === "password"}>
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-[hsl(var(--pu-m-surface-border)/0.32)]"
-                    style={{ background: `color-mix(in srgb, ${themeColor} 14%, transparent)` }}
-                  >
-                    <Lock size={15} color={themeColor} />
-                  </div>
-                  <div className="min-w-0 text-left">
-                    <p className="m-0 text-sm font-semibold text-[hsl(var(--pu-m-text))]">
-                      {t("修改密码", "Change password")}
-                    </p>
-                    <p className="m-0 text-xs text-[hsl(var(--pu-m-text-dim)/0.55)]">
-                      {t("定期更新更安全", "Update regularly for security")}
-                    </p>
-                  </div>
-                </div>
-                <ChevronRight
-                  size={12}
-                  className={cn(
-                    "shrink-0 text-[hsl(var(--pu-m-text-dim)/0.35)] transition-transform duration-200",
-                    expandedSection === "password" && "rotate-90",
-                  )}
-                />
-              </button>
-              {expandedSection === "password" && (
-                <div className="member-settings-expand">
-                  <form
-                    className="flex flex-col gap-3"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (!pwdOld.trim()) {
-                        notify.error(t("请填写当前密码", "Current password is required"));
-                        return;
-                      }
-                      if (!pwdNew.trim()) {
-                        notify.error(t("请填写新密码", "New password is required"));
-                        return;
-                      }
-                      if (pwdNew.length < 6) {
-                        notify.error(t("新密码至少 6 位", "Min 6 characters"));
-                        return;
-                      }
-                      if (pwdNew !== pwdConfirm) {
-                        notify.error(t("两次新密码不一致", "Passwords don't match"));
-                        return;
-                      }
-                      void handleChangePassword({ oldPwd: pwdOld, newPwd: pwdNew, confirmPwd: pwdConfirm });
-                    }}
-                  >
-                    <div className="space-y-1.5">
-                      <Label className="text-[13px] text-[hsl(var(--pu-m-text-dim)/0.78)]">{t("当前密码", "Current password")}</Label>
-                      <div className="relative">
-                        <Lock
-                          size={16}
-                          color={themeColor}
-                          className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
-                          aria-hidden
-                        />
-                        <Input
-                          type="password"
-                          autoComplete="current-password"
-                          value={pwdOld}
-                          onChange={(e) => setPwdOld(e.target.value)}
-                          placeholder={t("当前密码", "Current password")}
-                          className={settingsInputClass}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-[13px] text-[hsl(var(--pu-m-text-dim)/0.78)]">{t("新密码（至少 6 位）", "New password (min 6 chars)")}</Label>
-                      <div className="relative">
-                        <Lock
-                          size={16}
-                          color={themeColor}
-                          className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
-                          aria-hidden
-                        />
-                        <Input
-                          type="password"
-                          autoComplete="new-password"
-                          value={pwdNew}
-                          onChange={(e) => setPwdNew(e.target.value)}
-                          placeholder={t("新密码", "New password")}
-                          className={settingsInputClass}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-[13px] text-[hsl(var(--pu-m-text-dim)/0.78)]">{t("确认新密码", "Confirm password")}</Label>
-                      <div className="relative">
-                        <Lock
-                          size={16}
-                          color={themeColor}
-                          className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
-                          aria-hidden
-                        />
-                        <Input
-                          type="password"
-                          autoComplete="new-password"
-                          value={pwdConfirm}
-                          onChange={(e) => setPwdConfirm(e.target.value)}
-                          placeholder={t("再次输入新密码", "Confirm password")}
-                          className={settingsInputClass}
-                        />
-                      </div>
-                    </div>
-                    <Button
-                      type="submit"
-                      disabled={savingPwd}
-                      className="mt-1 h-12 w-full rounded-xl border-0 font-bold text-[hsl(var(--pu-primary-foreground))] hover:opacity-95"
-                      style={{
-                        background:
-                          "linear-gradient(135deg, hsl(var(--pu-gold)), hsl(var(--pu-gold-soft)))",
-                      }}
-                    >
-                      {savingPwd ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden /> : null}
-                      {t("更新密码", "Update password")}
-                    </Button>
-                  </form>
-                </div>
-              )}
-            </div>
-            </div>
-          </div>
+          <MemberSettingsAccountSection
+            t={t}
+            themeColor={themeColor}
+            settingsInputClass={settingsInputClass}
+            expandedSection={expandedSection}
+            setExpandedSection={setExpandedSection}
+            settingsAvatarUrl={settingsAvatarUrl}
+            setSettingsAvatarFromFile={setSettingsAvatarFromFile}
+            clearSettingsAvatar={clearSettingsAvatar}
+            displayName={displayName}
+            member={member}
+            nickname={nickname}
+            setNickname={setNickname}
+            savingNickname={savingNickname}
+            onSaveNickname={handleSaveNickname}
+            pwdOld={pwdOld}
+            setPwdOld={setPwdOld}
+            pwdNew={pwdNew}
+            setPwdNew={setPwdNew}
+            pwdConfirm={pwdConfirm}
+            setPwdConfirm={setPwdConfirm}
+            savingPwd={savingPwd}
+            onChangePassword={handleChangePassword}
+          />
 
           <div className="mb-5">
             <h3 className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-pu-gold-soft/90">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-pu-gold-soft/90" aria-hidden />
               {t("数据与记录", "Data & records")}
             </h3>
-              <div className="space-y-2.5">
-              <div className="m-glass overflow-hidden rounded-2xl border border-pu-gold/12">
-            <div className="member-settings-row">
-              <button
-                type="button"
-                className="member-settings-trigger"
-                onClick={() => setExpandedPointsLedger(!expandedPointsLedger)}
-                aria-expanded={expandedPointsLedger}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pu-gold/12 ring-1 ring-inset ring-pu-gold/15">
-                    <Coins className="h-4 w-4 text-pu-gold-soft" strokeWidth={2} aria-hidden />
-                  </div>
-                  <div className="min-w-0 text-left">
-                    <p className="m-0 text-sm font-semibold text-[hsl(var(--pu-m-text))]">
-                      {t("积分明细", "Points ledger")}
-                    </p>
-                    <p className="m-0 text-xs text-[hsl(var(--pu-m-text-dim)/0.55)]">
-                      {t("消费、推荐与抽奖等积分记录", "Consumption, referral & lottery entries")}
-                    </p>
-                  </div>
-                </div>
-                <ChevronDown
-                  className={cn(
-                    "h-4 w-4 shrink-0 text-[hsl(var(--pu-m-text-dim)/0.4)] transition-transform duration-300",
-                    expandedPointsLedger && "rotate-180",
-                  )}
-                  strokeWidth={2}
-                  aria-hidden
-                />
-              </button>
-              {expandedPointsLedger && (
-                <div className="member-settings-expand">
-                  <div className="mb-3 flex flex-wrap gap-2">
-                    {(
-                      [
-                        { key: "all" as const, zh: "全部", en: "All" },
-                        { key: "consumption" as const, zh: "消费", en: "Consumption" },
-                        { key: "referral" as const, zh: "推荐", en: "Referral" },
-                        { key: "lottery" as const, zh: "抽奖", en: "Lottery" },
-                      ] as const
-                    ).map(({ key, zh, en }) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setLedgerCategory(key)}
-                        className={cn(
-                          "cursor-pointer rounded-full px-3 py-1.5 text-xs transition-colors",
-                          ledgerCategory === key
-                            ? "border-[1.5px] font-bold shadow-sm"
-                            : "border border-[hsl(var(--pu-m-surface-border)/0.28)] font-medium text-[hsl(var(--pu-m-text-dim)/0.72)] hover:border-[hsl(var(--pu-m-surface-border)/0.42)] hover:text-[hsl(var(--pu-m-text-dim)/0.88)]",
-                        )}
-                        style={
-                          ledgerCategory === key
-                            ? {
-                                borderColor: themeColor,
-                                background: `color-mix(in srgb, ${themeColor} 16%, transparent)`,
-                                color: themeColor,
-                              }
-                            : undefined
-                        }
-                      >
-                        {t(zh, en)}
-                      </button>
-                    ))}
-                  </div>
-                  {showLedgerSkeleton ? (
-                    <MemberStackedRowSkeleton rows={4} />
-                  ) : !ledgerPack?.success ? (
-                    <p className="m-0 text-[13px] text-rose-400">
-                      {t("加载失败，请稍后重试", "Failed to load. Try again later.")}
-                    </p>
-                  ) : ledgerRows.length === 0 ? (
-                    <div className="relative overflow-hidden rounded-2xl border border-dashed border-pu-gold/22 bg-gradient-to-b from-pu-gold/[0.08] via-[hsl(var(--pu-m-surface)/0.18)] to-[hsl(var(--pu-m-surface)/0.22)] px-4 py-8 text-center">
-                      <div className="relative">
-                        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-pu-gold/12 text-[hsl(var(--pu-m-text-dim)/0.4)]">
-                          <Coins className="h-6 w-6" strokeWidth={1.75} aria-hidden />
-                        </div>
-                        <p className="m-0 text-sm font-semibold text-[hsl(var(--pu-m-text))]">{t("暂无记录", "No records")}</p>
-                        <p className="mt-1.5 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.65)]">
-                          {t("切换上方分类或稍后再试", "Try another category or check back later")}
-                        </p>
-                        <MemberEmptyStateCta
-                          primary={{ to: ROUTES.MEMBER.POINTS, label: t("去积分商城", "Go to points mall") }}
-                          secondary={{ to: ROUTES.MEMBER.DASHBOARD, label: t("回首页", "Home") }}
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="member-ledger-stack">
-                        {ledgerRows.map((row) => (
-                          <MemberSettingsLedgerCard
-                            key={row.id}
-                            row={row}
-                            ledgerCategory={ledgerCategory}
-                            themeColor={themeColor}
-                            t={t}
-                          />
-                        ))}
-                      </div>
-                      {hasMoreLedger ? (
-                        <button
-                          type="button"
-                          className="mx-auto mt-3 flex items-center gap-1.5 rounded-full bg-[hsl(var(--pu-m-surface)/0.35)] px-4 py-1.5 text-[11px] font-medium text-[hsl(var(--pu-m-text-dim))] transition-colors active:bg-[hsl(var(--pu-m-surface)/0.55)]"
-                          disabled={ledgerLoadingMore}
-                          onClick={() => void loadMoreLedger()}
-                        >
-                          {ledgerLoadingMore
-                            ? t("加载中…", "Loading…")
-                            : t(`加载更多（${ledgerRows.length}/${ledgerTotal}）`, `Load more (${ledgerRows.length}/${ledgerTotal})`)}
-                        </button>
-                      ) : ledgerTotal > 0 ? (
-                        <p className="mb-0 mt-2.5 text-[11px] text-[hsl(var(--pu-m-text-dim)/0.5)]">
-                          {t(`共 ${ledgerTotal} 条`, `${ledgerTotal} total`)}
-                        </p>
-                      ) : null}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-              </div>
-
-              <div id="orders" className="m-glass overflow-hidden rounded-2xl border border-pu-emerald/12">
-            <div className="member-settings-row">
-              <button type="button" className="member-settings-trigger" onClick={() => setExpandedOrders(!expandedOrders)} aria-expanded={expandedOrders}>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pu-emerald/12 ring-1 ring-inset ring-[hsl(var(--pu-m-surface-border)/0.28)]">
-                    <ShoppingCart className="h-4 w-4 text-pu-emerald-soft" strokeWidth={2} aria-hidden />
-                  </div>
-                  <div className="min-w-0 text-left">
-                    <p className="m-0 text-sm font-semibold text-[hsl(var(--pu-m-text))]">
-                      {t("我的订单", "My orders")}
-                    </p>
-                    <p className="m-0 flex items-center gap-2 text-xs text-[hsl(var(--pu-m-text-dim)/0.55)]">
-                      {showOrdersSkeleton ? (
-                        <span
-                          className="inline-flex items-center gap-2"
-                          role="status"
-                          aria-label={t("加载中…", "Loading…")}
-                        >
-                          <span
-                            className="h-2 w-14 animate-pulse rounded-full bg-[hsl(var(--pu-m-surface)/0.42)] motion-reduce:animate-none"
-                            aria-hidden
-                          />
-                          <span className="sr-only">{t("加载中…", "Loading…")}</span>
-                        </span>
-                      ) : (
-                        <>
-                          <span>{t(`${memberOrders.length} 条记录`, `${memberOrders.length} records`)}</span>
-                          {ordersFetching ? (
-                            <span
-                              className="inline-flex shrink-0 items-center"
-                              role="status"
-                              aria-label={t("同步中…", "Syncing…")}
-                            >
-                              <span
-                                className="h-2 w-9 animate-pulse rounded-full bg-[hsl(var(--pu-m-surface)/0.42)] motion-reduce:animate-none"
-                                aria-hidden
-                              />
-                            </span>
-                          ) : null}
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </div>
-                <ChevronDown
-                  className={cn(
-                    "h-4 w-4 shrink-0 text-[hsl(var(--pu-m-text-dim)/0.4)] transition-transform duration-300",
-                    expandedOrders && "rotate-180",
-                  )}
-                  strokeWidth={2}
-                  aria-hidden
-                />
-              </button>
-              {expandedOrders && (
-                <div className="member-settings-expand">
-                  {showOrdersSkeleton ? (
-                    <MemberStackedRowSkeleton rows={4} />
-                  ) : memberOrders.length === 0 ? (
-                    <div className="relative overflow-hidden rounded-2xl border border-dashed border-pu-gold/22 bg-gradient-to-b from-pu-gold/[0.08] via-[hsl(var(--pu-m-surface)/0.18)] to-[hsl(var(--pu-m-surface)/0.22)] px-4 py-8 text-center">
-                      <div className="relative">
-                        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-pu-gold/12 text-[hsl(var(--pu-m-text-dim)/0.4)]">
-                          <ShoppingCart className="h-6 w-6" strokeWidth={1.75} aria-hidden />
-                        </div>
-                        <p className="m-0 text-sm font-semibold text-[hsl(var(--pu-m-text))]">{t("暂无订单", "No orders")}</p>
-                        <p className="mt-1.5 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.65)]">
-                          {t("下单成功后将显示在此", "Paid orders will appear here")}
-                        </p>
-                        <MemberEmptyStateCta
-                          primary={{ to: ROUTES.MEMBER.DASHBOARD, label: t("去首页逛逛", "Go to Home") }}
-                          secondary={{ to: ROUTES.MEMBER.TRADE_CONTACT, label: t("联系客服下单", "Contact to order") }}
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="member-order-list">
-                      {memberOrders.map((order) => {
-                        const cardLabel = tryRecoverMisdecodedUtf8(
-                          (order.cardDisplayName && order.cardDisplayName.trim()) ||
-                            resolveCardName(order.cardTypeId) ||
-                            order.cardTypeId ||
-                            "-",
-                        );
-                        const paidLabel = order.isUsdt
-                          ? `${Number(order.actualPaid || 0).toLocaleString()} USDT`
-                          : `${Number(order.actualPaid || 0).toLocaleString()} ${order.currency || ""}`.trim();
-                        return (
-                          <div key={order.dbId} className="member-order-card">
-                            <div className="mb-2 flex items-center justify-between">
-                              <span className="text-[11px] text-[hsl(var(--pu-m-text-dim)/0.45)]">{order.createdAt}</span>
-                              <span
-                                className="font-mono text-[11px] text-[hsl(var(--pu-m-text-dim)/0.45)]"
-                                title={order.dbId ? t(`订单引用: ${order.dbId}`, `Order ref: ${order.dbId}`) : undefined}
-                              >
-                                #{order.orderNumber}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="m-0 truncate text-sm font-semibold text-[hsl(var(--pu-m-text))]" title={cardLabel}>
-                                  {cardLabel}
-                                </p>
-                                <p className="mt-0.5 text-xs text-[hsl(var(--pu-m-text-dim)/0.6)]">
-                                  {t("面值", "Face value")}: {Number(order.faceValue || 0).toLocaleString()}
-                                </p>
-                              </div>
-                              <div className="shrink-0 text-right">
-                                <p className="m-0 text-base font-bold tabular-nums text-[hsl(var(--pu-m-text))]">
-                                  {paidLabel}
-                                </p>
-                                <p className="mt-0.5 text-[11px] text-[hsl(var(--pu-m-text-dim)/0.45)]">
-                                  {order.status === "cancelled"
-                                    ? t("已取消", "Cancelled")
-                                    : order.status === "active"
-                                      ? t("处理中", "In progress")
-                                      : t("已支付", "Paid")}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-              </div>
+            <div className="space-y-2.5">
+              <MemberSettingsPointsLedgerSection
+                t={t}
+                themeColor={themeColor}
+                expandedPointsLedger={expandedPointsLedger}
+                setExpandedPointsLedger={setExpandedPointsLedger}
+                ledgerCategory={ledgerCategory}
+                setLedgerCategory={setLedgerCategory}
+                ledgerRows={ledgerRows}
+                ledgerTotal={ledgerTotal}
+                hasMoreLedger={hasMoreLedger}
+                ledgerPackSuccess={ledgerPack?.success}
+                ledgerLoadingMore={ledgerLoadingMore}
+                onLoadMoreLedger={loadMoreLedger}
+                showLedgerSkeleton={showLedgerSkeleton}
+              />
+              <MemberSettingsOrdersSection
+                t={t}
+                expandedOrders={expandedOrders}
+                setExpandedOrders={setExpandedOrders}
+                memberOrders={memberOrders}
+                showOrdersSkeleton={showOrdersSkeleton}
+                ordersFetching={ordersFetching}
+              />
             </div>
           </div>
 

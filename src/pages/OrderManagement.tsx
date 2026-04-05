@@ -9,7 +9,7 @@ import {
 } from "@/lib/orderCalculations";
 import { logOrderUpdateBalanceChange, syncMemberActivityOnOrderEdit } from "@/services/finance/balanceLogService";
 import { adjustPointsOnOrderEdit } from "@/services/points/pointsService";
-import { logOperation } from '@/stores/auditLogStore';
+import { logOperation } from '@/services/audit/auditLogService';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ import {
   Order,
   UsdtOrder,
 } from "@/hooks/useOrders";
-import { updateOrderUseCase } from "@/application/order/useCases/orderLifecycleUseCases";
+import { updateOrderUseCase } from "@/services/orders/orderLifecycleUseCases";
 import { useMerchantNameResolver } from "@/hooks/useNameResolver";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import ColumnVisibilityDropdown from "@/components/ColumnVisibilityDropdown";

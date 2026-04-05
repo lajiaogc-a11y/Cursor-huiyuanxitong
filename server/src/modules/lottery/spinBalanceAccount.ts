@@ -49,6 +49,64 @@ export async function ensureMemberActivityRowForLotteryConn(conn: PoolConnection
   );
 }
 
+/**
+ * Unified spin balance mutation — the ONLY way to change lottery_spin_balance.
+ * Positive amount = grant, negative = consume.
+ * Writes audit row to spin_credits and updates member_activity.lottery_spin_balance.
+ */
+export async function addSpinConn(
+  conn: PoolConnection,
+  memberId: string,
+  amount: number,
+  source: string,
+): Promise<{ newBalance: number }> {
+  const delta = Math.floor(Number(amount) || 0);
+  if (delta === 0) return { newBalance: 0 };
+
+  await ensureMemberActivityRowForLotteryConn(conn, memberId);
+
+  if (delta < 0) {
+    const [ur] = await conn.query(
+      'UPDATE member_activity SET lottery_spin_balance = COALESCE(lottery_spin_balance, 0) + ?, updated_at = NOW(3) WHERE member_id = ? AND COALESCE(lottery_spin_balance, 0) >= ?',
+      [delta, memberId, Math.abs(delta)],
+    );
+    const aff = Number((ur as { affectedRows?: number }).affectedRows ?? 0);
+    if (aff !== 1) {
+      throw new Error('INSUFFICIENT_SPIN_BALANCE');
+    }
+  } else {
+    await conn.query(
+      'UPDATE member_activity SET lottery_spin_balance = COALESCE(lottery_spin_balance, 0) + ?, updated_at = NOW(3) WHERE member_id = ?',
+      [delta, memberId],
+    );
+  }
+
+  await conn.query(
+    'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
+    [memberId, delta, source],
+  );
+
+  const [balRows] = await conn.query(
+    'SELECT COALESCE(lottery_spin_balance, 0) AS bal FROM member_activity WHERE member_id = ?',
+    [memberId],
+  );
+  const newBalance = Math.max(0, Number((balRows as { bal?: number }[])[0]?.bal ?? 0));
+
+  console.log(`[addSpin] member=${memberId} delta=${delta > 0 ? '+' : ''}${delta} source=${source} newBalance=${newBalance}`);
+
+  return { newBalance };
+}
+
+export async function addSpin(
+  memberId: string,
+  amount: number,
+  source: string,
+): Promise<{ newBalance: number }> {
+  const { withTransaction } = await import('../../database/index.js');
+  return withTransaction((conn) => addSpinConn(conn, memberId, amount, source));
+}
+
+/** @deprecated Use {@link addSpinConn} for grants/consumes so spin_credits and balance stay in sync. */
 export async function incrementLotterySpinBalanceConn(conn: PoolConnection, memberId: string, delta: number, source?: string): Promise<void> {
   const d = Math.floor(Number(delta) || 0);
   if (d <= 0) return;
@@ -68,6 +126,7 @@ export type LotteryQuotaSnapshot = {
 
 /**
  * 按上海日历日同步「每日免费已用次数」：换日时根据当日 lottery_logs 条数与 daily_free 取 min 初始化。
+ * @deprecated Lottery draw/quota no longer use daily free spins; kept for legacy callers.
  */
 export async function syncLotteryQuotaDayAndLoadConn(
   conn: PoolConnection,

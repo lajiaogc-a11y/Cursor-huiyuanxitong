@@ -169,7 +169,7 @@ const patterns: ErrorPattern[] = [
       },
     },
   },
-  // Supabase / DB specific
+  // PostgREST / SQL-style DB errors
   {
     test: /pgrst|postgrest|relation.*does not exist|column.*does not exist|duplicate key/i,
     classification: {

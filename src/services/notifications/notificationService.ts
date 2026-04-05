@@ -24,7 +24,7 @@ export async function listNotifications(): Promise<Notification[]> {
   return (data || []) as Notification[];
 }
 
-/** 未读条数（表代理 count，与 PendingTasksPanel 原 supabase 行为一致） */
+/** 未读条数（表代理 count，与 PendingTasksPanel 行为一致） */
 export async function countUnreadNotificationsForRecipient(recipientId: string): Promise<number> {
   const { count } = await fetchTableSelectRaw("notifications", {
     select: "*",

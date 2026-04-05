@@ -1,6 +1,6 @@
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
-import { queryOne } from '../../database/index.js';
+import { selectEmployeeTenantIdById } from './repository.js';
 import { insertWebhookQueueEvent, scheduleProcessWebhookQueueInBackground } from './processor.js';
 
 const ALLOWED_EVENT_TYPES = new Set([
@@ -35,11 +35,7 @@ export async function postEnqueueWebhookEventController(req: AuthenticatedReques
 
   let tenantId = req.user?.tenant_id ?? undefined;
   if (!tenantId && req.user?.id) {
-    const row = await queryOne<{ tenant_id: string | null }>(
-      'SELECT tenant_id FROM `employees` WHERE `id` = ? LIMIT 1',
-      [req.user.id],
-    );
-    tenantId = row?.tenant_id ?? undefined;
+    tenantId = (await selectEmployeeTenantIdById(req.user.id)) ?? undefined;
   }
 
   if (!tenantId && req.user?.is_platform_super_admin && typeof body.tenant_id === 'string' && body.tenant_id.trim()) {

@@ -44,7 +44,7 @@ import { Plus, Edit, Trash2, Activity, Save } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useActivityTypes, ActivityType } from "@/hooks/useActivityTypes";
-import { logOperation } from "@/stores/auditLogStore";
+import { logOperation } from "@/services/audit/auditLogService";
 
 export default function ActivityTypeSettingsTab() {
   const { t } = useLanguage();
