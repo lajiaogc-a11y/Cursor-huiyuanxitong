@@ -251,18 +251,18 @@ export async function runInviteLeaderboardFakeGrowthJob(): Promise<InviteLeaderb
   }
 }
 
-const ONE_HOUR_MS = 60 * 60 * 1000;
+const CHECK_INTERVAL_MS = 2 * 60 * 1000;
 let timer: ReturnType<typeof setInterval> | undefined;
 
 export function startInviteLeaderboardGrowthScheduler(): void {
   if (timer) return;
   console.log(
-    '[API] Invite leaderboard fake growth: hourly check; per-user random scheduling within cycle',
+    '[API] Invite leaderboard fake growth: check every 2 min; per-user random scheduling within cycle',
   );
   void runInviteLeaderboardFakeGrowthJob();
   timer = setInterval(() => {
     void runInviteLeaderboardFakeGrowthJob();
-  }, ONE_HOUR_MS);
+  }, CHECK_INTERVAL_MS);
 }
 
 export function stopInviteLeaderboardGrowthScheduler(): void {

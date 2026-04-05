@@ -142,6 +142,17 @@ export async function staffDeleteAllInviteLeaderboardFakes(tenantId: string | nu
   return { deleted: Number(o.deleted ?? 0) };
 }
 
+export async function staffResetInviteLeaderboardGrowthCycle(
+  tenantId: string | null,
+): Promise<InviteLeaderboardGrowthSettings | null> {
+  const res = await apiPostAsStaff<unknown>(
+    `/api/member-portal-settings/invite-leaderboard/reset-cycle${tenantQs(tenantId)}`,
+    {},
+  );
+  const o = res as { settings?: InviteLeaderboardGrowthSettings };
+  return o.settings ?? null;
+}
+
 export async function staffRandomizeInviteLeaderboardFakeBase(
   tenantId: string | null,
   min = 1,

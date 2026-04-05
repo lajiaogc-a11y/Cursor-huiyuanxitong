@@ -269,10 +269,13 @@ export default function MemberDashboard() {
     shareCapReached,
     shareCreditsToday,
     dailyShareCap,
+    sharing,
     claimingShare,
+    pendingShareNonce,
     checkInSummary,
     handleCheckIn,
-    handleShareAndClaim,
+    handleShare,
+    handleClaimShareReward,
   } = useMemberDashboardDailyTasks({
     memberId: member?.id,
     inviteToken,
@@ -576,14 +579,23 @@ export default function MemberDashboard() {
             </div>
             {shareCapReached ? (
               <CheckCircle className="h-5 w-5 shrink-0 text-pu-emerald" aria-hidden />
-            ) : (
+            ) : pendingShareNonce ? (
               <LoadingButton
                 type="button"
                 loading={claimingShare}
-                className="shrink-0 rounded-xl border-0 bg-[hsl(var(--pu-emerald))] px-4 py-1.5 text-xs font-bold text-[hsl(var(--pu-m-bg-1))] shadow-[0_4px_14px_-4px_hsl(var(--pu-emerald)/0.45)] transition hover:bg-[hsl(var(--pu-emerald-soft))] hover:shadow-[0_6px_18px_-4px_hsl(var(--pu-emerald)/0.4)] active:scale-95 disabled:opacity-60"
-                onClick={() => void handleShareAndClaim()}
+                className="shrink-0 rounded-xl border-0 bg-[hsl(var(--pu-amber,45_90%_55%))] px-4 py-1.5 text-xs font-bold text-[hsl(var(--pu-m-bg-1))] shadow-[0_4px_14px_-4px_hsl(var(--pu-amber,45_90%_55%)/0.45)] transition hover:opacity-90 active:scale-95 disabled:opacity-60"
+                onClick={() => void handleClaimShareReward()}
               >
-                {t("去完成", "Go")}
+                {t("领取奖励", "Claim reward")}
+              </LoadingButton>
+            ) : (
+              <LoadingButton
+                type="button"
+                loading={sharing}
+                className="shrink-0 rounded-xl border-0 bg-[hsl(var(--pu-emerald))] px-4 py-1.5 text-xs font-bold text-[hsl(var(--pu-m-bg-1))] shadow-[0_4px_14px_-4px_hsl(var(--pu-emerald)/0.45)] transition hover:bg-[hsl(var(--pu-emerald-soft))] hover:shadow-[0_6px_18px_-4px_hsl(var(--pu-emerald)/0.4)] active:scale-95 disabled:opacity-60"
+                onClick={() => void handleShare()}
+              >
+                {t("去分享", "Share")}
               </LoadingButton>
             )}
           </div>

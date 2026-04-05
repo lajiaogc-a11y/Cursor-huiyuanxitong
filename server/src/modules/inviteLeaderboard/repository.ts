@@ -321,18 +321,29 @@ export async function upsertInviteLeaderboardGrowthSettings(
        growth_delta_min = VALUES(growth_delta_min),
        growth_delta_max = VALUES(growth_delta_max),
        auto_growth_enabled = VALUES(auto_growth_enabled),
-       growth_segment_started_at = NULL,
-       next_fake_growth_at = NULL,
        updated_at = NOW(3)`,
     [tenantId, segH, c.dMin, c.dMax, auto ? 1 : 0],
   );
 
-  // Saving settings resets the cycle — clear all per-user schedules so the next job run starts a fresh cycle
+  const after = await getTenantGrowthScheduleFull(tenantId);
+  return after ?? defaultGrowthScheduleDto(tenantId);
+}
+
+/**
+ * Explicitly reset the current growth cycle for a tenant.
+ * Clears per-user schedules so the next job run starts a fresh cycle.
+ */
+export async function resetGrowthCycleForTenant(tenantId: string): Promise<InviteLeaderboardGrowthScheduleDto> {
+  await execute(
+    `UPDATE invite_leaderboard_tenant_growth_schedule
+     SET growth_segment_started_at = NULL, next_fake_growth_at = NULL, updated_at = NOW(3)
+     WHERE tenant_id = ?`,
+    [tenantId],
+  );
   await execute(
     `UPDATE invite_leaderboard_fake_users SET next_growth_at = NULL WHERE tenant_id = ?`,
     [tenantId],
   );
-
   const after = await getTenantGrowthScheduleFull(tenantId);
   return after ?? defaultGrowthScheduleDto(tenantId);
 }

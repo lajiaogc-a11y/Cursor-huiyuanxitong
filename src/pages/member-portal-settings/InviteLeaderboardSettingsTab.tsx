@@ -30,6 +30,7 @@ import {
   staffRandomizeInviteLeaderboardFakeBase,
   staffGetInviteLeaderboardGrowthSettings,
   staffPatchInviteLeaderboardGrowthSettings,
+  staffResetInviteLeaderboardGrowthCycle,
   type InviteLeaderboardFakeRow,
   type InviteLeaderboardGrowthSettings,
 } from "@/services/staff/inviteLeaderboardAdminService";
@@ -79,6 +80,8 @@ export function InviteLeaderboardSettingsTab({
   const [resetGrowthId, setResetGrowthId] = useState<string | null>(null);
   const [growthDraft, setGrowthDraft] = useState<InviteLeaderboardGrowthSettings | null>(null);
   const [growthSaving, setGrowthSaving] = useState(false);
+  const [resetCycleBusy, setResetCycleBusy] = useState(false);
+  const [resetCycleConfirmOpen, setResetCycleConfirmOpen] = useState(false);
 
   const role = String(employee?.role ?? "").toLowerCase();
   const canReplaceSeed = !!(
@@ -122,12 +125,29 @@ export function InviteLeaderboardSettingsTab({
       });
       if (next) setGrowthDraft(next);
       notify.success(
-        t("增长策略已保存，当前周期已重置", "Saved; current cycle has been reset"),
+        t("增长策略已保存", "Growth policy saved"),
       );
     } catch (e) {
       notify.error(e instanceof ApiError ? e.message : t("保存失败", "Save failed"));
     } finally {
       setGrowthSaving(false);
+    }
+  };
+
+  const handleResetCycle = async () => {
+    if (!tenantId || !canMutate) return;
+    setResetCycleBusy(true);
+    try {
+      const next = await staffResetInviteLeaderboardGrowthCycle(tenantId);
+      if (next) setGrowthDraft(next);
+      notify.success(
+        t("增长周期已重置，下次检测时将开始新周期", "Growth cycle reset; a new cycle starts at the next check"),
+      );
+      await load();
+    } catch (e) {
+      notify.error(e instanceof ApiError ? e.message : t("重置失败", "Reset failed"));
+    } finally {
+      setResetCycleBusy(false);
     }
   };
 
@@ -265,8 +285,8 @@ export function InviteLeaderboardSettingsTab({
     <div className="space-y-6">
       <p className="text-xs text-muted-foreground -mb-1 border-l-2 border-primary/30 pl-2 leading-relaxed">
         {t(
-          "假用户与真实会员合并排序，邀请页展示前 5 名。自动增长以「周期时长」为一个完整周期（如 72 小时）：周期开始时为每个假用户分配一个周期内的随机时间点，到时间后自动增加 0～3 人。每个假用户在一个周期内只增长一次，且各自在不同时刻触发。周期结束后自动开始新周期。每小时检测一次。单条假用户最多 30 个生命周期。",
-          "Synthetic users merge with real members for the top 5 invite ranking. Auto-growth runs in cycles (e.g. 72h): at cycle start, each user is assigned a random time within the window. When that time arrives, they get +0~3 invites. Each user grows exactly once per cycle at their own random time. New cycle starts when the previous one ends. Checked hourly. Max 30 lifetime cycles per row.",
+          "假用户与真实会员合并排序，邀请页展示前 5 名。自动增长以「周期时长」为一个完整周期（如 72 小时）：周期开始时为每个假用户分配一个周期内的随机时间点，到时间后自动增加 0～3 人。每个假用户在一个周期内只增长一次，且各自在不同时刻触发。周期结束后自动开始新周期。每 2 分钟检测一次。单条假用户最多 30 个生命周期。",
+          "Synthetic users merge with real members for the top 5 invite ranking. Auto-growth runs in cycles (e.g. 72h): at cycle start, each user is assigned a random time within the window. When that time arrives, they get +0~3 invites. Each user grows exactly once per cycle at their own random time. New cycle starts when the previous one ends. Checked every 2 minutes. Max 30 lifetime cycles per row.",
         )}
       </p>
 
@@ -277,8 +297,8 @@ export function InviteLeaderboardSettingsTab({
           </CardTitle>
           <p className="text-sm text-muted-foreground font-normal mt-1">
             {t(
-              "保存后当前周期重置，所有假用户会重新分配随机增长时间。",
-              "Saving resets the current cycle; all users get new random growth times.",
+              "保存仅修改参数，不影响当前周期。如需重置周期请使用下方「重置周期」按钮。",
+              "Saving only updates parameters without affecting the current cycle. Use the \"Reset cycle\" button below to restart.",
             )}
           </p>
         </CardHeader>
@@ -378,10 +398,22 @@ export function InviteLeaderboardSettingsTab({
                 </p>
               </div>
               {canMutate ? (
-                <Button type="button" size="sm" disabled={growthSaving} onClick={() => void handleSaveGrowthSettings()}>
-                  {growthSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
-                  {t("保存增长策略", "Save policy")}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" size="sm" disabled={growthSaving} onClick={() => void handleSaveGrowthSettings()}>
+                    {growthSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                    {t("保存增长策略", "Save policy")}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={resetCycleBusy || !growthDraft?.growth_segment_started_at}
+                    onClick={() => setResetCycleConfirmOpen(true)}
+                  >
+                    {resetCycleBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RotateCcw className="h-3.5 w-3.5 mr-1" />}
+                    {t("重置周期", "Reset cycle")}
+                  </Button>
+                </div>
               ) : null}
             </div>
           ) : (
@@ -616,6 +648,31 @@ export function InviteLeaderboardSettingsTab({
               }}
             >
               {t("确认执行", "Run now")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={resetCycleConfirmOpen} onOpenChange={setResetCycleConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("重置当前增长周期？", "Reset current growth cycle?")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                "将清空当前周期进度，所有假用户的增长时间将重新随机分配。下次系统检测时自动开始新周期。此操作不影响已完成的增长数据。",
+                "Clears the current cycle progress and re-allocates random growth times for all synthetic users. A new cycle starts at the next system check. Already accumulated growth data is not affected.",
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setResetCycleConfirmOpen(false);
+                void handleResetCycle();
+              }}
+            >
+              {t("确认重置周期", "Reset cycle")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

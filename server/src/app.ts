@@ -356,7 +356,7 @@ void (async () => {
       startActivityDataRetentionScheduler();
       startInviteRegisterTokenCleanupScheduler();
       startSpinFakeLotteryScheduler();
-      /** 邀请排行榜假用户增长：每小时检查一次，每租户实际间隔见 INVITE_LEADERBOARD_GROWTH_HOURS（默认 72） */
+      /** 邀请排行榜假用户增长：每 2 分钟检查一次，每租户实际间隔见 growth_segment_hours（默认 72h） */
       startInviteLeaderboardGrowthScheduler();
     }
   });

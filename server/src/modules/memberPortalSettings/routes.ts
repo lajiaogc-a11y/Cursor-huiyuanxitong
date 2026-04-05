@@ -34,6 +34,7 @@ import {
   postInviteLeaderboardRunGrowthNowController,
   getInviteLeaderboardGrowthSettingsController,
   patchInviteLeaderboardGrowthSettingsController,
+  postInviteLeaderboardResetCycleController,
 } from '../inviteLeaderboard/adminController.js';
 
 const router = Router();
@@ -81,5 +82,6 @@ router.post('/invite-leaderboard/seed', authMiddleware, postInviteLeaderboardSee
 router.get('/invite-leaderboard/growth-settings', authMiddleware, getInviteLeaderboardGrowthSettingsController);
 router.patch('/invite-leaderboard/growth-settings', authMiddleware, patchInviteLeaderboardGrowthSettingsController);
 router.post('/invite-leaderboard/run-growth-now', authMiddleware, postInviteLeaderboardRunGrowthNowController);
+router.post('/invite-leaderboard/reset-cycle', authMiddleware, postInviteLeaderboardResetCycleController);
 
 export default router;

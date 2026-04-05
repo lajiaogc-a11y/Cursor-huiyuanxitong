@@ -53,6 +53,7 @@ export function useMemberDashboardDailyTasks({
 }: MemberDashboardDailyTasksOptions) {
   const checkInGuard = useActionGuard(2000);
   const shareGuard = useActionGuard(2000);
+  const claimGuard = useActionGuard(2000);
   const cached = memberId ? _dailyStatusCache.get(memberId) : undefined;
 
   const [checkedInToday, setCheckedInToday] = useState(cached?.checkedIn ?? false);
@@ -63,6 +64,8 @@ export function useMemberDashboardDailyTasks({
   const shareCapReached = dailyShareCap > 0 && shareCreditsToday >= dailyShareCap;
 
   const [claimingShare, setClaimingShare] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [pendingNonce, setPendingNonce] = useState<string | null>(null);
   const [checkInSpinsEarned, setCheckInSpinsEarned] = useState<number | null>(cached?.spinsEarned ?? null);
   const [checkInSummary, setCheckInSummary] = useState<MemberDailyStatus | null>(cached?.summary ?? null);
   const [shareSpinsEarned, setShareSpinsEarned] = useState<number | null>(cached?.shareSpinsEarned ?? null);
@@ -206,39 +209,89 @@ export function useMemberDashboardDailyTasks({
     refreshSpinQuota,
   ]);
 
-  const handleShareAndClaim = useCallback(async () => {
-    if (!memberId || claimingShare || shareCapReached) return;
+  /**
+   * Step 1: Open the share dialog and obtain a nonce.
+   * Does NOT claim the reward — the user must explicitly click "Claim" afterwards.
+   */
+  const handleShare = useCallback(async () => {
+    if (!memberId || sharing || shareCapReached) return;
     await shareGuard(async () => {
-      setClaimingShare(true);
+      setSharing(true);
       try {
-        // Step 1: Request a one-time nonce from the server BEFORE opening the share page
         const nonceRes = await requestShareNonce(memberId);
         if (!nonceRes?.success || !nonceRes.nonce) {
           const errCode = nonceRes?.error;
           if (errCode === "SHARE_REWARD_DISABLED") {
             notifyInfo(["未开启分享奖励", "Share reward is not enabled"]);
+          } else if (errCode === "SHARE_DAILY_CAP_REACHED") {
+            notifyInfo(["今日分享奖励已达上限", "Daily share reward limit reached"]);
           } else {
             notifyError([errCode || "领取凭证获取失败", errCode || "Failed to obtain share credential"]);
           }
           return;
         }
-        const shareNonce = nonceRes.nonce;
 
-        // Step 2: Open the share page
         const code = inviteToken || invitePathFallback || "";
         if (!code) {
           notifyError(["邀请链接未就绪，请稍后再试", "Invite link not ready, please try again"]);
           return;
         }
         const inviteLink = `${window.location.origin}/invite/${code}`;
-        try {
-          window.open(`https://wa.me/?text=${encodeURIComponent(buildShareInviteText(inviteLink))}`, "_blank", "noopener,noreferrer");
-        } catch {
-          notifyError(["无法打开分享页面", "Unable to open share page"]);
+        const shareText = buildShareInviteText(inviteLink);
+
+        let shared = false;
+        if (typeof navigator.share === "function") {
+          try {
+            await navigator.share({ text: shareText, url: inviteLink });
+            shared = true;
+          } catch (e: unknown) {
+            if (e instanceof DOMException && e.name === "AbortError") {
+              return;
+            }
+          }
         }
 
-        // Step 3: Claim reward with the one-time nonce
-        const r = await memberClaimShareReward(memberId, shareNonce);
+        if (!shared) {
+          try {
+            const waUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+            window.open(waUrl, "_blank", "noopener,noreferrer");
+          } catch {
+            try {
+              await navigator.clipboard.writeText(shareText);
+              notifySuccess(["邀请链接已复制，请粘贴发送给好友", "Invite link copied! Paste and send to friends."]);
+            } catch {
+              notifyError(["无法打开分享或复制链接", "Unable to share or copy link"]);
+              return;
+            }
+          }
+        }
+
+        setPendingNonce(nonceRes.nonce);
+        notifyInfo(["分享完成后，请点击"领取奖励"", "After sharing, tap \"Claim reward\" to collect."]);
+      } catch (e: unknown) {
+        if (e instanceof ApiError && e.statusCode === 429) {
+          notifyError([e.message || "操作过于频繁，请稍后再试", e.message || "Too many attempts, try again later"]);
+        } else {
+          notifyError([e instanceof Error ? e.message : "网络错误", e instanceof Error ? e.message : "Network error"]);
+        }
+      } finally {
+        setSharing(false);
+      }
+    });
+  }, [memberId, sharing, shareCapReached, shareGuard, inviteToken, invitePathFallback, buildShareInviteText]);
+
+  /**
+   * Step 2: Claim the share reward using the previously obtained nonce.
+   * The user must have completed handleShare first.
+   */
+  const handleClaimShareReward = useCallback(async () => {
+    if (!memberId || claimingShare || !pendingNonce) return;
+    await claimGuard(async () => {
+      setClaimingShare(true);
+      try {
+        const r = await memberClaimShareReward(memberId, pendingNonce);
+        setPendingNonce(null);
+
         if (r?.success) {
           const n = Math.max(0, Math.floor(Number(r.credits ?? 1)));
           setShareSpinsEarned(n);
@@ -288,10 +341,7 @@ export function useMemberDashboardDailyTasks({
         }
       } catch (e: unknown) {
         if (e instanceof ApiError && e.statusCode === 429) {
-          notifyError([
-            e.message || "操作过于频繁，请稍后再试",
-            e.message || "Too many attempts, try again later",
-          ]);
+          notifyError([e.message || "操作过于频繁，请稍后再试", e.message || "Too many attempts, try again later"]);
         } else {
           notifyError([e instanceof Error ? e.message : "网络错误", e instanceof Error ? e.message : "Network error"]);
         }
@@ -299,20 +349,7 @@ export function useMemberDashboardDailyTasks({
         setClaimingShare(false);
       }
     });
-  }, [
-    memberId,
-    claimingShare,
-    shareCapReached,
-    shareGuard,
-    inviteToken,
-    invitePathFallback,
-    buildShareInviteText,
-    refreshMember,
-    refreshPoints,
-    refreshSpinQuota,
-    shareCreditsToday,
-    dailyShareCap,
-  ]);
+  }, [memberId, claimingShare, pendingNonce, claimGuard, refreshMember, refreshPoints, refreshSpinQuota, shareCreditsToday, dailyShareCap]);
 
   return {
     checkedInToday,
@@ -320,11 +357,14 @@ export function useMemberDashboardDailyTasks({
     shareCapReached,
     shareCreditsToday,
     dailyShareCap,
+    sharing,
     claimingShare,
+    pendingShareNonce: pendingNonce !== null,
     checkInSpinsEarned,
     shareSpinsEarned,
     checkInSummary,
     handleCheckIn,
-    handleShareAndClaim,
+    handleShare,
+    handleClaimShareReward,
   };
 }

@@ -17,6 +17,7 @@ import {
   randomizeBaseInviteCountsForTenant,
   getGrowthSettingsMerged,
   upsertInviteLeaderboardGrowthSettings,
+  resetGrowthCycleForTenant,
   type InviteFakeUserRow,
   type InviteLeaderboardGrowthScheduleDto,
 } from './repository.js';
@@ -377,6 +378,28 @@ export async function postInviteLeaderboardRunGrowthNowController(req: Authentic
       fake_rows_updated: result.fake_rows_updated,
       message: result.message,
     });
+  } catch (e) {
+    res.status(500).json({ success: false, error: (e as Error).message || 'Failed' });
+  }
+}
+
+/** Explicitly reset the current growth cycle and re-allocate random growth times. */
+export async function postInviteLeaderboardResetCycleController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  if (!assertEmployee(req, res)) return;
+  if (!canMutate(req)) {
+    res.status(403).json({ success: false, error: 'NO_PERMISSION' });
+    return;
+  }
+  const resolved = resolveTenantIdForActivityDataList(req);
+  if (!resolved.ok) {
+    res.status(resolved.status).json(resolved.body);
+    return;
+  }
+  try {
+    const before = await getGrowthSettingsMerged(resolved.tenantId);
+    const after = await resetGrowthCycleForTenant(resolved.tenantId);
+    await audit(req, 'reset_growth_cycle', null, 'Reset invite leaderboard growth cycle', serializeGrowthSettings(before), serializeGrowthSettings(after));
+    res.json({ success: true, settings: serializeGrowthSettings(after) });
   } catch (e) {
     res.status(500).json({ success: false, error: (e as Error).message || 'Failed' });
   }
