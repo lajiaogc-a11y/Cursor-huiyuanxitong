@@ -2,6 +2,7 @@
  * 清理 invite_register_tokens：过期未使用行 + 可选清理久远的已消费行（审计在 invite_register_audit）。
  */
 import { execute } from '../../database/index.js';
+import { withSchedulerLock } from '../../lib/schedulerLock.js';
 
 const BATCH = 5000;
 const MAX_ROUNDS = 500;
@@ -54,20 +55,19 @@ export async function purgeExpiredInviteRegisterTokens(): Promise<{
 
 let timer: ReturnType<typeof setInterval> | undefined;
 
-export function startInviteRegisterTokenCleanupScheduler(): void {
-  if (timer) return;
-  void purgeExpiredInviteRegisterTokens().then((s) => {
+async function lockedPurge(): Promise<void> {
+  await withSchedulerLock('token_cleanup', async () => {
+    const s = await purgeExpiredInviteRegisterTokens();
     if (s.expired_unused > 0 || s.old_consumed > 0) {
       console.log('[invite_register_tokens_cleanup]', s);
     }
   });
-  timer = setInterval(() => {
-    void purgeExpiredInviteRegisterTokens().then((s) => {
-      if (s.expired_unused > 0 || s.old_consumed > 0) {
-        console.log('[invite_register_tokens_cleanup]', s);
-      }
-    });
-  }, cleanupIntervalMs());
+}
+
+export function startInviteRegisterTokenCleanupScheduler(): void {
+  if (timer) return;
+  void lockedPurge();
+  timer = setInterval(() => { void lockedPurge(); }, cleanupIntervalMs());
 }
 
 export function stopInviteRegisterTokenCleanupScheduler(): void {

@@ -14,6 +14,7 @@
  *   - 保留最近 N 次运行结果供管理端查询
  */
 import { query } from '../../database/index.js';
+import { withSchedulerLock } from '../../lib/schedulerLock.js';
 import { retryFailedRewards } from './rewardCompensation.js';
 import {
   reconcileStock,
@@ -191,16 +192,15 @@ export function startLotteryScheduler() {
   console.log('[lotteryScheduler] starting — reward_retry every 5min, reconcile every 30min');
 
   rewardTimer = setInterval(() => {
-    void tickRewardRetry();
+    void withSchedulerLock('lottery_reward_retry', () => tickRewardRetry());
   }, REWARD_RETRY_INTERVAL_MS);
 
   reconcileTimer = setInterval(() => {
-    void tickReconcile();
+    void withSchedulerLock('lottery_reconcile', () => tickReconcile());
   }, RECONCILE_INTERVAL_MS);
 
-  // Run first reconcile after 60s startup delay
   setTimeout(() => {
-    void tickReconcile();
+    void withSchedulerLock('lottery_reconcile', () => tickReconcile());
   }, 60_000);
 }
 

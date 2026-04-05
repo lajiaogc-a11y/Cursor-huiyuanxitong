@@ -11,6 +11,7 @@
 import { randomUUID } from 'node:crypto';
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { withTransaction } from '../../database/index.js';
+import { withSchedulerLock } from '../../lib/schedulerLock.js';
 import {
   finishJobRun,
   insertJobRunStart,
@@ -259,9 +260,9 @@ export function startInviteLeaderboardGrowthScheduler(): void {
   console.log(
     '[API] Invite leaderboard fake growth: check every 2 min; per-user random scheduling within cycle',
   );
-  void runInviteLeaderboardFakeGrowthJob();
+  void withSchedulerLock('invite_growth', () => runInviteLeaderboardFakeGrowthJob().then(() => {}));
   timer = setInterval(() => {
-    void runInviteLeaderboardFakeGrowthJob();
+    void withSchedulerLock('invite_growth', () => runInviteLeaderboardFakeGrowthJob().then(() => {}));
   }, CHECK_INTERVAL_MS);
 }
 

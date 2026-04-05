@@ -5,6 +5,7 @@ import {
   listTenantIdsWithActivityRetentionEnabledRepository,
   runActivityDataRetentionForTenantRepository,
 } from './activityDataRetentionRepository.js';
+import { withSchedulerLock } from '../../lib/schedulerLock.js';
 
 const TWENTY_FOUR_H_MS = 24 * 60 * 60 * 1000;
 let timer: ReturnType<typeof setInterval> | undefined;
@@ -34,9 +35,9 @@ async function runAll(): Promise<void> {
 
 export function startActivityDataRetentionScheduler(): void {
   if (timer) return;
-  void runAll();
+  void withSchedulerLock('activity_retention', () => runAll());
   timer = setInterval(() => {
-    void runAll();
+    void withSchedulerLock('activity_retention', () => runAll());
   }, TWENTY_FOUR_H_MS);
 }
 

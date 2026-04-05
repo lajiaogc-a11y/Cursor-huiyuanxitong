@@ -5,6 +5,7 @@
  */
 import { randomInt } from 'node:crypto';
 import { query, execute } from '../../database/index.js';
+import { withSchedulerLock } from '../../lib/schedulerLock.js';
 import { getShanghaiHourKey, msUntilNextShanghaiHourBoundary } from '../../lib/shanghaiTime.js';
 import { simulateLotteryDrawForTenant } from './service.js';
 import type { SpinFakeUser } from './spinFakeUserPool.js';
@@ -252,7 +253,7 @@ export async function manualStartSpinFakeCronForTenant(
 function scheduleNextHourlyRun(): void {
   const wait = msUntilNextShanghaiHourBoundary();
   hourTimer = setTimeout(() => {
-    void runSpinFakeLotteryHourJob()
+    void withSchedulerLock('spin_fake_hour', () => runSpinFakeLotteryHourJob())
       .catch((e) => console.warn('[spin_fake] hour job', (e as Error).message || e))
       .finally(() => {
         scheduleNextHourlyRun();
@@ -271,11 +272,11 @@ export function startSpinFakeLotteryScheduler(): void {
   }, 500);
   scheduleNextHourlyRun();
   anchorTimer = setInterval(() => {
-    void runSpinFakeAnchorModeTick().catch((e) =>
+    void withSchedulerLock('spin_fake_anchor', () => runSpinFakeAnchorModeTick()).catch((e) =>
       console.warn('[spin_fake] anchor tick', (e as Error).message || e),
     );
   }, 60_000);
-  void runSpinFakeAnchorModeTick().catch((e) =>
+  void withSchedulerLock('spin_fake_anchor', () => runSpinFakeAnchorModeTick()).catch((e) =>
     console.warn('[spin_fake] anchor tick (boot)', (e as Error).message || e),
   );
 }
