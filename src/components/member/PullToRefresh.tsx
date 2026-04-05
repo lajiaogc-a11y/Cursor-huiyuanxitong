@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
 } from "react";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,16 @@ import { queryClient } from "@/lib/queryClient";
 import { memberQueryKeys } from "@/lib/memberQueryKeys";
 import { isMemberBottomTabPath } from "@/lib/memberBottomTabPaths";
 import { useLanguage } from "@/contexts/LanguageContext";
+
+declare global {
+  interface Window {
+    AndroidBridge?: {
+      reportScrollTop?: (atTop: boolean) => void;
+      onRefreshComplete?: () => void;
+      saveBase64ImageToGallery?: (base64: string, filename: string) => void;
+    };
+  }
+}
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);
@@ -25,6 +36,12 @@ function usePrefersReducedMotion() {
     return () => mq.removeEventListener("change", onChange);
   }, []);
   return reduced;
+}
+
+/** Detect if running inside the FastGC Android WebView. */
+function detectAndroidWebView(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /FastGC-Android/i.test(navigator.userAgent);
 }
 
 const THRESHOLD = 80;
@@ -59,6 +76,7 @@ interface Props {
 
 export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContainer = false, className, scrollElRef }: Props) {
   const { t } = useLanguage();
+  const androidMode = useMemo(detectAndroidWebView, []);
   const [pulling, setPulling] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -73,12 +91,6 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   const memberTabScrollMemoryRef = useRef<Record<string, number>>({});
   const memberScrollPrevPathRef = useRef<string | null>(null);
 
-  /**
-   * Use a state variable to track the actual scroll DOM node.
-   * A callback ref triggers a re-render when the node mounts/unmounts,
-   * which causes the useEffect for event listeners to re-run and
-   * attach to the CORRECT element (not document.body as fallback).
-   */
   const [scrollNode, setScrollNode] = useState<HTMLDivElement | null>(null);
   const scrollRefCallback = useCallback((node: HTMLDivElement | null) => {
     setScrollNode(node);
@@ -89,6 +101,56 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
 
   const stateRef = useRef({ pulling: false, refreshing: false, pullDistance: 0 });
 
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Android WebView: report scroll position to native bridge
+  // ═══════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (!androidMode || !scrollNode) return;
+
+    let lastReported: boolean | null = null;
+    const report = () => {
+      const atTop = Math.round(scrollNode.scrollTop) <= 0;
+      if (atTop !== lastReported) {
+        lastReported = atTop;
+        try { window.AndroidBridge?.reportScrollTop?.(atTop); } catch { /* noop */ }
+      }
+    };
+
+    scrollNode.addEventListener("scroll", report, { passive: true });
+    report();
+
+    return () => scrollNode.removeEventListener("scroll", report);
+  }, [androidMode, scrollNode]);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Android WebView: listen for native:refresh event from the native PTR
+  // ═══════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (!androidMode) return;
+
+    const handleNativeRefresh = () => {
+      queryClient
+        .invalidateQueries({
+          queryKey: memberQueryKeys.all,
+          refetchType: "active",
+          type: "active",
+        })
+        .then(() => {
+          window.dispatchEvent(new CustomEvent(MEMBER_PULL_REFRESH_EVENT));
+          try { window.AndroidBridge?.onRefreshComplete?.(); } catch { /* noop */ }
+        })
+        .catch(() => {
+          try { window.AndroidBridge?.onRefreshComplete?.(); } catch { /* noop */ }
+        });
+    };
+
+    window.addEventListener("native:refresh", handleNativeRefresh);
+    return () => window.removeEventListener("native:refresh", handleNativeRefresh);
+  }, [androidMode]);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Web PTR: doRefresh (only used in non-Android mode)
+  // ═══════════════════════════════════════════════════════════════════════
   const doRefresh = useCallback(() => {
     setRefreshing(true);
     stateRef.current.refreshing = true;
@@ -130,7 +192,12 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
       });
   }, [prefersReducedMotion]);
 
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Web PTR: touch event handlers (skipped in Android mode)
+  // ═══════════════════════════════════════════════════════════════════════
   useEffect(() => {
+    if (androidMode) return;
+
     const el = scrollContainer ? scrollNode : null;
     const target = el || document.body;
     if (!target) return;
@@ -228,7 +295,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
       target.removeEventListener("touchend", handleTouchEnd);
       target.removeEventListener("touchcancel", handleTouchEnd);
     };
-  }, [scrollContainer, scrollNode, doRefresh]);
+  }, [androidMode, scrollContainer, scrollNode, doRefresh]);
 
   useEffect(() => {
     setPulling(false);
@@ -258,6 +325,9 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
     memberScrollPrevPathRef.current = pathname;
   }, [location.pathname, scrollContainer, scrollNode]);
 
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Render
+  // ═══════════════════════════════════════════════════════════════════════
   const progress = Math.min(pullDistance / THRESHOLD, 1);
   const rotation = prefersReducedMotion ? 0 : pullDistance * 3.6;
   const indicatorScale = prefersReducedMotion ? 1 : 0.5 + progress * 0.5;
@@ -265,7 +335,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   const showIndicator = pulling || refreshing || settling;
   const animateCollapse = settling || (!pulling && !refreshing);
 
-  const indicator = (
+  const indicator = androidMode ? null : (
     <div
       className="member-ptr-indicator shrink-0"
       style={{
@@ -340,7 +410,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
           style={{
             overscrollBehaviorY: "contain",
             overscrollBehaviorX: "contain",
-            touchAction: pulling ? "none" : "pan-y",
+            touchAction: androidMode ? "pan-y" : pulling ? "none" : "pan-y",
           }}
           role="region"
           aria-busy={refreshing}

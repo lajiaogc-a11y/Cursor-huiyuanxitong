@@ -2,13 +2,6 @@ import { notify } from "@/lib/notifyHub";
 
 export type BilingualT = (zh: string, en: string) => string;
 
-declare global {
-  interface Window {
-    AndroidBridge?: {
-      saveBase64ImageToGallery?: (base64: string, filename: string) => void;
-    };
-  }
-}
 
 function removeOverlay(wrap: HTMLElement, objectUrl: string) {
   if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
