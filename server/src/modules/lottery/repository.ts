@@ -215,33 +215,60 @@ export async function listAllLotteryLogs(
 
 /* ──────────── 积分流水 ──────────── */
 
+/**
+ * Transaction-scoped variant — use inside an existing transaction.
+ * @deprecated Prefer syncPointsLog() from pointsService for all new code.
+ */
+export async function insertPointsLogConn(
+  conn: PoolConnection,
+  memberId: string, tenantId: string | null,
+  change: number, type: string, category: string, remark: string | null,
+): Promise<void> {
+  await conn.query(
+    'INSERT INTO points_log (id, member_id, tenant_id, `change`, type, category, remark) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [randomUUID(), memberId, tenantId, change, type, category, remark],
+  );
+}
+
+/**
+ * Standalone variant — single INSERT, already atomic.
+ * @deprecated Prefer syncPointsLog() from pointsService for all new code.
+ */
 export async function insertPointsLog(
   memberId: string, tenantId: string | null,
-  change: number, type: string, category: string, remark: string | null
+  change: number, type: string, category: string, remark: string | null,
 ): Promise<void> {
   await execute(
     'INSERT INTO points_log (id, member_id, tenant_id, `change`, type, category, remark) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [randomUUID(), memberId, tenantId, change, type, category, remark]
+    [randomUUID(), memberId, tenantId, change, type, category, remark],
   );
 }
 
 /* ──────────── member_activity online_points ──────────── */
 
-export async function addOnlinePoints(memberId: string, points: number): Promise<void> {
-  const existing = await queryOne<{ id: string }>(
-    'SELECT id FROM member_activity WHERE member_id = ?', [memberId]
+/**
+ * Transaction-scoped variant — use when caller already holds a PoolConnection.
+ * Uses INSERT ... ON DUPLICATE KEY UPDATE on the unique index `uniq_ma_member`
+ * for an atomic upsert, eliminating the old TOCTOU race condition.
+ * @deprecated Prefer addPoints() from pointsService for all new code.
+ */
+export async function addOnlinePointsConn(conn: PoolConnection, memberId: string, points: number): Promise<void> {
+  await conn.query(
+    `INSERT INTO member_activity (id, member_id, online_points, updated_at)
+     VALUES (UUID(), ?, ?, NOW(3))
+     ON DUPLICATE KEY UPDATE online_points = online_points + VALUES(online_points), updated_at = NOW(3)`,
+    [memberId, points],
   );
-  if (existing) {
-    await execute(
-      'UPDATE member_activity SET online_points = online_points + ?, updated_at = NOW() WHERE member_id = ?',
-      [points, memberId]
-    );
-  } else {
-    await execute(
-      'INSERT INTO member_activity (id, member_id, online_points) VALUES (UUID(), ?, ?)',
-      [memberId, points]
-    );
-  }
+}
+
+/**
+ * Standalone variant — wraps itself in a transaction.
+ * @deprecated Prefer addPoints() from pointsService for all new code.
+ */
+export async function addOnlinePoints(memberId: string, points: number): Promise<void> {
+  await withTransaction(async (conn) => {
+    await addOnlinePointsConn(conn, memberId, points);
+  });
 }
 
 /* ──────────── 抽奖次数控制 ──────────── */

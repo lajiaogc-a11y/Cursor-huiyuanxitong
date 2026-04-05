@@ -1468,5 +1468,41 @@ export async function migrateSchemaPatches(): Promise<void> {
     console.warn('[schema-patch] lottery_prizes precision upgrade:', ((e as Error).message || '').slice(0, 120));
   }
 
+  // ── Add UNIQUE index on member_activity.member_id (required for atomic upsert) ──
+  try {
+    const [idxRow] = await query<{ cnt: number }>(
+      `SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.STATISTICS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'member_activity'
+         AND INDEX_NAME = 'uniq_ma_member'`,
+    );
+    if (!idxRow || idxRow.cnt === 0) {
+      // Deduplicate before adding unique constraint — keep the row with the most recent updated_at
+      const dupes = await query<{ member_id: string; cnt: number }>(
+        `SELECT member_id, COUNT(*) AS cnt FROM member_activity GROUP BY member_id HAVING cnt > 1`,
+      );
+      for (const d of dupes) {
+        const keepRows = await query<{ id: string }>(
+          `SELECT id FROM member_activity WHERE member_id = ? ORDER BY updated_at DESC LIMIT 1`,
+          [d.member_id],
+        );
+        if (keepRows.length > 0) {
+          await execute(
+            `DELETE FROM member_activity WHERE member_id = ? AND id != ?`,
+            [d.member_id, keepRows[0].id],
+          );
+        }
+      }
+      if (dupes.length > 0) {
+        console.log(`[schema-patch] deduplicated ${dupes.length} member_activity rows before unique index`);
+      }
+      await execute(
+        `ALTER TABLE member_activity ADD UNIQUE INDEX uniq_ma_member (member_id)`,
+      );
+      console.log('[schema-patch] added UNIQUE index uniq_ma_member on member_activity.member_id');
+    }
+  } catch (e: unknown) {
+    console.warn('[schema-patch] member_activity unique index:', ((e as Error).message || '').slice(0, 120));
+  }
+
   console.log('[schema-patch] done.');
 }
