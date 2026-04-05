@@ -5,6 +5,7 @@
  */
 import { randomInt } from 'node:crypto';
 import { query, execute } from '../../database/index.js';
+import { logger } from '../../lib/logger.js';
 import { withSchedulerLock } from '../../lib/schedulerLock.js';
 import { getShanghaiHourKey, msUntilNextShanghaiHourBoundary } from '../../lib/shanghaiTime.js';
 import { simulateLotteryDrawForTenant } from './service.js';
@@ -91,7 +92,7 @@ export async function tickEmitQueuesOnce(): Promise<void> {
     try {
       await insertSimulationFeedRow(tenantId, 'cron_fake', text, null);
     } catch (e) {
-      console.warn('[spin_fake] feed insert', tenantId, (e as Error).message);
+      logger.warn('spin_fake', 'feed insert', tenantId, (e as Error).message);
     }
   }
 }
@@ -137,7 +138,7 @@ async function runOneFakeUserDraw(
     if (rank < rankMin || rank > rankMax) return;
     pushSpinSimPending(tenantId, { user, rank, prizeName: r.prize.name });
   } catch (e) {
-    console.warn('[spin_fake] draw', tenantId, (e as Error).message);
+    logger.warn('spin_fake', 'draw', tenantId, (e as Error).message);
   }
 }
 
@@ -179,7 +180,7 @@ export async function runSpinFakeLotteryHourJob(): Promise<void> {
     scheduled++;
   }
   if (scheduled > 0) {
-    console.log(`[spin_fake] hour=${hourKey} tenants_scheduled=${scheduled}`);
+    logger.info('spin_fake', `hour=${hourKey} tenants_scheduled=${scheduled}`);
   }
 }
 
@@ -215,7 +216,7 @@ export async function runSpinFakeAnchorModeTick(): Promise<void> {
     scheduled++;
   }
   if (scheduled > 0) {
-    console.log(`[spin_fake] anchor_tick tenants_scheduled=${scheduled}`);
+    logger.info('spin_fake', `anchor_tick tenants_scheduled=${scheduled}`);
   }
 }
 
@@ -254,7 +255,7 @@ function scheduleNextHourlyRun(): void {
   const wait = msUntilNextShanghaiHourBoundary();
   hourTimer = setTimeout(() => {
     void withSchedulerLock('spin_fake_hour', () => runSpinFakeLotteryHourJob())
-      .catch((e) => console.warn('[spin_fake] hour job', (e as Error).message || e))
+      .catch((e) => logger.warn('spin_fake', 'hour job', (e as Error).message || e))
       .finally(() => {
         scheduleNextHourlyRun();
       });
@@ -263,7 +264,7 @@ function scheduleNextHourlyRun(): void {
 
 export function startSpinFakeLotteryScheduler(): void {
   if (process.env.SPIN_FAKE_LOTTERY_ENABLED === '0') {
-    console.log('[spin_fake] SPIN_FAKE_LOTTERY_ENABLED=0 — scheduler off');
+    logger.info('spin_fake', 'SPIN_FAKE_LOTTERY_ENABLED=0 — scheduler off');
     return;
   }
   if (emitTimer) return;
@@ -273,11 +274,11 @@ export function startSpinFakeLotteryScheduler(): void {
   scheduleNextHourlyRun();
   anchorTimer = setInterval(() => {
     void withSchedulerLock('spin_fake_anchor', () => runSpinFakeAnchorModeTick()).catch((e) =>
-      console.warn('[spin_fake] anchor tick', (e as Error).message || e),
+      logger.warn('spin_fake', 'anchor tick', (e as Error).message || e),
     );
   }, 60_000);
   void withSchedulerLock('spin_fake_anchor', () => runSpinFakeAnchorModeTick()).catch((e) =>
-    console.warn('[spin_fake] anchor tick (boot)', (e as Error).message || e),
+    logger.warn('spin_fake', 'anchor tick (boot)', (e as Error).message || e),
   );
 }
 

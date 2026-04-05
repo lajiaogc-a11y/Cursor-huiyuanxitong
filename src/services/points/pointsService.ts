@@ -9,6 +9,7 @@ import { getPointsSettingsAsync, PointsSettings } from '@/services/points/points
 import { logOperation } from '@/services/audit/auditLogService';
 import { loadSharedData } from '@/services/finance/sharedDataService';
 import { notifyDataMutation } from '@/services/system/dataRefreshManager';
+import { logger } from '@/lib/logger';
 
 // ============= 积分类型 =============
 // 系统内仅存在三种积分类型
@@ -65,17 +66,17 @@ async function findReferrer(orderPhoneNumber: string): Promise<ReferrerInfo | nu
     );
 
     if (!data?.referrer_phone) {
-      console.log(`[PointsService] No referrer found for phone: ${orderPhoneNumber}`);
+      logger.log(`[PointsService] No referrer found for phone: ${orderPhoneNumber}`);
       return null;
     }
 
-    console.log(`[PointsService] Found referrer for ${orderPhoneNumber}:`, data);
+    logger.log(`[PointsService] Found referrer for ${orderPhoneNumber}:`, data);
     return {
       memberCode: data.referrer_member_code,
       phoneNumber: data.referrer_phone,
     };
   } catch (error) {
-    console.error('[PointsService] Failed to find referrer:', error);
+    logger.error('[PointsService] Failed to find referrer:', error);
     return null;
   }
 }
@@ -152,7 +153,7 @@ export async function createPointsOnOrderCreate(params: CreatePointsParams): Pro
       ? { ...DEFAULT_SETTINGS, ...freshSettings }
       : DEFAULT_SETTINGS;
     
-    console.log('[PointsService] Creating points with FRESH settings from DB:', {
+    logger.log('[PointsService] Creating points with FRESH settings from DB:', {
       referralMode1Enabled: settings.referralMode1Enabled,
       referralMode2Enabled: settings.referralMode2Enabled,
       referralPointsPerAction: settings.referralPointsPerAction,
@@ -163,12 +164,12 @@ export async function createPointsOnOrderCreate(params: CreatePointsParams): Pro
     
     // 验证必要参数
     if (!params.memberCode || !params.orderPhoneNumber) {
-      console.warn('[PointsService] Missing member_code or phone, skipping');
+      logger.warn('[PointsService] Missing member_code or phone, skipping');
       return result;
     }
 
     if (params.actualPayment <= 0) {
-      console.warn('[PointsService] actualPayment <= 0, skipping');
+      logger.warn('[PointsService] actualPayment <= 0, skipping');
       return result;
     }
 
@@ -178,7 +179,7 @@ export async function createPointsOnOrderCreate(params: CreatePointsParams): Pro
     const pointsMultiplier = settings.usdToPointsRate || 1;
     const consumptionPoints = Math.floor(usdAmount * pointsMultiplier);
 
-    console.log('[PointsService] Consumption points calculation:', {
+    logger.log('[PointsService] Consumption points calculation:', {
       actualPayment: params.actualPayment,
       currency: params.currency,
       exchangeRate,
@@ -206,7 +207,7 @@ export async function createPointsOnOrderCreate(params: CreatePointsParams): Pro
       await apiPost('/api/points/ledger', consumptionEntry);
 
       result.consumptionPoints = consumptionPoints;
-      console.log('[PointsService] Consumption points created:', consumptionPoints);
+      logger.log('[PointsService] Consumption points created:', consumptionPoints);
 
       // 🚀 优化：异步日志记录，不阻塞主流程
       logOperation(
@@ -245,7 +246,7 @@ export async function createPointsOnOrderCreate(params: CreatePointsParams): Pro
     // 任务2-4：处理推荐人相关积分（需推荐活动总开关开启）
     if (referrer && settings.referralActivityEnabled !== false) {
       result.referrerMemberCode = referrer.memberCode;
-      console.log('[PointsService] Found referrer:', referrer);
+      logger.log('[PointsService] Found referrer:', referrer);
 
       // 推荐积分1
       if (settings.referralMode1Enabled === true) {
@@ -301,12 +302,12 @@ export async function createPointsOnOrderCreate(params: CreatePointsParams): Pro
     }
 
     result.success = true;
-    console.log('[PointsService] Points creation completed:', result);
-    notifyDataMutation({ table: 'points_ledger', operation: 'INSERT', source: 'mutation' }).catch(console.error);
-    notifyDataMutation({ table: 'member_activity', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
+    logger.log('[PointsService] Points creation completed:', result);
+    notifyDataMutation({ table: 'points_ledger', operation: 'INSERT', source: 'mutation' }).catch(logger.error);
+    notifyDataMutation({ table: 'member_activity', operation: 'UPDATE', source: 'mutation' }).catch(logger.error);
     return result;
   } catch (error) {
-    console.error('[PointsService] Failed to create points on order:', error);
+    logger.error('[PointsService] Failed to create points on order:', error);
     return result;
   }
 }
@@ -324,7 +325,7 @@ async function updateMemberActivityForConsumption(
       consumption_points: consumptionPoints,
     });
   } catch (error) {
-    console.error('[PointsService] Error updating member activity:', error);
+    logger.error('[PointsService] Error updating member activity:', error);
   }
 }
 
@@ -356,7 +357,7 @@ async function createReferralPoints(
 
     await apiPost('/api/points/ledger', entry);
 
-    console.log(`[PointsService] ${transactionType} points created:`, points);
+    logger.log(`[PointsService] ${transactionType} points created:`, points);
 
     // 异步日志
     const description = transactionType === 'referral_1'
@@ -380,7 +381,7 @@ async function createReferralPoints(
 
     return true;
   } catch (error) {
-    console.error(`[PointsService] Error creating ${transactionType} points:`, error);
+    logger.error(`[PointsService] Error creating ${transactionType} points:`, error);
     return false;
   }
 }
@@ -394,12 +395,12 @@ function updateReferrerActivityAsync(referrer: ReferrerInfo, totalReferralPoints
         referral_points: totalReferralPoints,
       });
 
-      console.log('[PointsService] Referrer activity updated:', {
+      logger.log('[PointsService] Referrer activity updated:', {
         referrer: referrer.phoneNumber,
         points: totalReferralPoints,
       });
     } catch (error) {
-      console.error('[PointsService] Error updating referrer activity:', error);
+      logger.error('[PointsService] Error updating referrer activity:', error);
     }
   }, 0);
 }
@@ -423,22 +424,22 @@ function updateReferrerActivityAsync(referrer: ReferrerInfo, totalReferralPoints
  */
 export async function reversePointsOnOrderCancel(orderId: string): Promise<boolean> {
   try {
-    console.log('[PointsService] Reversing points for order:', orderId);
+    logger.log('[PointsService] Reversing points for order:', orderId);
     
     const result = await apiPost<{ success: boolean }>('/api/points/reverse-on-order-cancel', {
       order_id: orderId,
     });
 
     if (result?.success) {
-      console.log('[PointsService] Points reversal completed for order:', orderId);
-      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
-      notifyDataMutation({ table: 'member_activity', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
+      logger.log('[PointsService] Points reversal completed for order:', orderId);
+      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'mutation' }).catch(logger.error);
+      notifyDataMutation({ table: 'member_activity', operation: 'UPDATE', source: 'mutation' }).catch(logger.error);
       return true;
     }
 
     return false;
   } catch (error) {
-    console.error('[PointsService] Failed to reverse points:', error);
+    logger.error('[PointsService] Failed to reverse points:', error);
     return false;
   }
 }
@@ -456,7 +457,7 @@ export async function reversePointsOnOrderCancel(orderId: string): Promise<boole
  * - 必须同时恢复消费者和推荐人的积分
  */
 export async function restorePointsOnOrderRestore(params: CreatePointsParams): Promise<CreatePointsResult> {
-  console.log('[PointsService] Restoring points for order:', params.orderId);
+  logger.log('[PointsService] Restoring points for order:', params.orderId);
   
   const result: CreatePointsResult = {
     consumptionPoints: 0,
@@ -484,14 +485,14 @@ export async function restorePointsOnOrderRestore(params: CreatePointsParams): P
     }
 
     if (result.success) {
-      console.log('[PointsService] Points restoration completed:', result);
-      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
-      notifyDataMutation({ table: 'member_activity', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
+      logger.log('[PointsService] Points restoration completed:', result);
+      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'mutation' }).catch(logger.error);
+      notifyDataMutation({ table: 'member_activity', operation: 'UPDATE', source: 'mutation' }).catch(logger.error);
     }
 
     return result;
   } catch (error) {
-    console.error('[PointsService] Failed to restore points:', error);
+    logger.error('[PointsService] Failed to restore points:', error);
     return result;
   }
 }
@@ -535,7 +536,7 @@ export async function adjustPointsOnOrderEdit(params: AdjustPointsOnEditParams):
     : (params.newActualPayment || 0);
   const newCurrency = params.newCurrency;
 
-  console.warn('[PointsService] ===== adjustPointsOnOrderEdit CALLED =====', {
+  logger.warn('[PointsService] ===== adjustPointsOnOrderEdit CALLED =====', {
     orderId, memberCode, phoneNumber,
     rawNewActualPayment: params.newActualPayment,
     parsedNewActualPayment: newActualPayment,
@@ -558,15 +559,15 @@ export async function adjustPointsOnOrderEdit(params: AdjustPointsOnEditParams):
     });
 
     if (result?.success) {
-      console.warn('[PointsService] ===== Points adjustment COMPLETED =====', { delta: result.delta });
-      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
-      notifyDataMutation({ table: 'member_activity', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
+      logger.warn('[PointsService] ===== Points adjustment COMPLETED =====', { delta: result.delta });
+      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'mutation' }).catch(logger.error);
+      notifyDataMutation({ table: 'member_activity', operation: 'UPDATE', source: 'mutation' }).catch(logger.error);
       return { delta: result.delta, success: true };
     }
 
     return { delta: 0, success: false };
   } catch (error) {
-    console.error('[PointsService] adjustPointsOnOrderEdit FAILED:', error);
+    logger.error('[PointsService] adjustPointsOnOrderEdit FAILED:', error);
     return { delta: 0, success: false };
   }
 }
@@ -593,7 +594,7 @@ export async function getMemberPointsBalance(memberCode: string, lastResetTime?:
 
     return data?.balance ?? 0;
   } catch (error) {
-    console.error('[PointsService] Failed to calculate member points:', error);
+    logger.error('[PointsService] Failed to calculate member points:', error);
     return 0;
   }
 }
@@ -608,7 +609,7 @@ export async function hasOrderEarnedPoints(orderId: string): Promise<boolean> {
     );
     return data?.hasEarned ?? false;
   } catch (error) {
-    console.error('[PointsService] Failed to check order points:', error);
+    logger.error('[PointsService] Failed to check order points:', error);
     return false;
   }
 }
@@ -623,7 +624,7 @@ export async function getOrderPointsEntries(orderId: string): Promise<PointsEntr
     );
     return data || [];
   } catch (error) {
-    console.error('[PointsService] Failed to get order points entries:', error);
+    logger.error('[PointsService] Failed to get order points entries:', error);
     return [];
   }
 }
@@ -639,7 +640,7 @@ export async function getMemberPointsEntries(memberCode: string): Promise<Points
     );
     return data || [];
   } catch (error) {
-    console.error('[PointsService] Failed to get member points entries:', error);
+    logger.error('[PointsService] Failed to get member points entries:', error);
     return [];
   }
 }

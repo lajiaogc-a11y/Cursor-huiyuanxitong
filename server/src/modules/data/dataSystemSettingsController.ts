@@ -3,6 +3,7 @@
  */
 import type { Request, Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
+import { logger } from '../../lib/logger.js';
 import {
   getIpAccessControlSettingRepository,
   getSharedDataRepository,
@@ -49,7 +50,7 @@ export async function repairKnowledgeFieldsController(req: AuthenticatedRequest,
     const data = await repairKnowledgeFields();
     res.json({ success: true, data });
   } catch (e) {
-    console.error('[Data] repairKnowledgeFields error:', e);
+    logger.error('Data', 'repairKnowledgeFields error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: String((e as Error).message) } });
   }
 }
@@ -89,7 +90,7 @@ export async function seedKnowledgeCategoriesController(req: AuthenticatedReques
     }
     res.json({ success: true, data: { seeded: true, count: 4 } });
   } catch (e) {
-    console.error('[Data] seedKnowledgeCategories error:', e);
+    logger.error('Data', 'seedKnowledgeCategories error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: String((e as Error).message) } });
   }
 }
@@ -115,7 +116,7 @@ export async function getDataDebugController(req: AuthenticatedRequest, res: Res
       },
     });
   } catch (e) {
-    console.error('[Data] getDataDebug error:', e);
+    logger.error('Data', 'getDataDebug error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: String((e as Error).message) } });
   }
 }
@@ -126,7 +127,7 @@ export async function getIpAccessControlController(_req: AuthenticatedRequest, r
     const data = normalizeIpAccessControl(raw);
     res.json({ success: true, data });
   } catch (e) {
-    console.error('[Data] getIpAccessControl error:', e);
+    logger.error('Data', 'getIpAccessControl error:', e);
     res.json({ success: true, data: normalizeIpAccessControl(null) });
   }
 }
@@ -201,7 +202,7 @@ export async function getIpCountryCheckController(req: Request, res: Response): 
       },
     });
   } catch (e) {
-    console.error('[Data] getIpCountryCheck error:', e);
+    logger.error('Data', 'getIpCountryCheck error:', e);
     res.json({
       success: true,
       data: {
@@ -233,7 +234,7 @@ export async function getSharedDataController(req: AuthenticatedRequest, res: Re
     const data = await getSharedDataRepository(tenantId, dataKey);
     res.json({ success: true, data: data ?? null });
   } catch (e) {
-    console.error('[Data] getSharedData error:', e);
+    logger.error('Data', 'getSharedData error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch shared data' } });
   }
 }
@@ -269,8 +270,9 @@ export async function postSharedDataController(req: AuthenticatedRequest, res: R
         : sanitizeSharedDataPayload(dataKey, dataValue);
     const ok = await upsertSharedDataRepository(tenantId, dataKey, payload);
     if (delegated) {
-      console.log(
-        `[Data] platform delegation: postSharedData key=${dataKey} → tenant_id=${tenantId} by ${req.user?.id ?? ''}`,
+      logger.info(
+        'Data',
+        `platform delegation: postSharedData key=${dataKey} → tenant_id=${tenantId} by ${req.user?.id ?? ''}`,
       );
       void auditPlatformDelegation(req, {
         operation_type: 'shared_data_upsert_delegated',
@@ -281,7 +283,7 @@ export async function postSharedDataController(req: AuthenticatedRequest, res: R
     res.json({ success: ok });
   } catch (e) {
     const msg = errorMessageForResponse(e);
-    console.error('[Data] postSharedData error:', e);
+    logger.error('Data', 'postSharedData error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
   }
 }
@@ -303,7 +305,7 @@ export async function getSharedDataBatchController(req: AuthenticatedRequest, re
     const data = await getMultipleSharedDataRepository(tenantId, dataKeys);
     res.json({ success: true, data: data && typeof data === 'object' ? data : {} });
   } catch (e) {
-    console.error('[Data] getSharedDataBatch error:', e);
+    logger.error('Data', 'getSharedDataBatch error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch shared data' } });
   }
 }
@@ -319,7 +321,7 @@ export async function getActivityDataController(req: AuthenticatedRequest, res: 
     const data = await listActivityDataRepository(tenantId);
     res.json({ success: true, data });
   } catch (e) {
-    console.error('[Data] getActivityData error:', e);
+    logger.error('Data', 'getActivityData error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch activity data' } });
   }
 }
@@ -332,7 +334,7 @@ export async function getSpinCreditsDetailController(req: AuthenticatedRequest, 
     const data = await getSpinCreditsDetailRepository(memberId);
     res.json({ success: true, ...data });
   } catch (e) {
-    console.error('[Data] getSpinCreditsDetail:', e);
+    logger.error('Data', 'getSpinCreditsDetail:', e);
     res.status(500).json({ success: false, error: (e as Error).message });
   }
 }
@@ -365,7 +367,7 @@ export async function patchActivityGiftController(req: AuthenticatedRequest, res
     }
     res.json({ success: true, data });
   } catch (e) {
-    console.error('[Data] patchActivityGift error:', e);
+    logger.error('Data', 'patchActivityGift error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update activity gift' } });
   }
 }
@@ -388,7 +390,7 @@ export async function deleteActivityGiftController(req: AuthenticatedRequest, re
     }
     res.json({ success: true, data: result });
   } catch (e) {
-    console.error('[Data] deleteActivityGift error:', e);
+    logger.error('Data', 'deleteActivityGift error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to delete activity gift' } });
   }
 }
@@ -404,7 +406,7 @@ export async function getActivityDataRetentionController(req: AuthenticatedReque
     const settings = await getActivityDataRetentionSettingsRepository(tenantId);
     res.json({ success: true, data: settings });
   } catch (e) {
-    console.error('[Data] getActivityDataRetention error:', e);
+    logger.error('Data', 'getActivityDataRetention error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load retention settings' } });
   }
 }
@@ -434,7 +436,7 @@ export async function putActivityDataRetentionController(req: AuthenticatedReque
     const settings = await saveActivityDataRetentionSettingsRepository(tenantId, { enabled, retentionDays });
     res.json({ success: true, data: settings });
   } catch (e) {
-    console.error('[Data] putActivityDataRetention error:', e);
+    logger.error('Data', 'putActivityDataRetention error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to save retention settings' } });
   }
 }
@@ -454,7 +456,7 @@ export async function postActivityDataRetentionRunController(req: AuthenticatedR
     const { summary, settings } = await runManualActivityDataPurgeRepository(tenantId);
     res.json({ success: true, data: { summary, settings } });
   } catch (e) {
-    console.error('[Data] postActivityDataRetentionRun error:', e);
+    logger.error('Data', 'postActivityDataRetentionRun error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to run cleanup' } });
   }
 }
@@ -474,7 +476,7 @@ export async function postActivityDataRetentionPurgeAllController(req: Authentic
     const summary = await purgeAllActivityDataByTenantRepository(tenantId);
     res.json({ success: true, summary });
   } catch (e) {
-    console.error('[Data] postActivityDataRetentionPurgeAll error:', e);
+    logger.error('Data', 'postActivityDataRetentionPurgeAll error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to purge all activity data' } });
   }
 }

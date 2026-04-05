@@ -12,6 +12,7 @@ import {
   addPostResetAdjustment, 
   MerchantType 
 } from '@/services/finance/merchantSettlementService';
+import { logger } from '@/lib/logger';
 
 /**
  * 辅助函数：判断记录是否在重置时间之前，如果是则写入 postResetAdjustment
@@ -44,10 +45,10 @@ export async function applyPostResetAdjustmentIfNeeded(
     
     if (recordDate <= resetDate) {
       await addPostResetAdjustment(merchantType, merchantName, delta);
-      console.log(`[BalanceLogService] postResetAdjustment applied: ${merchantType}/${merchantName} += ${delta}`);
+      logger.log(`[BalanceLogService] postResetAdjustment applied: ${merchantType}/${merchantName} += ${delta}`);
     }
   } catch (error) {
-    console.error('[BalanceLogService] applyPostResetAdjustmentIfNeeded failed:', error);
+    logger.error('[BalanceLogService] applyPostResetAdjustmentIfNeeded failed:', error);
   }
 }
 
@@ -93,9 +94,9 @@ export async function logOrderBalanceChange(params: {
     }
 
     await Promise.all(promises);
-    console.log('[BalanceLogService] Order balance change logged:', { orderNumber });
+    logger.log('[BalanceLogService] Order balance change logged:', { orderNumber });
   } catch (error) {
-    console.error('[BalanceLogService] Failed to log order balance change:', error);
+    logger.error('[BalanceLogService] Failed to log order balance change:', error);
   }
 }
 
@@ -152,9 +153,9 @@ export async function logOrderCancelBalanceChange(params: {
       await Promise.all(adjPromises);
     }
     
-    console.log('[BalanceLogService] Order cancel balance change logged:', { orderNumber });
+    logger.log('[BalanceLogService] Order cancel balance change logged:', { orderNumber });
   } catch (error) {
-    console.error('[BalanceLogService] Failed to log order cancel balance change:', error);
+    logger.error('[BalanceLogService] Failed to log order cancel balance change:', error);
   }
 }
 
@@ -180,9 +181,9 @@ export async function logGiftBalanceChange(params: {
       note: `活动赠送: ${phoneNumber}`,
       operatorId, operatorName,
     });
-    console.log('[BalanceLogService] Gift balance change logged:', { giftId });
+    logger.log('[BalanceLogService] Gift balance change logged:', { giftId });
   } catch (error) {
-    console.error('[BalanceLogService] Failed to log gift balance change:', error);
+    logger.error('[BalanceLogService] Failed to log gift balance change:', error);
   }
 }
 
@@ -213,9 +214,9 @@ export async function logGiftDeleteBalanceChange(params: {
       await applyPostResetAdjustmentIfNeeded('payment_provider', providerName, giftCreatedAt, giftValue);
     }
     
-    console.log('[BalanceLogService] Gift delete balance change logged:', { giftId });
+    logger.log('[BalanceLogService] Gift delete balance change logged:', { giftId });
   } catch (error) {
-    console.error('[BalanceLogService] Failed to log gift delete balance change:', error);
+    logger.error('[BalanceLogService] Failed to log gift delete balance change:', error);
   }
 }
 
@@ -274,9 +275,9 @@ export async function logOrderRestoreBalanceChange(params: {
       await Promise.all(adjPromises);
     }
     
-    console.log('[BalanceLogService] Order restore balance change logged:', { orderNumber });
+    logger.log('[BalanceLogService] Order restore balance change logged:', { orderNumber });
   } catch (error) {
-    console.error('[BalanceLogService] Failed to log order restore balance change:', error);
+    logger.error('[BalanceLogService] Failed to log order restore balance change:', error);
   }
 }
 
@@ -408,9 +409,9 @@ export async function logOrderUpdateBalanceChange(params: {
       await Promise.all(adjPromises);
     }
 
-    console.log('[BalanceLogService] Order update balance change logged:', { orderNumber });
+    logger.log('[BalanceLogService] Order update balance change logged:', { orderNumber });
   } catch (error) {
-    console.error('[BalanceLogService] Failed to log order update balance change:', error);
+    logger.error('[BalanceLogService] Failed to log order update balance change:', error);
   }
 }
 
@@ -434,7 +435,7 @@ export async function syncMemberActivityOnOrderEdit(params: {
   } = params;
 
   if (!memberId && !phoneNumber) {
-    console.warn('[BalanceLogService] No member info for activity sync');
+    logger.warn('[BalanceLogService] No member info for activity sync');
     return false;
   }
 
@@ -454,7 +455,7 @@ export async function syncMemberActivityOnOrderEdit(params: {
     } | null>(`${maBase}?${p.toString()}`);
 
     if (!existingActivity) {
-      console.warn('[BalanceLogService] No activity record found for member:', memberId || phoneNumber);
+      logger.warn('[BalanceLogService] No activity record found for member:', memberId || phoneNumber);
       return true;
     }
 
@@ -522,7 +523,7 @@ export async function syncMemberActivityOnOrderEdit(params: {
 
     return true;
   } catch (error) {
-    console.error('[BalanceLogService] syncMemberActivityOnOrderEdit failed:', error);
+    logger.error('[BalanceLogService] syncMemberActivityOnOrderEdit failed:', error);
     return false;
   }
 }
@@ -559,9 +560,9 @@ export async function logGiftUpdateBalanceChange(params: {
       await applyPostResetAdjustmentIfNeeded('payment_provider', providerName, giftCreatedAt, oldGiftValue - newGiftValue);
     }
     
-    console.log('[BalanceLogService] Gift update balance change logged:', { giftId, delta });
+    logger.log('[BalanceLogService] Gift update balance change logged:', { giftId, delta });
   } catch (error) {
-    console.error('[BalanceLogService] Failed to log gift update balance change:', error);
+    logger.error('[BalanceLogService] Failed to log gift update balance change:', error);
   }
 }
 
@@ -594,9 +595,9 @@ export async function logGiftRestoreBalanceChange(params: {
       await applyPostResetAdjustmentIfNeeded('payment_provider', providerName, giftCreatedAt, -giftValue);
     }
     
-    console.log('[BalanceLogService] Gift restore balance change logged:', { giftId });
+    logger.log('[BalanceLogService] Gift restore balance change logged:', { giftId });
   } catch (error) {
-    console.error('[BalanceLogService] Failed to log gift restore balance change:', error);
+    logger.error('[BalanceLogService] Failed to log gift restore balance change:', error);
   }
 }
 
@@ -621,9 +622,9 @@ export async function logRechargeRestoreBalanceChange(params: {
       note: `恢复充值: ${rechargeAmount.toFixed(2)}`,
       operatorId, operatorName,
     });
-    console.log('[BalanceLogService] Recharge restore balance change logged:', { rechargeId });
+    logger.log('[BalanceLogService] Recharge restore balance change logged:', { rechargeId });
   } catch (error) {
-    console.error('[BalanceLogService] Failed to log recharge restore balance change:', error);
+    logger.error('[BalanceLogService] Failed to log recharge restore balance change:', error);
   }
 }
 
@@ -648,8 +649,8 @@ export async function logWithdrawalRestoreBalanceChange(params: {
       note: `恢复提款: ${withdrawalAmount.toFixed(2)}`,
       operatorId, operatorName,
     });
-    console.log('[BalanceLogService] Withdrawal restore balance change logged:', { withdrawalId });
+    logger.log('[BalanceLogService] Withdrawal restore balance change logged:', { withdrawalId });
   } catch (error) {
-    console.error('[BalanceLogService] Failed to log withdrawal restore balance change:', error);
+    logger.error('[BalanceLogService] Failed to log withdrawal restore balance change:', error);
   }
 }

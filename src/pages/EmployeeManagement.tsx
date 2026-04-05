@@ -24,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Select,
   SelectContent,
@@ -1017,27 +1018,23 @@ export default function EmployeeManagement() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={!!forceLogoutTarget} onOpenChange={(open) => !open && setForceLogoutTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("强制下线？", "Force logout?")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {forceLogoutTarget
-                ? t(
-                    `将断开 ${forceLogoutTarget.real_name}（${forceLogoutTarget.username}）的所有登录会话。`,
-                    `All sessions for ${forceLogoutTarget.real_name} (${forceLogoutTarget.username}) will be ended.`,
-                  )
-                : null}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => void executeForceLogout()}>
-              {t("强制下线", "Force logout")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!forceLogoutTarget}
+        onOpenChange={(open) => !open && setForceLogoutTarget(null)}
+        title={t("强制下线？", "Force logout?")}
+        description={
+          forceLogoutTarget
+            ? t(
+                `将断开 ${forceLogoutTarget.real_name}（${forceLogoutTarget.username}）的所有登录会话。`,
+                `All sessions for ${forceLogoutTarget.real_name} (${forceLogoutTarget.username}) will be ended.`,
+              )
+            : undefined
+        }
+        cancelLabel={t("common.cancel")}
+        confirmLabel={t("强制下线", "Force logout")}
+        variant="destructive"
+        onConfirm={() => void executeForceLogout()}
+      />
     </div>
     </TooltipProvider>
   );

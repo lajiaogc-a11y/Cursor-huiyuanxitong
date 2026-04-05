@@ -86,6 +86,7 @@ import {
 } from "@/services/finance/merchantConfigReadService";
 import { PageHeader, PageActions, FilterBar, KPIGrid, SectionCard, ErrorState } from "@/components/common";
 import { useDebouncedValue } from "@/hooks/useDebounce";
+import { logger } from "@/lib/logger";
 
 export default function OrderManagement() {
   trackRender('OrderManagement');
@@ -779,7 +780,7 @@ export default function OrderManagement() {
             newCurrency: editingOrder.demandCurrency || 'NGN',
           });
         } catch (err) {
-          console.error('[OrderEdit] Member activity sync failed:', err);
+          logger.error('[OrderEdit] Member activity sync failed:', err);
         }
       }
       
@@ -797,7 +798,7 @@ export default function OrderManagement() {
             creatorId: currentEmployee?.id,
           });
         } catch (err) {
-          console.error('[OrderEdit] Points adjustment failed:', err);
+          logger.error('[OrderEdit] Points adjustment failed:', err);
         }
       }
         
@@ -817,9 +818,9 @@ export default function OrderManagement() {
       queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-      notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
-      notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
-      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+      notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
+      notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
+      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
       notify.success(t("订单已更新", "Order updated"));
     } else {
       // 非管理员：按字段判断，需审核的只提交审核不直接更新，可直接编辑的才更新
@@ -910,7 +911,7 @@ export default function OrderManagement() {
             newCurrency: editingOrder.demandCurrency || 'NGN',
           });
         } catch (err) {
-          console.error('[OrderEdit] Member activity sync failed:', err);
+          logger.error('[OrderEdit] Member activity sync failed:', err);
         }
       }
       
@@ -928,7 +929,7 @@ export default function OrderManagement() {
             creatorId: currentEmployee?.id,
           });
         } catch (err) {
-          console.error('[OrderEdit] Points adjustment failed:', err);
+          logger.error('[OrderEdit] Points adjustment failed:', err);
         }
       }
         
@@ -948,9 +949,9 @@ export default function OrderManagement() {
       queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-      notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
-      notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
-      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+      notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
+      notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
+      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
       notify.success(t("订单已更新", "Order updated"));
     }
     
@@ -1137,7 +1138,7 @@ export default function OrderManagement() {
             creatorId: currentEmployee?.id,
           });
         } catch (err) {
-          console.error('[OrderEdit] USDT Points adjustment failed:', err);
+          logger.error('[OrderEdit] USDT Points adjustment failed:', err);
         }
       }
       
@@ -1157,9 +1158,9 @@ export default function OrderManagement() {
       queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-      notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
-      notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
-      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+      notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
+      notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
+      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
       notify.success(t("USDT订单已更新", "USDT order updated"));
     } else {
       // 非管理员：按字段判断，需审核的只提交审核不直接更新
@@ -1251,7 +1252,7 @@ export default function OrderManagement() {
             creatorId: currentEmployee?.id,
           });
         } catch (err) {
-          console.error('[OrderEdit] USDT Points adjustment failed:', err);
+          logger.error('[OrderEdit] USDT Points adjustment failed:', err);
         }
       }
       
@@ -1271,9 +1272,9 @@ export default function OrderManagement() {
       queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
       queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-      notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(console.error);
-      notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
-      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(console.error);
+      notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
+      notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
+      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
       notify.success(t("USDT订单已更新", "USDT order updated"));
     }
     
@@ -1417,9 +1418,9 @@ export default function OrderManagement() {
       queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
       queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
       queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
-      notifyDataMutation({ table: "orders", operation: "DELETE", source: "manual" }).catch(console.error);
-      notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
-      notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(console.error);
+      notifyDataMutation({ table: "orders", operation: "DELETE", source: "manual" }).catch(logger.error);
+      notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(logger.error);
+      notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(logger.error);
     }
     if (failedIds.size === 0) {
       notify.success(t(`已删除 ${ok} 条订单`, `Deleted ${ok} order(s)`));
@@ -1455,9 +1456,9 @@ export default function OrderManagement() {
       queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
       queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
       queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
-      notifyDataMutation({ table: "orders", operation: "UPDATE", source: "manual" }).catch(console.error);
-      notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
-      notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(console.error);
+      notifyDataMutation({ table: "orders", operation: "UPDATE", source: "manual" }).catch(logger.error);
+      notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(logger.error);
+      notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(logger.error);
     }
     if (failedIds.size === 0) {
       notify.success(t(`已取消 ${ok} 条订单`, `Cancelled ${ok} order(s)`));
@@ -1491,9 +1492,9 @@ export default function OrderManagement() {
       queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
       queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
       queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
-      notifyDataMutation({ table: "orders", operation: "DELETE", source: "manual" }).catch(console.error);
-      notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
-      notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(console.error);
+      notifyDataMutation({ table: "orders", operation: "DELETE", source: "manual" }).catch(logger.error);
+      notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(logger.error);
+      notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(logger.error);
     }
     if (failedIds.size === 0) {
       notify.success(t(`已删除 ${ok} 条 USDT 订单`, `Deleted ${ok} USDT order(s)`));
@@ -1529,9 +1530,9 @@ export default function OrderManagement() {
       queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
       queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
       queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
-      notifyDataMutation({ table: "orders", operation: "UPDATE", source: "manual" }).catch(console.error);
-      notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(console.error);
-      notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(console.error);
+      notifyDataMutation({ table: "orders", operation: "UPDATE", source: "manual" }).catch(logger.error);
+      notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(logger.error);
+      notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(logger.error);
     }
     if (failedIds.size === 0) {
       notify.success(t(`已取消 ${ok} 条 USDT 订单`, `Cancelled ${ok} USDT order(s)`));
@@ -1596,7 +1597,7 @@ export default function OrderManagement() {
                       queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
                       queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
                       queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
-                      notifyDataMutation({ table: "orders", operation: "*", source: "manual" }).catch(console.error);
+                      notifyDataMutation({ table: "orders", operation: "*", source: "manual" }).catch(logger.error);
                     }}
                   />
                   <Button

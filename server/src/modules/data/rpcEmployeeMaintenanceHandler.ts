@@ -3,6 +3,7 @@
  */
 import type { Response } from 'express';
 import type { ResultSetHeader } from 'mysql2';
+import { logger } from '../../lib/logger.js';
 import { query, queryOne, execute, getPool, withTransaction } from '../../database/index.js';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
 import {
@@ -135,7 +136,7 @@ export async function handleRpcEmployeeMaintenanceGroup(ctx: RpcCtx): Promise<Rp
           scope: globalEnabled && tenantEnabled ? 'both' : globalEnabled ? 'global' : tenantEnabled ? 'tenant' : 'none',
         };
       } catch (e) {
-        console.warn('[RPC] get_maintenance_mode_status:', (e as Error).message);
+        logger.warn('RPC', 'get_maintenance_mode_status:', (e as Error).message);
         result = { globalEnabled: false, tenantEnabled: false, effectiveEnabled: false, scope: 'none' };
       }
       break;
@@ -182,7 +183,7 @@ export async function handleRpcEmployeeMaintenanceGroup(ctx: RpcCtx): Promise<Rp
         }
         result = { success: true };
       } catch (e) {
-        console.warn('[RPC] set_maintenance_mode:', (e as Error).message);
+        logger.warn('RPC', 'set_maintenance_mode:', (e as Error).message);
         result = { success: false, error: (e as Error).message };
       }
       break;
@@ -201,7 +202,7 @@ export async function handleRpcEmployeeMaintenanceGroup(ctx: RpcCtx): Promise<Rp
            ORDER BY tmm.updated_at DESC`,
         );
       } catch (e) {
-        console.warn('[RPC] list_tenant_maintenance_modes:', (e as Error).message);
+        logger.warn('RPC', 'list_tenant_maintenance_modes:', (e as Error).message);
         result = [];
       }
       break;
@@ -265,7 +266,7 @@ export async function handleRpcEmployeeMaintenanceGroup(ctx: RpcCtx): Promise<Rp
         );
         result = { enabled: flagRow ? !!flagRow.enabled : true };
       } catch (e) {
-        console.warn('[RPC] get_tenant_feature_flag:', (e as Error).message);
+        logger.warn('RPC', 'get_tenant_feature_flag:', (e as Error).message);
         result = { enabled: true };
       }
       break;
@@ -298,7 +299,7 @@ export async function handleRpcEmployeeMaintenanceGroup(ctx: RpcCtx): Promise<Rp
         }
         result = { success: true };
       } catch (e) {
-        console.warn('[RPC] set_tenant_feature_flag:', (e as Error).message);
+        logger.warn('RPC', 'set_tenant_feature_flag:', (e as Error).message);
         result = { success: false, error: (e as Error).message };
       }
       break;
@@ -313,7 +314,7 @@ export async function handleRpcEmployeeMaintenanceGroup(ctx: RpcCtx): Promise<Rp
           [flagTid],
         );
       } catch (e) {
-        console.warn('[RPC] list_tenant_feature_flags:', (e as Error).message);
+        logger.warn('RPC', 'list_tenant_feature_flags:', (e as Error).message);
         result = [];
       }
       break;
@@ -329,7 +330,7 @@ export async function handleRpcEmployeeMaintenanceGroup(ctx: RpcCtx): Promise<Rp
         );
         result = row ? { enabled: !!row.enabled, method: row.method } : { enabled: false, method: 'email' };
       } catch (e) {
-        console.warn('[RPC] get_login_2fa_settings:', (e as Error).message);
+        logger.warn('RPC', 'get_login_2fa_settings:', (e as Error).message);
         result = { enabled: false, method: 'email' };
       }
       break;
@@ -361,7 +362,7 @@ export async function handleRpcEmployeeMaintenanceGroup(ctx: RpcCtx): Promise<Rp
         }
         result = { success: true };
       } catch (e) {
-        console.warn('[RPC] set_login_2fa_settings:', (e as Error).message);
+        logger.warn('RPC', 'set_login_2fa_settings:', (e as Error).message);
         result = { success: false, error: (e as Error).message };
       }
       break;

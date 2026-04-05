@@ -17,6 +17,7 @@ import {
 import { assertStaffLoginAccessControl } from '../../lib/staffLoginAccess.js';
 import { getWhitelistConfig, isEmployeeDeviceAllowedRepository, onSuccessfulStaffLoginWithDevice } from '../adminDeviceWhitelist/service.js';
 import { normalizeStaffDeviceId } from '../adminDeviceWhitelist/deviceId.js';
+import { logger } from '../../lib/logger.js';
 
 const JWT_EXPIRES_IN = '7d';
 /** 刷新窗口：token 过期后仍可在此时间内用于刷新（7 天） */
@@ -65,7 +66,7 @@ export async function loginService(
     // RPC 可能不存在，跳过锁定检查
   }
   if (lock.is_locked) {
-    logEmployeeLoginRepository(null, ip, ua, false, 'Account locked', username).catch(e => console.error('[Auth] login log write failed:', e));
+    logEmployeeLoginRepository(null, ip, ua, false, 'Account locked', username).catch(e => logger.error('Auth', 'login log write failed:', e));
     const minutes = Math.max(1, Math.ceil((lock.remaining_seconds ?? 0) / 60));
     return { success: false, error: `Account temporarily locked. Try again in ${minutes} minute(s).` };
   }
@@ -73,8 +74,8 @@ export async function loginService(
   // 2. 验证账号密码
   const { data: verifyData, error: verifyError } = await verifyEmployeeLoginRepository(username, params.password);
   if (verifyError) {
-    logEmployeeLoginRepository(null, ip, ua, false, 'System verification error', username).catch(e => console.error('[Auth] login log write failed:', e));
-    console.error('[Auth] verifyEmployeeLoginRepository:', verifyError);
+    logEmployeeLoginRepository(null, ip, ua, false, 'System verification error', username).catch(e => logger.error('Auth', 'login log write failed:', e));
+    logger.error('Auth', 'verifyEmployeeLoginRepository:', verifyError);
     const anyErr = verifyError as Error & { code?: string; errno?: number };
     const errno = anyErr.errno;
     const sqlCode = anyErr.code;
@@ -108,24 +109,24 @@ export async function loginService(
     return { success: false, error: 'Login verification failed (database error). Check server logs or contact an administrator.' };
   }
   if (!verifyData || verifyData.length === 0) {
-    logEmployeeLoginRepository(null, ip, ua, false, 'Verification returned no result', username).catch(e => console.error('[Auth] login log write failed:', e));
+    logEmployeeLoginRepository(null, ip, ua, false, 'Verification returned no result', username).catch(e => logger.error('Auth', 'login log write failed:', e));
     return { success: false, error: 'Verification failed. Please try again later.' };
   }
 
   const result = verifyData[0];
   const errorCode = (result as { error_code?: string }).error_code;
   if (errorCode === 'USER_NOT_FOUND') {
-    logEmployeeLoginRepository(null, ip, ua, false, 'Account not found', username).catch(e => console.error('[Auth] login log write failed:', e));
+    logEmployeeLoginRepository(null, ip, ua, false, 'Account not found', username).catch(e => logger.error('Auth', 'login log write failed:', e));
     return { success: false, error: 'Account not found' };
   }
   if (errorCode === 'WRONG_PASSWORD') {
     const empId = (result as { employee_id?: string }).employee_id ?? null;
-    logEmployeeLoginRepository(empId, ip, ua, false, 'Incorrect password', username).catch(e => console.error('[Auth] login log write failed:', e));
+    logEmployeeLoginRepository(empId, ip, ua, false, 'Incorrect password', username).catch(e => logger.error('Auth', 'login log write failed:', e));
     return { success: false, error: 'Incorrect password' };
   }
   if (errorCode === 'ACCOUNT_DISABLED') {
     const empId = (result as { employee_id?: string }).employee_id ?? null;
-    logEmployeeLoginRepository(empId, ip, ua, false, 'Account disabled', username).catch(e => console.error('[Auth] login log write failed:', e));
+    logEmployeeLoginRepository(empId, ip, ua, false, 'Account disabled', username).catch(e => logger.error('Auth', 'login log write failed:', e));
     return { success: false, error: 'Account disabled. Please contact an administrator.' };
   }
 
@@ -141,11 +142,11 @@ export async function loginService(
   };
 
   if (emp.status === 'pending') {
-    logEmployeeLoginRepository(emp.employee_id, ip, ua, false, 'Account pending approval', username).catch(e => console.error('[Auth] login log write failed:', e));
+    logEmployeeLoginRepository(emp.employee_id, ip, ua, false, 'Account pending approval', username).catch(e => logger.error('Auth', 'login log write failed:', e));
     return { success: false, error: 'Your account is pending administrator approval. Please wait.' };
   }
   if (emp.status !== 'active') {
-    logEmployeeLoginRepository(emp.employee_id, ip, ua, false, `Abnormal account status: ${emp.status}`, username).catch(e => console.error('[Auth] login log write failed:', e));
+    logEmployeeLoginRepository(emp.employee_id, ip, ua, false, `Abnormal account status: ${emp.status}`, username).catch(e => logger.error('Auth', 'login log write failed:', e));
     return { success: false, error: 'Account disabled. Please contact an administrator.' };
   }
 
@@ -156,7 +157,7 @@ export async function loginService(
   });
   if (!accessGate.ok) {
     logEmployeeLoginRepository(emp.employee_id, ip, ua, false, accessGate.message, username).catch((e) =>
-      console.error('[Auth] login log write failed:', e),
+      logger.error('Auth', 'login log write failed:', e),
     );
     return { success: false, error: accessGate.message };
   }
@@ -166,7 +167,7 @@ export async function loginService(
     try {
       const maintenance = await getMaintenanceModeStatusRepository(emp.tenant_id ?? null);
       if (maintenance.effectiveEnabled) {
-        logEmployeeLoginRepository(emp.employee_id, ip, ua, false, 'System under maintenance', username).catch(e => console.error('[Auth] login log write failed:', e));
+        logEmployeeLoginRepository(emp.employee_id, ip, ua, false, 'System under maintenance', username).catch(e => logger.error('Auth', 'login log write failed:', e));
         return { success: false, error: 'System under maintenance. Please try again later.' };
       }
     } catch (_) {
@@ -194,16 +195,16 @@ export async function loginService(
     const did = normalizeStaffDeviceId(params.device_id);
     if (!did) {
       logEmployeeLoginRepository(emp.employee_id, ip, ua, false, 'Device whitelist: missing or invalid device_id', username).catch((e) =>
-        console.error('[Auth] login log write failed:', e),
+        logger.error('Auth', 'login log write failed:', e),
       );
-      console.log('[Auth][Device] login rejected: bad device_id', { username, ip });
+      logger.info('Auth][Device', 'login rejected: bad device_id', { username, ip });
       return { success: false, error: 'DEVICE_NOT_AUTHORIZED: Could not identify this device. Refresh the page and try again.' };
     }
     let allowed: boolean;
     try {
       allowed = await isEmployeeDeviceAllowedRepository(emp.employee_id, did);
     } catch (e) {
-      console.error('[Auth][Device] isEmployeeDeviceAllowedRepository:', e);
+      logger.error('Auth][Device', 'isEmployeeDeviceAllowedRepository:', e);
       return {
         success: false,
         httpStatus: 503,
@@ -212,9 +213,9 @@ export async function loginService(
     }
     if (!allowed) {
       logEmployeeLoginRepository(emp.employee_id, ip, ua, false, 'Device not authorized', username).catch((e) =>
-        console.error('[Auth] login log write failed:', e),
+        logger.error('Auth', 'login log write failed:', e),
       );
-      console.log('[Auth][Device] login rejected: not whitelisted', { username, employeeId: emp.employee_id, deviceId: did, ip });
+      logger.info('Auth][Device', 'login rejected: not whitelisted', { username, employeeId: emp.employee_id, deviceId: did, ip });
       return {
         success: false,
         error:
@@ -225,8 +226,8 @@ export async function loginService(
   }
 
   // 4. 记录登录成功（设备白名单已通过）
-  logEmployeeLoginRepository(emp.employee_id, ip, ua, true, undefined, username).catch(e => console.error('[Auth] login log write failed:', e));
-  clearEmployeeLoginFailuresRepository(emp.employee_id).catch(e => console.warn('[Auth] clearFailures:', e));
+  logEmployeeLoginRepository(emp.employee_id, ip, ua, true, undefined, username).catch(e => logger.error('Auth', 'login log write failed:', e));
+  clearEmployeeLoginFailuresRepository(emp.employee_id).catch(e => logger.warn('Auth', 'clearFailures:', e));
 
   if (boundDeviceId) {
     await onSuccessfulStaffLoginWithDevice({ employeeId: emp.employee_id, deviceId: boundDeviceId, clientIp: ip });
@@ -290,7 +291,7 @@ export async function getMeService(employeeId: string): Promise<AuthUser | null>
     const empForAuth = { ...emp, is_platform_super_admin: isPlatform };
     return toAuthUser(empForAuth);
   } catch (e) {
-    console.error('[Auth] getMeService error:', e);
+    logger.error('Auth', 'getMeService error:', e);
     return null;
   }
 }

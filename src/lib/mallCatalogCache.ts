@@ -16,6 +16,10 @@ export function clearMallCatalogCache(): void {
   _mallCache.clear();
 }
 
+function _clearMallCacheOnSignout() { _mallCache.clear(); }
 if (typeof window !== "undefined") {
-  window.addEventListener("member:signout", () => _mallCache.clear());
+  window.addEventListener("member:signout", _clearMallCacheOnSignout);
+  if (import.meta.hot) {
+    import.meta.hot.dispose(() => window.removeEventListener("member:signout", _clearMallCacheOnSignout));
+  }
 }

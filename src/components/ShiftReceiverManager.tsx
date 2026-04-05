@@ -60,7 +60,7 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
   // 添加接班人
   const handleAdd = async () => {
     if (!newReceiverName.trim()) {
-      notify.error(t('shiftHandover.pleaseEnterName'));
+      notify.error(t('请输入接班人姓名', 'Please enter receiver name'));
       return;
     }
     
@@ -69,9 +69,9 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
       await loadReceivers();
       setNewReceiverName('');
       setIsAddDialogOpen(false);
-      notify.success(t('shiftHandover.addedSuccessfully'));
+      notify.success(t('接班人添加成功', 'Receiver added successfully'));
     } else {
-      notify.error(t('shiftHandover.addFailed'));
+      notify.error(t('添加失败', 'Failed to add'));
     }
   };
   
@@ -85,7 +85,7 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
   // 保存编辑
   const handleSaveEdit = async () => {
     if (!editingReceiver || !editName.trim()) {
-      notify.error(t('shiftHandover.pleaseEnterName'));
+      notify.error(t('请输入接班人姓名', 'Please enter receiver name'));
       return;
     }
     
@@ -94,9 +94,9 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
       await loadReceivers();
       setIsEditDialogOpen(false);
       setEditingReceiver(null);
-      notify.success(t('shiftHandover.updatedSuccessfully'));
+      notify.success(t('接班人更新成功', 'Receiver updated successfully'));
     } else {
-      notify.error(t('shiftHandover.updateFailed'));
+      notify.error(t('更新失败', 'Failed to update'));
     }
   };
   
@@ -115,9 +115,9 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
       await loadReceivers();
       setIsDeleteDialogOpen(false);
       setDeletingReceiver(null);
-      notify.success(t('shiftHandover.deletedSuccessfully'));
+      notify.success(t('接班人已删除', 'Receiver deleted successfully'));
     } else {
-      notify.error(t('shiftHandover.deleteFailed'));
+      notify.error(t('删除失败', 'Failed to delete'));
     }
   };
   
@@ -149,14 +149,14 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
 
             {receivers.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
-                {t('shiftHandover.noReceiversYet')}
+                {t('暂无接班人', 'No receivers yet')}
               </div>
             ) : (
               <div className="border rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/50 border-b">
-                      <th className="text-left p-3 font-medium">{t('shiftHandover.name')}</th>
+                      <th className="text-left p-3 font-medium">{t('姓名', 'Name')}</th>
                       <th className="text-center p-3 font-medium w-32">{t('common.actions')}</th>
                     </tr>
                   </thead>
@@ -204,11 +204,11 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
         sheetMaxWidth="xl"
       >
           <div className="space-y-2">
-            <Label>{t('shiftHandover.name')}</Label>
+            <Label>{t('姓名', 'Name')}</Label>
             <Input
               value={newReceiverName}
               onChange={e => setNewReceiverName(e.target.value)}
-              placeholder={t('shiftHandover.enterReceiverName')}
+              placeholder={t('请输入接班人姓名', 'Enter receiver name')}
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
             />
           </div>
@@ -255,7 +255,7 @@ export default function ShiftReceiverManager({ onReceiversChange }: ShiftReceive
             <AlertDialogTitle>{t('merchants.confirmDelete')}</AlertDialogTitle>
             <AlertDialogDescription>
               {t('shiftHandover.confirmDeleteReceiver')} "{deletingReceiver?.name}"？
-              {t('shiftHandover.cannotUndo')}
+              {t('此操作不可撤销。', 'This cannot be undone.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

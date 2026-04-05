@@ -17,6 +17,7 @@ import {
   updatePaymentProviderApi,
   deletePaymentProviderApi,
 } from '@/services/giftcards/giftcardsApiService';
+import { logger } from '@/lib/logger';
 
 export interface CardItem {
   id: string;
@@ -129,7 +130,7 @@ export function useCards() {
       await queryClient.invalidateQueries({ queryKey: ['cards'] });
       return newCard;
     } catch (error) {
-      console.error('Failed to add card:', error);
+      logger.error('Failed to add card:', error);
       notify.error(t('创建卡片失败', 'Failed to create card'));
       return null;
     }
@@ -152,7 +153,7 @@ export function useCards() {
       await queryClient.invalidateQueries({ queryKey: ['cards'] });
       return true;
     } catch (error) {
-      console.error('Failed to update card:', error);
+      logger.error('Failed to update card:', error);
       return false;
     }
   };
@@ -168,7 +169,7 @@ export function useCards() {
       await queryClient.invalidateQueries({ queryKey: ['cards'] });
       return true;
     } catch (error) {
-      console.error('Failed to delete card:', error);
+      logger.error('Failed to delete card:', error);
       return false;
     }
   };
@@ -182,7 +183,7 @@ export function useCards() {
       await queryClient.invalidateQueries({ queryKey: ['cards'] });
       return true;
     } catch (error) {
-      console.error('Failed to update card sort order:', error);
+      logger.error('Failed to update card sort order:', error);
       return false;
     }
   };
@@ -194,7 +195,7 @@ export function useCards() {
       await queryClient.invalidateQueries({ queryKey: ['cards'] });
       return true;
     } catch (error) {
-      console.error('Failed to update card sort orders:', error);
+      logger.error('Failed to update card sort orders:', error);
       return false;
     }
   };
@@ -240,7 +241,7 @@ export function useVendors() {
       await queryClient.invalidateQueries({ queryKey: ['vendors'] });
       return newVendor;
     } catch (error) {
-      console.error('Failed to add vendor:', error);
+      logger.error('Failed to add vendor:', error);
       notify.error(t('创建卡商失败', 'Failed to create vendor'));
       return null;
     }
@@ -271,7 +272,7 @@ export function useVendors() {
       await queryClient.invalidateQueries({ queryKey: ['vendors'] });
       return true;
     } catch (error) {
-      console.error('Failed to update vendor:', error);
+      logger.error('Failed to update vendor:', error);
       return false;
     }
   };
@@ -289,7 +290,7 @@ export function useVendors() {
       await queryClient.invalidateQueries({ queryKey: ['vendors'] });
       return true;
     } catch (error) {
-      console.error('Failed to delete vendor:', error);
+      logger.error('Failed to delete vendor:', error);
       return false;
     }
   };
@@ -304,7 +305,7 @@ export function useVendors() {
       await queryClient.invalidateQueries({ queryKey: ['vendors'] });
       return true;
     } catch (error) {
-      console.error('Failed to update vendor order:', error);
+      logger.error('Failed to update vendor order:', error);
       return false;
     }
   };
@@ -316,7 +317,7 @@ export function useVendors() {
       await queryClient.invalidateQueries({ queryKey: ['vendors'] });
       return true;
     } catch (error) {
-      console.error('Failed to update vendor sort orders:', error);
+      logger.error('Failed to update vendor sort orders:', error);
       return false;
     }
   };
@@ -362,7 +363,7 @@ export function usePaymentProviders() {
       await queryClient.invalidateQueries({ queryKey: ['payment-providers'] });
       return newProvider;
     } catch (error) {
-      console.error('Failed to add payment provider:', error);
+      logger.error('Failed to add payment provider:', error);
       notify.error(t('创建代付商家失败', 'Failed to create payment provider'));
       return null;
     }
@@ -392,7 +393,7 @@ export function usePaymentProviders() {
       await queryClient.invalidateQueries({ queryKey: ['payment-providers'] });
       return true;
     } catch (error) {
-      console.error('Failed to update payment provider:', error);
+      logger.error('Failed to update payment provider:', error);
       return false;
     }
   };
@@ -410,7 +411,7 @@ export function usePaymentProviders() {
       await queryClient.invalidateQueries({ queryKey: ['payment-providers'] });
       return true;
     } catch (error) {
-      console.error('Failed to delete payment provider:', error);
+      logger.error('Failed to delete payment provider:', error);
       return false;
     }
   };
@@ -425,7 +426,7 @@ export function usePaymentProviders() {
       await queryClient.invalidateQueries({ queryKey: ['payment-providers'] });
       return true;
     } catch (error) {
-      console.error('Failed to update provider order:', error);
+      logger.error('Failed to update provider order:', error);
       return false;
     }
   };
@@ -437,7 +438,7 @@ export function usePaymentProviders() {
       await queryClient.invalidateQueries({ queryKey: ['payment-providers'] });
       return true;
     } catch (error) {
-      console.error('Failed to update provider sort orders:', error);
+      logger.error('Failed to update provider sort orders:', error);
       return false;
     }
   };

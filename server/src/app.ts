@@ -8,6 +8,7 @@ if (!process.env.TZ?.trim()) {
   process.env.TZ = (process.env.APP_TIMEZONE || 'Asia/Shanghai').trim();
 }
 import { config } from './config/index.js';
+import { logger } from './lib/logger.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -78,15 +79,17 @@ const verifyTrustProxyDev =
 if ((isProduction && trustProxyEnvOn) || verifyTrustProxyDev) {
   app.set('trust proxy', 1);
   if (verifyTrustProxyDev) {
-    console.log(
-      '[API] trust proxy enabled (VERIFY_TRUST_PROXY=1 + TRUST_PROXY=1, dev mode); set NODE_ENV=production + TRUST_PROXY=1 and restart for production',
+    logger.info(
+      'API',
+      'trust proxy enabled (VERIFY_TRUST_PROXY=1 + TRUST_PROXY=1, dev mode); set NODE_ENV=production + TRUST_PROXY=1 and restart for production',
     );
   } else {
-    console.log('[API] trust proxy enabled (TRUST_PROXY=1) — rate limit / req.ip use X-Forwarded-For');
+    logger.info('API', 'trust proxy enabled (TRUST_PROXY=1) — rate limit / req.ip use X-Forwarded-For');
   }
 } else if (isProduction && !trustProxyEnvOn) {
-  console.warn(
-    '[API] TRUST_PROXY=1 not set in production: rate limiting will use proxy IP when behind CDN/reverse proxy; set TRUST_PROXY=1 and restart',
+  logger.warn(
+    'API',
+    'TRUST_PROXY=1 not set in production: rate limiting will use proxy IP when behind CDN/reverse proxy; set TRUST_PROXY=1 and restart',
   );
 }
 
@@ -161,7 +164,7 @@ app.use(express.json({ limit: '10mb' }));
 app.post('/api/csp-report', express.json({ type: ['application/json', 'application/csp-report'] }), (req, _res) => {
   const body = req.body?.['csp-report'] || req.body;
   if (body) {
-    console.warn('[CSP-Violation]', JSON.stringify({
+    logger.warn('CSP-Violation', JSON.stringify({
       documentUri: body['document-uri'],
       violatedDirective: body['violated-directive'],
       blockedUri: body['blocked-uri'],
@@ -304,7 +307,7 @@ if (
   !config.mysql.password &&
   config.mysql.host === 'localhost'
 ) {
-  console.warn('[API] WARNING: MYSQL_PASSWORD not set. Please configure it in server/.env');
+  logger.warn('API', 'WARNING: MYSQL_PASSWORD not set. Please configure it in server/.env');
 }
 
 import { runAllMigrations } from './startup/runAllMigrations.js';
@@ -328,28 +331,30 @@ void (async () => {
   if (shouldRunMigrationsOnStart()) {
     try {
       await runAllMigrations();
-      console.log('[API] DB migrations completed (startup)');
+      logger.info('API', 'DB migrations completed (startup)');
     } catch (e) {
-      console.error('[API] DB migrations failed — refusing to start:', e);
+      logger.error('API', 'DB migrations failed — refusing to start:', e);
       process.exit(1);
     }
   } else {
-    console.log(
-      '[API] Skipping DB migrations on start (production default). Before first deploy or schema change, run: cd server && npm run migrate:all',
+    logger.info(
+      'API',
+      'Skipping DB migrations on start (production default). Before first deploy or schema change, run: cd server && npm run migrate:all',
     );
   }
 
   server = app.listen(config.port, () => {
-    console.log(`[API] Server running on http://localhost:${config.port}`);
-    console.log(`[API] CSP_MODE=${cspMode} (set CSP_MODE=report|enforce|off to override)`);
+    logger.info('API', `Server running on http://localhost:${config.port}`);
+    logger.info('API', `CSP_MODE=${cspMode} (set CSP_MODE=report|enforce|off to override)`);
     if (config.s3.enabled) {
-      console.log(`[API] S3 image upload: enabled (bucket=${config.s3.bucket}, region=${config.s3.region})`);
+      logger.info('API', `S3 image upload: enabled (bucket=${config.s3.bucket}, region=${config.s3.region})`);
     }
-    console.log(
-      `[API] Database: MySQL ${config.mysqlUsesDatabaseUrl ? 'DATABASE_URL → ' : ''}${config.mysql.host}:${config.mysql.port}/${config.mysql.database}`,
+    logger.info(
+      'API',
+      `Database: MySQL ${config.mysqlUsesDatabaseUrl ? 'DATABASE_URL → ' : ''}${config.mysql.host}:${config.mysql.port}/${config.mysql.database}`,
     );
     if (process.env.SKIP_STARTUP_SCHEDULERS === '1') {
-      console.warn('[API] SKIP_STARTUP_SCHEDULERS=1: background schedulers not started (use when DB is unavailable or for UI-only dev)');
+      logger.warn('API', 'SKIP_STARTUP_SCHEDULERS=1: background schedulers not started (use when DB is unavailable or for UI-only dev)');
     } else {
       startAutoBackupScheduler();
       startMemberDataCleanupScheduler();
@@ -363,7 +368,7 @@ void (async () => {
 })();
 
 async function gracefulShutdown(signal: string) {
-  console.log(`[API] Received ${signal}, shutting down...`);
+  logger.info('API', `Received ${signal}, shutting down...`);
   stopAutoBackupScheduler();
   stopMemberDataCleanupScheduler();
   stopActivityDataRetentionScheduler();
@@ -371,12 +376,12 @@ async function gracefulShutdown(signal: string) {
   stopInviteRegisterTokenCleanupScheduler();
   stopSpinFakeLotteryScheduler();
   try {
-    server?.close(() => console.log('[API] HTTP server closed'));
+    server?.close(() => logger.info('API', 'HTTP server closed'));
     const { closePool } = await import('./database/index.js');
     await closePool();
-    console.log('[API] MySQL pool closed');
+    logger.info('API', 'MySQL pool closed');
   } catch (e) {
-    console.error('[API] Shutdown error:', e);
+    logger.error('API', 'Shutdown error:', e);
   }
   process.exit(0);
 }

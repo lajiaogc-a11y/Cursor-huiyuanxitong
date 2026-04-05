@@ -19,6 +19,7 @@ import { loginApi, logoutApi, getCurrentUserApi, getPlatformTenantId } from '@/s
 import { hasAuthToken, clearAuthToken, API_ACCESS_TOKEN_KEY } from '@/api/client';
 import { AUTH_UNAUTHORIZED_EVENT } from '@/api/init';
 import { getRolePermissions } from '@/services/staff/dataApi';
+import { logger } from '@/lib/logger';
 
 // IP 国家校验间隔时间（毫秒）- 每5分钟检查一次
 const IP_VALIDATION_INTERVAL = 5 * 60 * 1000;
@@ -47,7 +48,7 @@ async function getClientIp(): Promise<string | null> {
     const data = await res.json();
     return data.ip || null;
   } catch (err) {
-    console.warn('[AuthContext] getClientIp failed:', err);
+    logger.warn('[AuthContext] getClientIp failed:', err);
     return null;
   }
 }
@@ -91,7 +92,7 @@ async function checkIpAccess(): Promise<IpValidationResult> {
     }
     return { valid: true, skipped: false, ip: data?.ip, country_code: data?.country_code, country_name: data?.country_name };
   } catch (error) {
-    console.warn('[AuthContext] IP country check failed:', error);
+    logger.warn('[AuthContext] IP country check failed:', error);
     return {
       valid: true,
       skipped: true,
@@ -262,7 +263,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!loading) return;
     const timer = setTimeout(() => {
       if (loading) {
-        console.warn('[AuthContext] Loading watchdog timeout, forcing loading=false');
+        logger.warn('[AuthContext] Loading watchdog timeout, forcing loading=false');
         setLoading(false);
         setDataSynced(true);
       }
@@ -301,7 +302,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       if (!result.valid) {
-        console.warn('[AuthContext] IP country validation failed');
+        logger.warn('[AuthContext] IP country validation failed');
         
         if (forceLogout && session) {
           // 显示错误提示
@@ -331,7 +332,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // IP validation passed
       return true;
     } catch (error) {
-      console.error('[AuthContext] IP validation error:', error);
+      logger.error('[AuthContext] IP validation error:', error);
       // Network/service errors should not force logout — treat as validation skipped
       return true;
     } finally {
@@ -385,7 +386,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // 防止多次重试
     if (dataSyncAttemptRef.current >= 3) {
-      console.warn('[AuthContext] Max sync attempts reached, marking as synced');
+      logger.warn('[AuthContext] Max sync attempts reached, marking as synced');
       setDataSynced(true);
       return;
     }
@@ -395,7 +396,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // 设置超时保护
     const timeoutId = setTimeout(() => {
-      console.warn('[AuthContext] Data sync timeout, forcing completion');
+      logger.warn('[AuthContext] Data sync timeout, forcing completion');
       setDataSynced(true);
       isSyncingRef.current = false;
     }, DATA_SYNC_TIMEOUT);
@@ -404,22 +405,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 并行执行所有初始化任务，每个独立捕获错误
       await Promise.all([
         initializeUserDataSync().catch(err => {
-          console.error('User data sync failed:', err);
+          logger.error('User data sync failed:', err);
           return null;
         }),
         ensureDefaultSharedData().catch(err => {
-          console.error('Shared data init failed:', err);
+          logger.error('Shared data init failed:', err);
           return null;
         }),
         initNameResolver().catch(err => {
-          console.error('Name resolver init failed:', err);
+          logger.error('Name resolver init failed:', err);
           return null;
         }),
       ]);
       
       // 预加载共享数据（失败不阻塞）
       await preloadSharedData().catch(err => {
-        console.error('Preload shared data failed:', err);
+        logger.error('Preload shared data failed:', err);
         return null;
       });
       
@@ -436,7 +437,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         import('@/hooks/useMembers').then(m =>
           queryClient.prefetchQuery({ queryKey: ['members', null], queryFn: () => m.fetchMembersFromDb(null, true) })
         ),
-      ]).catch(err => console.error('Prefetch failed:', err));
+      ]).catch(err => logger.error('Prefetch failed:', err));
     } finally {
       clearTimeout(timeoutId);
       setDataSynced(true);
@@ -453,7 +454,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPermissions((prev) => (sameRolePermissions(prev, next) ? prev : next));
       setPermissionsLoaded(true);
     } catch (error) {
-      console.error('[AuthContext] Failed to load permissions:', error);
+      logger.error('[AuthContext] Failed to load permissions:', error);
       setPermissionsLoaded(true);
     }
   }, []);
@@ -491,7 +492,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 初始化超时兜底 - 防止永久卡死
     const initTimeoutId = setTimeout(() => {
       if (isMounted && loading && !initCompletedRef.current) {
-        console.warn('[AuthContext] Init timeout reached, forcing loading=false');
+        logger.warn('[AuthContext] Init timeout reached, forcing loading=false');
         setLoading(false);
         setDataSynced(true);
         initCompletedRef.current = true;
@@ -553,7 +554,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           finishInit();
         }
       }).catch((err) => {
-        console.error('[AuthContext] getCurrentUserApi error:', err);
+        logger.error('[AuthContext] getCurrentUserApi error:', err);
         setSharedDataTenantId(null);
         clearAuthToken();
         writeEmployeeCache(null);
@@ -693,8 +694,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         realName: authUser.real_name,
       });
 
-      preloadSharedData().catch(console.error);
-      syncUserData(authUser.id).catch(console.error);
+      preloadSharedData().catch(logger.error);
+      syncUserData(authUser.id).catch(logger.error);
 
       skipNextInitAuthCheckRef.current = true; // 避免 init 重跑时再次请求 /me 导致竞态
       setLoading(false);
@@ -703,7 +704,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthStep(null);
       return { success: true, message: _t(`欢迎回来，${authUser.real_name}！`, `Welcome back, ${authUser.real_name}!`), user: empInfo };
     } catch (error: any) {
-      console.error('Sign in error:', error);
+      logger.error('Sign in error:', error);
       setAuthStep(null);
       if (error?.message?.includes('超时')) {
         return { success: false, message: error.message };

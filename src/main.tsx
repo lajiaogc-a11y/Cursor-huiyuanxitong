@@ -21,7 +21,7 @@ if (import.meta.env.PROD) {
   console.info  = noop;
 }
 
-window.addEventListener('unhandledrejection', (event) => {
+function handleUnhandledRejection(event: PromiseRejectionEvent) {
   const msg = String(event.reason?.message || event.reason || '');
   const isChunk =
     (event.reason?.name === 'ChunkLoadError') ||
@@ -36,7 +36,11 @@ window.addEventListener('unhandledrejection', (event) => {
       window.location.reload();
     }
   }
-});
+}
+window.addEventListener('unhandledrejection', handleUnhandledRejection);
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => window.removeEventListener('unhandledrejection', handleUnhandledRejection));
+}
 
 async function cleanupLegacyServiceWorker() {
   if (!import.meta.env.PROD) return;

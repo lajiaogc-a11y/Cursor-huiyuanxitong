@@ -90,8 +90,12 @@ export function clearSpinCache(): void {
   _spinCache.clear();
 }
 
+function _clearSpinCacheOnSignout() { _spinCache.clear(); }
 if (typeof window !== "undefined") {
-  window.addEventListener("member:signout", () => _spinCache.clear());
+  window.addEventListener("member:signout", _clearSpinCacheOnSignout);
+  if (import.meta.hot) {
+    import.meta.hot.dispose(() => window.removeEventListener("member:signout", _clearSpinCacheOnSignout));
+  }
 }
 
 /** Member spin page: duplicate-tap guard via spinGuard + spinning/remaining. */

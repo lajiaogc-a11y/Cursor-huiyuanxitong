@@ -1,4 +1,5 @@
 import { apiPost, ApiError } from '@/api/client';
+import { STAFF_AUTH_PATHS } from '@/services/auth/authPaths';
 
 export type AuthPasswordSyncResult = {
   success: boolean;
@@ -11,7 +12,7 @@ export type AuthPasswordSyncResult = {
  */
 export async function syncAuthPassword(username: string, password: string): Promise<AuthPasswordSyncResult> {
   try {
-    const res = await apiPost<{ success?: boolean; message?: string }>('/api/auth/sync-password', {
+    const res = await apiPost<{ success?: boolean; message?: string }>(STAFF_AUTH_PATHS.SYNC_PASSWORD, {
       username,
       password,
     });

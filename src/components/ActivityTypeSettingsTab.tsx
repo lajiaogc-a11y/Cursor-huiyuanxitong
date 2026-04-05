@@ -14,16 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   DndContext,
   closestCenter,
@@ -298,29 +289,18 @@ export default function ActivityTypeSettingsTab() {
         </div>
       </DrawerDetail>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("确认删除", "Confirm Delete")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(
-                `确定要删除活动类型"${typeToDelete?.label}"吗？此操作无法撤销。`,
-                `Are you sure you want to delete activity type "${typeToDelete?.label}"? This action cannot be undone.`
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {t("删除", "Delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title={t("确认删除", "Confirm Delete")}
+        description={t(
+          `确定要删除活动类型"${typeToDelete?.label}"吗？此操作无法撤销。`,
+          `Are you sure you want to delete activity type "${typeToDelete?.label}"? This action cannot be undone.`,
+        )}
+        confirmLabel={t("删除", "Delete")}
+        variant="destructive"
+        onConfirm={handleConfirmDelete}
+      />
     </Card>
     </SettingsPageContainer>
   );

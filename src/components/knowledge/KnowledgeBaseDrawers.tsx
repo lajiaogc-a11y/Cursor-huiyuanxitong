@@ -16,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Calendar, Copy, FolderPlus, ImageOff, Loader2, Pencil, Plus, Settings2 } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
 import { formatBeijingTime } from "@/lib/beijingTime";
@@ -395,48 +396,28 @@ export function KnowledgeBaseDrawers({
         </div>
       </DrawerDetail>
 
-      <AlertDialog open={!!deletingCategoryId} onOpenChange={(open) => !open && onDeletingCategoryOpenChange(false)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("确认删除分类", "Delete Category")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(
-                "删除分类将同时删除该分类下的所有内容，此操作不可撤销。",
-                "Deleting this category will also delete all its content. This cannot be undone.",
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => void onConfirmDeleteCategory()}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {t("删除", "Delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deletingCategoryId}
+        onOpenChange={(open) => !open && onDeletingCategoryOpenChange(false)}
+        title={t("确认删除分类", "Delete Category")}
+        description={t(
+          "删除分类将同时删除该分类下的所有内容，此操作不可撤销。",
+          "Deleting this category will also delete all its content. This cannot be undone.",
+        )}
+        confirmLabel={t("删除", "Delete")}
+        variant="destructive"
+        onConfirm={() => void onConfirmDeleteCategory()}
+      />
 
-      <AlertDialog open={!!deletingArticleId} onOpenChange={(open) => !open && onDeletingArticleOpenChange(false)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("确认删除", "Confirm Delete")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("此操作不可撤销，确定要删除这条内容吗？", "This action cannot be undone. Delete this content?")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => void onConfirmDeleteArticle()}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {t("删除", "Delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deletingArticleId}
+        onOpenChange={(open) => !open && onDeletingArticleOpenChange(false)}
+        title={t("确认删除", "Confirm Delete")}
+        description={t("此操作不可撤销，确定要删除这条内容吗？", "This action cannot be undone. Delete this content?")}
+        confirmLabel={t("删除", "Delete")}
+        variant="destructive"
+        onConfirm={() => void onConfirmDeleteArticle()}
+      />
 
       <AlertDialog
         open={markAllReadOpen}

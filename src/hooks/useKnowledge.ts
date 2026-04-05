@@ -22,6 +22,7 @@ import {
   postKnowledgeMarkAllRead,
   getKnowledgeReadStatus,
 } from '@/services/staff/dataApi';
+import { logger } from '@/lib/logger';
 
 export interface KnowledgeCategory {
   id: string;
@@ -126,7 +127,7 @@ export function useKnowledgeCategories(
       fetchCategories();
       return true;
     } catch (error) {
-      console.error('Error adding category:', error);
+      logger.error('Error adding category:', error);
       notify.error(t('添加失败', 'Failed to add'));
       return false;
     }
@@ -151,7 +152,7 @@ export function useKnowledgeCategories(
       fetchCategories();
       return true;
     } catch (error) {
-      console.error('Error updating category:', error);
+      logger.error('Error updating category:', error);
       const msg =
         error instanceof ApiError && error.message
           ? error.message
@@ -180,7 +181,7 @@ export function useKnowledgeCategories(
       fetchCategories();
       return true;
     } catch (error) {
-      console.error('Error deleting category:', error);
+      logger.error('Error deleting category:', error);
       notify.error(t('删除失败', 'Failed to delete'));
       return false;
     }
@@ -211,7 +212,7 @@ export function useKnowledgeCategories(
       fetchCategories();
       return true;
     } catch (error) {
-      console.error('Error reordering categories:', error);
+      logger.error('Error reordering categories:', error);
       notify.error(t('排序更新失败', 'Failed to update order'));
       return false;
     }
@@ -269,7 +270,7 @@ export function useKnowledgeArticles(
         try {
           await postKnowledgeMarkRead(String(data.id));
         } catch (e) {
-          console.warn('Auto-mark read failed:', e);
+          logger.warn('Auto-mark read failed:', e);
         }
       }
       
@@ -277,7 +278,7 @@ export function useKnowledgeArticles(
       fetchArticles();
       return true;
     } catch (error) {
-      console.error('Error adding article:', error);
+      logger.error('Error adding article:', error);
       notify.error(t('发布失败', 'Failed to publish'));
       return false;
     }
@@ -302,7 +303,7 @@ export function useKnowledgeArticles(
       fetchArticles();
       return true;
     } catch (error) {
-      console.error('Error updating article:', error);
+      logger.error('Error updating article:', error);
       notify.error(t('更新失败', 'Failed to update'));
       return false;
     }
@@ -327,7 +328,7 @@ export function useKnowledgeArticles(
       fetchArticles();
       return true;
     } catch (error) {
-      console.error('Error deleting article:', error);
+      logger.error('Error deleting article:', error);
       notify.error(t('删除失败', 'Failed to delete'));
       return false;
     }
@@ -352,7 +353,7 @@ export function useKnowledgeArticles(
       fetchArticles();
       return true;
     } catch (error) {
-      console.error('Error updating sort orders:', error);
+      logger.error('Error updating sort orders:', error);
       notify.error(t('排序更新失败', 'Failed to update order'));
       return false;
     }
@@ -378,7 +379,7 @@ export function useUnreadCount() {
       setUnreadCount(n);
       setUnreadByCategory(byCat || {});
     } catch (error) {
-      console.error('Error fetching unread count:', error);
+      logger.error('Error fetching unread count:', error);
     }
   }, [employee?.id, effectiveTenantId]);
 
@@ -425,7 +426,7 @@ export function useUnreadCount() {
         }),
       );
     } catch (error) {
-      console.error('Error marking as read:', error);
+      logger.error('Error marking as read:', error);
     }
   };
 
@@ -439,7 +440,7 @@ export function useUnreadCount() {
       window.dispatchEvent(new CustomEvent('knowledge-read-update'));
       return true;
     } catch (error) {
-      console.error('Error marking all as read:', error);
+      logger.error('Error marking all as read:', error);
       return false;
     }
   };
@@ -500,7 +501,7 @@ export async function uploadKnowledgeImage(file: File): Promise<string | null> {
     });
 
     const ratio = ((1 - compressed.size / file.size) * 100).toFixed(0);
-    console.log(
+    logger.log(
       `[Image] Compressed ${(file.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB (${ratio}% smaller)`
     );
 
@@ -533,7 +534,7 @@ export async function uploadKnowledgeImage(file: File): Promise<string | null> {
 
     return (resp as { url: string }).url;
   } catch (error) {
-    console.error('Error uploading image:', error);
+    logger.error('Error uploading image:', error);
     notify.error('图片上传失败 / Image upload failed');
     return null;
   }

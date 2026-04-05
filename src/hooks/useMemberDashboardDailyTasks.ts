@@ -38,8 +38,12 @@ export function clearDailyStatusCache(): void {
   _dailyStatusCache.clear();
 }
 
+function _clearDailyTasksCacheOnSignout() { _dailyStatusCache.clear(); }
 if (typeof window !== "undefined") {
-  window.addEventListener("member:signout", () => _dailyStatusCache.clear());
+  window.addEventListener("member:signout", _clearDailyTasksCacheOnSignout);
+  if (import.meta.hot) {
+    import.meta.hot.dispose(() => window.removeEventListener("member:signout", _clearDailyTasksCacheOnSignout));
+  }
 }
 
 export function useMemberDashboardDailyTasks({

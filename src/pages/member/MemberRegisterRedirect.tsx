@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navigate, useSearchParams, Link } from "react-router-dom";
 import {
   Gift,
@@ -10,8 +10,6 @@ import {
   Eye,
   EyeOff,
   UserPlus,
-  Shield,
-  Lock,
   Sparkles,
 } from "lucide-react";
 import { memberRegisterInit, validateInviteAndSubmit } from "@/services/memberPortal/memberActivityService";
@@ -24,7 +22,6 @@ import {
   getDefaultMemberPortalSettings,
   type MemberPortalSettings,
 } from "@/services/members/memberPortalSettingsService";
-import "@/styles/member-portal.css";
 import { ROUTES } from "@/routes/constants";
 import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
 import { Button } from "@/components/ui/button";
@@ -33,8 +30,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { MemberLegalDrawer } from "@/components/member/MemberLegalDrawer";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { memberPortalLegalBody } from "@/lib/memberPortalLegalBody";
-import { memberPortalGoldCssVarsFromHex } from "@/utils/memberPortalGoldCssVars";
-import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
+import { MemberRegisterShell } from "@/components/member/MemberRegisterShell";
+import { MemberRegisterTrustFooter } from "@/components/member/MemberRegisterTrustFooter";
 import { cn } from "@/lib/utils";
 
 function RegisterBrandLogo({
@@ -238,15 +235,6 @@ export default function MemberRegisterRedirect() {
   const inputBase =
     "h-12 w-full rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.25)] bg-[hsl(var(--pu-m-surface)/0.45)] text-sm font-medium text-[hsl(var(--pu-m-text))] outline-none transition-all placeholder:text-[hsl(var(--pu-m-text-dim)/0.4)] focus-visible:ring-2 focus-visible:ring-pu-gold/25";
 
-  const portalRootStyle = useMemo(
-    () =>
-      ({
-        "--m-theme": themeColor,
-        ...memberPortalGoldCssVarsFromHex(themeColor),
-      }) as CSSProperties,
-    [themeColor],
-  );
-
   const perks = inviteEnabled
     ? [
         { emoji: "🎰", text: t(`${inviteReward} 次免费转盘`, `${inviteReward} free spins`) },
@@ -261,27 +249,17 @@ export default function MemberRegisterRedirect() {
 
   if (!settingsLoaded) {
     return (
-      <div
-        className="member-login-premium-root member-portal-wrap flex min-h-dvh items-center justify-center"
-        style={{ ...portalRootStyle, background: "hsl(var(--pu-m-bg-1))" }}
-      >
-        <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--pu-gold))]" />
-      </div>
+      <MemberRegisterShell themeColor={themeColor}>
+        <div className="flex min-h-dvh flex-1 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--pu-gold))]" />
+        </div>
+      </MemberRegisterShell>
     );
   }
 
   return (
-    <div
-      className="member-login-premium-root member-portal-wrap flex min-h-dvh flex-col overflow-x-hidden"
-      style={{
-        ...portalRootStyle,
-        background: "hsl(var(--pu-m-bg-1))",
-        color: "hsl(var(--pu-m-text))",
-      }}
-    >
+    <MemberRegisterShell themeColor={themeColor}>
       <div className="relative flex shrink-0 flex-col items-center overflow-x-hidden overflow-y-visible pb-10 pt-[max(4.25rem,calc(env(safe-area-inset-top)+2rem))]">
-        <MemberPageAmbientOrbs />
-
         <Link
           to={ROUTES.MEMBER.ROOT}
           className="absolute left-[max(1.25rem,env(safe-area-inset-left))] top-[max(1.25rem,env(safe-area-inset-top))] z-[2] text-xs font-bold text-[hsl(var(--pu-m-text-dim))] transition hover:text-[hsl(var(--pu-m-text))]"
@@ -615,6 +593,6 @@ export default function MemberRegisterRedirect() {
       >
         {memberPortalLegalBody(portalSettings, language, "privacy")}
       </MemberLegalDrawer>
-    </div>
+    </MemberRegisterShell>
   );
 }

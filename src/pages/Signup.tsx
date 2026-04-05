@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { STAFF_AUTH_MODULE_ITEMS } from "@/components/auth/staffAuthMarketing";
 import { StaffAuthLanguageToggle } from "@/components/auth/StaffAuthLanguageToggle";
+import "@/styles/staff-auth-theme.css";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -144,7 +145,7 @@ export default function Signup() {
   };
 
   return (
-    <div className="relative flex h-dvh items-center justify-center overflow-hidden bg-[#F6F8FB] p-4 sm:p-6 dark:bg-[#0f172a]">
+    <div className="relative flex h-dvh items-center justify-center overflow-hidden bg-[var(--sa-bg)] p-4 sm:p-6 dark:bg-[var(--sa-bg-dark)]">
       <div className="absolute top-3 right-3 z-20 sm:top-4 sm:right-4">
         <StaffAuthLanguageToggle />
       </div>
@@ -161,7 +162,7 @@ export default function Signup() {
         style={{ maxHeight: "calc(100dvh - 32px)" }}
       >
         {/* 左侧品牌区 — 桌面 */}
-        <div className="hidden min-w-[360px] flex-1 flex-col bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] p-8 lg:flex">
+        <div className="hidden min-w-[360px] flex-1 flex-col bg-gradient-to-br from-[var(--sa-panel-from)] via-[var(--sa-panel-via)] to-[var(--sa-panel-to)] p-8 lg:flex">
           <div className="flex flex-1 flex-col justify-center">
             <div className="mb-8 flex items-center gap-3">
               <GCLogo size={40} variant="light" />
@@ -208,14 +209,14 @@ export default function Signup() {
             <div className="mb-5 flex items-center gap-3 lg:hidden">
               <GCLogo size={36} />
               <div>
-                <h1 className="text-lg font-bold leading-tight text-[#1e293b] dark:text-white">{t("signup.title")}</h1>
-                <p className="text-xs text-[#64748B] dark:text-slate-400">{t("signup.subtitle")}</p>
+                <h1 className="text-lg font-bold leading-tight text-[var(--sa-heading)] dark:text-white">{t("signup.title")}</h1>
+                <p className="text-xs text-[var(--sa-muted)] dark:text-slate-400">{t("signup.subtitle")}</p>
               </div>
             </div>
 
             <div className="mb-5 hidden lg:block">
-              <h1 className="text-2xl font-bold text-[#1e293b] dark:text-white">{t("signup.title")}</h1>
-              <p className="mt-1 text-sm text-[#64748B] dark:text-slate-400">{t("signup.subtitle")}</p>
+              <h1 className="text-2xl font-bold text-[var(--sa-heading)] dark:text-white">{t("signup.title")}</h1>
+              <p className="mt-1 text-sm text-[var(--sa-muted)] dark:text-slate-400">{t("signup.subtitle")}</p>
             </div>
 
             <div
@@ -223,7 +224,7 @@ export default function Signup() {
               role="note"
             >
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-              <p className="text-left text-xs leading-relaxed text-[#64748B] dark:text-slate-400">
+              <p className="text-left text-xs leading-relaxed text-[var(--sa-muted)] dark:text-slate-400">
                 {t(
                   "邀请码由租户管理员发放；首个员工账号可在无邀请码时直接注册。",
                   "Ask your tenant admin for an invite code. The very first staff account can register without one.",
@@ -231,14 +232,14 @@ export default function Signup() {
               </p>
             </div>
 
-            <div className="mb-5 flex gap-1 rounded-lg bg-[#f1f5f9] p-1 dark:bg-slate-700/50">
+            <div className="mb-5 flex gap-1 rounded-lg bg-[var(--sa-tab-bg)] p-1 dark:bg-slate-700/50">
               <Link
                 to="/staff/login"
-                className="flex-1 rounded-md py-2 text-center text-sm font-medium text-[#64748B] transition-colors hover:text-[#334155] dark:text-slate-400 dark:hover:text-slate-200"
+                className="flex-1 rounded-md py-2 text-center text-sm font-medium text-[var(--sa-muted)] transition-colors hover:text-[var(--sa-label)] dark:text-slate-400 dark:hover:text-slate-200"
               >
                 {t("login.submit")}
               </Link>
-              <span className="flex-1 rounded-md bg-white py-2 text-center text-sm font-medium text-[#1e293b] shadow-sm dark:bg-slate-600/50 dark:text-white">
+              <span className="flex-1 rounded-md bg-white py-2 text-center text-sm font-medium text-[var(--sa-heading)] shadow-sm dark:bg-slate-600/50 dark:text-white">
                 {t("login.goSignup")}
               </span>
             </div>
@@ -278,7 +279,7 @@ export default function Signup() {
 
           <form onSubmit={handleSignup} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm font-medium text-[#334155] dark:text-slate-300">{t('signup.username')}</Label>
+              <Label htmlFor="username" className="text-sm font-medium text-[var(--sa-label)] dark:text-slate-300">{t('signup.username')}</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -287,14 +288,14 @@ export default function Signup() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder={t('signup.usernamePlaceholder')}
-                  className="h-11 rounded-lg border-[#e2e8f0] pl-10 dark:border-slate-600 dark:bg-slate-700/50 dark:text-white dark:placeholder:text-slate-500"
+                  className="h-11 rounded-lg border-[var(--sa-border)] pl-10 dark:border-slate-600 dark:bg-slate-700/50 dark:text-white dark:placeholder:text-slate-500"
                   autoComplete="username"
                   disabled={loading}
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="realName" className="text-sm font-medium text-[#334155] dark:text-slate-300">{t('signup.realName')}</Label>
+              <Label htmlFor="realName" className="text-sm font-medium text-[var(--sa-label)] dark:text-slate-300">{t('signup.realName')}</Label>
               <div className="relative">
                 <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -303,7 +304,7 @@ export default function Signup() {
                   value={realName}
                   onChange={(e) => setRealName(e.target.value)}
                   placeholder={t('signup.realNamePlaceholder')}
-                  className="h-11 rounded-lg border-[#e2e8f0] pl-10 dark:border-slate-600 dark:bg-slate-700/50 dark:text-white dark:placeholder:text-slate-500"
+                  className="h-11 rounded-lg border-[var(--sa-border)] pl-10 dark:border-slate-600 dark:bg-slate-700/50 dark:text-white dark:placeholder:text-slate-500"
                   disabled={loading}
                 />
               </div>
@@ -312,7 +313,7 @@ export default function Signup() {
             {/* Invitation Code - only show for non-first users */}
             {isFirstUser === false && (
               <div className="space-y-2">
-                <Label htmlFor="invitationCode" className="text-sm font-medium text-[#334155] dark:text-slate-300">
+                <Label htmlFor="invitationCode" className="text-sm font-medium text-[var(--sa-label)] dark:text-slate-300">
                   {t('邀请码', 'Invitation Code')} <span className="text-destructive">*</span>
                 </Label>
                 <div className="relative">
@@ -323,7 +324,7 @@ export default function Signup() {
                     value={invitationCode}
                     onChange={(e) => setInvitationCode(e.target.value.toUpperCase())}
                     placeholder={t('请输入邀请码', 'Enter invitation code')}
-                    className="h-11 rounded-lg border-[#e2e8f0] pl-10 font-mono tracking-wider dark:border-slate-600 dark:bg-slate-700/50 dark:text-white dark:placeholder:text-slate-500"
+                    className="h-11 rounded-lg border-[var(--sa-border)] pl-10 font-mono tracking-wider dark:border-slate-600 dark:bg-slate-700/50 dark:text-white dark:placeholder:text-slate-500"
                     disabled={loading}
                     maxLength={8}
                   />
@@ -335,7 +336,7 @@ export default function Signup() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium text-[#334155] dark:text-slate-300">{t('signup.password')}</Label>
+              <Label htmlFor="password" className="text-sm font-medium text-[var(--sa-label)] dark:text-slate-300">{t('signup.password')}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -344,14 +345,14 @@ export default function Signup() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={t('signup.passwordPlaceholder')}
-                  className="h-11 rounded-lg border-[#e2e8f0] pl-10 pr-10 dark:border-slate-600 dark:bg-slate-700/50 dark:text-white dark:placeholder:text-slate-500"
+                  className="h-11 rounded-lg border-[var(--sa-border)] pl-10 pr-10 dark:border-slate-600 dark:bg-slate-700/50 dark:text-white dark:placeholder:text-slate-500"
                   autoComplete="new-password"
                   disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1.5 text-[#94a3b8] transition-colors hover:bg-[#f1f5f9] hover:text-[#64748B] dark:hover:bg-slate-600/50 dark:hover:text-slate-300"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1.5 text-[var(--sa-icon)] transition-colors hover:bg-[var(--sa-tab-bg)] hover:text-[var(--sa-muted)] dark:hover:bg-slate-600/50 dark:hover:text-slate-300"
                   tabIndex={0}
                   aria-label={showPassword ? t("signup.hidePassword", "Hide password") : t("signup.showPassword", "Show password")}
                 >
@@ -360,7 +361,7 @@ export default function Signup() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-sm font-medium text-[#334155] dark:text-slate-300">{t('signup.confirmPassword')}</Label>
+              <Label htmlFor="confirmPassword" className="text-sm font-medium text-[var(--sa-label)] dark:text-slate-300">{t('signup.confirmPassword')}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -369,14 +370,14 @@ export default function Signup() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder={t('signup.confirmPasswordPlaceholder')}
-                  className="h-11 rounded-lg border-[#e2e8f0] pl-10 pr-10 dark:border-slate-600 dark:bg-slate-700/50 dark:text-white dark:placeholder:text-slate-500"
+                  className="h-11 rounded-lg border-[var(--sa-border)] pl-10 pr-10 dark:border-slate-600 dark:bg-slate-700/50 dark:text-white dark:placeholder:text-slate-500"
                   autoComplete="new-password"
                   disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1.5 text-[#94a3b8] transition-colors hover:bg-[#f1f5f9] hover:text-[#64748B] dark:hover:bg-slate-600/50 dark:hover:text-slate-300"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1.5 text-[var(--sa-icon)] transition-colors hover:bg-[var(--sa-tab-bg)] hover:text-[var(--sa-muted)] dark:hover:bg-slate-600/50 dark:hover:text-slate-300"
                   tabIndex={0}
                   aria-label={showConfirmPassword ? t("signup.hideConfirmPassword", "Hide password") : t("signup.showConfirmPassword", "Show password")}
                 >
@@ -406,7 +407,7 @@ export default function Signup() {
             <Button
               type="submit"
               className="mt-6 h-11 w-full rounded-lg font-medium text-white hover:opacity-95"
-              style={{ backgroundColor: "#2563EB" }}
+              style={{ backgroundColor: "var(--sa-primary)" }}
               disabled={loading}
             >
               {loading ? (
@@ -417,9 +418,9 @@ export default function Signup() {
               ) : t('signup.submit')}
             </Button>
           </form>
-            <p className="mt-4 text-center text-sm text-[#64748B] dark:text-slate-400">
+            <p className="mt-4 text-center text-sm text-[var(--sa-muted)] dark:text-slate-400">
               {t("signup.haveAccount")}{" "}
-              <Link to="/staff/login" className="font-medium text-[#2563EB] hover:underline">
+              <Link to="/staff/login" className="font-medium text-[var(--sa-primary)] hover:underline">
                 {t("signup.goLogin")}
               </Link>
             </p>

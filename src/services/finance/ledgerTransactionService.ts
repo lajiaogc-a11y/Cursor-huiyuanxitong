@@ -11,6 +11,7 @@
 
 import { apiGet, apiPost, apiDelete } from '@/api/client';
 import { notifyDataMutation } from '@/services/system/dataRefreshManager';
+import { logger } from '@/lib/logger';
 
 export type AccountType = 'card_vendor' | 'payment_provider';
 
@@ -81,14 +82,14 @@ export async function createLedgerEntry(params: CreateLedgerEntryParams): Promis
       batch_id: params.batchId || null,
     });
 
-    notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'mutation' }).catch(console.error);
+    notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'mutation' }).catch(logger.error);
     return result;
   } catch (error: any) {
     if (error?.status === 409 || error?.message?.includes('duplicate')) {
-      console.warn('[LedgerService] Duplicate entry skipped (idempotent):', params.sourceType, params.sourceId);
+      logger.warn('[LedgerService] Duplicate entry skipped (idempotent):', params.sourceType, params.sourceId);
       return null;
     }
-    console.error('[LedgerService] Failed to create ledger entry:', error);
+    logger.error('[LedgerService] Failed to create ledger entry:', error);
     return null;
   }
 }
@@ -116,10 +117,10 @@ export async function softDeleteLedgerEntry(params: {
       operator_name: params.operatorName || null,
     });
 
-    notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
+    notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'mutation' }).catch(logger.error);
     return result;
   } catch (error) {
-    console.error('[LedgerService] Failed to soft-delete ledger entry:', error);
+    logger.error('[LedgerService] Failed to soft-delete ledger entry:', error);
     return null;
   }
 }
@@ -180,10 +181,10 @@ export async function setInitialBalanceLedger(params: {
       operator_name: params.operatorName || null,
     });
 
-    notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'mutation' }).catch(console.error);
+    notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'mutation' }).catch(logger.error);
     return result;
   } catch (error) {
-    console.error('[LedgerService] Failed to set initial balance:', error);
+    logger.error('[LedgerService] Failed to set initial balance:', error);
     return null;
   }
 }
@@ -211,7 +212,7 @@ export async function getLedgerTransactions(
     const data = await apiGet<LedgerTransaction[]>(`/api/finance/ledger?${params.toString()}`);
     return data || [];
   } catch (error) {
-    console.error('[LedgerService] Failed to get transactions:', error);
+    logger.error('[LedgerService] Failed to get transactions:', error);
     return [];
   }
 }
@@ -235,7 +236,7 @@ export async function getAllLedgerTransactions(
     const data = await apiGet<LedgerTransaction[]>(`/api/finance/ledger/all?${params.toString()}`);
     return data || [];
   } catch (error) {
-    console.error('[LedgerService] Failed to get all transactions:', error);
+    logger.error('[LedgerService] Failed to get all transactions:', error);
     return [];
   }
 }
@@ -251,7 +252,7 @@ export async function getLedgerBalance(
     const result = await apiGet<{ balance: number }>(`/api/finance/ledger/balance?account_type=${encodeURIComponent(accountType)}&account_id=${encodeURIComponent(accountId)}`);
     return result?.balance ?? 0;
   } catch (error) {
-    console.error('[LedgerService] Failed to get ledger balance:', error);
+    logger.error('[LedgerService] Failed to get ledger balance:', error);
     return 0;
   }
 }
@@ -266,10 +267,10 @@ export async function recalculateLedgerRunningBalances(params: {
       account_type: params.accountType,
       account_id: params.accountId,
     });
-    notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'mutation' }).catch(console.error);
+    notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'mutation' }).catch(logger.error);
     return true;
   } catch (error) {
-    console.error('[LedgerService] recalculateLedgerRunningBalances failed:', error);
+    logger.error('[LedgerService] recalculateLedgerRunningBalances failed:', error);
     return false;
   }
 }
@@ -307,7 +308,7 @@ export async function reconcileAccount(
 
     return result;
   } catch (error) {
-    console.error('[LedgerService] Reconciliation failed:', error);
+    logger.error('[LedgerService] Reconciliation failed:', error);
     return null;
   }
 }
@@ -334,11 +335,11 @@ export async function reconcileAndCorrect(params: {
       }
     );
     if (result?.corrected) {
-      notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'mutation' }).catch(console.error);
+      notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'mutation' }).catch(logger.error);
     }
     return result ?? { computedBalance: 0, corrected: false, correctionAmount: 0 };
   } catch (error) {
-    console.error('[LedgerService] reconcileAndCorrect failed:', error);
+    logger.error('[LedgerService] reconcileAndCorrect failed:', error);
     return { computedBalance: 0, corrected: false, correctionAmount: 0 };
   }
 }
@@ -374,10 +375,10 @@ export async function deleteLedgerTransactions(
 ): Promise<boolean> {
   try {
     await apiDelete(`/api/finance/ledger?account_type=${encodeURIComponent(accountType)}&account_id=${encodeURIComponent(accountId)}`);
-    notifyDataMutation({ table: 'ledger_transactions', operation: 'DELETE', source: 'mutation' }).catch(console.error);
+    notifyDataMutation({ table: 'ledger_transactions', operation: 'DELETE', source: 'mutation' }).catch(logger.error);
     return true;
   } catch (error) {
-    console.error('[LedgerService] Failed to delete transactions:', error);
+    logger.error('[LedgerService] Failed to delete transactions:', error);
     return false;
   }
 }
@@ -476,10 +477,10 @@ export async function reverseAllEntriesForSource(params: {
       operator_name: params.operatorName || null,
     });
 
-    notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'mutation' }).catch(console.error);
+    notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'mutation' }).catch(logger.error);
     return result;
   } catch (error) {
-    console.error('[LedgerService] Failed to reverse all entries:', error);
+    logger.error('[LedgerService] Failed to reverse all entries:', error);
     return null;
   }
 }
@@ -505,7 +506,7 @@ export async function reverseInitialBalanceEntry(params: {
 
     return result;
   } catch (error) {
-    console.error('[LedgerService] Failed to reverse initial balance entry:', error);
+    logger.error('[LedgerService] Failed to reverse initial balance entry:', error);
     return null;
   }
 }

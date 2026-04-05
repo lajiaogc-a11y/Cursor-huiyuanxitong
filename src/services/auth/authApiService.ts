@@ -3,6 +3,7 @@
  */
 import { apiGet, apiPost } from '@/api/client';
 import { ApiError } from '@/lib/apiClient';
+import { STAFF_AUTH_PATHS } from './authPaths';
 import { setAuthToken, clearAuthToken, clearMemberAccessToken } from '@/api/client';
 import { pickBilingual } from '@/lib/appLocale';
 
@@ -36,7 +37,7 @@ export async function loginApi(
       password,
     };
     if (deviceId?.trim()) body.device_id = deviceId.trim();
-    const res = await apiPost<LoginResponse>('/api/auth/login', body);
+    const res = await apiPost<LoginResponse>(STAFF_AUTH_PATHS.LOGIN, body);
     if (!res.success || !res.token || !res.user) {
       return { success: false, message: (res as { error?: string }).error || pickBilingual('登录失败', 'Login failed') };
     }
@@ -58,7 +59,7 @@ export async function loginApi(
 /** 登出（清除本地 token，可选调用服务端） */
 export async function logoutApi(): Promise<void> {
   try {
-    await apiPost('/api/auth/logout', {});
+    await apiPost(STAFF_AUTH_PATHS.LOGOUT, {});
   } catch {
     // 忽略服务端错误（如未登录时 401），本地清除即可
   }
@@ -120,7 +121,7 @@ export interface RegisterStaffResponse {
 
 /** 员工注册（公开页，可无 JWT） */
 export async function registerStaffApi(payload: RegisterStaffPayload): Promise<RegisterStaffResponse> {
-  return apiPost<RegisterStaffResponse>('/api/auth/register', {
+  return apiPost<RegisterStaffResponse>(STAFF_AUTH_PATHS.REGISTER, {
     username: payload.username,
     password: payload.password,
     realName: payload.realName,
@@ -130,7 +131,7 @@ export async function registerStaffApi(payload: RegisterStaffPayload): Promise<R
 
 /** 任意已登录员工可调用，校验当前 JWT 对应账号密码（非 /api/admin/verify-password） */
 export async function verifyCurrentUserPasswordApi(password: string): Promise<boolean> {
-  const res = await apiPost<{ success?: boolean; valid?: boolean }>('/api/auth/verify-password', { password });
+  const res = await apiPost<{ success?: boolean; valid?: boolean }>(STAFF_AUTH_PATHS.VERIFY_PASSWORD, { password });
   return (res as { valid?: boolean })?.valid === true;
 }
 
@@ -154,7 +155,7 @@ export async function verifyEmployeeLoginDetailedApi(
 /** 获取当前用户信息 */
 export async function getCurrentUserApi(): Promise<AuthUser | null> {
   try {
-    const raw = await apiGet<unknown>('/api/auth/me');
+    const raw = await apiGet<unknown>(STAFF_AUTH_PATHS.ME);
     if (raw && typeof raw === 'object') {
       const ptid = (raw as Record<string, unknown>).platform_tenant_id;
       _cachedPlatformTenantId = (typeof ptid === 'string' && ptid) ? ptid : null;

@@ -1,20 +1,15 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
-  User,
-  Lock,
   Gift,
   Globe,
   Loader2,
-  Fingerprint,
   ArrowRight,
   Phone,
   KeyRound,
   Eye,
   EyeOff,
   UserPlus,
-  Shield,
-  Sparkles,
 } from "lucide-react";
 import { memberRegisterInit, validateInviteAndSubmit } from "@/services/memberPortal/memberActivityService";
 import { ApiError } from "@/lib/apiClient";
@@ -28,7 +23,6 @@ import {
   mergePlatformBrandLogo,
   seedPlatformBrandLogoFromSettings,
 } from "@/lib/memberPortalPlatformBrandLogo";
-import "@/styles/member-portal.css";
 import { ROUTES } from "@/routes/constants";
 import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
 import { Button } from "@/components/ui/button";
@@ -37,8 +31,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { MemberLegalDrawer } from "@/components/member/MemberLegalDrawer";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { memberPortalLegalBody } from "@/lib/memberPortalLegalBody";
-import { memberPortalGoldCssVarsFromHex } from "@/utils/memberPortalGoldCssVars";
-import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
+import { MemberRegisterShell } from "@/components/member/MemberRegisterShell";
+import { MemberRegisterTrustFooter } from "@/components/member/MemberRegisterTrustFooter";
 import { cn } from "@/lib/utils";
 import { readMemberPortalSplashBootstrap } from "@/lib/memberPortalSplashCache";
 import { parseMemberLoginBadge, MEMBER_LOGIN_BADGE_SLOT_COUNT } from "@/lib/memberLoginBadge";
@@ -285,15 +279,6 @@ export default function InviteLanding() {
   const inputBase =
     "h-12 w-full rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.25)] bg-[hsl(var(--pu-m-surface)/0.45)] text-sm font-medium text-[hsl(var(--pu-m-text))] outline-none transition-all placeholder:text-[hsl(var(--pu-m-text-dim)/0.4)] focus-visible:ring-2 focus-visible:ring-pu-gold/25";
 
-  const portalRootStyle = useMemo(
-    () =>
-      ({
-        "--m-theme": themeColor,
-        ...memberPortalGoldCssVarsFromHex(themeColor),
-      }) as CSSProperties,
-    [themeColor],
-  );
-
   const loginBadgeSlots = useMemo(() => {
     const raw = portalSettings?.login_badges;
     const lines = normalizeLoginBadgesField(raw)
@@ -304,18 +289,9 @@ export default function InviteLanding() {
   }, [portalSettings?.login_badges]);
 
   return (
-    <div
-      className="member-login-premium-root member-portal-wrap flex min-h-dvh flex-col overflow-x-hidden"
-      style={{
-        ...portalRootStyle,
-        background: "hsl(var(--pu-m-bg-1))",
-        color: "hsl(var(--pu-m-text))",
-      }}
-    >
+    <MemberRegisterShell themeColor={themeColor}>
       {/* Hero — premium-ui-boost LoginPage register mode */}
       <div className="relative flex shrink-0 flex-col items-center overflow-x-hidden overflow-y-visible pb-10 pt-[max(4.25rem,calc(env(safe-area-inset-top)+2rem))]">
-        <MemberPageAmbientOrbs />
-
         <Link
           to={ROUTES.MEMBER.LOGIN_LEGACY}
           className="absolute left-[max(1.25rem,env(safe-area-inset-left))] top-[max(1.25rem,env(safe-area-inset-top))] z-[2] text-xs font-bold text-[hsl(var(--pu-m-text-dim))] transition hover:text-[hsl(var(--pu-m-text))]"
@@ -612,21 +588,7 @@ export default function InviteLanding() {
                 </Link>
               </p>
 
-              <div className="mb-2 flex items-center justify-center gap-4 border-t border-[hsl(var(--pu-m-surface-border)/0.15)] pt-4">
-                {[
-                  { icon: Shield, label: t("SSL", "SSL") },
-                  { icon: Lock, label: t("加密", "Secure") },
-                  { icon: Sparkles, label: t("验证", "Verified") },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-1">
-                    <item.icon className="h-3 w-3 text-[hsl(var(--pu-m-text-dim)/0.35)]" aria-hidden />
-                    <span className="text-[10px] font-medium text-[hsl(var(--pu-m-text-dim)/0.35)]">{item.label}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-center text-[10px] text-[hsl(var(--pu-m-text-dim)/0.45)]">
-                {t("您的数据受保护并已加密。", "Your data is protected and encrypted.")}
-              </p>
+              <MemberRegisterTrustFooter />
             </form>
           </>
         )}
@@ -654,6 +616,6 @@ export default function InviteLanding() {
           </MemberLegalDrawer>
         </>
       ) : null}
-    </div>
+    </MemberRegisterShell>
   );
 }

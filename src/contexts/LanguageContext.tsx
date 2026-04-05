@@ -1,3 +1,12 @@
+/**
+ * i18n Convention:
+ *
+ * - Use `t('key')` for keys defined in the translations dictionary below.
+ * - Use `t("中文默认文字", "English fallback")` for one-off strings not in the dictionary.
+ * - NEVER use `t('key')` for a key that doesn't exist in TRANSLATIONS — it will display the raw key.
+ * - For new strings: prefer `t("中文", "English")` unless the string appears in 3+ places,
+ *   in which case add it to TRANSLATIONS and use `t('key')`.
+ */
 import { createContext, useContext, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { translations } from '@/locales/translations';

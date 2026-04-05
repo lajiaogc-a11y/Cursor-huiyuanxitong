@@ -31,6 +31,10 @@ export function msCacheValid(): boolean {
   return _msCache != null && Date.now() - _msCache.loadedAt < _MS_CACHE_TTL;
 }
 
+function _clearMsCacheOnSync() { _msCache = null; }
 if (typeof window !== "undefined") {
-  window.addEventListener("userDataSynced", () => { _msCache = null; });
+  window.addEventListener("userDataSynced", _clearMsCacheOnSync);
+  if (import.meta.hot) {
+    import.meta.hot.dispose(() => window.removeEventListener("userDataSynced", _clearMsCacheOnSync));
+  }
 }

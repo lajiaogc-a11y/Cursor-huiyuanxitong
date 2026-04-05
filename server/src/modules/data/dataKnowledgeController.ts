@@ -3,6 +3,7 @@
  */
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
+import { logger } from '../../lib/logger.js';
 import {
   listKnowledgeReadStatusRepository,
   getKnowledgeUnreadCountRepository,
@@ -34,13 +35,13 @@ import {
 export async function getKnowledgeCategoriesController(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const tenantId = resolveTenantId(req, (req.query.tenant_id as string | undefined) ?? undefined, true);
-    console.log('[API] getKnowledgeCategories tenant_id=', tenantId || 'all');
+    logger.info('API', 'getKnowledgeCategories tenant_id=', tenantId || 'all');
 
     const viewerEmployeeId = req.user?.type === 'employee' ? req.user.id : null;
     const data = await listKnowledgeCategories(tenantId, viewerEmployeeId);
     res.json({ success: true, data });
   } catch (e) {
-    console.error('[Data] getKnowledgeCategories error:', e);
+    logger.error('Data', 'getKnowledgeCategories error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch knowledge categories' } });
   }
 }
@@ -58,7 +59,7 @@ export async function getKnowledgeArticlesController(req: AuthenticatedRequest, 
     const data = await listKnowledgeArticles(categoryId, tenantId, employeeId ?? null);
     res.json({ success: true, data });
   } catch (e) {
-    console.error('[Data] getKnowledgeArticles error:', e);
+    logger.error('Data', 'getKnowledgeArticles error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch knowledge articles' } });
   }
 }
@@ -95,7 +96,7 @@ export async function postKnowledgeCategoryController(req: AuthenticatedRequest,
     res.status(201).json({ success: true, data });
   } catch (e) {
     const msg = errorMessageForResponse(e);
-    console.error('[Data] postKnowledgeCategory error:', e);
+    logger.error('Data', 'postKnowledgeCategory error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
   }
 }
@@ -139,8 +140,9 @@ export async function patchKnowledgeCategoryController(req: AuthenticatedRequest
       return;
     }
     if (delegated) {
-      console.log(
-        `[Data] platform delegation: patchKnowledgeCategory category=${id} → tenant_id=${tenantId} by ${req.user?.id ?? ''}`,
+      logger.info(
+        'Data',
+        `platform delegation: patchKnowledgeCategory category=${id} → tenant_id=${tenantId} by ${req.user?.id ?? ''}`,
       );
       void auditPlatformDelegation(req, {
         operation_type: 'knowledge_category_patch_delegated',
@@ -151,7 +153,7 @@ export async function patchKnowledgeCategoryController(req: AuthenticatedRequest
     res.json({ success: true, data });
   } catch (e) {
     const msg = errorMessageForResponse(e);
-    console.error('[Data] patchKnowledgeCategory error:', e);
+    logger.error('Data', 'patchKnowledgeCategory error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
   }
 }
@@ -180,7 +182,7 @@ export async function deleteKnowledgeCategoryController(req: AuthenticatedReques
     res.json({ success: true });
   } catch (e) {
     const msg = errorMessageForResponse(e);
-    console.error('[Data] deleteKnowledgeCategory error:', e);
+    logger.error('Data', 'deleteKnowledgeCategory error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
   }
 }
@@ -236,7 +238,7 @@ export async function postKnowledgeArticleController(req: AuthenticatedRequest, 
     res.status(201).json({ success: true, data });
   } catch (e) {
     const msg = errorMessageForResponse(e);
-    console.error('[Data] postKnowledgeArticle error:', e);
+    logger.error('Data', 'postKnowledgeArticle error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
   }
 }
@@ -291,7 +293,7 @@ export async function patchKnowledgeArticleController(req: AuthenticatedRequest,
     res.json({ success: true, data });
   } catch (e) {
     const msg = errorMessageForResponse(e);
-    console.error('[Data] patchKnowledgeArticle error:', e);
+    logger.error('Data', 'patchKnowledgeArticle error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
   }
 }
@@ -320,7 +322,7 @@ export async function deleteKnowledgeArticleController(req: AuthenticatedRequest
     res.json({ success: true });
   } catch (e) {
     const msg = errorMessageForResponse(e);
-    console.error('[Data] deleteKnowledgeArticle error:', e);
+    logger.error('Data', 'deleteKnowledgeArticle error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
   }
 }
@@ -335,7 +337,7 @@ export async function getKnowledgeReadStatusController(req: AuthenticatedRequest
     const data = await listKnowledgeReadStatusRepository(employeeId);
     res.json({ success: true, data });
   } catch (e) {
-    console.error('[Data] getKnowledgeReadStatus error:', e);
+    logger.error('Data', 'getKnowledgeReadStatus error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch knowledge read status' } });
   }
 }
@@ -354,7 +356,7 @@ export async function getKnowledgeUnreadCountController(req: AuthenticatedReques
     );
     res.json({ success: true, data: { unreadCount, unreadByCategory } });
   } catch (e) {
-    console.error('[Data] getKnowledgeUnreadCount error:', e);
+    logger.error('Data', 'getKnowledgeUnreadCount error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch knowledge unread count' } });
   }
 }
@@ -371,7 +373,7 @@ export async function postKnowledgeMarkReadController(req: AuthenticatedRequest,
     res.json({ success: true });
   } catch (e) {
     const msg = errorMessageForResponse(e);
-    console.error('[Data] postKnowledgeMarkRead error:', e);
+    logger.error('Data', 'postKnowledgeMarkRead error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
   }
 }
@@ -392,7 +394,7 @@ export async function postKnowledgeMarkAllReadController(req: AuthenticatedReque
     res.json({ success: true, data: { count } });
   } catch (e) {
     const msg = errorMessageForResponse(e);
-    console.error('[Data] postKnowledgeMarkAllRead error:', e);
+    logger.error('Data', 'postKnowledgeMarkAllRead error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
   }
 }

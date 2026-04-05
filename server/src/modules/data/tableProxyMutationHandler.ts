@@ -4,6 +4,7 @@
  */
 import type { Request, Response } from 'express';
 import type { ResultSetHeader } from 'mysql2';
+import { logger } from '../../lib/logger.js';
 import { query, queryOne, execute, getPool, withTransaction } from '../../database/index.js';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
 import {
@@ -205,7 +206,7 @@ export async function tableInsertController(req: AuthenticatedRequest, res: Resp
           try {
             await incrementMemberActivityForNewOrder(ins);
           } catch (actErr) {
-            console.error('[TableProxy] INSERT orders incrementMemberActivity:', actErr);
+            logger.error('TableProxy', 'INSERT orders incrementMemberActivity:', actErr);
           }
           if (memberId && tenantId) {
             try {
@@ -223,7 +224,7 @@ export async function tableInsertController(req: AuthenticatedRequest, res: Resp
                 });
               }
             } catch (spinErr) {
-              console.error('[TableProxy] INSERT orders completed spin:', spinErr);
+              logger.error('TableProxy', 'INSERT orders completed spin:', spinErr);
             }
           }
         }
@@ -232,7 +233,7 @@ export async function tableInsertController(req: AuthenticatedRequest, res: Resp
 
     res.json({ data: results.length === 1 ? results[0] : results, error: null });
   } catch (e) {
-    console.error(`[TableProxy] INSERT ${table} error:`, e);
+    logger.error('TableProxy', `INSERT ${table} error:`, e);
     res.status(500).json({ data: null, error: { message: (e as Error).message } });
   }
 }
@@ -337,7 +338,7 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
             );
             if (updatedRow) await incrementMemberActivityForNewOrder(updatedRow);
           } catch (actErr) {
-            console.error('[TableProxy] UPDATE orders incrementMemberActivity:', actErr);
+            logger.error('TableProxy', 'UPDATE orders incrementMemberActivity:', actErr);
           }
           if (memberId && tenantId) {
             try {
@@ -350,14 +351,14 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
                 await notifyMemberOrderCompletedSpinReward({ tenantId, memberId, orderId: String(row.id), spins: amount });
               }
             } catch (spinErr) {
-              console.error('[TableProxy] order completed spin:', spinErr);
+              logger.error('TableProxy', 'order completed spin:', spinErr);
             }
           }
         } else if (prev === 'completed' && newStatus !== 'completed') {
           try {
             await reverseActivityDataForOrder(String(row.id));
           } catch (revErr) {
-            console.error('[TableProxy] UPDATE orders reverseActivityData:', revErr);
+            logger.error('TableProxy', 'UPDATE orders reverseActivityData:', revErr);
           }
         }
       }
@@ -405,7 +406,7 @@ export async function tableDeleteController(req: AuthenticatedRequest, res: Resp
         const st = String(row.status ?? '').toLowerCase().trim();
         if (st === 'completed' && row.id) {
           try { await reverseActivityDataForOrder(String(row.id)); }
-          catch (revErr) { console.error('[TableProxy] DELETE orders reverseActivityData:', revErr); }
+          catch (revErr) { logger.error('TableProxy', 'DELETE orders reverseActivityData:', revErr); }
         }
         if (row.id) orderIdsToClean.push(String(row.id));
       }
@@ -422,7 +423,7 @@ export async function tableDeleteController(req: AuthenticatedRequest, res: Resp
     await execute(`DELETE FROM \`${table}\` ${where}`, values);
     res.json({ data: rows, error: null });
   } catch (e) {
-    console.error(`[TableProxy] DELETE ${table} error:`, e);
+    logger.error('TableProxy', `DELETE ${table} error:`, e);
     res.status(500).json({ data: null, error: { message: (e as Error).message } });
   }
 }

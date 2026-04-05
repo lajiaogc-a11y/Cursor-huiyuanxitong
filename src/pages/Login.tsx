@@ -14,6 +14,7 @@ import { fetchStaffDeviceWhitelistStatus } from "@/services/staff/staffDeviceWhi
 import { getStaffDeviceVisitorId } from "@/lib/staffDeviceFingerprint";
 import { StaffAuthLanguageToggle } from "@/components/auth/StaffAuthLanguageToggle";
 import { GCLogo } from "@/components/GCLogo";
+import "@/styles/staff-auth-theme.css";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -155,14 +156,14 @@ export default function Login() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0f172a]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#3b82f6]" />
+      <div className="min-h-screen flex items-center justify-center bg-[var(--sa-bg-dark)]">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--sa-primary)]" />
       </div>
     );
   }
 
   return (
-    <div className="h-dvh flex items-center justify-center p-4 sm:p-6 bg-[#F6F8FB] dark:bg-[#0f172a] relative overflow-hidden">
+    <div className="h-dvh flex items-center justify-center p-4 sm:p-6 bg-[var(--sa-bg)] dark:bg-[var(--sa-bg-dark)] relative overflow-hidden">
       <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20">
         <StaffAuthLanguageToggle />
       </div>
@@ -179,7 +180,7 @@ export default function Login() {
       <div className="relative flex flex-col lg:flex-row w-full max-w-[880px] overflow-hidden rounded-2xl shadow-xl" style={{ maxHeight: 'calc(100dvh - 32px)' }}>
 
         {/* 左侧广告卡片 - 仅桌面端 */}
-        <div className="hidden lg:flex flex-col flex-1 min-w-[360px] p-8 bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a]">
+        <div className="hidden lg:flex flex-col flex-1 min-w-[360px] p-8 bg-gradient-to-br from-[var(--sa-panel-from)] via-[var(--sa-panel-via)] to-[var(--sa-panel-to)]">
           <div className="flex-1 flex flex-col justify-center">
             <div className="flex items-center gap-3 mb-8">
               <GCLogo size={40} variant="light" />
@@ -218,7 +219,7 @@ export default function Login() {
         >
           <div className="flex-1 flex flex-col justify-center p-6 sm:p-8">
             <div className="mb-6">
-              <h1 className="text-xl font-bold text-[#1e293b] dark:text-white sm:text-2xl">
+              <h1 className="text-xl font-bold text-[var(--sa-heading)] dark:text-white sm:text-2xl">
                 {t('login.subtitle')}
               </h1>
             </div>
@@ -228,7 +229,7 @@ export default function Login() {
               role="note"
             >
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-              <p className="text-left text-xs leading-relaxed text-[#64748B] dark:text-slate-400">
+              <p className="text-left text-xs leading-relaxed text-[var(--sa-muted)] dark:text-slate-400">
                 {t(
                   "请使用租户员工账号登录；若开启设备白名单，仅已登记设备可进入后台。",
                   "Use your tenant staff account. If device whitelist is on, only registered devices can sign in.",
@@ -237,13 +238,13 @@ export default function Login() {
             </div>
 
             {/* 登录/注册 Tab */}
-            <div className="flex gap-1 p-1 rounded-lg bg-[#f1f5f9] dark:bg-slate-700/50 mb-5">
-              <span className="flex-1 py-2 text-center text-sm font-medium text-[#1e293b] dark:text-white bg-white dark:bg-slate-600/50 rounded-md shadow-sm">
+            <div className="flex gap-1 p-1 rounded-lg bg-[var(--sa-tab-bg)] dark:bg-slate-700/50 mb-5">
+              <span className="flex-1 py-2 text-center text-sm font-medium text-[var(--sa-heading)] dark:text-white bg-white dark:bg-slate-600/50 rounded-md shadow-sm">
                 {t('login.submit')}
               </span>
               <Link
                 to="/staff/signup"
-                className="flex-1 py-2 text-center text-sm font-medium text-[#64748B] dark:text-slate-400 hover:text-[#334155] dark:hover:text-slate-200 rounded-md transition-colors"
+                className="flex-1 py-2 text-center text-sm font-medium text-[var(--sa-muted)] dark:text-slate-400 hover:text-[var(--sa-label)] dark:hover:text-slate-200 rounded-md transition-colors"
               >
                 {t('login.goSignup')}
               </Link>
@@ -273,18 +274,18 @@ export default function Login() {
               )}
 
               <div className="space-y-1.5">
-                <Label htmlFor="username" className="text-sm font-medium text-[#334155] dark:text-slate-300">
+                <Label htmlFor="username" className="text-sm font-medium text-[var(--sa-label)] dark:text-slate-300">
                   {t('login.username')}
                 </Label>
                 <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94a3b8] dark:text-slate-500" />
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--sa-icon)] dark:text-slate-500" />
                   <Input
                     id="username"
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder={t('login.usernamePlaceholder')}
-                    className="pl-10 h-11 rounded-lg border-[#e2e8f0] dark:border-slate-600 dark:bg-slate-700/50 dark:text-white dark:placeholder:text-slate-500 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                    className="pl-10 h-11 rounded-lg border-[var(--sa-border)] dark:border-slate-600 dark:bg-slate-700/50 dark:text-white dark:placeholder:text-slate-500 focus:border-[var(--sa-primary)] focus:ring-2 focus:ring-[var(--sa-primary)]/20"
                     style={{ height: 44 }}
                     autoComplete="username"
                     disabled={loading}
@@ -295,18 +296,18 @@ export default function Login() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-sm font-medium text-[#334155] dark:text-slate-300">
+                <Label htmlFor="password" className="text-sm font-medium text-[var(--sa-label)] dark:text-slate-300">
                   {t('login.password')}
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94a3b8] dark:text-slate-500" />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--sa-icon)] dark:text-slate-500" />
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={t('login.passwordPlaceholder')}
-                    className="pl-10 pr-11 h-11 rounded-lg border-[#e2e8f0] dark:border-slate-600 dark:bg-slate-700/50 dark:text-white dark:placeholder:text-slate-500 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                    className="pl-10 pr-11 h-11 rounded-lg border-[var(--sa-border)] dark:border-slate-600 dark:bg-slate-700/50 dark:text-white dark:placeholder:text-slate-500 focus:border-[var(--sa-primary)] focus:ring-2 focus:ring-[var(--sa-primary)]/20"
                     style={{ height: 44 }}
                     autoComplete="current-password"
                     disabled={loading}
@@ -316,7 +317,7 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded text-[#94a3b8] hover:text-[#64748B] hover:bg-[#f1f5f9] dark:hover:bg-slate-600/50 dark:hover:text-slate-300 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded text-[var(--sa-icon)] hover:text-[var(--sa-muted)] hover:bg-[var(--sa-tab-bg)] dark:hover:bg-slate-600/50 dark:hover:text-slate-300 transition-colors"
                     tabIndex={0}
                     aria-label={showPassword ? t("隐藏密码", "Hide password") : t("显示密码", "Show password")}
                   >
@@ -326,7 +327,7 @@ export default function Login() {
               </div>
 
               {deviceWlEnabled && (
-                <div className="text-xs text-[#64748B] dark:text-slate-400 leading-relaxed space-y-1">
+                <div className="text-xs text-[var(--sa-muted)] dark:text-slate-400 leading-relaxed space-y-1">
                   <p>
                     {deviceFpLoading
                       ? t("正在识别本机设备…", "Preparing device identification…")
@@ -348,7 +349,7 @@ export default function Login() {
               <Button
                 type="submit"
                 className="w-full h-11 font-medium rounded-lg text-white hover:opacity-95 transition-opacity"
-                style={{ height: 44, backgroundColor: '#2563EB' }}
+                style={{ height: 44, backgroundColor: 'var(--sa-primary)' }}
                 disabled={loading || (deviceWlEnabled && (deviceFpLoading || !deviceVisitorId))}
               >
                 {loading ? (
@@ -362,9 +363,9 @@ export default function Login() {
               </Button>
             </form>
 
-            <p className="mt-4 text-center text-sm text-[#64748B] dark:text-slate-400">
+            <p className="mt-4 text-center text-sm text-[var(--sa-muted)] dark:text-slate-400">
               {t('login.noAccount')}{" "}
-              <Link to="/staff/signup" className="text-[#2563EB] font-medium hover:underline">
+              <Link to="/staff/signup" className="text-[var(--sa-primary)] font-medium hover:underline">
                 {t('login.goSignup')}
               </Link>
             </p>

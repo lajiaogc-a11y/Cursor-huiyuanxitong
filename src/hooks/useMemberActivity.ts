@@ -2,6 +2,7 @@
 // 管理 member_activity 表的永久累积字段
 
 import { apiGet, apiPost, apiPatch } from '@/api/client';
+import { logger } from '@/lib/logger';
 
 function unwrapSingle<T>(data: unknown): T | null {
   if (data == null) return null;
@@ -63,13 +64,13 @@ export async function getOrCreateMemberActivity(
     });
     const created = unwrapSingle<MemberActivityData>(createdRaw);
     if (!created) {
-      console.error('Failed to create member activity');
+      logger.error('Failed to create member activity');
       return null;
     }
 
     return created;
   } catch (error) {
-    console.error('Error in getOrCreateMemberActivity:', error);
+    logger.error('Error in getOrCreateMemberActivity:', error);
     return null;
   }
 }
@@ -83,7 +84,7 @@ export async function getMemberActivityByPhone(
       `/api/data/table/member_activity?select=*&phone_number=eq.${encodeURIComponent(phoneNumber)}&single=true`
     );
   } catch (error) {
-    console.error('Error in getMemberActivityByPhone:', error);
+    logger.error('Error in getMemberActivityByPhone:', error);
     return null;
   }
 }
@@ -99,7 +100,7 @@ export async function addAccumulatedAmount(
     // 确保活动记录存在
     const activity = await getOrCreateMemberActivity(memberId, phoneNumber);
     if (!activity) {
-      console.error('Failed to get/create member activity');
+      logger.error('Failed to get/create member activity');
       return false;
     }
 
@@ -118,14 +119,14 @@ export async function addAccumulatedAmount(
         data: updateData,
       });
     } catch (error) {
-      console.error('Failed to update accumulated amount:', error);
+      logger.error('Failed to update accumulated amount:', error);
       return false;
     }
 
-    console.log(`[MemberActivity] Added ${amount} ${currency} to member ${memberId}`);
+    logger.log(`[MemberActivity] Added ${amount} ${currency} to member ${memberId}`);
     return true;
   } catch (error) {
-    console.error('Error in addAccumulatedAmount:', error);
+    logger.error('Error in addAccumulatedAmount:', error);
     return false;
   }
 }
@@ -141,7 +142,7 @@ export async function addGiftAmount(
     // 确保活动记录存在
     const activity = await getOrCreateMemberActivity(memberId, phoneNumber);
     if (!activity) {
-      console.error('Failed to get/create member activity');
+      logger.error('Failed to get/create member activity');
       return false;
     }
 
@@ -160,14 +161,14 @@ export async function addGiftAmount(
         data: updateData,
       });
     } catch (error) {
-      console.error('Failed to update gift amount:', error);
+      logger.error('Failed to update gift amount:', error);
       return false;
     }
 
-    console.log(`[MemberActivity] Added gift ${amount} ${currency} to member ${memberId}`);
+    logger.log(`[MemberActivity] Added gift ${amount} ${currency} to member ${memberId}`);
     return true;
   } catch (error) {
-    console.error('Error in addGiftAmount:', error);
+    logger.error('Error in addGiftAmount:', error);
     return false;
   }
 }
@@ -183,7 +184,7 @@ export async function addAccumulatedProfit(
     // 确保活动记录存在
     const activity = await getOrCreateMemberActivity(memberId, phoneNumber);
     if (!activity) {
-      console.error('Failed to get/create member activity');
+      logger.error('Failed to get/create member activity');
       return false;
     }
 
@@ -193,12 +194,12 @@ export async function addAccumulatedProfit(
       // USDT 订单利润存入 accumulated_profit_usdt
       const newProfitUsdt = (activity.accumulated_profit_usdt || 0) + profitAmount;
       updateData.accumulated_profit_usdt = newProfitUsdt;
-      console.log(`[MemberActivity] Added USDT profit ${profitAmount} to member ${memberId}, new total: ${newProfitUsdt}`);
+      logger.log(`[MemberActivity] Added USDT profit ${profitAmount} to member ${memberId}, new total: ${newProfitUsdt}`);
     } else {
       // NGN/GHS 订单利润存入 accumulated_profit (RMB)
       const newProfit = (activity.accumulated_profit || 0) + profitAmount;
       updateData.accumulated_profit = newProfit;
-      console.log(`[MemberActivity] Added RMB profit ${profitAmount} to member ${memberId}, new total: ${newProfit}`);
+      logger.log(`[MemberActivity] Added RMB profit ${profitAmount} to member ${memberId}, new total: ${newProfit}`);
     }
 
     try {
@@ -206,13 +207,13 @@ export async function addAccumulatedProfit(
         data: updateData,
       });
     } catch (error) {
-      console.error('Failed to update accumulated profit:', error);
+      logger.error('Failed to update accumulated profit:', error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Error in addAccumulatedProfit:', error);
+    logger.error('Error in addAccumulatedProfit:', error);
     return false;
   }
 }
@@ -228,7 +229,7 @@ export async function deductAccumulatedProfit(
     // 确保活动记录存在
     const activity = await getOrCreateMemberActivity(memberId, phoneNumber);
     if (!activity) {
-      console.error('Failed to get/create member activity');
+      logger.error('Failed to get/create member activity');
       return false;
     }
 
@@ -238,12 +239,12 @@ export async function deductAccumulatedProfit(
       // USDT 赠送从 accumulated_profit_usdt 扣减
       const newProfitUsdt = (activity.accumulated_profit_usdt || 0) - giftAmount;
       updateData.accumulated_profit_usdt = newProfitUsdt;
-      console.log(`[MemberActivity] Deducted USDT gift ${giftAmount} from member ${memberId}, new profit: ${newProfitUsdt}`);
+      logger.log(`[MemberActivity] Deducted USDT gift ${giftAmount} from member ${memberId}, new profit: ${newProfitUsdt}`);
     } else {
       // NGN/GHS 赠送从 accumulated_profit (RMB) 扣减
       const newProfit = (activity.accumulated_profit || 0) - giftAmount;
       updateData.accumulated_profit = newProfit;
-      console.log(`[MemberActivity] Deducted RMB gift ${giftAmount} from member ${memberId}, new profit: ${newProfit}`);
+      logger.log(`[MemberActivity] Deducted RMB gift ${giftAmount} from member ${memberId}, new profit: ${newProfit}`);
     }
 
     try {
@@ -251,13 +252,13 @@ export async function deductAccumulatedProfit(
         data: updateData,
       });
     } catch (error) {
-      console.error('Failed to deduct accumulated profit:', error);
+      logger.error('Failed to deduct accumulated profit:', error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Error in deductAccumulatedProfit:', error);
+    logger.error('Error in deductAccumulatedProfit:', error);
     return false;
   }
 }
@@ -295,7 +296,7 @@ export async function getPermanentActivityData(
       accumulatedProfitUsdt: Number(data.accumulated_profit_usdt) || 0,
     };
   } catch (error) {
-    console.error('Error in getPermanentActivityData:', error);
+    logger.error('Error in getPermanentActivityData:', error);
     return null;
   }
 }
@@ -377,7 +378,7 @@ export async function batchUpdateMemberActivity(params: BatchUpdateParams): Prom
           data: updateData,
         });
       } catch (updateError) {
-        console.error('[MemberActivity] Update error:', updateError);
+        logger.error('[MemberActivity] Update error:', updateError);
         return false;
       }
     } else {
@@ -422,14 +423,14 @@ export async function batchUpdateMemberActivity(params: BatchUpdateParams): Prom
       try {
         await apiPost(`/api/data/table/member_activity`, { data: insertData });
       } catch (insertError) {
-        console.error('[MemberActivity] Insert error:', insertError);
+        logger.error('[MemberActivity] Insert error:', insertError);
         return false;
       }
     }
 
     return true;
   } catch (error) {
-    console.error('[MemberActivity] Error in batchUpdateMemberActivity:', error);
+    logger.error('[MemberActivity] Error in batchUpdateMemberActivity:', error);
     return false;
   }
 }
@@ -441,7 +442,7 @@ export async function batchUpdateMemberActivity(params: BatchUpdateParams): Prom
 export function batchUpdateMemberActivityAsync(params: BatchUpdateParams): void {
   setTimeout(() => {
     batchUpdateMemberActivity(params).catch(err => {
-      console.error('[MemberActivity] Async batch update failed:', err);
+      logger.error('[MemberActivity] Async batch update failed:', err);
     });
   }, 0);
 }

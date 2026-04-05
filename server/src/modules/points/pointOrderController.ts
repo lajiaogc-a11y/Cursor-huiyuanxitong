@@ -3,6 +3,7 @@
  */
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
+import { logger } from '../../lib/logger.js';
 import {
   createPointOrder,
   approvePointOrder,
@@ -71,7 +72,7 @@ export async function createPointOrderController(req: AuthenticatedRequest, res:
       case 'INSUFFICIENT_POINTS':
         return businessError(res, msg, 'Insufficient points');
       default:
-        console.error('[point-order] create', e);
+        logger.error('point-order', 'create', e);
         res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
     }
   }
@@ -101,7 +102,7 @@ export async function approvePointOrderController(req: AuthenticatedRequest, res
       before_data: { status: 'pending' },
       after_data: { status: 'success', reviewed_by: req.user?.id },
       ip_address: req.ip ?? null,
-    }).catch(err => console.error('[point-order] operation log failed:', err));
+    }).catch(err => logger.error('point-order', 'operation log failed:', err));
 
     res.json({ success: true, data: order });
   } catch (e: unknown) {
@@ -114,7 +115,7 @@ export async function approvePointOrderController(req: AuthenticatedRequest, res
       case 'FROZEN_POINTS_INCONSISTENT':
         return businessError(res, msg, 'Frozen points data error');
       default:
-        console.error('[point-order] approve', e);
+        logger.error('point-order', 'approve', e);
         res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
     }
   }
@@ -147,7 +148,7 @@ export async function rejectPointOrderController(req: AuthenticatedRequest, res:
       before_data: { status: 'pending' },
       after_data: { status: 'rejected', reject_reason: reason ?? null, reviewed_by: req.user?.id },
       ip_address: req.ip ?? null,
-    }).catch(err => console.error('[point-order] operation log failed:', err));
+    }).catch(err => logger.error('point-order', 'operation log failed:', err));
 
     res.json({ success: true, data: order });
   } catch (e: unknown) {
@@ -158,7 +159,7 @@ export async function rejectPointOrderController(req: AuthenticatedRequest, res:
       case 'ORDER_NOT_PENDING':
         return businessError(res, msg, 'Order is not pending, cannot process');
       default:
-        console.error('[point-order] reject', e);
+        logger.error('point-order', 'reject', e);
         res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
     }
   }
@@ -177,7 +178,7 @@ export async function listPointOrdersController(req: AuthenticatedRequest, res: 
     });
     res.json({ success: true, data: orders });
   } catch (e: unknown) {
-    console.error('[point-order] list', e);
+    logger.error('point-order', 'list', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: String(e) } });
   }
 }
@@ -193,7 +194,7 @@ export async function getPointOrderController(req: AuthenticatedRequest, res: Re
     }
     res.json({ success: true, data: order });
   } catch (e: unknown) {
-    console.error('[point-order] get', e);
+    logger.error('point-order', 'get', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: String(e) } });
   }
 }
@@ -207,7 +208,7 @@ export async function getMemberFrozenPointsController(req: AuthenticatedRequest,
     const frozen = await getMemberFrozenPoints(memberId);
     res.json({ success: true, data: { frozen_points: frozen } });
   } catch (e: unknown) {
-    console.error('[point-order] frozen', e);
+    logger.error('point-order', 'frozen', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: String(e) } });
   }
 }

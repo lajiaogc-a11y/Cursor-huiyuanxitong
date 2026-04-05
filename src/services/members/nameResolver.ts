@@ -14,6 +14,7 @@ import {
 import { getActivityTypesApi } from '@/services/staff/dataApi';
 import { listCardsApi, listVendorsApi, listPaymentProvidersApi } from '@/services/shared/entityLookupService';
 import { listEmployeesApi, getEmployeeApi } from '@/api/employees';
+import { logger } from '@/lib/logger';
 
 // ============= 类型定义 =============
 
@@ -139,9 +140,9 @@ async function loadEmployees(): Promise<void> {
     });
     employeesData.initialized = true;
     setCache(CACHE_KEYS.EMPLOYEES, true, CACHE_CONFIG.ENTITY_DATA_TTL);
-    console.log('[NameResolver] Employees loaded:', employeesData.byId.size);
+    logger.log('[NameResolver] Employees loaded:', employeesData.byId.size);
   } catch (error) {
-    console.error('[NameResolver] Failed to load employees:', error);
+    logger.error('[NameResolver] Failed to load employees:', error);
   }
 }
 
@@ -169,9 +170,9 @@ async function loadActivityTypes(): Promise<void> {
     
     activityTypesData.initialized = true;
     setCache(CACHE_KEYS.ACTIVITY_TYPES, true, CACHE_CONFIG.ENTITY_DATA_TTL);
-    console.log('[NameResolver] Activity types loaded:', activityTypesData.byId.size);
+    logger.log('[NameResolver] Activity types loaded:', activityTypesData.byId.size);
   } catch (error) {
-    console.error('[NameResolver] Failed to load activity types:', error);
+    logger.error('[NameResolver] Failed to load activity types:', error);
   }
 }
 
@@ -193,14 +194,14 @@ async function loadCards(): Promise<void> {
       });
       cardsData.initialized = true;
       setCache(CACHE_KEYS.CARDS, true, CACHE_CONFIG.ENTITY_DATA_TTL);
-      console.log('[NameResolver] Cards loaded via API:', cardsData.byId.size);
+      logger.log('[NameResolver] Cards loaded via API:', cardsData.byId.size);
       return;
     } catch (apiErr) {
-      console.warn('[NameResolver] API load cards failed, fallback to table proxy:', apiErr);
+      logger.warn('[NameResolver] API load cards failed, fallback to table proxy:', apiErr);
     }
     const raw = asRows(
       await apiGet<Record<string, unknown>>(`/api/data/table/gift_cards?select=id,name,card_number,status&limit=5000`).catch(
-        (err) => { console.warn('[nameResolver] gift_cards fallback fetch failed silently:', err); return []; },
+        (err) => { logger.warn('[nameResolver] gift_cards fallback fetch failed silently:', err); return []; },
       ),
     );
     cardsData.byId.clear();
@@ -216,9 +217,9 @@ async function loadCards(): Promise<void> {
     });
     cardsData.initialized = true;
     setCache(CACHE_KEYS.CARDS, true, CACHE_CONFIG.ENTITY_DATA_TTL);
-    console.log('[NameResolver] Cards loaded:', cardsData.byId.size);
+    logger.log('[NameResolver] Cards loaded:', cardsData.byId.size);
   } catch (error) {
-    console.error('[NameResolver] Failed to load cards:', error);
+    logger.error('[NameResolver] Failed to load cards:', error);
   }
 }
 
@@ -239,13 +240,13 @@ async function loadVendors(): Promise<void> {
       });
       vendorsData.initialized = true;
       setCache(CACHE_KEYS.VENDORS, true, CACHE_CONFIG.ENTITY_DATA_TTL);
-      console.log('[NameResolver] Vendors loaded via API:', vendorsData.byId.size);
+      logger.log('[NameResolver] Vendors loaded via API:', vendorsData.byId.size);
       return;
     } catch (apiErr) {
-      console.warn('[NameResolver] API load vendors failed, fallback to table proxy:', apiErr);
+      logger.warn('[NameResolver] API load vendors failed, fallback to table proxy:', apiErr);
     }
     const raw = asRows(
-      await apiGet<Record<string, unknown>>(`/api/data/table/vendors?select=id,name,status&limit=5000`).catch((err) => { console.warn('[nameResolver] vendors fallback fetch failed silently:', err); return []; }),
+      await apiGet<Record<string, unknown>>(`/api/data/table/vendors?select=id,name,status&limit=5000`).catch((err) => { logger.warn('[nameResolver] vendors fallback fetch failed silently:', err); return []; }),
     );
     vendorsData.byId.clear();
     vendorsData.byName.clear();
@@ -259,9 +260,9 @@ async function loadVendors(): Promise<void> {
     });
     vendorsData.initialized = true;
     setCache(CACHE_KEYS.VENDORS, true, CACHE_CONFIG.ENTITY_DATA_TTL);
-    console.log('[NameResolver] Vendors loaded:', vendorsData.byId.size);
+    logger.log('[NameResolver] Vendors loaded:', vendorsData.byId.size);
   } catch (error) {
-    console.error('[NameResolver] Failed to load vendors:', error);
+    logger.error('[NameResolver] Failed to load vendors:', error);
   }
 }
 
@@ -282,15 +283,15 @@ async function loadPaymentProviders(): Promise<void> {
       });
       providersData.initialized = true;
       setCache(CACHE_KEYS.PAYMENT_PROVIDERS, true, CACHE_CONFIG.ENTITY_DATA_TTL);
-      console.log('[NameResolver] Payment providers loaded via API:', providersData.byId.size);
+      logger.log('[NameResolver] Payment providers loaded via API:', providersData.byId.size);
       return;
     } catch (apiErr) {
-      console.warn('[NameResolver] API load providers failed, fallback to table proxy:', apiErr);
+      logger.warn('[NameResolver] API load providers failed, fallback to table proxy:', apiErr);
     }
     const raw = asRows(
       await apiGet<{ id: string; name: string; status?: string }>(
         `/api/data/table/payment_providers?select=id,name,status&limit=5000`,
-      ).catch((err) => { console.warn('[nameResolver] payment_providers fallback fetch failed silently:', err); return []; }),
+      ).catch((err) => { logger.warn('[nameResolver] payment_providers fallback fetch failed silently:', err); return []; }),
     );
     providersData.byId.clear();
     providersData.byName.clear();
@@ -305,9 +306,9 @@ async function loadPaymentProviders(): Promise<void> {
     });
     providersData.initialized = true;
     setCache(CACHE_KEYS.PAYMENT_PROVIDERS, true, CACHE_CONFIG.ENTITY_DATA_TTL);
-    console.log('[NameResolver] Payment providers loaded:', providersData.byId.size);
+    logger.log('[NameResolver] Payment providers loaded:', providersData.byId.size);
   } catch (error) {
-    console.error('[NameResolver] Failed to load payment providers:', error);
+    logger.error('[NameResolver] Failed to load payment providers:', error);
   }
 }
 
@@ -315,31 +316,31 @@ async function loadPaymentProviders(): Promise<void> {
 
 function ensureEmployees(): boolean {
   if (employeesData.initialized && getCache(CACHE_KEYS.EMPLOYEES)) return true;
-  loadEmployees().catch(console.error);
+  loadEmployees().catch(logger.error);
   return employeesData.initialized;
 }
 
 function ensureActivityTypes(): boolean {
   if (activityTypesData.initialized && getCache(CACHE_KEYS.ACTIVITY_TYPES)) return true;
-  loadActivityTypes().catch(console.error);
+  loadActivityTypes().catch(logger.error);
   return activityTypesData.initialized;
 }
 
 function ensureCards(): boolean {
   if (cardsData.initialized && getCache(CACHE_KEYS.CARDS)) return true;
-  loadCards().catch(console.error);
+  loadCards().catch(logger.error);
   return cardsData.initialized;
 }
 
 function ensureVendors(): boolean {
   if (vendorsData.initialized && getCache(CACHE_KEYS.VENDORS)) return true;
-  loadVendors().catch(console.error);
+  loadVendors().catch(logger.error);
   return vendorsData.initialized;
 }
 
 function ensureProviders(): boolean {
   if (providersData.initialized && getCache(CACHE_KEYS.PAYMENT_PROVIDERS)) return true;
-  loadPaymentProviders().catch(console.error);
+  loadPaymentProviders().catch(logger.error);
   return providersData.initialized;
 }
 
@@ -481,7 +482,7 @@ export async function getEmployeeNameByIdAsync(employeeId: string | null | undef
     const data = await getEmployeeApi(employeeId);
     return data?.real_name || '-';
   } catch (error) {
-    console.error('[NameResolver] Failed to get employee name:', error);
+    logger.error('[NameResolver] Failed to get employee name:', error);
     return '-';
   }
 }
@@ -564,7 +565,7 @@ export async function initNameResolver(): Promise<void> {
   }
   
   initPromise = (async () => {
-    console.log('[NameResolver] Initializing...');
+    logger.log('[NameResolver] Initializing...');
     
     // 并行加载所有数据
     await Promise.all([
@@ -598,7 +599,7 @@ export async function initNameResolver(): Promise<void> {
     });
     
     initialized = true;
-    console.log('[NameResolver] Initialized with Realtime subscriptions');
+    logger.log('[NameResolver] Initialized with Realtime subscriptions');
   })();
   
   await initPromise;
@@ -627,5 +628,5 @@ export function resetNameResolver(): void {
   providersData = { byId: new Map(), byName: new Map(), initialized: false };
   initialized = false;
   initPromise = null;
-  console.log('[NameResolver] Reset complete');
+  logger.log('[NameResolver] Reset complete');
 }

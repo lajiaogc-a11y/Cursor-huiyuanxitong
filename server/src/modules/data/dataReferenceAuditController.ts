@@ -3,6 +3,7 @@
  */
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
+import { logger } from '../../lib/logger.js';
 import {
   listRolePermissionsRepository,
   saveRolePermissionsBatch,
@@ -32,7 +33,7 @@ export async function getLoginLogsController(req: AuthenticatedRequest, res: Res
     const role = req.user?.role ?? 'staff';
     const employeeId = req.user?.id ?? null;
 
-    console.log('[API] getLoginLogs tenant_id=', tenantId || 'all', 'role=', role, 'page=', page, 'pageSize=', pageSize);
+    logger.info('API', 'getLoginLogs tenant_id=', tenantId || 'all', 'role=', role, 'page=', page, 'pageSize=', pageSize);
     const payload = await getLoginLogsListPayload({
       pageSize,
       tenantId,
@@ -45,7 +46,7 @@ export async function getLoginLogsController(req: AuthenticatedRequest, res: Res
       data: payload,
     });
   } catch (e) {
-    console.error('[Data] getLoginLogs error:', e);
+    logger.error('Data', 'getLoginLogs error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch login logs' } });
   }
 }
@@ -55,7 +56,7 @@ export async function getCurrenciesController(_req: AuthenticatedRequest, res: R
     const data = await listCurrenciesRepository();
     res.json({ success: true, data });
   } catch (e) {
-    console.error('[Data] getCurrencies error:', e);
+    logger.error('Data', 'getCurrencies error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch currencies' } });
   }
 }
@@ -65,7 +66,7 @@ export async function getActivityTypesController(_req: AuthenticatedRequest, res
     const data = await listActivityTypesRepository();
     res.json({ success: true, data });
   } catch (e) {
-    console.error('[Data] getActivityTypes error:', e);
+    logger.error('Data', 'getActivityTypes error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch activity types' } });
   }
 }
@@ -75,7 +76,7 @@ export async function getCustomerSourcesController(_req: AuthenticatedRequest, r
     const data = await listCustomerSourcesRepository();
     res.json({ success: true, data });
   } catch (e) {
-    console.error('[Data] getCustomerSources error:', e);
+    logger.error('Data', 'getCustomerSources error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch customer sources' } });
   }
 }
@@ -85,7 +86,7 @@ export async function getShiftReceiversController(_req: AuthenticatedRequest, re
     const data = await listShiftReceiversRepository();
     res.json({ success: true, data });
   } catch (e) {
-    console.error('[Data] getShiftReceivers error:', e);
+    logger.error('Data', 'getShiftReceivers error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch shift receivers' } });
   }
 }
@@ -100,7 +101,7 @@ export async function getShiftHandoversController(req: AuthenticatedRequest, res
     const data = await listShiftHandoversRepository(tenantId);
     res.json({ success: true, data });
   } catch (e) {
-    console.error('[Data] getShiftHandovers error:', e);
+    logger.error('Data', 'getShiftHandovers error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch shift handovers' } });
   }
 }
@@ -130,7 +131,7 @@ export async function getAuditRecordsController(req: AuthenticatedRequest, res: 
     });
     res.json({ success: true, data: { records: data, totalCount: count } });
   } catch (e) {
-    console.error('[Data] getAuditRecords error:', e);
+    logger.error('Data', 'getAuditRecords error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch audit records' } });
   }
 }
@@ -145,7 +146,7 @@ export async function getPendingAuditCountController(req: AuthenticatedRequest, 
     const count = await countPendingAuditRecordsRepository(tenantId);
     res.json({ success: true, data: { count } });
   } catch (e) {
-    console.error('[Data] getPendingAuditCount error:', e);
+    logger.error('Data', 'getPendingAuditCount error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch pending audit count' } });
   }
 }
@@ -155,7 +156,7 @@ export async function getRolePermissionsController(req: AuthenticatedRequest, re
     const data = await listRolePermissionsRepository();
     res.json({ success: true, data });
   } catch (e) {
-    console.error('[Data] getRolePermissions error:', e);
+    logger.error('Data', 'getRolePermissions error:', e);
     res.status(500).json({ success: false, code: 'INTERNAL_ERROR', message: 'Failed to fetch permissions' });
   }
 }
@@ -182,13 +183,13 @@ export async function saveRolePermissionsController(req: AuthenticatedRequest, r
     const isAdminRole = req.user?.role === 'admin';
     const isManagerRole = req.user?.role === 'manager';
 
-    console.log('[saveRolePermissions] user=%s role=%s is_super_admin=%s is_platform=%s | targetRole=%s permsCount=%d isNavOnly=%s',
+    logger.info('saveRolePermissions', 'user=%s role=%s is_super_admin=%s is_platform=%s | targetRole=%s permsCount=%d isNavOnly=%s',
       req.user?.username, req.user?.role, req.user?.is_super_admin, req.user?.is_platform_super_admin,
       targetRole, permissions.length, isNavOnly);
 
     if (isNavOnly) {
       if (!isAdminRole && !isManagerRole && !isSuperAdmin) {
-        console.warn('[saveRolePermissions] REJECTED (nav): user lacks admin/manager/super_admin');
+        logger.warn('saveRolePermissions', 'REJECTED (nav): user lacks admin/manager/super_admin');
         res.status(403).json({
           success: false,
           code: 'FORBIDDEN',
@@ -198,7 +199,7 @@ export async function saveRolePermissionsController(req: AuthenticatedRequest, r
       }
     } else {
       if (!isSuperAdmin && !isAdminRole) {
-        console.warn('[saveRolePermissions] REJECTED (data): user lacks admin/super_admin');
+        logger.warn('saveRolePermissions', 'REJECTED (data): user lacks admin/super_admin');
         res.status(403).json({
           success: false,
           code: 'FORBIDDEN',
@@ -209,10 +210,10 @@ export async function saveRolePermissionsController(req: AuthenticatedRequest, r
     }
 
     const saved = await saveRolePermissionsBatch(targetRole, permissions);
-    console.log('[saveRolePermissions] OK saved=%d for targetRole=%s', saved, targetRole);
+    logger.info('saveRolePermissions', 'OK saved=%d for targetRole=%s', saved, targetRole);
     res.json({ success: true, data: { saved } });
   } catch (e: any) {
-    console.error('[Data] saveRolePermissions error:', e);
+    logger.error('Data', 'saveRolePermissions error:', e);
     res.status(500).json({
       success: false,
       code: 'INTERNAL_ERROR',

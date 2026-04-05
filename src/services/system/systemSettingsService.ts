@@ -3,6 +3,7 @@
 
 import { loadSharedData, saveSharedData, saveSharedDataSync, getSharedDataSync } from '@/services/finance/sharedDataService';
 import { CurrencyCode } from "@/config/currencies";
+import { logger } from '@/lib/logger';
 
 // ============= Gift Distribution Settings =============
 
@@ -24,13 +25,13 @@ export function getGiftDistributionSettings(): GiftDistributionSettings {
   if (giftDistributionCache) {
     loadSharedData<GiftDistributionSettings>('giftDistributionSettings')
       .then(data => { if (data) giftDistributionCache = data; })
-      .catch(console.error);
+      .catch(logger.error);
     return giftDistributionCache;
   }
   
   loadSharedData<GiftDistributionSettings>('giftDistributionSettings')
     .then(data => { if (data) giftDistributionCache = data; })
-    .catch(console.error);
+    .catch(logger.error);
   
   return DEFAULT_GIFT_DISTRIBUTION;
 }
@@ -71,13 +72,13 @@ export function getEmployeeManualGiftRatios(): EmployeeManualGiftRatios {
   if (manualGiftRatiosCache) {
     loadSharedData<EmployeeManualGiftRatios>('employeeManualGiftRatios')
       .then(data => { if (data) manualGiftRatiosCache = data; })
-      .catch(console.error);
+      .catch(logger.error);
     return manualGiftRatiosCache;
   }
   
   loadSharedData<EmployeeManualGiftRatios>('employeeManualGiftRatios')
     .then(data => { if (data) manualGiftRatiosCache = data; })
-    .catch(console.error);
+    .catch(logger.error);
   
   return {};
 }
@@ -183,7 +184,7 @@ export function getFeeSettings(): FeeSettings {
       .then((data) => {
         if (data) feeSettingsCache = normalizeFeeSettings(data);
       })
-      .catch(console.error);
+      .catch(logger.error);
 
     return normalizeFeeSettings(feeSettingsCache);
   }
@@ -193,7 +194,7 @@ export function getFeeSettings(): FeeSettings {
     .then((data) => {
       if (data) feeSettingsCache = normalizeFeeSettings(data);
     })
-    .catch(console.error);
+    .catch(logger.error);
 
   return DEFAULT_FEE_SETTINGS;
 }
@@ -210,13 +211,13 @@ export function getUsdtFee(): number {
   if (usdtFeeCache !== null) {
     loadSharedData<number>('systemSettings_usdtFee').then(data => {
       if (data !== null) usdtFeeCache = data;
-    }).catch(console.error);
+    }).catch(logger.error);
     return usdtFeeCache;
   }
   
   loadSharedData<number>('systemSettings_usdtFee').then(data => {
     if (data !== null) usdtFeeCache = data;
-  }).catch(console.error);
+  }).catch(logger.error);
   
   return 0;
 }
@@ -234,7 +235,7 @@ export function getTrxSettings(): TrxSettings {
       .then((data) => {
         if (data) trxSettingsCache = normalizeTrxSettings(data);
       })
-      .catch(console.error);
+      .catch(logger.error);
 
     return normalizeTrxSettings(trxSettingsCache);
   }
@@ -243,7 +244,7 @@ export function getTrxSettings(): TrxSettings {
     .then((data) => {
       if (data) trxSettingsCache = normalizeTrxSettings(data);
     })
-    .catch(console.error);
+    .catch(logger.error);
 
   return DEFAULT_TRX_SETTINGS;
 }
@@ -288,13 +289,13 @@ export function getMemoSettings(): MemoSettings {
   if (memoSettingsCache) {
     loadSharedData<MemoSettings>('memoSettings').then(data => {
       if (data) memoSettingsCache = data;
-    }).catch(console.error);
+    }).catch(logger.error);
     return memoSettingsCache;
   }
   
   loadSharedData<MemoSettings>('memoSettings').then(data => {
     if (data) memoSettingsCache = data;
-  }).catch(console.error);
+  }).catch(logger.error);
   
   return DEFAULT_MEMO_SETTINGS;
 }
@@ -324,13 +325,13 @@ export function getWorkMemos(): WorkMemo[] {
   if (workMemosCache) {
     loadSharedData<WorkMemo[]>('workMemos').then(data => {
       if (data) workMemosCache = data;
-    }).catch(console.error);
+    }).catch(logger.error);
     return workMemosCache;
   }
   
   loadSharedData<WorkMemo[]>('workMemos').then(data => {
     if (data) workMemosCache = data;
-  }).catch(console.error);
+  }).catch(logger.error);
   
   return [];
 }
@@ -420,7 +421,7 @@ export function cleanupExpiredMemos(): number {
   
   if (deletedCount > 0) {
     saveWorkMemos(remainingMemos);
-    console.log(`[MemoCleanup] Deleted ${deletedCount} expired read memos`);
+    logger.log(`[MemoCleanup] Deleted ${deletedCount} expired read memos`);
   }
   
   return deletedCount;
@@ -448,13 +449,13 @@ export function getCountries(): Country[] {
   if (countriesCache) {
     loadSharedData<Country[]>('countries').then(data => {
       if (data) countriesCache = data;
-    }).catch(console.error);
+    }).catch(logger.error);
     return countriesCache;
   }
   
   loadSharedData<Country[]>('countries').then(data => {
     if (data) countriesCache = data;
-  }).catch(console.error);
+  }).catch(logger.error);
   
   return [];
 }
@@ -575,13 +576,13 @@ export function getRateSettingEntries(): RateSettingEntry[] {
   if (rateSettingEntriesCache && Array.isArray(rateSettingEntriesCache)) {
     loadSharedData<RateSettingEntry[]>('rateSettingEntries').then(data => {
       if (data && Array.isArray(data)) rateSettingEntriesCache = data;
-    }).catch(console.error);
+    }).catch(logger.error);
     return rateSettingEntriesCache;
   }
   
   loadSharedData<RateSettingEntry[]>('rateSettingEntries').then(data => {
     if (data && Array.isArray(data)) rateSettingEntriesCache = data;
-  }).catch(console.error);
+  }).catch(logger.error);
   
   return [];
 }
@@ -688,7 +689,7 @@ export function getPosterTableColumns(): PosterColumnKey[] {
       .then((data) => {
         if (data && isValidPosterColumns(data)) posterTableColumnsCache = data;
       })
-      .catch(console.error);
+      .catch(logger.error);
     return posterTableColumnsCache;
   }
   // 优先从 localStorage 读取，避免刷新后默认全选
@@ -715,7 +716,7 @@ export function getPosterTableColumns(): PosterColumnKey[] {
       if (data && isValidPosterColumns(data)) posterTableColumnsCache = data;
       else posterTableColumnsCache = [...DEFAULT_POSTER_TABLE_COLUMNS];
     })
-    .catch(console.error);
+    .catch(logger.error);
   return posterTableColumnsCache && posterTableColumnsCache.length > 0
     ? posterTableColumnsCache
     : [...DEFAULT_POSTER_TABLE_COLUMNS];
@@ -806,8 +807,8 @@ export async function initializeSystemSettings(): Promise<void> {
     if (rateEntries) rateSettingEntriesCache = rateEntries;
     if (posterCols && posterCols.length > 0) posterTableColumnsCache = posterCols;
 
-    console.log('[SystemSettings] Initialized from database');
+    logger.log('[SystemSettings] Initialized from database');
   } catch (error) {
-    console.error('[SystemSettings] Failed to initialize:', error);
+    logger.error('[SystemSettings] Failed to initialize:', error);
   }
 }

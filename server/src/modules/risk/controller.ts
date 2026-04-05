@@ -1,5 +1,6 @@
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
+import { logger } from '../../lib/logger.js';
 import {
   recordRiskEvent,
   recalculateRiskScore,
@@ -21,7 +22,7 @@ export async function recordRiskEventController(req: AuthenticatedRequest, res: 
     const id = await recordRiskEvent(employee_id, event_type, severity || 'medium', score || 0, details || {});
     res.json({ success: true, id });
   } catch (e) {
-    console.error('[Risk] recordEvent error:', e);
+    logger.error('Risk', 'recordEvent error:', e);
     res.status(500).json({ error: (e as Error).message });
   }
 }
@@ -33,7 +34,7 @@ export async function recalculateRiskScoreController(req: AuthenticatedRequest, 
     const score = await recalculateRiskScore(employee_id);
     res.json({ success: true, score });
   } catch (e) {
-    console.error('[Risk] recalculate error:', e);
+    logger.error('Risk', 'recalculate error:', e);
     res.status(500).json({ error: (e as Error).message });
   }
 }
@@ -44,7 +45,7 @@ export async function getAllRiskScoresController(req: AuthenticatedRequest, res:
     const scores = await getAllRiskScores();
     res.json(scores);
   } catch (e) {
-    console.error('[Risk] getScores error:', e);
+    logger.error('Risk', 'getScores error:', e);
     res.status(500).json({ error: (e as Error).message });
   }
 }
@@ -56,7 +57,7 @@ export async function getRecentRiskEventsController(req: AuthenticatedRequest, r
     const events = await getRecentRiskEvents(limit);
     res.json(events);
   } catch (e) {
-    console.error('[Risk] getEvents error:', e);
+    logger.error('Risk', 'getEvents error:', e);
     res.status(500).json({ error: (e as Error).message });
   }
 }
@@ -69,7 +70,7 @@ export async function resolveRiskEventController(req: AuthenticatedRequest, res:
     const ok = await resolveRiskEvent(event_id, resolved_by || req.user?.id || '');
     res.json({ success: ok });
   } catch (e) {
-    console.error('[Risk] resolve error:', e);
+    logger.error('Risk', 'resolve error:', e);
     res.status(500).json({ error: (e as Error).message });
   }
 }
@@ -81,7 +82,7 @@ export async function checkLoginAnomalyController(req: AuthenticatedRequest, res
     await checkLoginAnomaly(employee_id);
     res.json({ success: true });
   } catch (e) {
-    console.error('[Risk] checkLoginAnomaly error:', e);
+    logger.error('Risk', 'checkLoginAnomaly error:', e);
     res.status(500).json({ error: (e as Error).message });
   }
 }
@@ -93,7 +94,7 @@ export async function checkFrequencyAnomalyController(req: AuthenticatedRequest,
     await checkFrequencyAnomaly(employee_id);
     res.json({ success: true });
   } catch (e) {
-    console.error('[Risk] checkFrequencyAnomaly error:', e);
+    logger.error('Risk', 'checkFrequencyAnomaly error:', e);
     res.status(500).json({ error: (e as Error).message });
   }
 }

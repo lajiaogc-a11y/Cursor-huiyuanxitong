@@ -1,0 +1,15 @@
+/* Staff authentication pages theme — replaces hardcoded hex values */
+:root {
+  --sa-bg: #F6F8FB;
+  --sa-bg-dark: #0f172a;
+  --sa-panel-from: #0f172a;
+  --sa-panel-via: #1e293b;
+  --sa-panel-to: #0f172a;
+  --sa-heading: #1e293b;
+  --sa-label: #334155;
+  --sa-muted: #64748B;
+  --sa-icon: #94a3b8;
+  --sa-border: #e2e8f0;
+  --sa-tab-bg: #f1f5f9;
+  --sa-primary: #2563EB;
+}
