@@ -39,26 +39,22 @@ function assertReviewRole(req: AuthenticatedRequest, res: Response): boolean {
 
 export async function createPointOrderController(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
-    const body = req.body as Record<string, unknown>;
-    const memberId = String(body.member_id || '');
-    const productName = String(body.product_name || '').trim();
-    const productId = body.product_id ? String(body.product_id) : undefined;
-    const quantity = Number(body.quantity || 1);
-    const pointsCost = Number(body.points_cost || 0);
-    const clientRequestId = body.client_request_id ? String(body.client_request_id) : undefined;
-
-    if (!memberId) return validationError(res, 'member_id required');
-    if (!productName) return validationError(res, 'product_name required');
-    if (pointsCost <= 0) return validationError(res, 'points_cost must be > 0');
-    if (quantity < 1) return validationError(res, 'quantity must be >= 1');
+    const body = req.body as {
+      member_id: string;
+      product_name: string;
+      product_id?: string;
+      quantity?: number;
+      points_cost: number;
+      client_request_id?: string;
+    };
 
     const order = await createPointOrder({
-      memberId,
-      productName,
-      productId,
-      quantity,
-      pointsCost,
-      clientRequestId,
+      memberId: body.member_id,
+      productName: body.product_name.trim(),
+      productId: body.product_id || undefined,
+      quantity: body.quantity ?? 1,
+      pointsCost: body.points_cost,
+      clientRequestId: body.client_request_id || undefined,
     });
 
     res.status(201).json({ success: true, data: order });
@@ -83,8 +79,7 @@ export async function createPointOrderController(req: AuthenticatedRequest, res:
 export async function approvePointOrderController(req: AuthenticatedRequest, res: Response): Promise<void> {
   if (!assertReviewRole(req, res)) return;
   try {
-    const orderId = req.params.id;
-    if (!orderId) return validationError(res, 'order id required');
+    const { id: orderId } = req.params;
 
     const order = await approvePointOrder({
       orderId,
@@ -126,10 +121,8 @@ export async function approvePointOrderController(req: AuthenticatedRequest, res
 export async function rejectPointOrderController(req: AuthenticatedRequest, res: Response): Promise<void> {
   if (!assertReviewRole(req, res)) return;
   try {
-    const orderId = req.params.id;
-    if (!orderId) return validationError(res, 'order id required');
-
-    const reason = String((req.body as Record<string, unknown>).reason || '').trim() || undefined;
+    const { id: orderId } = req.params;
+    const reason = String((req.body as { reason?: string }).reason || '').trim() || undefined;
 
     const order = await rejectPointOrder({
       orderId,
@@ -203,8 +196,7 @@ export async function getPointOrderController(req: AuthenticatedRequest, res: Re
 
 export async function getMemberFrozenPointsController(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
-    const memberId = req.params.memberId;
-    if (!memberId) return validationError(res, 'memberId required');
+    const { memberId } = req.params;
     const frozen = await getMemberFrozenPoints(memberId);
     res.json({ success: true, data: { frozen_points: frozen } });
   } catch (e: unknown) {

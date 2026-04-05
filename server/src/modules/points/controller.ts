@@ -16,31 +16,19 @@ import {
 } from './writeService.js';
 
 export async function getMemberPointsController(req: Request, res: Response): Promise<void> {
-  const memberId = req.params.memberId;
-  if (!memberId) {
-    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'memberId required' } });
-    return;
-  }
+  const { memberId } = req.params;
   const result = await getMemberPointsService(memberId);
   res.json({ success: true, data: result });
 }
 
 export async function getMemberPointsBreakdownController(req: Request, res: Response): Promise<void> {
-  const memberId = req.params.memberId;
-  if (!memberId) {
-    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'memberId required' } });
-    return;
-  }
+  const { memberId } = req.params;
   const result = await getMemberPointsBreakdownService(memberId);
   res.json({ success: true, data: result });
 }
 
 export async function getMemberSpinQuotaController(req: Request, res: Response): Promise<void> {
-  const memberId = req.params.memberId;
-  if (!memberId) {
-    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'memberId required' } });
-    return;
-  }
+  const { memberId } = req.params;
   const result = await getMemberSpinQuotaService(memberId);
   res.json({ success: true, data: result });
 }
@@ -113,11 +101,7 @@ export async function postMemberActivityAddReferralController(
 
 /** POST /api/points/reverse-on-order-cancel */
 export async function postReverseOnOrderCancelController(req: Request, res: Response): Promise<void> {
-  const orderId = (req.body as { order_id?: string })?.order_id;
-  if (!orderId) {
-    validationError(res, 'order_id required');
-    return;
-  }
+  const { order_id: orderId } = req.body as { order_id: string };
   try {
     const result = await postReverseOnOrderCancelService(orderId);
     res.json({ success: true, data: { success: result.success, error: result.error } });
