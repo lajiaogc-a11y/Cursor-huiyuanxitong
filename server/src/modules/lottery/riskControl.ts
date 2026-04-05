@@ -36,7 +36,7 @@ export interface RiskResult {
   riskScore: number;
   reasons: string[];
   /** 用于 DrawResult.error */
-  errorCode?: 'RISK_BLOCKED' | 'RISK_DOWNGRADED';
+  errorCode?: 'RISK_BLOCKED' | 'RISK_DAILY_LIMIT' | 'RISK_DOWNGRADED';
 }
 
 /* ──────────── 内存滑窗计数器 ──────────── */
@@ -203,11 +203,14 @@ export async function evaluateDrawRisk(
     verdict = verdict === 'block' ? 'block' : 'downgrade';
   }
 
+  const isDailyLimit = reasons.some((r) => r.startsWith('account_daily:'));
   return {
     verdict,
     riskScore: score,
     reasons,
-    errorCode: verdict === 'block' ? 'RISK_BLOCKED' : verdict === 'downgrade' ? 'RISK_DOWNGRADED' : undefined,
+    errorCode: verdict === 'block'
+      ? (isDailyLimit ? 'RISK_DAILY_LIMIT' : 'RISK_BLOCKED')
+      : verdict === 'downgrade' ? 'RISK_DOWNGRADED' : undefined,
   };
 }
 

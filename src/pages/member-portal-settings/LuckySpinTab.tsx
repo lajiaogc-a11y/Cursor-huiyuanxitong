@@ -50,13 +50,13 @@ function endsWithLoneDot(s: string): boolean {
   return /\.$/.test(s.trim());
 }
 
-/** Format a number without scientific notation; cap decimal places at 4 */
+/** Format a number without scientific notation; cap decimal places at 7 */
 function formatWeight(n: number): string {
   if (n === 0) return '0';
-  return n.toFixed(4).replace(/\.?0+$/, '');
+  return n.toFixed(7).replace(/\.?0+$/, '');
 }
 
-const MIN_POSITIVE_WEIGHT = 0.01;
+const MIN_POSITIVE_WEIGHT = 0.0000001;
 
 interface Props {
   lotteryPrizes: LotteryPrize[];

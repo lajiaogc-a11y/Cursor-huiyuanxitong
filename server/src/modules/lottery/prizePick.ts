@@ -22,11 +22,11 @@ export function pickLotteryPrizeByConfiguredProbability<T extends PrizeWithProba
   if (total <= 0) {
     throw new Error('PROBABILITY_SUM_ZERO');
   }
-  const scale = 100 / total;
-  const rand = randomInt(0, 1_000_000) / 10_000;
+  const RAND_MAX = 1_000_000_000;
+  const rand = randomInt(0, RAND_MAX) / RAND_MAX;
   let cumulative = 0;
   for (const p of prizes) {
-    cumulative += Number(p.probability) * scale;
+    cumulative += Number(p.probability) / total;
     if (rand < cumulative) {
       return p;
     }
@@ -157,12 +157,12 @@ export function budgetAwarePrizePick<T extends BudgetAwarePrize>(
     return null;
   }
 
-  const scale = 100 / totalW;
-  const rand = randomInt(0, 1_000_000) / 10_000;
+  const RAND_MAX = 1_000_000_000;
+  const rand = randomInt(0, RAND_MAX) / RAND_MAX;
   let cumulative = 0;
   let picked: T = adjusted[adjusted.length - 1].prize;
   for (const a of adjusted) {
-    cumulative += a.weight * scale;
+    cumulative += a.weight / totalW;
     if (rand < cumulative) {
       picked = a.prize;
       break;

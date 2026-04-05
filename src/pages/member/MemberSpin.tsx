@@ -413,6 +413,8 @@ export default function MemberSpin() {
             notifyError(t("今日奖池已发放完毕，请明天再来！", "Today's prize pool is exhausted. Come back tomorrow!"));
           else if (r.error === "RTP_LIMIT_REACHED")
             notifyError(t("今日奖池已达上限，请明天再来！", "Today's prize pool has reached its limit. Come back tomorrow!"));
+          else if (r.error === "RISK_DAILY_LIMIT")
+            notifyError(t("今日已超过最大抽奖次数，请明日再来。", "You have exceeded today's maximum draws. Please come back tomorrow."));
           else if (r.error === "RISK_BLOCKED")
             notifyError(t("操作过于频繁，请稍后再试。", "Too many requests. Please try again later."));
           else notifyError(t("抽奖失败，请稍后再试。", "Spin failed. Please try again later."));

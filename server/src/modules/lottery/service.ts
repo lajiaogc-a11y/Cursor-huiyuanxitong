@@ -142,7 +142,7 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
         thresholds,
       );
       if (riskResult.verdict === 'block') {
-        return { success: false, error: 'RISK_BLOCKED' };
+        return { success: false, error: riskResult.errorCode ?? 'RISK_BLOCKED' };
       }
     }
   } catch (e) {

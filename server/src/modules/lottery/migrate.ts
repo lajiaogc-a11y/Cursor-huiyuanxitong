@@ -228,13 +228,13 @@ export async function migrateLotteryTables(): Promise<void> {
     );
   }
 
-  // 10. lottery_prizes.probability 精度升级到 4 位小数
+  // 10. lottery_prizes.probability 精度升级 — 支持极小权重如 0.0000001
   const [probCol] = await query<{ COLUMN_TYPE: string }>(
     `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'lottery_prizes' AND COLUMN_NAME = 'probability'`
   );
-  if (probCol && !probCol.COLUMN_TYPE.includes('8,4')) {
-    await execute(`ALTER TABLE lottery_prizes MODIFY COLUMN probability DECIMAL(8,4) NOT NULL DEFAULT 0 COMMENT '中奖概率(%)'`);
+  if (probCol && !probCol.COLUMN_TYPE.includes('16,10')) {
+    await execute(`ALTER TABLE lottery_prizes MODIFY COLUMN probability DECIMAL(16,10) NOT NULL DEFAULT 0 COMMENT '中奖权重'`);
   }
 
   // 11. lottery_prizes.display_probability — 会员端公示用，不参与抽奖算法
@@ -244,8 +244,16 @@ export async function migrateLotteryTables(): Promise<void> {
   );
   if (dispProbCols.length === 0) {
     await execute(
-      `ALTER TABLE lottery_prizes ADD COLUMN display_probability DECIMAL(8,4) NULL COMMENT '前端展示用中奖概率(%)，NULL=展示真实 probability' AFTER probability`,
+      `ALTER TABLE lottery_prizes ADD COLUMN display_probability DECIMAL(16,10) NULL COMMENT '前端展示用中奖概率(%)，NULL=展示真实 probability' AFTER probability`,
     );
+  } else {
+    const [dispCol] = await query<{ COLUMN_TYPE: string }>(
+      `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'lottery_prizes' AND COLUMN_NAME = 'display_probability'`
+    );
+    if (dispCol && !dispCol.COLUMN_TYPE.includes('16,10')) {
+      await execute(`ALTER TABLE lottery_prizes MODIFY COLUMN display_probability DECIMAL(16,10) NULL COMMENT '前端展示用中奖概率(%)，NULL=展示真实 probability'`);
+    }
   }
 
   console.log('[lottery] Migration complete');
