@@ -21,15 +21,16 @@ export interface MSCacheData {
   loadedAt: number;
 }
 
-export let _msCache: MSCacheData | null = null;
+let _msCache: MSCacheData | null = null;
 
-const _MS_CACHE_TTL = 60 * 1000; // 1 minute – keep data fresh on page revisit
+const _MS_CACHE_TTL = 60 * 1000;
 
-export const _msCacheValid = () =>
-  _msCache != null && Date.now() - _msCache.loadedAt < _MS_CACHE_TTL;
+export function getMsCache(): MSCacheData | null { return _msCache; }
+export function setMsCache(v: MSCacheData | null) { _msCache = v; }
+export function msCacheValid(): boolean {
+  return _msCache != null && Date.now() - _msCache.loadedAt < _MS_CACHE_TTL;
+}
 
 if (typeof window !== "undefined") {
-  window.addEventListener("userDataSynced", () => {
-    _msCache = null;
-  });
+  window.addEventListener("userDataSynced", () => { _msCache = null; });
 }

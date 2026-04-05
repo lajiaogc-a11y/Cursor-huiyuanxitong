@@ -76,8 +76,9 @@ import {
   CardMerchantSettlementTab,
   PaymentProviderDialogs,
   PaymentProviderSettlementTab,
-  _msCache,
-  _msCacheValid,
+  getMsCache,
+  setMsCache,
+  msCacheValid,
   type VendorSettlementData,
   type ProviderSettlementData,
 } from "@/components/merchant-settlement";
@@ -125,14 +126,14 @@ export default function MerchantSettlement() {
   const [activeTab, setActiveTab] = useState<'card-merchant' | 'payment-agent' | 'shift-handover'>('card-merchant');
   const exportConfirm = useExportConfirm();
   const [searchTerm, setSearchTerm] = useState("");
-  const [cards, setCards] = useState<any[]>(() => _msCache?.cards || []);
-  const [vendors, setVendors] = useState<any[]>(() => _msCache?.vendors || []);
-  const [providers, setProviders] = useState<any[]>(() => _msCache?.providers || []);
-  const [cardSettlements, setCardSettlements] = useState<CardMerchantSettlement[]>(() => _msCache?.cardSettlements || []);
-  const [providerSettlements, setProviderSettlements] = useState<PaymentProviderSettlement[]>(() => _msCache?.providerSettlements || []);
+  const [cards, setCards] = useState<any[]>(() => getMsCache()?.cards || []);
+  const [vendors, setVendors] = useState<any[]>(() => getMsCache()?.vendors || []);
+  const [providers, setProviders] = useState<any[]>(() => getMsCache()?.providers || []);
+  const [cardSettlements, setCardSettlements] = useState<CardMerchantSettlement[]>(() => getMsCache()?.cardSettlements || []);
+  const [providerSettlements, setProviderSettlements] = useState<PaymentProviderSettlement[]>(() => getMsCache()?.providerSettlements || []);
   /** 供 loadData 在结算拉取失败时保留上一份明细，避免整表被 [] 覆盖导致「明细消失」 */
-  const cardSettlementsRef = useRef<CardMerchantSettlement[]>(_msCache?.cardSettlements || []);
-  const providerSettlementsRef = useRef<PaymentProviderSettlement[]>(_msCache?.providerSettlements || []);
+  const cardSettlementsRef = useRef<CardMerchantSettlement[]>(getMsCache()?.cardSettlements || []);
+  const providerSettlementsRef = useRef<PaymentProviderSettlement[]>(getMsCache()?.providerSettlements || []);
 
   // Card Merchant Dialog states
   const [isInitialBalanceDialogOpen, setIsInitialBalanceDialogOpen] = useState(false);
@@ -147,7 +148,7 @@ export default function MerchantSettlement() {
   const [isProviderUndoConfirmOpen, setIsProviderUndoConfirmOpen] = useState(false);
   
   // 员工列表（用于显示录入人姓名）
-  const [employees, setEmployees] = useState<{ id: string; real_name: string }[]>(() => _msCache?.employees || []);
+  const [employees, setEmployees] = useState<{ id: string; real_name: string }[]>(() => getMsCache()?.employees || []);
   
   // Current editing vendor/provider
   const [currentVendor, setCurrentVendor] = useState<string>("");
@@ -189,7 +190,7 @@ export default function MerchantSettlement() {
   const [withdrawalRemark, setWithdrawalRemark] = useState("");
 
   // 从数据库加载订单数据
-  const [dbOrders, setDbOrders] = useState<any[]>(() => _msCache?.dbOrders || []);
+  const [dbOrders, setDbOrders] = useState<any[]>(() => getMsCache()?.dbOrders || []);
   
   // 分页状态
   const [vendorPage, setVendorPage] = useState(1);
@@ -198,10 +199,10 @@ export default function MerchantSettlement() {
   const [providerPageSize, setProviderPageSize] = useState(20);
   
   // 赠送数据
-  const [activityGifts, setActivityGifts] = useState<any[]>(() => _msCache?.activityGifts || []);
+  const [activityGifts, setActivityGifts] = useState<any[]>(() => getMsCache()?.activityGifts || []);
 
   // 加载状态
-  const [isLoading, setIsLoading] = useState(!_msCacheValid());
+  const [isLoading, setIsLoading] = useState(!getMsCache()Valid());
   const [initError, setInitError] = useState<string | null>(null);
   
   
@@ -225,12 +226,12 @@ export default function MerchantSettlement() {
     }
   }, [employee]);
 
-  // 不在卸载时清空 _msCache：否则 SPA 每次切回商家结算都会全量重拉，与全局「切页复用缓存」策略一致。
+  // 不在卸载时清空 getMsCache()：否则 SPA 每次切回商家结算都会全量重拉，与全局「切页复用缓存」策略一致。
   // 新鲜度由 _MS_CACHE_TTL、刷新按钮、租户切换、userDataSynced / Realtime / data-refresh 保证。
 
   const initDoneRef = useRef(false);
   useEffect(() => {
-    if (_msCacheValid() || initDoneRef.current) return;
+    if (getMsCache()Valid() || initDoneRef.current) return;
     if (!employee) return; // Wait for auth to be ready before loading data
     initDoneRef.current = true;
     const initData = async () => {
@@ -264,7 +265,7 @@ export default function MerchantSettlement() {
     }
     if (prevTenantRef.current !== effectiveTenantId) {
       prevTenantRef.current = effectiveTenantId;
-      _msCache = null;
+      setMsCache(null);
       loadData().then(() => loadEmployees());
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -338,7 +339,7 @@ export default function MerchantSettlement() {
       const list = await listEmployeesApi(effectiveTenantId ? { tenant_id: effectiveTenantId } : undefined);
       const data = (list || []).map((e) => ({ id: e.id, real_name: e.real_name }));
       setEmployees(data);
-      if (_msCache) _msCache.employees = data;
+      const c = getMsCache(); if (c) { c.employees = data; setMsCache(c); }
     } catch (error) {
       console.warn('[MerchantSettlement] Failed to load employees:', error);
     }
@@ -424,12 +425,12 @@ export default function MerchantSettlement() {
     cardSettlementsRef.current = nextCardSettlements;
     providerSettlementsRef.current = nextProviderSettlements;
     // Update module-level cache
-    _msCache = {
+    setMsCache({
       cards: cardsData, vendors: vendorsData, providers: providersData,
       dbOrders: allOrders, activityGifts: activityDataRes?.gifts || [],
       cardSettlements: nextCardSettlements, providerSettlements: nextProviderSettlements,
-      employees: _msCache?.employees || [], loadedAt: Date.now(),
-    };
+      employees: getMsCache()?.employees || [], loadedAt: Date.now(),
+    });
   };
 
   // Keep loadDataRef always pointing to the latest loadData
