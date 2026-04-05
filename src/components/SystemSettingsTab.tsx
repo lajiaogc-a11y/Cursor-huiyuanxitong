@@ -13,7 +13,7 @@ import {
   saveTrxSettings,
   FeeSettings,
   TrxSettings,
-} from "@/stores/systemSettings";
+} from "@/services/system/systemSettingsService";
 import { CURRENCIES } from "@/config/currencies";
 import { useLanguage } from "@/contexts/LanguageContext";
 

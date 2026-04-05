@@ -2,8 +2,8 @@
  * 积分设置 Hook - react-query 缓存，切换秒开
  */
 import { useQuery } from '@tanstack/react-query';
-import { getPointsSettingsAsync, PointsSettings } from '@/stores/pointsSettingsStore';
-import { getPointsSettings } from '@/stores/pointsSettingsStore';
+import { getPointsSettingsAsync, PointsSettings } from '@/services/points/pointsSettingsService';
+import { getPointsSettings } from '@/services/points/pointsSettingsService';
 
 const STALE_TIME = 5 * 60 * 1000;
 

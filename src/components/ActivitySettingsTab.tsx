@@ -34,7 +34,7 @@ import {
   AccumulatedRewardTier,
   ActivitySettings,
   Activity2Config,
-} from "@/stores/activitySettingsStore";
+} from "@/services/activity/activitySettingsService";
 
 export default function ActivitySettingsTab() {
   const { t, language } = useLanguage();

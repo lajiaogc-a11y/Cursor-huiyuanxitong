@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { saveGiftDistributionSettingsAsync } from "@/stores/systemSettings";
+import { saveGiftDistributionSettingsAsync } from "@/services/system/systemSettingsService";
 import { useGiftDistributionSettings } from "@/hooks/useGiftDistributionSettings";
 import { Percent, PieChart, Info, Save, Loader2 } from "lucide-react";
 

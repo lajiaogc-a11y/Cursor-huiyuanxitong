@@ -15,7 +15,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, Trash2, DollarSign, Calculator, Loader2 } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
-import { getFeeSettings, saveFeeSettings, FeeSettings, saveUsdtFee } from "@/stores/systemSettings";
+import { getFeeSettings, saveFeeSettings, FeeSettings, saveUsdtFee } from "@/services/system/systemSettingsService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CURRENCIES } from "@/config/currencies";
 import { loadSharedData, saveSharedData } from "@/services/finance/sharedDataService";

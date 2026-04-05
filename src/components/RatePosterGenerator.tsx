@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Download, Image as ImageIcon, Loader2, Save } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
-import { getRateSettingEntries, getPosterTableColumns, type RateSettingEntry, type PosterColumnKey } from "@/stores/systemSettings";
+import { getRateSettingEntries, getPosterTableColumns, type RateSettingEntry, type PosterColumnKey } from "@/services/system/systemSettingsService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";

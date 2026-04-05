@@ -54,8 +54,8 @@ import { notify } from "@/lib/notifyHub";
 import { useMembers, Member } from "@/hooks/useMembers";
 import { logOperation } from "@/stores/auditLogStore";
 import { getCurrencyBadgeColor, normalizeCurrencyCode, CURRENCIES } from "@/config/currencies";
-import { useCustomerSources } from "@/stores/customerSourceStore";
-import { getActiveCards, CardItem } from "@/stores/merchantConfigStore";
+import { useCustomerSources } from "@/hooks/useCustomerSources";
+import { useCards, type CardItem } from "@/hooks/useMerchantConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDisplayPhone } from "@/lib/phoneMask";
 import { adminGetMemberReferrals, adminSetMemberInitialPassword } from "@/services/members/memberAdminRpcService";
@@ -81,6 +81,7 @@ export default function MemberManagement() {
   const { members, loading, updateMember, deleteMember, refetch } = useMembers();
   const exportConfirm = useExportConfirm();
   const { activeSources: customerSources } = useCustomerSources();
+  const { activeCards } = useCards();
   const [searchDraft, setSearchDraft] = useState("");
   const debouncedSearch = useDebouncedValue(searchDraft, 300);
   const [filterQuery, setFilterQuery] = useState("");
@@ -925,13 +926,13 @@ export default function MemberManagement() {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[300px] p-2 max-h-[300px] overflow-y-auto" align="start">
-                      {getActiveCards().length === 0 ? (
+                      {activeCards.length === 0 ? (
                         <div className="text-sm text-muted-foreground py-2 px-2">
                           {t("暂无卡片数据，请先在卡商管理中添加卡片", "No cards available. Please add cards in merchant management.")}
                         </div>
                       ) : (
                         <div className="space-y-1">
-                          {getActiveCards().map((card) => (
+                          {activeCards.map((card) => (
                             <div
                               key={card.id}
                               className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"

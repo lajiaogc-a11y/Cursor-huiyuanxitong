@@ -1,23 +1,13 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { safeNumber, safeDivide, safeMultiply, safeToFixed } from "@/lib/safeCalc";
-import { formatBeijingTime } from "@/lib/beijingTime";
 import { cn } from "@/lib/utils";
 import { trackRender } from "@/lib/performanceUtils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import {
@@ -29,7 +19,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Table,
@@ -48,7 +37,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { notify } from "@/lib/notifyHub";
-import { showSubmissionError } from "@/services/submissionErrorService";
 import WorkMemoTab from "@/components/WorkMemoTab";
 import ActivityGiftTab from "@/components/ActivityGiftTab";
 import ReferralEntryTab from "@/components/ReferralEntryTab";
@@ -60,7 +48,7 @@ import TasksQuickPanel from "@/components/TasksQuickPanel";
 import { PhoneExtractPanel } from "@/components/PhoneExtractPanel";
 import { ExchangePaymentInfoPanel } from "@/components/ExchangePaymentInfoPanel";
 import { useOrders, useUsdtOrders } from "@/hooks/useOrders";
-import { useMembers, type Member } from "@/hooks/useMembers";
+import { useMembers } from "@/hooks/useMembers";
 import { useActivityGifts } from "@/hooks/useActivityGifts";
 import {
   generateMemberId,
@@ -69,25 +57,19 @@ import {
   saveTrxSettings,
   getUnreadMemoCount,
   getUsdtFee,
-} from "@/stores/systemSettings";
-import { getMemberCurrentPoints, redeemPoints } from "@/stores/pointsAccountStore";
-import { getActivitySettings } from "@/stores/activitySettingsStore";
-import { getFinalRates } from "@/stores/exchangeRateStore";
+} from "@/services/system/systemSettingsService";
+import { redeemPoints } from "@/services/points/pointsAccountService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CURRENCIES, CurrencyCode, getCurrencyDisplayName, CURRENCY_LIST } from "@/config/currencies";
 import CurrencySelect from "@/components/CurrencySelect";
-import { getActiveCustomerSources, initializeCustomerSourceCache } from "@/stores/customerSourceStore";
+import { getActiveCustomerSources, initializeCustomerSourceCache } from "@/hooks/useCustomerSources";
 // pointsLedgerStore is deprecated — usePointsLedger hook is the single source of truth
-import { getPointsSettings } from "@/stores/pointsSettingsStore";
-import { getMemberLastResetTime } from "@/stores/pointsAccountStore";
-import { getMemberPointsSummary } from "@/services/points/pointsCalculationService";
+import { getPointsSettings } from "@/services/points/pointsSettingsService";
+import { getMemberLastResetTime } from "@/services/points/pointsAccountService";
 import { getMemberByPhoneForMyTenant } from "@/services/members/memberLookupService";
-import { getExchangeRateFormDataAsync, saveExchangeRateFormData, ExchangeRateFormData } from "@/stores/exchangeRateFormStore";
+import { getExchangeRateFormDataAsync, saveExchangeRateFormData, ExchangeRateFormData } from "@/services/finance/exchangeRateFormService";
 import RateCalculator from "@/components/RateCalculator";
 import { getCalculatorFormData, CalculatorId, subscribeCalculatorChange } from "@/hooks/useCalculatorStore";
-import { getCopySettings, generateEnglishCopyText } from "@/components/CopySettingsTab";
-import { getRewardAmountByPointsAndCurrency } from "@/stores/activitySettingsStore";
-import { determineExchangeCurrency } from "@/services/finance/exchangeService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import {
@@ -99,13 +81,12 @@ import {
   subscribeToSharedData,
   type CalculatorInputRates,
 } from "@/services/finance/sharedDataService";
-import { getReferralRelations } from "@/stores/referralStore";
+
 import { BtcPriceConfig } from "@/components/BtcPriceSettingsCard";
 import BtcPriceSettingsCard from "@/components/BtcPriceSettingsCard";
 import { useIsMobile } from "@/hooks/use-mobile";
 import UsdtRatePanel, { UsdtLiveRates } from "@/components/UsdtRatePanel";
 import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
-import { fetchMerchantCards, fetchMerchantPaymentProviders, fetchMerchantVendors } from "@/services/finance/merchantConfigReadService";
 import {
   type CurrencyRates,
   DEFAULT_CURRENCY_RATES,
@@ -113,50 +94,15 @@ import {
   saveCurrencyRates,
   fetchCurrencyRatesToNGN,
 } from "@/services/finance/currencyRatesService";
-
-/** 与 loadQuickSettings / DB 迁移默认一致：首屏即渲染 8 个快捷钮，避免空数组等 API */
-const DEFAULT_QUICK_AMOUNTS: string[] = ['50', '100', '200', '300', '500', '1000', '1500', '2000'];
-const DEFAULT_QUICK_RATES: string[] = ['5.7', '5.8', '5.95', '6.22', '6.57', '6.8', '7.0', '7.26'];
-
-// 从数据库获取卡片列表（异步）- 按 sort_order 升序排列
-const fetchCardsFromDatabase = async (): Promise<{ id: string; name: string; cardVendors?: string[] }[]> => {
-  try {
-    const rows = await fetchMerchantCards();
-    return rows
-      .filter((row) => row.status === "active")
-      .map((row) => ({ id: row.id, name: row.name, cardVendors: row.cardVendors || [] }));
-  } catch (error) {
-    console.error('Failed to fetch cards from database:', error);
-    return [];
-  }
-};
-
-const fetchVendorsFromDatabase = async (): Promise<{ id: string; name: string; paymentProviders?: string[] }[]> => {
-  try {
-    const rows = await fetchMerchantVendors();
-    return rows
-      .filter((row) => row.status === "active")
-      .map((row) => ({ id: row.id, name: row.name, paymentProviders: row.paymentProviders || [] }));
-  } catch (error) {
-    console.error('Failed to fetch vendors from database:', error);
-    return [];
-  }
-};
-
-const fetchPaymentProvidersFromDatabase = async (): Promise<{ id: string; name: string }[]> => {
-  try {
-    const rows = await fetchMerchantPaymentProviders();
-    return rows
-      .filter((row) => row.status === "active")
-      .map((row) => ({ id: row.id, name: row.name }));
-  } catch (error) {
-    console.error('Failed to fetch payment providers from database:', error);
-    return [];
-  }
-};
-
-// Module-level rate caches removed — always load fresh data to avoid stale→new flash
-
+import {
+  DEFAULT_QUICK_AMOUNTS,
+  DEFAULT_QUICK_RATES,
+  fetchCardsFromDatabase,
+  fetchPaymentProvidersFromDatabase,
+  fetchVendorsFromDatabase,
+} from "@/pages/exchangeRate/exchangeRateHelpers";
+import { ExchangeRateRedeemDrawer, type ExchangeRateRedeemPreviewData } from "@/pages/exchangeRate/ExchangeRateRedeemDrawer";
+import { useOrderSubmit } from "@/pages/exchangeRate/useOrderSubmit";
 
 export default function ExchangeRate() {
   trackRender('ExchangeRate');
@@ -473,16 +419,7 @@ export default function ExchangeRate() {
   const [isRedeemConfirmOpen, setIsRedeemConfirmOpen] = useState(false);
   const [redeemPaymentProvider, setRedeemPaymentProvider] = useState("");
   const [redeemRemark, setRedeemRemark] = useState("");
-  const [redeemPreviewData, setRedeemPreviewData] = useState<{
-    memberCode: string;
-    phoneNumber: string;
-    remainingPoints: number;
-    currency: 'NGN' | 'GHS' | 'USDT';
-    rewardAmount: number;
-    currentRate: number;
-    fee: number;
-    giftValue: number;
-  } | null>(null);
+  const [redeemPreviewData, setRedeemPreviewData] = useState<ExchangeRateRedeemPreviewData | null>(null);
   // 初始化时获取未读数、汇率设置和商家数据
   useEffect(() => {
     const count = getUnreadMemoCount();
@@ -1069,6 +1006,118 @@ export default function ExchangeRate() {
     return prefs.join(", ") || "-";
   }, [currencyPreferenceList, payNaira, payCedi, payUsdt]);
 
+  const {
+    handleConfirmAnomalySubmit,
+    anomalyWarnings,
+    showAnomalyDialog,
+    setShowAnomalyDialog,
+  } = useOrderSubmit({
+    t,
+    blockReadonly,
+    nairaRate,
+    cediRate,
+    usdtFee,
+    cardValue,
+    cardRate,
+    payNaira,
+    payCedi,
+    payUsdt,
+    profitCalculation,
+    safeUsdtRate,
+    safeNairaRate,
+    safeCediRate,
+    phoneNumber,
+    memberCode,
+    currencyPreferenceList,
+    remarkMember,
+    customerFeature,
+    bankCard,
+    customerSource,
+    cardType,
+    cardMerchant,
+    paymentAgent,
+    remarkOrder,
+    effectiveMemberTenantId,
+    usdtFeeNum,
+    feeSettings,
+    findMemberByPhone,
+    updateMemberByPhone,
+    addMember,
+    addOrder,
+    addUsdtOrderDb,
+    employee,
+    setMemberCode,
+    setCardValue,
+    setCardRate,
+    setPayNaira,
+    setPayCedi,
+    setPayUsdt,
+    setCardType,
+    setCardMerchant,
+    setPaymentAgent,
+    setPhoneNumber,
+    setMemberLevel,
+    setSelectedCommonCards,
+    setCustomerFeature,
+    setBankCard,
+    setRemarkMember,
+    setRemarkOrder,
+    setCustomerSource,
+    setCurrencyPreferenceList,
+  });
+
+  const handleConfirmRedeem = useCallback(async () => {
+    if (!redeemPreviewData) return;
+    if (blockReadonly("进行积分兑换")) return;
+
+    try {
+      const result = await redeemPoints(redeemPreviewData.memberCode, redeemPreviewData.phoneNumber, redeemPreviewData.remainingPoints);
+
+      if (!result.success) {
+        notify.error(result.message || t("积分扣减失败", "Failed to deduct points"));
+        setIsRedeemConfirmOpen(false);
+        return;
+      }
+
+      const finalRemark = redeemRemark.trim()
+        ? redeemRemark
+        : `${redeemPreviewData.remainingPoints}积分兑换`;
+      await addActivityGift({
+        phoneNumber: redeemPreviewData.phoneNumber,
+        currency: redeemPreviewData.currency,
+        amount: redeemPreviewData.rewardAmount,
+        rate: redeemPreviewData.currentRate,
+        fee: redeemPreviewData.fee,
+        giftValue: redeemPreviewData.giftValue,
+        paymentAgent: redeemPaymentProvider,
+        giftType: "points_redeem",
+        remark: finalRemark,
+        creatorName: employee?.real_name,
+      }, undefined, employee?.id);
+
+      notify.success(t(
+        `兑换成功！已兑换 ${result.redeemedPoints} 积分，获得 ${redeemPreviewData.rewardAmount} ${redeemPreviewData.currency}，积分已清零`,
+        `Redemption successful! ${result.redeemedPoints} points redeemed for ${redeemPreviewData.rewardAmount} ${redeemPreviewData.currency}`
+      ));
+
+      setIsRedeemConfirmOpen(false);
+      setIsRedeemDialogOpen(false);
+    } catch (error) {
+      console.error("兑换过程发生错误:", error);
+      notify.error(t("兑换过程发生错误，请重试", "Redemption error, please try again"));
+      setIsRedeemConfirmOpen(false);
+    }
+  }, [
+    redeemPreviewData,
+    redeemRemark,
+    redeemPaymentProvider,
+    blockReadonly,
+    t,
+    addActivityGift,
+    employee?.real_name,
+    employee?.id,
+  ]);
+
   // 双击清空逻辑
   const handleDoubleClick = (setter: (value: string) => void) => {
     setter("");
@@ -1101,474 +1150,6 @@ export default function ExchangeRate() {
     setQuickRates(newRates);
     // 自动保存到数据库
     saveSharedData('quickRates', newRates);
-  };
-
-  // 自动复制积分信息到剪贴板 - 直接使用传入的积分值，避免竞态条件
-  /** preferredCurrencies：会员币种偏好（含本次支付币种），用于「可兑换金额」与兑换预览一致，勿用支付单列币种 */
-  const performAutoCopy = async (phone: string, code: string, earnedPoints: number, preferredCurrencies: string[]) => {
-    const copySettings = getCopySettings();
-    if (!copySettings.enabled) return;
-    
-    const activitySettings = getActivitySettings();
-    
-    // 确定活动类型
-    let activityType: 'activity1' | 'activity2' | 'none' = 'none';
-    let useActivity2 = false;
-    if (activitySettings.activity1Enabled) {
-      activityType = 'activity1';
-    } else if (activitySettings.activity2?.enabled) {
-      activityType = 'activity2';
-      useActivity2 = true;
-    }
-    
-    // 从数据库实时获取积分数据（与活动数据页面统一）
-    // 积分已在 addOrder 中同步写入，此时查询可获取最新数据
-    const pointsSummary = await getMemberPointsSummary(code, phone);
-    
-    // 使用数据库实时数据
-    const referralRewardPoints = pointsSummary.referralRewardPoints;
-    const consumptionReward = pointsSummary.consumptionReward;
-    // 总积分 = 剩余积分（与活动数据页面完全一致）
-    const totalPoints = pointsSummary.remainingPoints;
-    
-    const redeemCurrency = determineExchangeCurrency(preferredCurrencies.length > 0 ? preferredCurrencies : ['NGN']);
-    
-    // 计算可兑换金额（按会员需求币种，与 getExchangePreview / 活动数据兑换一致）
-    let rewardAmount = 0;
-    if (useActivity2) {
-      // 活动2: 可兑换金额 = 总积分 × 积分兑换率
-      switch (redeemCurrency) {
-        case 'NGN':
-          rewardAmount = totalPoints * (activitySettings.activity2?.pointsToNGN || 0);
-          break;
-        case 'GHS':
-          rewardAmount = totalPoints * (activitySettings.activity2?.pointsToGHS || 0);
-          break;
-        case 'USDT':
-          rewardAmount = totalPoints * (activitySettings.activity2?.pointsToUSDT || 0);
-          break;
-      }
-    } else {
-      // 活动1 或未开启活动营销：按阶梯表估算可兑换金额（与计算器页一致）
-      rewardAmount = getRewardAmountByPointsAndCurrency(totalPoints, redeemCurrency as 'NGN' | 'GHS' | 'USDT');
-    }
-    
-    // 构建奖励档位列表（活动1 展示用；未开启活动时复制模板不含此段）
-    const rewardTiers = useActivity2 
-      ? []
-      : activitySettings.accumulatedRewardTiers.map(tier => ({
-          range: tier.maxPoints === null ? `≥${tier.minPoints}` : `${tier.minPoints}-${tier.maxPoints}`,
-          ngn: tier.rewardAmountNGN || 0,
-          ghs: tier.rewardAmountGHS || 0,
-          usdt: tier.rewardAmountUSDT || 0,
-        }));
-    
-    // 生成英文复制文本 - 使用传入的 earnedPoints（来自订单创建的确定值）
-    const copyText = generateEnglishCopyText({
-      phoneNumber: phone,
-      memberCode: code,  // 🔧 新增：传递会员编号用于复制文本
-      earnedPoints,  // 🔧 关键修复：使用订单创建返回的确定积分值
-      totalPoints,
-      referralPoints: referralRewardPoints,
-      consumptionPoints: consumptionReward,
-      redeemableAmount: `${rewardAmount.toLocaleString()} ${redeemCurrency}`,
-      currency: redeemCurrency,
-      rewardTiers,
-      activityType,
-      activity2Rates: useActivity2 ? activitySettings.activity2 : undefined,
-    });
-    
-    if (!copyText) return;
-    
-    const copyLabel =
-      activityType === 'activity2'
-        ? t('活动2', 'Activity 2')
-        : activityType === 'activity1'
-          ? t('活动1', 'Activity 1')
-          : t('积分说明', 'Points summary');
-    navigator.clipboard.writeText(copyText).then(() => {
-      notify.info(t(`积分信息已复制到剪贴板 (${copyLabel})`, `Points info copied to clipboard (${copyLabel})`));
-    }).catch(() => {
-      console.error("复制失败");
-    });
-  };
-
-  // 异常检测状态
-  const [anomalyWarnings, setAnomalyWarnings] = useState<import('@/services/orders/orderAnomalyDetection').AnomalyWarning[]>([]);
-  const [showAnomalyDialog, setShowAnomalyDialog] = useState(false);
-  /** 防止重复提交（组件内 ref，避免模块全局变量在多实例/StrictMode 下不可靠） */
-  const isSubmittingOrderRef = useRef(false);
-
-  // 提交订单入口 - 先验证，再检测异常
-  const handleSubmitOrder = async () => {
-    if (blockReadonly(t("提交订单", "submit order"))) return;
-    if (isSubmittingOrderRef.current) return;
-    
-    // 必填字段验证
-    if (!nairaRate || nairaRate <= 0) {
-      showSubmissionError(t("请填写奈拉汇率", "Please enter Naira rate"));
-      return;
-    }
-    if (!cediRate || cediRate <= 0) {
-      showSubmissionError(t("请填写赛地汇率", "Please enter Cedi rate"));
-      return;
-    }
-    if (!usdtFee && usdtFee !== "0") {
-      showSubmissionError(t("请填写USDT手续费", "Please enter USDT fee"));
-      return;
-    }
-    if (!cardValue) {
-      showSubmissionError(t("请填写卡片面值", "Please enter card value"));
-      return;
-    }
-    if (!cardRate) {
-      showSubmissionError(t("请填写卡片汇率", "Please enter card rate"));
-      return;
-    }
-    if (!payNaira && !payCedi && !payUsdt) {
-      showSubmissionError(t("请至少填写一个支付金额（支付奈拉、支付赛地或支付USDT）", "Please enter at least one payment amount (Naira, Cedi, or USDT)"));
-      return;
-    }
-    if (!cardType) {
-      showSubmissionError("请选择卡片类型");
-      return;
-    }
-    if (!cardMerchant) {
-      showSubmissionError("请选择卡商名称");
-      return;
-    }
-    if (!paymentAgent) {
-      showSubmissionError("请选择代付商家");
-      return;
-    }
-    if (!phoneNumber) {
-      showSubmissionError("请填写电话号码");
-      return;
-    }
-
-    // 异常检测
-    try {
-      const { detectOrderAnomalies } = await import('@/services/orders/orderAnomalyDetection');
-      const cardWorthVal = parseFloat(cardValue) * parseFloat(cardRate);
-      let profitRateVal = 0;
-      let foreignRateVal = 0;
-      let currency = 'NGN';
-      
-      if (payUsdt) {
-        profitRateVal = parseFloat(profitCalculation.usdtRate) || 0;
-        foreignRateVal = safeUsdtRate;
-        currency = 'USDT';
-      } else if (payNaira) {
-        profitRateVal = parseFloat(profitCalculation.nairaRate) || 0;
-        foreignRateVal = safeNairaRate;
-        currency = 'NGN';
-      } else if (payCedi) {
-        profitRateVal = parseFloat(profitCalculation.cediRate) || 0;
-        foreignRateVal = safeCediRate;
-        currency = 'GHS';
-      }
-
-      const warnings = await detectOrderAnomalies({
-        profitRate: profitRateVal,
-        foreignRate: foreignRateVal,
-        cardWorth: cardWorthVal,
-        currency,
-      });
-
-      if (warnings.length > 0) {
-        setAnomalyWarnings(warnings);
-        setShowAnomalyDialog(true);
-        return; // 等待用户确认
-      }
-    } catch (err) {
-      console.warn('Anomaly detection failed, proceeding:', err);
-    }
-
-    // 无异常，直接提交
-    await executeOrderSubmit();
-  };
-
-  // 用户确认异常后继续提交
-  const handleConfirmAnomalySubmit = async () => {
-    if (blockReadonly(t("提交订单", "submit order"))) return;
-    setShowAnomalyDialog(false);
-    setAnomalyWarnings([]);
-    await executeOrderSubmit();
-  };
-
-  // 提交订单（可跳过异常检测）
-  const executeOrderSubmit = async () => {
-    if (blockReadonly(t("提交订单", "submit order"))) return;
-    isSubmittingOrderRef.current = true;
-    
-    try {
-      // 确定本次检测的币种
-      const detectedCurrency: 'NGN' | 'GHS' | 'USDT' | null = payNaira ? 'NGN' : payCedi ? 'GHS' : payUsdt ? 'USDT' : null;
-    const actualPayment = payNaira ? parseFloat(payNaira) : payCedi ? parseFloat(payCedi) : parseFloat(payUsdt);
-
-    // ===== 第一步：用 phone 再查一次会员（保证是最新）=====
-    let dbMember = await getMemberByPhoneForMyTenant(phoneNumber, effectiveMemberTenantId);
-
-    // Fallback: 如果服务端查询失败（网络波动/500），但本地缓存中该会员存在，仍走更新路径
-    if (!dbMember) {
-      const cachedMember = findMemberByPhone(phoneNumber);
-      if (cachedMember) {
-        console.warn('[executeOrderSubmit] Server lookup returned null but member exists in cache, using cache fallback');
-        dbMember = {
-          id: cachedMember.id,
-          phone_number: cachedMember.phoneNumber,
-          member_code: cachedMember.memberCode,
-          member_level: cachedMember.level,
-          common_cards: cachedMember.commonCards,
-          currency_preferences: cachedMember.preferredCurrency,
-          bank_card: cachedMember.bankCard || null,
-          customer_feature: cachedMember.customerFeature,
-          source_id: cachedMember.sourceId || null,
-          source_name: null,
-          remark: cachedMember.remark,
-          recorder_name: null,
-          referrer_display: null,
-          created_at: cachedMember.createdAt,
-          remaining_points: null,
-          order_count: 0,
-        };
-      }
-    }
-
-    const phoneForMemberUpdate = dbMember?.phone_number?.trim() || phoneNumber;
-
-    let memberId: string | undefined;
-    let finalMemberCode = memberCode;
-    /** 提交后自动复制「可兑换金额」用：与会员偏好 + 本单支付币种一致 */
-    let memberPrefsSnapshot: string[] = [];
-    
-    if (dbMember) {
-      // ===== 会员存在：先按当前表单覆盖会员资料，再下单（与电话号码对应的会员记录一致）=====
-      const existingPrefs: string[] = dbMember.currency_preferences || [];
-      /** 币种偏好：表单 currencyPreferenceList 优先（与电话匹配时从库带出，用户可在页内保持/调整），再并入本次支付币种 */
-      let mergedPrefs: string[];
-      if (currencyPreferenceList.length > 0) {
-        mergedPrefs = [...currencyPreferenceList];
-        if (detectedCurrency && !mergedPrefs.includes(detectedCurrency)) {
-          mergedPrefs.push(detectedCurrency);
-        }
-      } else {
-        mergedPrefs = [...existingPrefs];
-        if (detectedCurrency && !existingPrefs.includes(detectedCurrency)) {
-          mergedPrefs.push(detectedCurrency);
-        }
-      }
-      memberPrefsSnapshot = mergedPrefs;
-
-      const memberUpdates: Record<string, unknown> = {
-        preferredCurrency: mergedPrefs,
-        remark: remarkMember,
-        customerFeature: customerFeature,
-        bankCard: bankCard,
-        // 始终提交来源：有值写 ID，清空写 null，才能覆盖库里的旧来源
-        sourceId: customerSource ? customerSource : null,
-      };
-      const trimmedCode = (memberCode || "").trim();
-      if (trimmedCode && trimmedCode !== String(dbMember.member_code || "").trim()) {
-        memberUpdates.memberCode = trimmedCode;
-      }
-
-      const updated = await updateMemberByPhone(phoneForMemberUpdate, memberUpdates as Partial<Member>);
-      if (!updated) {
-        notify.error(
-          t("会员信息保存失败，请检查会员编号是否与其他会员重复", "Failed to save member — check member code or network"),
-        );
-        return;
-      }
-      memberId = updated.id;
-      finalMemberCode = updated.memberCode;
-    } else {
-      // ===== 新会员：创建 =====
-      const newMemberCode = memberCode || generateMemberId();
-      const newMemberPrefs: string[] =
-        currencyPreferenceList.length > 0 ? [...currencyPreferenceList] : [];
-      if (detectedCurrency && !newMemberPrefs.includes(detectedCurrency)) {
-        newMemberPrefs.push(detectedCurrency);
-      }
-      memberPrefsSnapshot = newMemberPrefs;
-
-      const newMember = await addMember({
-        phoneNumber,
-        memberCode: newMemberCode,
-        preferredCurrency: newMemberPrefs,
-        remark: remarkMember,
-        customerFeature,
-        bankCard,
-        sourceId: customerSource || undefined,
-        recorder: employee?.real_name || '',
-        recorderId: employee?.id,
-      });
-      
-      if (newMember) {
-        memberId = newMember.id;
-        finalMemberCode = newMember.memberCode;
-        setMemberCode(finalMemberCode);
-      } else {
-        notify.error(t("会员创建失败，订单未提交", "Member creation failed, order not submitted"));
-        return;
-      }
-    }
-
-    // 如果是USDT支付，提交到USDT订单
-    if (payUsdt) {
-      const cardWorth = parseFloat(cardValue) * parseFloat(cardRate);
-      const totalValueUsdt = safeUsdtRate > 0 ? cardWorth / safeUsdtRate : 0;
-      const actualPaidUsdt = parseFloat(payUsdt);
-      const paymentValue = actualPaidUsdt + usdtFeeNum;
-      const profit = parseFloat(profitCalculation.usdtProfitU);
-      const profitRateVal = parseFloat(profitCalculation.usdtRate);
-
-      const usdtOrderData = {
-        createdAt: formatBeijingTime(new Date()),
-        cardType,
-        cardValue: parseFloat(cardValue),
-        cardRate: parseFloat(cardRate),
-        cardWorth,
-        usdtRate: safeUsdtRate,
-        totalValueUsdt,
-        actualPaidUsdt,
-        feeUsdt: usdtFeeNum,
-        paymentValue,
-        profit,
-        profitRate: profitRateVal,
-        vendor: cardMerchant,
-        paymentProvider: paymentAgent,
-        phoneNumber,
-        memberCode: finalMemberCode,
-        demandCurrency: "USDT",
-        salesPerson: employee?.real_name || t('未知', 'Unknown'),
-        remark: remarkOrder, // 备注（订单）
-      };
-
-      // 🔧 修复竞态条件：等待订单创建完成并获取确定的积分值
-      const usdtResult = await addUsdtOrderDb(usdtOrderData, memberId, employee?.id);
-      // 活动数据永久累计由后端 createOrder API 写入 member_activity，避免仅依赖前端 Supabase 代理
-
-      notify.success(t("USDT订单提交成功", "USDT order submitted"));
-      
-      // 🔧 修复：立即执行复制，使用 await 确保在页面切换前完成
-      if (usdtResult.order) {
-        await performAutoCopy(phoneNumber, finalMemberCode, usdtResult.earnedPoints, memberPrefsSnapshot);
-      }
-    } else {
-      // 奈拉/赛地订单
-      let paymentCurrency = "";
-      let actualPaid = 0;
-      let foreignRate = 0;
-      let fee = 0;
-      let profit = 0;
-      let profitRateVal = 0;
-
-      if (payNaira) {
-        paymentCurrency = CURRENCIES.NGN.name;
-        actualPaid = parseFloat(payNaira);
-        foreignRate = safeNairaRate;
-        fee = actualPaid < feeSettings.nairaThreshold ? feeSettings.nairaFeeBelow : feeSettings.nairaFeeAbove;
-        profit = parseFloat(profitCalculation.nairaProfitRMB);
-        profitRateVal = parseFloat(profitCalculation.nairaRate);
-      } else if (payCedi) {
-        paymentCurrency = CURRENCIES.GHS.name;
-        actualPaid = parseFloat(payCedi);
-        foreignRate = safeCediRate;
-        fee = actualPaid < feeSettings.cediThreshold ? feeSettings.cediFeeBelow : feeSettings.cediFeeAbove;
-        profit = parseFloat(profitCalculation.cediProfitRMB);
-        profitRateVal = parseFloat(profitCalculation.cediRate);
-      }
-      
-      const paymentValue = payNaira 
-        ? actualPaid / foreignRate + fee 
-        : actualPaid * foreignRate + fee;
-
-      const orderData = {
-        createdAt: formatBeijingTime(new Date()),
-        cardType,
-        cardValue: parseFloat(cardValue),
-        cardRate: parseFloat(cardRate),
-        foreignRate,
-        cardWorth: parseFloat(cardValue) * parseFloat(cardRate),
-        actualPaid,
-        fee,
-        paymentValue,
-        paymentProvider: paymentAgent,
-        vendor: cardMerchant,
-        profit,
-        profitRate: profitRateVal,
-        phoneNumber,
-        memberCode: finalMemberCode,
-        demandCurrency: paymentCurrency,
-        salesPerson: employee?.real_name || t('未知', 'Unknown'),
-        remark: remarkOrder, // 备注（订单）
-      };
-
-      // 🔧 修复竞态条件：等待订单创建完成并获取确定的积分值
-      const orderResult = await addOrder(orderData, memberId, employee?.id, finalMemberCode);
-      // 活动数据永久累计由后端 createOrder API 写入 member_activity
-
-      notify.success(t("订单提交成功", "Order submitted"));
-      
-      // 🔧 修复：立即执行复制，使用 await 确保在页面切换前完成
-      if (orderResult.order) {
-        await performAutoCopy(phoneNumber, finalMemberCode, orderResult.earnedPoints, memberPrefsSnapshot);
-      }
-    }
-
-    // 重置表单 - 清空所有字段并保存清空状态
-    setCardValue("");
-    setCardRate("");
-    setPayNaira("");
-    setPayCedi("");
-    setPayUsdt("");
-    setCardType("");
-    setCardMerchant("");
-    setPaymentAgent("");
-    setPhoneNumber("");
-    setMemberCode("");
-    setMemberLevel("");
-    setSelectedCommonCards([]);
-    setCustomerFeature("");
-    setBankCard("");
-    setRemarkMember("");
-    setRemarkOrder("");
-    setCustomerSource("");
-    setCurrencyPreferenceList([]);
-    
-    // 立即保存清空状态，确保页面切换后不会回填
-    saveExchangeRateFormData({
-      cardType: "",
-      cardMerchant: "",
-      paymentAgent: "",
-      phoneNumber: "",
-      memberCode: "",
-      memberLevel: "",
-      selectedCommonCards: [],
-      customerFeature: "",
-      remarkOrder: "",
-      remarkMember: "",
-      bankCard: "",
-      cardValue: "",
-      cardRate: "",
-      payNaira: "",
-      payCedi: "",
-      payUsdt: "",
-      nairaRate: nairaRate ?? 0,
-      cediRate: cediRate ?? 0,
-      currencyPreferenceList: [],
-      customerSource: "",
-    });
-    } catch (err: any) {
-      console.error('[executeOrderSubmit] Unhandled error:', err);
-      notify.error(t(
-        `提交订单失败: ${err?.message || '未知错误'}`,
-        `Order submission failed: ${err?.message || 'Unknown error'}`
-      ));
-    } finally {
-      isSubmittingOrderRef.current = false;
-    }
   };
 
   // 右侧工作栏宽度 420px = 原 280px 加宽 50%，便于付款信息表格等
@@ -1978,175 +1559,22 @@ export default function ExchangeRate() {
         </div>
       )}
 
-      <DrawerDetail
+      <ExchangeRateRedeemDrawer
         open={isRedeemDialogOpen}
         onOpenChange={setIsRedeemDialogOpen}
-        title={t("积分兑换", "Points Redemption")}
-        sheetMaxWidth="xl"
-      >
-          {redeemPreviewData && (
-            <div className="space-y-4">
-              {/* 兑换信息预览 */}
-              <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{t("会员编号", "Member Code")}</span>
-                  <span className="font-medium">{redeemPreviewData.memberCode}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{t("电话号码", "Phone Number")}</span>
-                  <span className="font-mono">{redeemPreviewData.phoneNumber}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{t("当前剩余积分", "Current Points")}</span>
-                  <span className="font-bold text-primary">{redeemPreviewData.remainingPoints}</span>
-                </div>
-                <div className="border-t pt-3 mt-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{t("判定币种", "Currency")}</span>
-                    <Badge variant="outline">{redeemPreviewData.currency}</Badge>
-                  </div>
-                  <div className="flex justify-between text-sm mt-2">
-                    <span className="text-muted-foreground">{t("当前汇率", "Current Rate")}</span>
-                    <span>{redeemPreviewData.currentRate}</span>
-                  </div>
-                  <div className="flex justify-between text-sm mt-2">
-                    <span className="text-muted-foreground">{t("可兑换金额", "Redemption Amount")}</span>
-                    <span className="font-bold text-green-600">
-                      {redeemPreviewData.rewardAmount} {redeemPreviewData.currency}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm mt-2">
-                    <span className="text-muted-foreground">{t("手续费", "Fee")}</span>
-                    <span>{redeemPreviewData.fee}</span>
-                  </div>
-                  <div className="flex justify-between text-sm mt-2">
-                    <span className="text-muted-foreground">{t("赠送价值", "Gift Value")}</span>
-                    <span>{(redeemPreviewData?.giftValue ?? 0).toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 代付商家选择 */}
-              <div className="space-y-2">
-                <Label>{t("代付商家", "Payment Provider")} <span className="text-destructive">*</span></Label>
-                <Select value={redeemPaymentProvider} onValueChange={setRedeemPaymentProvider} disabled={isPlatformAdminReadonlyView}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("请选择代付商家", "Select payment provider")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentProvidersList.map(provider => (
-                      <SelectItem key={provider.id} value={provider.name}>
-                        {provider.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {paymentProvidersList.length === 0 && (
-                  <p className="text-xs text-destructive">{t("暂无可用的代付商家，请先在商家管理中添加", "No payment providers available")}</p>
-                )}
-              </div>
-
-              {/* 备注 */}
-              <div className="space-y-2">
-                <Label>{t("备注（选填）", "Remark (Optional)")}</Label>
-                <Textarea
-                  value={redeemRemark}
-                  onChange={(e) => setRedeemRemark(e.target.value)}
-                  placeholder={t("请输入备注信息", "Enter remark")}
-                  rows={2}
-                  disabled={isPlatformAdminReadonlyView}
-                />
-              </div>
-
-              {/* 提示信息 */}
-              <div className="text-xs text-muted-foreground bg-amber-50 dark:bg-amber-950/20 p-3 rounded">
-                ⚠️ {t("兑换后积分将清零，重置时间更新为当前时间，之后的积分从新周期开始累积。", "After redemption, points will be reset to zero and the reset time will be updated.")}
-              </div>
-            </div>
-          )}
-          <div className="flex flex-wrap justify-end gap-2 pt-4 mt-4 border-t border-border">
-            <Button variant="outline" onClick={() => setIsRedeemDialogOpen(false)}>
-              {t("取消", "Cancel")}
-            </Button>
-            <Button 
-              onClick={() => {
-                if (blockReadonly("进行积分兑换")) return;
-                if (!redeemPaymentProvider) {
-                  notify.error(t("请选择代付商家", "Please select payment provider"));
-                  return;
-                }
-                setIsRedeemConfirmOpen(true);
-              }}
-              disabled={isPlatformAdminReadonlyView || !redeemPaymentProvider || paymentProvidersList.length === 0}
-            >
-              {t("确认兑换", "Confirm Redemption")}
-            </Button>
-          </div>
-      </DrawerDetail>
-
-      {/* 兑换确认对话框 */}
-      <AlertDialog open={isRedeemConfirmOpen} onOpenChange={setIsRedeemConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("确认兑换", "Confirm Redemption")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(
-                `确认为会员 ${redeemPreviewData?.memberCode} 进行积分兑换吗？兑换后该会员的积分将清零，重置时间将更新为当前时间。`,
-                `Confirm points redemption for member ${redeemPreviewData?.memberCode}? Points will be reset to zero after redemption.`
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={async () => {
-              if (!redeemPreviewData) return;
-              if (blockReadonly("进行积分兑换")) return;
-              
-              try {
-                // 执行积分兑换
-                const result = await redeemPoints(redeemPreviewData.memberCode, redeemPreviewData.phoneNumber, redeemPreviewData.remainingPoints);
-                
-                if (!result.success) {
-                  notify.error(result.message || t("积分扣减失败", "Failed to deduct points"));
-                  setIsRedeemConfirmOpen(false);
-                  return;
-                }
-                
-                // 保存活动赠送记录到数据库
-                const finalRemark = redeemRemark.trim()
-                  ? redeemRemark
-                  : `${redeemPreviewData.remainingPoints}积分兑换`;
-                await addActivityGift({
-                  phoneNumber: redeemPreviewData.phoneNumber,
-                  currency: redeemPreviewData.currency,
-                  amount: redeemPreviewData.rewardAmount,
-                  rate: redeemPreviewData.currentRate,
-                  fee: redeemPreviewData.fee,
-                  giftValue: redeemPreviewData.giftValue,
-                  paymentAgent: redeemPaymentProvider,
-                  giftType: "points_redeem",
-                  remark: finalRemark,
-                  creatorName: employee?.real_name,
-                }, undefined, employee?.id);
-                
-                notify.success(t(
-                  `兑换成功！已兑换 ${result.redeemedPoints} 积分，获得 ${redeemPreviewData.rewardAmount} ${redeemPreviewData.currency}，积分已清零`,
-                  `Redemption successful! ${result.redeemedPoints} points redeemed for ${redeemPreviewData.rewardAmount} ${redeemPreviewData.currency}`
-                ));
-                
-                setIsRedeemConfirmOpen(false);
-                setIsRedeemDialogOpen(false);
-              } catch (error) {
-                console.error("兑换过程发生错误:", error);
-                notify.error(t("兑换过程发生错误，请重试", "Redemption error, please try again"));
-                setIsRedeemConfirmOpen(false);
-              }
-            }}>
-              {t("确认", "Confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        confirmOpen={isRedeemConfirmOpen}
+        onConfirmOpenChange={setIsRedeemConfirmOpen}
+        paymentProvider={redeemPaymentProvider}
+        onPaymentProviderChange={setRedeemPaymentProvider}
+        remark={redeemRemark}
+        onRemarkChange={setRedeemRemark}
+        previewData={redeemPreviewData}
+        paymentProvidersList={paymentProvidersList}
+        isReadOnly={isPlatformAdminReadonlyView}
+        blockReadonly={blockReadonly}
+        t={t}
+        onConfirmRedeem={handleConfirmRedeem}
+      />
     </div>
   );
 }

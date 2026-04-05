@@ -11,7 +11,7 @@ import {
   getPaymentProviderSettlementsAsync, 
   addPostResetAdjustment, 
   MerchantType 
-} from '@/stores/merchantSettlementStore';
+} from '@/services/finance/merchantSettlementService';
 
 /**
  * 辅助函数：判断记录是否在重置时间之前，如果是则写入 postResetAdjustment

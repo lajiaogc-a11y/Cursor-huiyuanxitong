@@ -68,8 +68,8 @@ import {
   POSTER_COLUMN_KEYS,
   type RateSettingEntry,
   type PosterColumnKey,
-} from "@/stores/systemSettings";
-import { getCountriesAsync } from "@/stores/systemSettings";
+} from "@/services/system/systemSettingsService";
+import { getCountriesAsync } from "@/services/system/systemSettingsService";
 import { subscribeToSharedData } from "@/services/finance/sharedDataService";
 
 interface CurrencyRates {

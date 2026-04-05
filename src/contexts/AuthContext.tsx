@@ -1,16 +1,14 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, ReactNode } from 'react';
-import type { AppRole } from '@/stores/employeeStore';
+import type { AppRole } from '@/services/employees/employeeCrudService';
 import { preloadSharedData, ensureDefaultSharedData, setSharedDataTenantId } from '@/services/finance/sharedDataService';
 
-import { initializeReferralCache } from '@/stores/referralStore';
 import { setOperatorCache, clearOperatorCache } from '@/services/members/operatorService';
 import { initNameResolver, resetNameResolver } from '@/services/members/nameResolver';
 import { initializeUserDataSync } from '@/services/userDataSyncService';
 import { withTimeout, TIMEOUT } from '@/lib/withTimeout';
 import { notify } from "@/lib/notifyHub";
 import { cleanupCacheManager } from '@/services/cacheManager';
-import { resetReferralCache } from '@/stores/referralStore';
-import { resetPointsSettingsCache } from '@/stores/pointsSettingsStore';
+import { resetPointsSettingsCache } from '@/services/points/pointsSettingsService';
 import { queryClient } from '@/lib/queryClient';
 import { spaNavigate } from '@/lib/spaNavigation';
 import { hardRedirectToStaff, shouldHardRedirectToStaffPortal } from '@/lib/crossPortalNavigation';
@@ -700,7 +698,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Supabase auth session 已移除 - 认证完全走后端 JWT
 
       preloadSharedData().catch(console.error);
-      initializeReferralCache().catch(console.error);
       syncUserData(authUser.id).catch(console.error);
 
       skipNextInitAuthCheckRef.current = true; // 避免 init 重跑时再次请求 /me 导致竞态
@@ -749,7 +746,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // 6. 重置各模块缓存
     resetNameResolver();
-    resetReferralCache();
     resetPointsSettingsCache();
     
     // 7. 清空 React Query 缓存（员工敏感数据）

@@ -32,7 +32,7 @@ import {
   updateAutoRates,
   PointsSettings,
   POINTS_AUTO_UPDATE_INTERVAL,
-} from "@/stores/pointsSettingsStore";
+} from "@/services/points/pointsSettingsService";
 
 /** 自动采集间隔预设（毫秒） */
 const INTERVAL_PRESETS_MS = [

@@ -6,10 +6,10 @@
 
 import { emitDataRefresh, emitLegacyEvents, queueQueryInvalidations } from '@/services/system/dataConsistencyHub';
 import { TABLE_LEGACY_EVENTS, TABLE_QUERY_KEYS, type DataTable } from '@/services/system/unifiedRefreshQueryMap';
-import { resetReferralCache } from '@/stores/referralStore';
 import { clearCache as clearSharedDataCache } from '@/services/finance/sharedDataService';
 import { refreshEmployees } from '@/services/members/nameResolver';
-import { resetPointsSettingsCache } from '@/stores/pointsSettingsStore';
+import { resetPointsSettingsCache } from '@/services/points/pointsSettingsService';
+import { queryClient } from '@/lib/queryClient';
 
 export type DataRefreshPayload = {
   table: DataTable;
@@ -49,23 +49,25 @@ function clearStoreCachesByTable(table: DataTable) {
     // the legacy pointsLedgerStore cache is no longer the authoritative source.
   }
   if (table === 'points_accounts') {
-    import('@/stores/pointsAccountStore').then(m => m.resetPointsAccountCache()).catch(() => {});
+    import('@/services/points/pointsAccountService').then(m => m.resetPointsAccountCache()).catch(() => {});
   }
   if (table === 'members') {
-    resetReferralCache();
+    queryClient.invalidateQueries({ queryKey: ['referrals'] }).catch(() => {});
   }
   if (table === 'employees') {
     refreshEmployees().catch((err) => { console.warn('[dataRefreshManager] refreshEmployees failed:', err); });
   }
   if (table === 'payment_providers' || table === 'vendors' || table === 'cards') {
-    import('@/stores/merchantConfigStore').then(m => m.resetMerchantConfigCache()).catch(() => {});
+    queryClient.invalidateQueries({ queryKey: ['cards'] }).catch(() => {});
+    queryClient.invalidateQueries({ queryKey: ['vendors'] }).catch(() => {});
+    queryClient.invalidateQueries({ queryKey: ['payment-providers'] }).catch(() => {});
   }
   if (table === 'shared_data_store') {
     clearSharedDataCache();
-    import('@/stores/merchantConfigStore').then(m => m.resetMerchantConfigCache()).catch(() => {});
-    import('@/stores/exchangeRateStore').then(m => m.resetExchangeRateCache()).catch(() => {});
+    queryClient.invalidateQueries({ queryKey: ['cards'] }).catch(() => {});
+    queryClient.invalidateQueries({ queryKey: ['vendors'] }).catch(() => {});
+    queryClient.invalidateQueries({ queryKey: ['payment-providers'] }).catch(() => {});
     resetPointsSettingsCache();
-    import('@/stores/activitySettingsStore').then(m => m.resetActivitySettingsCache()).catch(() => {});
   }
 }
 

@@ -14,7 +14,7 @@ import { Loader2, Pencil, Trash2, ChevronDown } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { RechargeRecord, ArchivedRecharges } from '@/stores/merchantSettlementStore';
+import { RechargeRecord, ArchivedRecharges } from '@/services/finance/merchantSettlementService';
 import { getEmployeeNameById } from '@/hooks/useNameResolver';
 import LedgerTransactionContent from '@/components/LedgerTransactionContent';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';

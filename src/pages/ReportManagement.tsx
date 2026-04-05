@@ -30,7 +30,7 @@ import {
 } from "@/lib/dateFilter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { getFeeSettings, FeeSettings, getGiftDistributionSettings, getEmployeeManualGiftRatios, updateEmployeeManualGiftRatio } from "@/stores/systemSettings";
+import { getFeeSettings, FeeSettings, getGiftDistributionSettings, getEmployeeManualGiftRatios, updateEmployeeManualGiftRatio } from "@/services/system/systemSettingsService";
 
 import { trackRender } from "@/lib/performanceUtils";
 import {

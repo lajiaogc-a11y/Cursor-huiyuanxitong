@@ -15,7 +15,7 @@
 //
 // 所有配置的默认值定义在 sharedDataService.ts 的 DEFAULT_SHARED_DATA
 
-import { initializePointsSettings } from '@/stores/pointsSettingsStore';
+import { initializePointsSettings } from '@/services/points/pointsSettingsService';
 import { initializeCacheManager } from '@/services/cacheManager';
 import { ensureDefaultSharedData, loadSharedData } from '@/services/finance/sharedDataService';
 import { initializeCopySettings } from '@/components/CopySettingsTab';

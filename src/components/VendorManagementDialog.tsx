@@ -15,7 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardActions, MobileEmptyState } from '@/components/ui/mobile-data-card';
-import { WithdrawalRecord, ArchivedWithdrawals } from '@/stores/merchantSettlementStore';
+import { WithdrawalRecord, ArchivedWithdrawals } from '@/services/finance/merchantSettlementService';
 import { getEmployeeNameById } from '@/hooks/useNameResolver';
 import LedgerTransactionContent from '@/components/LedgerTransactionContent';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';

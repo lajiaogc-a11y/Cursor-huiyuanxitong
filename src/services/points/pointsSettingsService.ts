@@ -3,7 +3,7 @@
 
 import { loadSharedData, saveSharedData, saveSharedDataSync } from '@/services/finance/sharedDataService';
 import { EXTERNAL_API } from '@/config/externalApis';
-import { logOperation } from './auditLogStore';
+import { logOperation } from '@/stores/auditLogStore';
 import { pickBilingual } from '@/lib/appLocale';
 
 export type PointsMode = 'auto' | 'manual';

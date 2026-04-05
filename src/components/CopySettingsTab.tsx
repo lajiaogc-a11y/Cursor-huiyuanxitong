@@ -9,7 +9,7 @@ import { Copy, Save, Info, PlayCircle, Loader2 } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { loadSharedData, saveSharedData } from "@/services/finance/sharedDataService";
-import { getActivitySettings } from "@/stores/activitySettingsStore";
+import { getActivitySettings } from "@/services/activity/activitySettingsService";
 import {
   type CopySettings,
   DEFAULT_COPY_SETTINGS,

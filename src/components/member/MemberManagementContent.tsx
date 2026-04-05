@@ -43,7 +43,7 @@ import { notify } from "@/lib/notifyHub";
 import { useMembers, Member } from "@/hooks/useMembers";
 import { logOperation } from "@/stores/auditLogStore";
 import { getCurrencyBadgeColor, normalizeCurrencyCode } from "@/config/currencies";
-import { useCustomerSources } from "@/stores/customerSourceStore";
+import { useCustomerSources } from "@/hooks/useCustomerSources";
 import { useCards } from "@/hooks/useMerchantConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";

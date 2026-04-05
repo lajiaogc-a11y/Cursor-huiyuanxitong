@@ -37,7 +37,7 @@ import {
   getUnreadMemoCount,
   cleanupExpiredMemos,
   WorkMemo,
-} from "@/stores/systemSettings";
+} from "@/services/system/systemSettingsService";
 import { CustomReminderSelect } from "@/components/CustomReminderSelect";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatBeijingTime } from "@/lib/beijingTime";

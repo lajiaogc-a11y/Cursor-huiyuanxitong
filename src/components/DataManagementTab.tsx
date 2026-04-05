@@ -17,7 +17,7 @@ import DataExportImportTab from "./DataExportImportTab";
 import MemoSettingsTab from "./MemoSettingsTab";
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { isProductionLocked } from "@/stores/productionLockStore";
+import { isProductionLocked } from "@/services/system/productionLockService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { logOperation } from "@/stores/auditLogStore";
@@ -216,12 +216,12 @@ export default function DataManagementTab() {
           notifyDataMutation({ table: 'ledger_transactions', operation: 'DELETE', source: 'manual' }).catch(console.error);
           notifyDataMutation({ table: 'balance_change_logs', operation: 'DELETE', source: 'manual' }).catch(console.error);
           notifyDataMutation({ table: 'shared_data_store', operation: 'UPDATE', source: 'manual' }).catch(console.error);
-          import('@/stores/merchantSettlementStore').then((m) => m.forceRefreshSettlementCache()).catch((err) => { console.warn('[DataManagementTab] forceRefreshSettlementCache failed:', err); return undefined; });
+          import('@/services/finance/merchantSettlementService').then((m) => m.forceRefreshSettlementCache()).catch((err) => { console.warn('[DataManagementTab] forceRefreshSettlementCache failed:', err); return undefined; });
         }
         if (deleteSelections.merchantSettlement?.initialBalances) {
           queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           queryClient.invalidateQueries({ queryKey: ['merchant-settlement'] });
-          import('@/stores/merchantSettlementStore').then(m => m.resetSettlementCache()).catch(() => { /* cache reset is non-critical */ });
+          import('@/services/finance/merchantSettlementService').then(m => m.resetSettlementCache()).catch(() => { /* cache reset is non-critical */ });
           notifyDataMutation({ table: 'shared_data_store', operation: 'DELETE', source: 'manual' }).catch(console.error);
         }
         if (deleteSelections.members?.pointsLedger) {

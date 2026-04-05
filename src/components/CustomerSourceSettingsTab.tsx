@@ -37,7 +37,7 @@ import {
   updateCustomerSource,
   deleteCustomerSource,
   CustomerSource,
-} from "@/stores/customerSourceStore";
+} from "@/hooks/useCustomerSources";
 import { logOperation } from "@/stores/auditLogStore";
 
 export default function CustomerSourceSettingsTab() {

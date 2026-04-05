@@ -1,4 +1,4 @@
-import type { CardMerchantSettlement, PaymentProviderSettlement } from "@/stores/merchantSettlementStore";
+import type { CardMerchantSettlement, PaymentProviderSettlement } from "@/services/finance/merchantSettlementService";
 
 export interface VendorSettlementRow {
   vendorName: string;

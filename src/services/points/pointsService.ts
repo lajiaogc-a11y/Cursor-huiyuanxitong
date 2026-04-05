@@ -6,7 +6,7 @@
 
 import { apiGet, apiPost } from '@/api/client';
 import { CurrencyCode } from '@/config/currencies';
-import { getPointsSettingsAsync, PointsSettings } from '@/stores/pointsSettingsStore';
+import { getPointsSettingsAsync, PointsSettings } from '@/services/points/pointsSettingsService';
 import { logOperation } from '@/stores/auditLogStore';
 import { loadSharedData } from '@/services/finance/sharedDataService';
 import { notifyDataMutation } from '@/services/system/dataRefreshManager';

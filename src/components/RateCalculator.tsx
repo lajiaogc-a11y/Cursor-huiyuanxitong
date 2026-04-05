@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { trackRender } from "@/lib/performanceUtils";
 import { Input } from "@/components/ui/input";
 import { safeNumber, safeDivide, safeMultiply, safeToFixed } from "@/lib/safeCalc";
-import { formatBeijingTime } from "@/lib/beijingTime";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,16 +18,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -48,29 +37,25 @@ import {
   generateMemberId,
   getFeeSettings,
   getUsdtFee,
-} from "@/stores/systemSettings";
-import { getMemberCurrentPoints } from "@/stores/pointsAccountStore";
-import { getActivitySettings, getRewardAmountByPointsAndCurrency } from "@/stores/activitySettingsStore";
+} from "@/services/system/systemSettingsService";
+import { getMemberCurrentPoints } from "@/services/points/pointsAccountService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { displayMemberLevelLabel } from "@/lib/memberLevelDisplay";
 // pointsLedgerStore is deprecated — usePointsLedger hook is the single source of truth
-import { getPointsSettings } from "@/stores/pointsSettingsStore";
-import { getMemberLastResetTime } from "@/stores/pointsAccountStore";
-import { getCopySettings, generateEnglishCopyText } from "@/components/CopySettingsTab";
+import { getPointsSettings } from "@/services/points/pointsSettingsService";
+import { getMemberLastResetTime } from "@/services/points/pointsAccountService";
 import { useAuth } from "@/contexts/AuthContext";
-import { getReferralRelations } from "@/stores/referralStore";
-import { getExchangePreview, getExchangeDisabledMessage, determineExchangeCurrency } from "@/services/finance/exchangeService";
-import { getExchangeRateFormData } from "@/stores/exchangeRateFormStore";
+
+import { getExchangePreview, getExchangeDisabledMessage } from "@/services/finance/exchangeService";
+
 import { CurrencyCode } from "@/config/currencies";
 import { patchActivityGiftRemark } from "@/services/staff/activityGiftTableService";
 import { redeemPointsAndRecordRpc } from "@/services/members/memberPointsRedeemRpcService";
 import { getMemberPointsSummary, MemberPointsSummary } from "@/services/points/pointsCalculationService";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 import { logOperation } from "@/stores/auditLogStore";
-import {
-  appendExchangePaymentInfoEntry,
-  formatExchangePaymentAmountForCopy,
-} from "@/lib/exchangePaymentInfoLedger";
+import { useCalculatorSubmit } from "@/components/calculator/useCalculatorSubmit";
+import { CalculatorRedeemSection } from "@/components/calculator/CalculatorRedeemSection";
 
 /** 桌面端支付信息列宽（ch=数字 0 宽度）：金额 ≥10ch、利润 7ch、利率 7ch；外层列变窄时仍保留该最小内容宽 */
 const PAY_INFO_GRID_DESKTOP =
@@ -169,9 +154,6 @@ export default function RateCalculator({
     value: string;
   }>({ open: false, type: 'amount', index: 0, value: '' });
   const [bankCardError, setBankCardError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [nairaWarningOpen, setNairaWarningOpen] = useState(false);
-  const [nairaWarningText, setNairaWarningText] = useState("");
 
   // 积分兑换对话框
   const [isRedeemDialogOpen, setIsRedeemDialogOpen] = useState(false);
@@ -255,6 +237,34 @@ export default function RateCalculator({
 
   const feeSettings = getFeeSettings();
   const usdtFeeNum = parseFloat(usdtFee) || 0;
+
+  const {
+    isSubmitting,
+    handleSubmitOrder,
+    performSubmitOrder,
+    nairaWarningOpen,
+    setNairaWarningOpen,
+    nairaWarningText,
+  } = useCalculatorSubmit({
+    calcId,
+    formData,
+    clearForm,
+    setMemberLevelZhHint,
+    nairaRate,
+    cediRate,
+    usdtRate,
+    usdtFeeNum,
+    feeSettings,
+    memberLookupTenantId,
+    matchedMemberId,
+    setMemberPointsSummary,
+    findMemberByPhone,
+    addMember,
+    updateMemberByPhone,
+    addOrder,
+    employee,
+    t,
+  });
 
   /** 与 profitRates 列数一致；minmax 下限避免父级 flex/min-w-0 把列压成一条缝 */
   const profitGridColCount = profitRates.length + 1;
@@ -747,342 +757,6 @@ export default function RateCalculator({
       console.error('Redemption failed:', error);
       showSubmissionError(t("兑换失败，请重试", "Redemption failed, please retry"));
     }
-  };
-
-  // 自动复制功能 - 生成完整英文模板（接收确定的积分值）
-  const performAutoCopy = async (
-    phone: string,
-    memberCode: string,
-    currency: string,
-    amount: number,
-    earnedPoints: number,
-    _bankCardSnapshot: string = "",
-    preferredCurrencies: string[] = [],
-  ) => {
-    try {
-      // 🔧 性能优化：并行获取复制设置和积分数据（使用显式参数避免闭包问题）
-      const [settingsModule, latestPointsSummary, activitySettingsData] = await Promise.all([
-        import('@/components/CopySettingsTab').then(m => m.refreshCopySettings()),
-        getMemberPointsSummary(memberCode, phone, memberLookupTenantId, matchedMemberId),
-        Promise.resolve(getActivitySettings()),
-      ]);
-      
-      const settings = settingsModule;
-      if (!settings.enabled) return;
-      
-      const activitySettings = activitySettingsData;
-      
-      // 确定活动类型
-      let activityType: 'activity1' | 'activity2' | 'none' = 'none';
-      if (activitySettings.activity1Enabled) {
-        activityType = 'activity1';
-      } else if (activitySettings.activity2?.enabled) {
-        activityType = 'activity2';
-      }
-      
-      const totalPoints = latestPointsSummary.remainingPoints;
-      const referralPoints = latestPointsSummary.referralRewardPoints;
-      const consumptionPoints = latestPointsSummary.consumptionReward;
-      
-      // 可兑换金额按会员需求币种（与 getExchangePreview / 活动数据兑换一致），非本单支付币种
-      const redeemCurrency = determineExchangeCurrency(
-        preferredCurrencies.length > 0 ? preferredCurrencies : [currency],
-      );
-      
-      // 计算可兑换金额（活动未开启时仍按已配置的阶梯表估算，与活动数据页一致）
-      let redeemableAmount = '0 ' + redeemCurrency;
-      if (activityType === 'activity2' && activitySettings.activity2) {
-        const rate = redeemCurrency === 'NGN' ? activitySettings.activity2.pointsToNGN :
-                     redeemCurrency === 'GHS' ? activitySettings.activity2.pointsToGHS :
-                     activitySettings.activity2.pointsToUSDT || 0;
-        redeemableAmount = `${(totalPoints * rate).toLocaleString()} ${redeemCurrency}`;
-      } else {
-        const rewardAmount = getRewardAmountByPointsAndCurrency(totalPoints, redeemCurrency as any);
-        redeemableAmount = `${rewardAmount.toLocaleString()} ${redeemCurrency}`;
-      }
-      
-      // 构建奖励梯度（活动未开启时不写入复制正文，仅活动1/2模板需要）
-      const rewardTiers = activitySettings.accumulatedRewardTiers.map(tier => ({
-        range: tier.maxPoints === null ? `≥${tier.minPoints}` : `${tier.minPoints}-${tier.maxPoints}`,
-        ngn: tier.rewardAmountNGN || 0,
-        ghs: tier.rewardAmountGHS || 0,
-        usdt: tier.rewardAmountUSDT || 0,
-      }));
-      
-      // 生成复制文本 - 使用传入的 earnedPoints（来自订单创建的确定值）
-      const copyText = generateEnglishCopyText({
-        phoneNumber: phone,
-        memberCode: memberCode || phone,
-        earnedPoints,  // 🔧 使用传入的确定积分值
-        totalPoints: totalPoints,
-        referralPoints,
-        consumptionPoints,
-        redeemableAmount,
-        currency: redeemCurrency,
-        rewardTiers,
-        activityType,
-        activity2Rates: activityType === 'activity2' ? {
-          pointsToNGN: activitySettings.activity2?.pointsToNGN || 0,
-          pointsToGHS: activitySettings.activity2?.pointsToGHS || 0,
-          pointsToUSDT: activitySettings.activity2?.pointsToUSDT || 0,
-        } : undefined,
-      });
-      
-      if (copyText) {
-        try {
-          await navigator.clipboard.writeText(copyText);
-        } catch (clipErr) {
-          // Fallback: use a temporary textarea for copying when document is not focused
-          const ta = document.createElement('textarea');
-          ta.value = copyText;
-          ta.style.position = 'fixed';
-          ta.style.left = '-9999px';
-          document.body.appendChild(ta);
-          ta.select();
-          document.execCommand('copy');
-          document.body.removeChild(ta);
-        }
-        notify.info(t("已自动复制积分信息到剪贴板", "Points info copied to clipboard"));
-        // 更新本地状态以保持UI一致
-        setMemberPointsSummary(latestPointsSummary);
-      }
-    } catch (error) {
-      console.error('Auto copy failed:', error);
-      // 回退：不含银行卡/备注，避免复制成「电话 - 金额 - 卡号」易被误认为乱改
-      const fallback = `Your Member ID: ${memberCode || phone}
-Payment (this order): ${amount.toLocaleString()} ${currency}`;
-      try {
-        await navigator.clipboard.writeText(fallback);
-      } catch {
-        const ta = document.createElement("textarea");
-        ta.value = fallback;
-        ta.style.position = 'fixed';
-        ta.style.left = '-9999px';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-      }
-      notify.info(t("已自动复制简要信息到剪贴板", "Brief info copied to clipboard"));
-    }
-  };
-
-  // 提交订单（奈拉异常时先弹 AlertDialog，确认后再走此函数）
-  const performSubmitOrder = async () => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    try {
-      let detectedCurrency: 'NGN' | 'GHS' | 'USDT' | null = null;
-      let actualPaid = 0;
-      let fee = 0;
-      let paymentValue = 0;
-      let foreignRate = 0;
-
-      const cardRate = parseFloat(formData.cardRate) || 0;
-      const cardWorthRMB = parseFloat(formData.cardValue) * cardRate;
-
-      if (formData.payNaira) {
-        detectedCurrency = 'NGN';
-        actualPaid = parseFloat(formData.payNaira);
-        fee = actualPaid < feeSettings.nairaThreshold ? feeSettings.nairaFeeBelow : feeSettings.nairaFeeAbove;
-        paymentValue = actualPaid / nairaRate + fee;
-        foreignRate = nairaRate;
-      } else if (formData.payCedi) {
-        detectedCurrency = 'GHS';
-        actualPaid = parseFloat(formData.payCedi);
-        fee = actualPaid < feeSettings.cediThreshold ? feeSettings.cediFeeBelow : feeSettings.cediFeeAbove;
-        paymentValue = actualPaid * cediRate + fee;
-        foreignRate = cediRate;
-      } else if (formData.payUsdt) {
-        detectedCurrency = 'USDT';
-        actualPaid = parseFloat(formData.payUsdt);
-        fee = usdtFeeNum;
-        paymentValue = actualPaid + fee;
-        foreignRate = usdtRate;
-      }
-
-      let profit = 0;
-      let profitRateVal = 0;
-
-      if (detectedCurrency === 'NGN') {
-        profit = cardWorthRMB - actualPaid / nairaRate - fee;
-        profitRateVal = cardWorthRMB > 0 ? (profit / cardWorthRMB) * 100 : 0;
-      } else if (detectedCurrency === 'GHS') {
-        profit = cardWorthRMB - actualPaid * cediRate - fee;
-        profitRateVal = cardWorthRMB > 0 ? (profit / cardWorthRMB) * 100 : 0;
-      } else if (detectedCurrency === 'USDT') {
-        const cardWorthU = cardWorthRMB / usdtRate;
-        profit = cardWorthU - actualPaid - fee;
-        profitRateVal = cardWorthU > 0 ? (profit / cardWorthU) * 100 : 0;
-      }
-
-      let memberId: string | undefined;
-      let finalMemberCode = formData.memberCode;
-
-      try {
-        let existingMember = findMemberByPhone(formData.phoneNumber);
-        if (!existingMember?.id) {
-          const dbMember = await getMemberByPhoneForMyTenant(formData.phoneNumber, memberLookupTenantId);
-          if (dbMember) {
-            existingMember = { id: dbMember.id, phoneNumber: dbMember.phone_number, memberCode: dbMember.member_code, level: dbMember.member_level || '', commonCards: dbMember.common_cards || [], customerFeature: dbMember.customer_feature || '', bankCard: dbMember.bank_card || '', remark: dbMember.remark || '', preferredCurrency: dbMember.currency_preferences || [], sourceId: dbMember.source_id || '' } as any;
-          }
-        }
-        if (existingMember) {
-          memberId = existingMember.id;
-          finalMemberCode = existingMember.memberCode;
-          const phoneForUpdate = existingMember.phoneNumber || formData.phoneNumber;
-
-          await updateMemberByPhone(phoneForUpdate, {
-            customerFeature: formData.customerFeature || existingMember.customerFeature,
-            bankCard: formData.bankCard || existingMember.bankCard,
-            remark: formData.remarkMember || existingMember.remark,
-            preferredCurrency: detectedCurrency 
-              ? [detectedCurrency, ...(existingMember.preferredCurrency || []).filter(c => c !== detectedCurrency)]
-              : existingMember.preferredCurrency,
-            sourceId: formData.customerSource || existingMember.sourceId,
-          });
-        } else {
-          const newMember = await addMember({
-            phoneNumber: formData.phoneNumber,
-            memberCode: finalMemberCode,
-            customerFeature: formData.customerFeature,
-            bankCard: formData.bankCard,
-            remark: formData.remarkMember,
-            preferredCurrency: detectedCurrency ? [detectedCurrency] : [],
-            sourceId: formData.customerSource,
-            recorderId: employee?.id,
-          });
-          if (newMember) memberId = newMember.id;
-        }
-      } catch (memberErr) {
-        console.error('[RateCalculator] Member operation failed (order will proceed):', memberErr);
-      }
-
-      const orderData = {
-        createdAt: formatBeijingTime(new Date()),
-        cardType: formData.cardType,
-        cardValue: parseFloat(formData.cardValue),
-        cardRate: cardRate,
-        foreignRate,
-        cardWorth: cardWorthRMB,
-        actualPaid,
-        fee,
-        paymentValue,
-        paymentProvider: formData.paymentAgent,
-        vendor: formData.cardMerchant,
-        profit,
-        profitRate: profitRateVal,
-        phoneNumber: formData.phoneNumber,
-        memberCode: finalMemberCode,
-        demandCurrency: detectedCurrency as string,
-        salesPerson: employee?.real_name || t('未知', 'Unknown'),
-        remark: formData.remarkOrder,
-      };
-
-      const orderResult = await addOrder(orderData, memberId, employee?.id, finalMemberCode, {
-        meikaZone: calcId === "calc3",
-      });
-
-      if (!orderResult.order) {
-        showSubmissionError(t("创建订单失败，请重试", "Failed to create order, please retry"));
-        return;
-      }
-      
-      notify.success(t("订单提交成功", "Order submitted successfully"));
-
-      if (detectedCurrency) {
-        appendExchangePaymentInfoEntry({
-          tenantId: memberLookupTenantId ?? employee?.tenant_id,
-          phone: formData.phoneNumber,
-          bankCard: formData.bankCard || "",
-          paymentDisplay: formatExchangePaymentAmountForCopy(actualPaid),
-        });
-      }
-
-      const capturedPhone = formData.phoneNumber;
-      const capturedMemberCode = finalMemberCode;
-      const capturedBankCard = formData.bankCard || "";
-      const prefSnapshot: string[] = [];
-      if (formData.currencyPreferenceList.length > 0) {
-        prefSnapshot.push(...formData.currencyPreferenceList);
-      } else {
-        const cm = findMemberByPhone(formData.phoneNumber);
-        if (cm?.preferredCurrency?.length) prefSnapshot.push(...cm.preferredCurrency);
-      }
-      if (detectedCurrency && !prefSnapshot.includes(detectedCurrency)) {
-        prefSnapshot.push(detectedCurrency);
-      }
-
-      const copyPromise = detectedCurrency
-        ? performAutoCopy(
-            capturedPhone,
-            capturedMemberCode,
-            detectedCurrency,
-            actualPaid,
-            orderResult.earnedPoints,
-            capturedBankCard,
-            prefSnapshot.length > 0 ? prefSnapshot : [detectedCurrency],
-          )
-        : Promise.resolve();
-
-      // 必须先等复制完成再清空表单：performAutoCopy 内有 await，若与 clearForm 并行会读到已清空的 formData
-      await copyPromise;
-      await clearForm();
-      setMemberLevelZhHint(null);
-    } catch (error) {
-      console.error('[RateCalculator] performSubmitOrder failed:', error);
-      showSubmissionError(t("提交订单失败，请重试", "Order submission failed, please retry"));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleSubmitOrder = async () => {
-    if (isSubmitting) return;
-
-    if (!formData.cardValue) { showSubmissionError(t("请填写卡片面值", "Please enter card value")); return; }
-    if (!formData.cardRate) { showSubmissionError(t("请填写卡片汇率", "Please enter card rate")); return; }
-    if (!formData.payNaira && !formData.payCedi && !formData.payUsdt) {
-      showSubmissionError(t("请至少填写一个支付金额", "Please enter at least one payment")); return;
-    }
-    if (!formData.cardType) { showSubmissionError(t("请选择卡片类型", "Please select card type")); return; }
-    if (!formData.cardMerchant) { showSubmissionError(t("请选择卡商名称", "Please select vendor")); return; }
-    if (!formData.paymentAgent) { showSubmissionError(t("请选择代付商家", "Please select payment agent")); return; }
-    if (!formData.phoneNumber) { showSubmissionError(t("请填写电话号码", "Please enter phone number")); return; }
-
-    if (formData.payNaira) {
-      const actualPaidNaira = parseFloat(formData.payNaira);
-      const cardRateVal = parseFloat(formData.cardRate) || 0;
-      const cardWorthRMB = parseFloat(formData.cardValue) * cardRateVal;
-      if (actualPaidNaira > 0 && actualPaidNaira < cardWorthRMB * 50 && cardWorthRMB > 0) {
-        const estimatedCorrectNaira = Math.round(cardWorthRMB * nairaRate * 0.95);
-        const ratio = actualPaidNaira / cardWorthRMB;
-        setNairaWarningText(
-          t(
-            `⚠️ 严重警告：实付金额异常！\n\n` +
-            `您输入的实付奈拉为: ${actualPaidNaira.toLocaleString()}\n` +
-            `此卡价值为: ${cardWorthRMB.toFixed(2)} RMB\n` +
-            `比例: ${ratio.toFixed(1)}（正常应为 ${nairaRate} 左右）\n\n` +
-            `🚨 这看起来像是人民币金额，不是奈拉金额！\n\n` +
-            `提示：奈拉金额通常应该是人民币的 ${nairaRate} 倍左右\n` +
-            `本单参考奈拉金额约: ${estimatedCorrectNaira.toLocaleString()}\n\n` +
-            `若金额无误请点击「仍要提交」；否则请关闭并修改。`,
-            `⚠️ Serious Warning: Abnormal payment amount!\n\n` +
-            `You entered Naira amount: ${actualPaidNaira.toLocaleString()}\n` +
-            `Card value: ${cardWorthRMB.toFixed(2)} RMB\n` +
-            `Ratio: ${ratio.toFixed(1)} (should be around ${nairaRate})\n\n` +
-            `🚨 This looks like RMB amount, not Naira!\n\n` +
-            `Tip: Naira amount should typically be ${nairaRate}x of RMB.\n` +
-            `Reference Naira for this order: ${estimatedCorrectNaira.toLocaleString()}\n\n` +
-            `Click "Submit anyway" if the amount is correct; otherwise close and edit.`,
-          ),
-        );
-        setNairaWarningOpen(true);
-        return;
-      }
-    }
-
-    await performSubmitOrder();
   };
 
   // 客户积分
@@ -1850,191 +1524,29 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
         </div>
       </div>
 
-      {/* 兑换确认对话框 */}
-      <DrawerDetail
-        open={isRedeemDialogOpen}
-        onOpenChange={setIsRedeemDialogOpen}
-        title={<span className="text-lg">{t("积分兑换", "Points Redemption")}</span>}
-        sheetMaxWidth="xl"
-      >
-          {redeemPreviewData && (
-            <div className="space-y-3">
-              <div className="p-3 bg-muted/50 rounded-lg space-y-2">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground">{t("会员编号", "Member Code")}</span>
-                    <span className="font-mono font-medium truncate">{formData.memberCode}</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground">{t("电话号码", "Phone Number")}</span>
-                    <span className="font-mono font-medium truncate">{formData.phoneNumber}</span>
-                  </div>
-                </div>
-                
-                <div className="border-t pt-2 space-y-1.5">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">{t("当前积分", "Current Points")}</span>
-                    <span className="font-bold text-primary text-base">{redeemPreviewData.points}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">{t("兑换后剩余", "Remaining After")}</span>
-                    <span className="font-bold text-orange-500">0</span>
-                  </div>
-                </div>
-                
-                <div className="border-t pt-2 space-y-1.5">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">{t("兑换币种", "Redemption Currency")}</span>
-                    <span className="font-medium">{redeemPreviewData.preview?.exchangeCurrency}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">{t("兑换金额", "Redemption Amount")}</span>
-                    <span className="font-bold text-green-600 text-base">
-                      {redeemPreviewData.preview?.exchangeAmount?.toLocaleString()} {redeemPreviewData.preview?.exchangeCurrency}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="border-t pt-2 space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">
-                    {t("活动赠送汇率（可修改）", "Gift record rate (editable)")}
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={redeemGiftRateInput}
-                      onChange={(e) => {
-                        const v = e.target.value.replace(/[^0-9.,]/g, "").replace(/(\..*)\./g, "$1");
-                        setRedeemGiftRateInput(v);
-                      }}
-                      placeholder={t("留空则用页面同步价", "Blank = use synced rate")}
-                      className="h-9 font-mono text-sm"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 shrink-0 px-2 text-xs"
-                      onClick={() => {
-                        const ec = redeemPreviewData.preview?.exchangeCurrency as CurrencyCode;
-                        const s = getSyncedGiftRate(ec);
-                        setRedeemGiftRateInput(s > 0 ? String(s) : "");
-                      }}
-                    >
-                      {t("同步", "Sync")}
-                    </Button>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground leading-snug">
-                    {t(
-                      "写入活动赠送记录时使用此汇率计算赠送价值；默认与当前页奈拉/赛地/USDT 同步。",
-                      "Used to compute gift value on the activity record; defaults match NGN/GHS/USDT on this page.",
-                    )}
-                  </p>
-                </div>
-                
-                <div className="border-t pt-2">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">{t("活动类型", "Activity Type")}</span>
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
-                      {redeemPreviewData.preview?.activityType === 'activity_1' 
-                        ? t('活动1（阶梯制）', 'Activity 1 (Tiered)') 
-                        : t('活动2（固定比例）', 'Activity 2 (Fixed Rate)')}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {redeemPreviewData.preview?.activityType === 'activity_1' 
-                      ? t('根据累计积分达到不同档位获得对应奖励', 'Rewards based on accumulated points reaching different tiers')
-                      : t('按固定比例将积分兑换为奖励金额', 'Exchange points at a fixed rate for rewards')}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="space-y-1.5">
-                <Label className="text-sm">{t("代付商家", "Payment Agent")} <span className="text-destructive">*</span></Label>
-                <Select value={redeemPaymentProvider} onValueChange={setRedeemPaymentProvider}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder={t("请选择代付商家", "Please select payment agent")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentProvidersList.map((provider) => (
-                      <SelectItem key={provider.id} value={provider.name}>{provider.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-1.5">
-                <Label className="text-sm">{t("备注（可选）", "Remark (Optional)")}</Label>
-                <Textarea 
-                  value={redeemRemark}
-                  onChange={(e) => setRedeemRemark(e.target.value)}
-                  placeholder={t("输入备注信息", "Enter remark")}
-                  className="resize-none h-16 min-h-16"
-                />
-              </div>
-            </div>
-          )}
-          <div className="flex flex-col md:flex-row gap-2 pt-4 mt-4 border-t border-border">
-            <Button variant="outline" onClick={() => setIsRedeemDialogOpen(false)} className="w-full md:w-auto">
-              {t("取消", "Cancel")}
-            </Button>
-            <Button 
-              onClick={() => setIsRedeemConfirmOpen(true)} 
-              disabled={!redeemPaymentProvider}
-              className="w-full md:w-auto"
-            >
-              {t("确认兑换", "Confirm Redemption")}
-            </Button>
-          </div>
-      </DrawerDetail>
-
-      {/* 兑换二次确认对话框 */}
-      <AlertDialog open={isRedeemConfirmOpen} onOpenChange={setIsRedeemConfirmOpen}>
-        <AlertDialogContent className="max-w-[95vw] md:max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("确认兑换", "Confirm Redemption")}</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2 text-sm">
-              <p>
-                {t("确定要将", "Are you sure you want to redeem")} <span className="font-bold text-foreground">{redeemPreviewData?.points}</span> {t("积分兑换为", "points for")}{' '}
-                <span className="font-bold text-green-600">
-                  {redeemPreviewData?.preview?.exchangeAmount?.toLocaleString()} {redeemPreviewData?.preview?.exchangeCurrency}
-                </span>?
-              </p>
-              <p className="text-destructive font-medium">
-                ⚠️ {t("兑换后积分将清零，消费奖励和推荐奖励都会归零，重置时间会更新为当前时间！此操作无法恢复！", "After redemption, all points will be reset to zero, including consumption and referral rewards. Reset time will be updated. This action cannot be undone!")}
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col md:flex-row gap-2">
-            <AlertDialogCancel className="w-full md:w-auto">{t("取消", "Cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmRedeem} className="w-full md:w-auto">{t("确认兑换", "Confirm Redemption")}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={nairaWarningOpen} onOpenChange={setNairaWarningOpen}>
-        <AlertDialogContent className="max-w-[95vw] sm:max-w-lg">
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("实付奈拉金额异常", "Abnormal Naira amount")}</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="max-h-[min(55vh,420px)] overflow-y-auto whitespace-pre-line text-left text-sm text-muted-foreground">
-                {nairaWarningText}
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
-            <AlertDialogCancel className="sm:mt-0">{t("返回修改", "Go back and edit")}</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-amber-600 text-white hover:bg-amber-600/90"
-              onClick={() => {
-                setNairaWarningOpen(false);
-                void performSubmitOrder();
-              }}
-            >
-              {t("仍要提交", "Submit anyway")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CalculatorRedeemSection
+        t={t}
+        formMemberCode={formData.memberCode}
+        formPhoneNumber={formData.phoneNumber}
+        isRedeemDialogOpen={isRedeemDialogOpen}
+        setIsRedeemDialogOpen={setIsRedeemDialogOpen}
+        redeemPreviewData={redeemPreviewData}
+        redeemGiftRateInput={redeemGiftRateInput}
+        setRedeemGiftRateInput={setRedeemGiftRateInput}
+        getSyncedGiftRate={getSyncedGiftRate}
+        redeemPaymentProvider={redeemPaymentProvider}
+        setRedeemPaymentProvider={setRedeemPaymentProvider}
+        redeemRemark={redeemRemark}
+        setRedeemRemark={setRedeemRemark}
+        paymentProvidersList={paymentProvidersList}
+        isRedeemConfirmOpen={isRedeemConfirmOpen}
+        setIsRedeemConfirmOpen={setIsRedeemConfirmOpen}
+        onConfirmRedeem={handleConfirmRedeem}
+        nairaWarningOpen={nairaWarningOpen}
+        onNairaWarningOpenChange={setNairaWarningOpen}
+        nairaWarningText={nairaWarningText}
+        onNairaSubmitAnyway={() => void performSubmitOrder()}
+      />
     </div>
   );
 }

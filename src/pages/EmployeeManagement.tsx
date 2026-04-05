@@ -56,7 +56,7 @@ import {
   AppRole,
   ROLE_LABELS,
   NameHistoryEntry,
-} from "@/stores/employeeStore";
+} from "@/services/employees/employeeCrudService";
 import { cn } from "@/lib/utils";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { trackRender } from "@/lib/performanceUtils";

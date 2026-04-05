@@ -7,7 +7,7 @@ import {
   PaymentProviderSettlement,
   calculateWithdrawalTotal,
   calculateRechargeTotal,
-} from '@/stores/merchantSettlementStore';
+} from '@/services/finance/merchantSettlementService';
 
 export interface OrderData {
   id: string;

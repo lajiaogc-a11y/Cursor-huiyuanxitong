@@ -264,7 +264,7 @@ export function useVendors() {
       }
       
       if (updates.name && oldVendor?.name && updates.name !== oldVendor.name) {
-        const { renameVendorSettlement } = await import('@/stores/merchantSettlementStore');
+        const { renameVendorSettlement } = await import('@/services/finance/merchantSettlementService');
         await renameVendorSettlement(oldVendor.name, updates.name);
       }
       
@@ -385,7 +385,7 @@ export function usePaymentProviders() {
       }
       
       if (updates.name && oldProvider?.name && updates.name !== oldProvider.name) {
-        const { renameProviderSettlement } = await import('@/stores/merchantSettlementStore');
+        const { renameProviderSettlement } = await import('@/services/finance/merchantSettlementService');
         await renameProviderSettlement(oldProvider.name, updates.name);
       }
       

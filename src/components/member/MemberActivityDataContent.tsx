@@ -22,20 +22,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { 
   Gift, 
   Users,
@@ -53,13 +42,13 @@ import {
   getMemberLastResetTime,
   addPoints,
   deductPoints,
-} from "@/stores/pointsAccountStore";
-import { getActivitySettings, getRewardAmountByPointsAndCurrency } from "@/stores/activitySettingsStore";
-import { getPointsSettings } from "@/stores/pointsSettingsStore";
+} from "@/services/points/pointsAccountService";
+import { getActivitySettings, getRewardAmountByPointsAndCurrency } from "@/services/activity/activitySettingsService";
+import { getPointsSettings } from "@/services/points/pointsSettingsService";
 // getPointsLedger 已废弃，现在直接从数据库读取 points_ledger 表
 import { useAuth } from "@/contexts/AuthContext";
 import { CurrencyCode } from "@/config/currencies";
-import { getExchangeRateFormData } from "@/stores/exchangeRateFormStore";
+
 import { getExchangePreview, canExchange, getExchangeDisabledMessage, getActiveActivityType } from "@/services/finance/exchangeService";
 import { isDateInRange, DateRange } from "@/lib/dateFilter";
 import { redeemPointsAndRecordRpc } from "@/services/members/memberPointsRedeemRpcService";
@@ -75,8 +64,10 @@ import { TablePageSkeleton } from "@/components/skeletons/TablePageSkeleton";
 import { generateEnglishCopyText, refreshCopySettings } from "@/components/CopySettingsTab";
 import { getMemberPointsSummary } from "@/services/points/pointsCalculationService";
 import { formatBeijingTime, formatBeijingDate, getNowBeijingISO } from "@/lib/beijingTime";
-import { pointsLedgerTransactionLabel } from "@/lib/pointsLedgerTypeLabel";
 import { getSpinCreditsDetailApi, type SpinCreditDetailRow } from "@/services/staff/dataApi/activityData";
+import { ActivityPointsHistoryDrawer } from "./ActivityPointsHistoryDrawer";
+import { ActivitySpinDetailDrawer } from "./ActivitySpinDetailDrawer";
+import { ActivityRedeemDialog } from "./ActivityRedeemDialog";
 
 // 类型定义
 interface Member {
@@ -94,22 +85,6 @@ interface Member {
 function formatMemberDisplayName(nickname: string | null | undefined, memberCode: string): string {
   const n = (nickname ?? "").trim();
   return n || memberCode;
-}
-
-/** 积分流水「备注」：商城兑换展示写入流水时的礼品名称快照（与 description 一致，礼品下架后不变） */
-function formatPointsLedgerRemark(
-  entry: { description?: string | null; currency?: string | null },
-  opts: { isMallRedemption: boolean; isRedemptionType: boolean },
-): string {
-  const desc = String(entry.description ?? "").trim();
-  if (opts.isMallRedemption && desc) {
-    const m = desc.match(/前端兑换[（(](.+?)[）)]/);
-    if (m) return m[1].trim();
-    return desc;
-  }
-  if (desc) return desc;
-  if (!opts.isRedemptionType && entry.currency) return String(entry.currency);
-  return "-";
 }
 
 interface Order {
@@ -1720,371 +1695,44 @@ export default function MemberActivityDataContent() {
         </div>
       </DrawerDetail>
 
-      <DrawerDetail
-        open={isRedeemDialogOpen}
-        onOpenChange={setIsRedeemDialogOpen}
-        title={t("积分兑换", "Points Redemption")}
-        sheetMaxWidth="3xl"
-      >
-          {redeemingRow && redeemPreview && (
-            <div className="space-y-3 py-2">
-              {/* 活动类型提示 */}
-              {redeemPreview.activityType && (
-                <div className={`p-2 rounded-lg text-sm flex items-center gap-2 ${
-                  redeemPreview.activityType === 'activity_1' 
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200' 
-                    : 'bg-purple-50 text-purple-700 border border-purple-200'
-                }`}>
-                  <Gift className="h-4 w-4 flex-shrink-0" />
-                  <span className="font-medium text-xs sm:text-sm">
-                    {redeemPreview.activityType === 'activity_1' ? t('活动1：阶梯制兑换', 'Activity 1: Tiered Redemption') : t('活动2：固定积分兑换', 'Activity 2: Fixed Rate Redemption')}
-                  </span>
-                </div>
-              )}
-              
-              {/* 不可兑换提示 */}
-              {!redeemPreview.canExchange && (
-                <div className="p-2 rounded-lg text-xs sm:text-sm bg-destructive/10 text-destructive border border-destructive/20">
-                  ⚠️ {redeemPreview.message}
-                </div>
-              )}
-              
-              {/* 兑换信息预览 - 紧凑布局 */}
-              <div className="p-3 bg-muted/50 rounded-lg space-y-2 text-xs sm:text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("会员编号", "Member Code")}</span>
-                  <span className="font-medium">{redeemingRow.member.memberCode}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("电话号码", "Phone")}</span>
-                  <span className="font-mono">{displayPhone(redeemingRow.member.phoneNumber)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("当前剩余积分", "Current Points")}</span>
-                  <span className={`font-bold ${redeemingRow.remainingPoints < 0 ? "text-destructive" : "text-primary"}`}>{redeemingRow.remainingPoints}</span>
-                </div>
-                {redeemPreview.canExchange && redeemPreview.currency && (
-                  <div className="border-t pt-2 mt-2 space-y-1.5">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{t("判定币种", "Currency")}</span>
-                      <Badge variant="outline" className="text-xs">{redeemPreview.currency}</Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{t("当前汇率", "Current Rate")}</span>
-                      <span>{redeemPreview.currentRateDisplay}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{t("可兑换金额", "Redeemable Amount")}</span>
-                      <span className="font-bold text-green-600">
-                        {typeof redeemPreview.rewardAmount === 'number' 
-                          ? redeemPreview.rewardAmount.toFixed(2) 
-                          : redeemPreview.rewardAmount} {redeemPreview.currency}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{t("手续费", "Fee")}</span>
-                      <span>{redeemPreview.fee}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{t("赠送价值", "Gift Value")}</span>
-                      <span>{redeemPreview.giftValue.toFixed(2)}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
+      <ActivityRedeemDialog
+        redeemOpen={isRedeemDialogOpen}
+        onRedeemOpenChange={setIsRedeemDialogOpen}
+        redeemingRow={redeemingRow}
+        redeemPreview={redeemPreview}
+        paymentProviders={paymentProviders}
+        selectedPaymentProvider={selectedPaymentProvider}
+        onSelectedPaymentProviderChange={setSelectedPaymentProvider}
+        redeemRemark={redeemRemark}
+        onRedeemRemarkChange={setRedeemRemark}
+        confirmOpen={isRedeemConfirmOpen}
+        onConfirmOpenChange={setIsRedeemConfirmOpen}
+        displayPhone={displayPhone}
+        onRedeemClick={handleRedeemClick}
+        onCompleteRedeem={handleCompleteRedeem}
+      />
 
-              {/* 代付商家选择 - 紧凑版 */}
-              <div className="space-y-1.5">
-                <Label className="text-xs sm:text-sm">{t("代付商家", "Payment Provider")} <span className="text-destructive">*</span></Label>
-                <Select value={selectedPaymentProvider} onValueChange={setSelectedPaymentProvider}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder={t("请选择代付商家", "Select payment provider")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentProviders.map(provider => (
-                      <SelectItem key={provider.id} value={provider.name}>
-                        {provider.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {paymentProviders.length === 0 && (
-                  <p className="text-xs text-destructive">{t("暂无可用的代付商家", "No payment providers available")}</p>
-                )}
-              </div>
-
-              {/* 备注 - 紧凑版 */}
-              <div className="space-y-1.5">
-                <Label className="text-xs sm:text-sm">{t("备注（选填）", "Remarks (optional)")}</Label>
-                <Textarea
-                  value={redeemRemark}
-                  onChange={(e) => setRedeemRemark(e.target.value)}
-                  placeholder={t("请输入备注信息", "Enter remarks")}
-                  rows={2}
-                  className="text-xs sm:text-sm"
-                />
-              </div>
-
-              {/* 提示信息 - 紧凑版 */}
-              <div className="text-xs text-muted-foreground bg-amber-50 dark:bg-amber-950/20 p-2 rounded">
-                ⚠️ {t("兑换后积分将清零，重置时间更新为当前时间。", "After redemption, points will be reset to zero. Reset time will update to now.")}
-              </div>
-            </div>
-          )}
-        <div className="flex flex-wrap gap-2 border-t border-border pt-4 mt-4">
-          <Button variant="outline" onClick={() => setIsRedeemDialogOpen(false)} className="flex-1 sm:flex-none">
-            {t("取消", "Cancel")}
-          </Button>
-          <Button
-            onClick={handleRedeemClick}
-            disabled={!selectedPaymentProvider || paymentProviders.length === 0 || !redeemPreview?.canExchange}
-            className="flex-1 sm:flex-none"
-          >
-            {t("确认兑换", "Confirm Redemption")}
-          </Button>
-        </div>
-      </DrawerDetail>
-
-      {/* 兑换确认对话框 */}
-      <AlertDialog open={isRedeemConfirmOpen} onOpenChange={setIsRedeemConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("确认兑换", "Confirm Redemption")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(`确认为会员 ${redeemingRow?.member.memberCode} 进行积分兑换吗？`, `Confirm points redemption for member ${redeemingRow?.member.memberCode}?`)}
-              <br />
-              <br />
-              {t("兑换后该会员的积分将清零，重置时间将更新为当前时间，之后的积分将从新周期开始累积。", "After redemption, this member's points will be reset to zero. Reset time will update to now, and points will accumulate from a new cycle.")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("取消", "Cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleCompleteRedeem}>
-              {t("确认", "Confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <DrawerDetail
+      <ActivityPointsHistoryDrawer
         open={isPointsHistoryDialogOpen}
         onOpenChange={setIsPointsHistoryDialogOpen}
-        title={`${t("积分流水详情", "Points History")} — ${selectedMemberForHistory?.member_code ?? ""}`}
-        sheetMaxWidth="4xl"
-      >
-          <div className="space-y-4">
-            {selectedMemberForHistory && (
-              <>
-                <div className="text-sm text-muted-foreground">
-                  {t("电话号码", "Phone")}：{displayPhone(selectedMemberForHistory.phone_number)}
-                </div>
-                <div className="border rounded-lg overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/50">
-                        <TableHead className="text-center">{t("时间", "Time")}</TableHead>
-                        <TableHead className="text-center">{t("订单ID", "Order ID")}</TableHead>
-                        <TableHead className="text-center">{t("类型", "Type")}</TableHead>
-                        <TableHead className="text-center">{t("获得积分", "Points Earned")}</TableHead>
-                        <TableHead className="text-center">{t("变动前积分", "Before")}</TableHead>
-                        <TableHead className="text-center">{t("变动后积分", "After")}</TableHead>
-                        <TableHead className="text-center">{t("备注", "Remark")}</TableHead>
-                        <TableHead className="text-center">{t("状态", "Status")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {getMemberPointsHistory(selectedMemberForHistory.member_code).length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                            {t("暂无积分流水记录", "No points history records")}
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        (() => {
-                          const history = getMemberPointsHistory(selectedMemberForHistory.member_code);
-                          const ascHistory = [...history].sort((a, b) =>
-                            new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-                          let runBal = 0;
-                          const balMap = new Map<string, { before: number; after: number }>();
-                          for (const e of ascHistory) {
-                            const pe = Number(e.points_earned ?? (e as { amount?: unknown }).amount ?? 0);
-                            const rawBal = (e as { balance_after?: unknown }).balance_after;
-                            const dbBal = rawBal != null ? Number(rawBal) : NaN;
-                            if (Number.isFinite(dbBal)) {
-                              const after = dbBal;
-                              const before = after - pe;
-                              runBal = after;
-                              balMap.set(e.id, { before, after });
-                            } else {
-                              const before = runBal;
-                              const after = runBal + pe;
-                              runBal = after;
-                              balMap.set(e.id, { before, after });
-                            }
-                          }
-                          return history.map((entry) => {
-                            const pe = Number(entry.points_earned ?? entry.amount ?? 0);
-                            const bal = balMap.get(entry.id) ?? { before: 0, after: 0 };
-                            const pointsBefore = bal.before;
-                            const pointsAfter = bal.after;
-                            const txn = String(entry.transaction_type || entry.type || '').toLowerCase();
-                            const ty = String(entry.type || '').toLowerCase();
-                            const refTy = String((entry as { reference_type?: string }).reference_type || '').toLowerCase();
-                            const isRedemptionType =
-                              txn === 'redeem_activity_1' ||
-                              txn === 'redeem_activity_2' ||
-                              txn === 'redemption' ||
-                              txn === 'redeem' ||
-                              txn === 'mall_redemption' ||
-                              ty.startsWith('redeem_') ||
-                              refTy === 'mall_redemption';
-                            const typeLabel = pointsLedgerTransactionLabel(
-                              entry.transaction_type,
-                              entry.type,
-                              (entry as { reference_type?: string | null }).reference_type,
-                              t,
-                            );
+        member={selectedMemberForHistory}
+        entries={
+          selectedMemberForHistory
+            ? getMemberPointsHistory(selectedMemberForHistory.member_code)
+            : []
+        }
+        orders={orders}
+        displayPhone={displayPhone}
+      />
 
-                            const isRedemption = isRedemptionType;
-                            const isMallRedemption =
-                              txn === 'mall_redemption' || refTy === 'mall_redemption';
-                            
-                            // 获取关联的订单号（兑换类型显示"无"，其他类型显示订单号）
-                            const orderDisplayId = isRedemption ? t('无', 'N/A') : (entry.order_id ? 
-                              (orders.find(o => o.id === entry.order_id)?.order_number || entry.order_id.substring(0, 8)) : '-');
-                            
-                            const remarkDisplay = formatPointsLedgerRemark(
-                              entry as { description?: string | null; currency?: string | null },
-                              { isMallRedemption, isRedemptionType },
-                            );
-                            
-                            return (
-                              <TableRow key={entry.id}>
-                                <TableCell className="text-center text-xs">
-                                  {formatBeijingTime(entry.created_at)}
-                                </TableCell>
-                                <TableCell className="text-center font-mono text-xs">
-                                  {orderDisplayId}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  <Badge variant="outline">{typeLabel}</Badge>
-                                </TableCell>
-                                <TableCell className={`text-center font-medium ${pe > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                  {pe > 0 ? `+${pe}` : pe}
-                                </TableCell>
-                                <TableCell className="text-center text-muted-foreground">
-                                  {pointsBefore}
-                                </TableCell>
-                                <TableCell className="text-center font-bold text-primary">
-                                  {pointsAfter}
-                                </TableCell>
-                                <TableCell className="text-center max-w-[220px] text-xs break-words">
-                                  {remarkDisplay}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  {/* 需求2：兑换类型显示"已兑换"，其他类型按正负积分显示 */}
-                                  <Badge 
-                                    variant="outline" 
-                                    className={isRedemptionType ? 'bg-orange-50 text-orange-700' : 
-                                      (pe > 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700')}
-                                  >
-                                    {isRedemptionType ? t('已兑换', 'Redeemed') : (pe > 0 ? t('已发放', 'Issued') : t('已回收', 'Reversed'))}
-                                  </Badge>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          });
-                        })()
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </>
-            )}
-          </div>
-        <div className="border-t border-border pt-4 mt-4">
-          <Button variant="outline" onClick={() => setIsPointsHistoryDialogOpen(false)}>
-            {t("关闭", "Close")}
-          </Button>
-        </div>
-      </DrawerDetail>
-
-      <DrawerDetail
+      <ActivitySpinDetailDrawer
         open={isSpinDetailOpen}
         onOpenChange={setIsSpinDetailOpen}
-        title={`${t("抽奖次数明细", "Spin Credits Detail")} — ${spinDetailMember?.label ?? ""}`}
-        sheetMaxWidth="3xl"
-      >
-        <div className="space-y-4">
-          <div className="flex items-center gap-4 text-sm">
-            <span className="text-muted-foreground">{t("当前剩余次数", "Current remaining")}:</span>
-            <span className="font-bold text-violet-600 dark:text-violet-400 text-lg tabular-nums">{spinDetailRemaining}</span>
-          </div>
-          {spinDetailLoading ? (
-            <div className="flex items-center justify-center py-12 text-muted-foreground text-sm gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-              {t("加载中…", "Loading…")}
-            </div>
-          ) : spinDetailRows.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">
-              {t("暂无抽奖次数记录", "No spin credit records")}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table className="text-sm">
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead className="text-center whitespace-nowrap">{t("时间", "Time")}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">{t("变动次数", "Change")}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">{t("来源", "Source")}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">{t("变动前次数", "Before")}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">{t("变动后次数", "After")}</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">{t("剩余次数", "Remaining")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {spinDetailRows.map((row, idx) => {
-                    const isConsumption = row.amount < 0;
-                    const sourceLabel = (() => {
-                      const s = row.source;
-                      if (!s) return "—";
-                      if (s === "lottery_draw") return t("抽奖消耗", "Lottery draw");
-                      if (s === "daily_free_draw") return t("每日免费抽奖", "Daily free draw");
-                      if (s === "share") return t("分享奖励", "Share reward");
-                      if (s.startsWith("order_completed:")) return t("完成订单", "Order completed");
-                      if (s === "referral") return t("邀请奖励", "Referral reward");
-                      if (s === "invite_welcome") return t("注册欢迎", "Welcome bonus");
-                      if (s === "check_in") return t("签到奖励", "Check-in reward");
-                      if (s === "daily_free") return t("每日免费", "Daily free");
-                      if (s === "admin_grant") return t("管理员发放", "Admin granted");
-                      return s;
-                    })();
-                    return (
-                      <TableRow key={idx}>
-                        <TableCell className="text-center text-xs whitespace-nowrap">{formatBeijingTime(row.created_at)}</TableCell>
-                        <TableCell className={`text-center font-medium tabular-nums ${isConsumption ? 'text-red-500' : 'text-green-600'}`}>
-                          {isConsumption ? String(row.amount) : `+${row.amount}`}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant={isConsumption ? "destructive" : "outline"} className="text-[10px]">{sourceLabel}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center text-muted-foreground tabular-nums">{row.balance_before}</TableCell>
-                        <TableCell className="text-center font-medium tabular-nums">{row.balance_after}</TableCell>
-                        <TableCell className="text-center font-bold text-violet-600 dark:text-violet-400 tabular-nums">{spinDetailRemaining}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-          <div className="border-t border-border pt-4 mt-4">
-            <Button variant="outline" onClick={() => setIsSpinDetailOpen(false)}>
-              {t("关闭", "Close")}
-            </Button>
-          </div>
-        </div>
-      </DrawerDetail>
+        rows={spinDetailRows}
+        remaining={spinDetailRemaining}
+        loading={spinDetailLoading}
+        memberLabel={spinDetailMember?.label ?? ""}
+      />
     </div>
   );
 }

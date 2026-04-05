@@ -25,7 +25,7 @@ import {
   updateShiftReceiver,
   deleteShiftReceiver,
   ShiftReceiver,
-} from '@/stores/shiftHandoverStore';
+} from '@/services/finance/shiftHandoverService';
 
 interface ShiftReceiverManagerProps {
   onReceiversChange?: (receivers: ShiftReceiver[]) => void;

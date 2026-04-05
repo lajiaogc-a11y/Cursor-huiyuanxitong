@@ -4,7 +4,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
-import { getGiftDistributionSettingsAsync, GiftDistributionSettings } from '@/stores/systemSettings';
+import { getGiftDistributionSettingsAsync, GiftDistributionSettings } from '@/services/system/systemSettingsService';
 import { getActivityDataApi } from '@/services/staff/dataApi';
 
 const STALE_TIME = 5 * 60 * 1000;

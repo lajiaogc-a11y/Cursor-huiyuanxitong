@@ -1,7 +1,7 @@
 // Exchange Service - 积分兑换逻辑
 // 统一管理活动1和活动2的兑换逻辑
 
-import { getActivitySettings, getRewardAmountByPointsAndCurrency } from '@/stores/activitySettingsStore';
+import { getActivitySettings, getRewardAmountByPointsAndCurrency } from '@/services/activity/activitySettingsService';
 import { CurrencyCode } from '@/config/currencies';
 
 // 兑换结果类型

@@ -1,6 +1,6 @@
 // 订单相关工具函数 - 从 useOrders 提取，不修改业务逻辑
 import { CurrencyCode } from '@/config/currencies';
-import { getPointsSettings, getPointsSettingsAsync } from '@/stores/pointsSettingsStore';
+import { getPointsSettings, getPointsSettingsAsync } from '@/services/points/pointsSettingsService';
 import { getEmployeeNameById, getVendorId, getProviderId, getCardIdByName, resolveCardName } from '@/services/members/nameResolver';
 import { getNowBeijingISO } from '@/lib/beijingTime';
 

@@ -16,7 +16,7 @@ import {
   loadSharedData,
   type CalculatorInputRates,
 } from '@/services/finance/sharedDataService';
-import type { ExchangeRateSettings } from '@/stores/exchangeRateStore';
+import type { ExchangeRateSettings } from '@/services/finance/exchangeRateService';
 
 // ---------- 内部缓存 / 类型 ----------
 

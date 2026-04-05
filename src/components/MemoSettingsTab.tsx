@@ -30,7 +30,7 @@ import {
   MemoSettings,
   getWorkMemos,
   cleanupExpiredMemos,
-} from "@/stores/systemSettings";
+} from "@/services/system/systemSettingsService";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function MemoSettingsTab() {

@@ -18,7 +18,7 @@ import { exportToCSV, formatDateTimeForExport } from '@/lib/exportUtils';
 import {
   getShiftHandovers,
   ShiftHandover,
-} from '@/stores/shiftHandoverStore';
+} from '@/services/finance/shiftHandoverService';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 

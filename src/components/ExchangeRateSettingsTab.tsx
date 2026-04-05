@@ -32,7 +32,7 @@ import {
   addCountryAsync,
   updateCountryAsync,
   deleteCountryAsync,
-} from "@/stores/systemSettings";
+} from "@/services/system/systemSettingsService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { subscribeToSharedData } from "@/services/finance/sharedDataService";
 export default function ExchangeRateSettingsTab() {

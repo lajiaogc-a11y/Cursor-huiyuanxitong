@@ -9,7 +9,7 @@ import { PageTransition } from "@/components/PageTransition";
 import { RouteProgressBar } from "@/components/RouteProgressBar";
 import { BookOpen, ChevronLeft } from "lucide-react";
 import { GCLogo } from "@/components/GCLogo";
-import { getUnreadMemoCount } from "@/stores/systemSettings";
+import { getUnreadMemoCount } from "@/services/system/systemSettingsService";
 import { useUnreadCount } from "@/hooks/useKnowledge";
 import { usePendingAuditCount } from "@/hooks/usePendingAuditCount";
 import { Skeleton } from "@/components/ui/skeleton";

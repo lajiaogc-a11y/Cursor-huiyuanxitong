@@ -1,6 +1,6 @@
 // Points Account Store - 积分账户（使用数据库作为唯一数据源，经表代理）
 
-import { logOperation } from './auditLogStore';
+import { logOperation } from '@/stores/auditLogStore';
 import { apiGet, apiPost, apiPatch } from '@/api/client';
 import { notifyDataMutation } from '@/services/system/dataRefreshManager';
 import { pickBilingual } from '@/lib/appLocale';
