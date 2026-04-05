@@ -22,6 +22,8 @@ export interface BulkDeleteSelections {
     activityMemberSummary?: boolean;
     activityGift: boolean;
     pointsLedger: boolean;
+    /** 商城兑换订单 redemptions (type='mall') */
+    activityMallRedemptions?: boolean;
   };
   shiftData?: { shiftHandovers: boolean; shiftReceivers: boolean };
   merchantSettlement?: { balanceChangeLogs: boolean; initialBalances: boolean };

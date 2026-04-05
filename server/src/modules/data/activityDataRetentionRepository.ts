@@ -18,6 +18,8 @@ export interface ActivityDataRetentionLastSummary {
   spinCreditsInvite: number;
   /** check_in 及未归类 source */
   spinCreditsOther: number;
+  /** 商城兑换订单 */
+  mallRedemptions: number;
 }
 
 export interface ActivityDataRetentionSettings {
@@ -66,6 +68,7 @@ function parseStored(raw: unknown): ActivityDataRetentionSettings {
               spinCreditsOther: hasNew
                 ? Number(s.spinCreditsOther) || 0
                 : legacySpin,
+              mallRedemptions: Number(s.mallRedemptions) || 0,
             };
           })()
         : null,
@@ -167,6 +170,16 @@ export async function purgeActivityDataByTenantRepository(
     [tenantId, cutoff],
   );
 
+  // 商城兑换订单（type = 'mall'）
+  const r5 = await execute(
+    `DELETE r FROM redemptions r
+     INNER JOIN members m ON m.id = r.member_id
+     WHERE m.tenant_id <=> ?
+       AND r.created_at < ?
+       AND (r.mall_item_id IS NOT NULL OR LOWER(TRIM(COALESCE(r.type, ''))) = 'mall')`,
+    [tenantId, cutoff],
+  );
+
   return {
     lotteryPointsLedger: r1.affectedRows ?? 0,
     lotteryLogs: r2.affectedRows ?? 0,
@@ -175,6 +188,7 @@ export async function purgeActivityDataByTenantRepository(
     spinCreditsShare: r4s.affectedRows ?? 0,
     spinCreditsInvite: r4i.affectedRows ?? 0,
     spinCreditsOther: r4x.affectedRows ?? 0,
+    mallRedemptions: r5.affectedRows ?? 0,
   };
 }
 
@@ -195,6 +209,7 @@ export async function runActivityDataRetentionForTenantRepository(tenantId: stri
         spinCreditsShare: 0,
         spinCreditsInvite: 0,
         spinCreditsOther: 0,
+        mallRedemptions: 0,
       },
       settings,
     };
@@ -221,6 +236,7 @@ export async function runManualActivityDataPurgeRepository(tenantId: string): Pr
         spinCreditsShare: 0,
         spinCreditsInvite: 0,
         spinCreditsOther: 0,
+        mallRedemptions: 0,
       },
       settings,
     };
@@ -267,6 +283,14 @@ export async function purgeAllActivityDataByTenantRepository(
      AND sc.source NOT IN ('referral','invite_welcome')`,
     [tenantId],
   );
+  // 商城兑换订单
+  const r5 = await execute(
+    `DELETE r FROM redemptions r
+     INNER JOIN members m ON m.id = r.member_id
+     WHERE m.tenant_id <=> ?
+       AND (r.mall_item_id IS NOT NULL OR LOWER(TRIM(COALESCE(r.type, ''))) = 'mall')`,
+    [tenantId],
+  );
   return {
     lotteryPointsLedger: r1.affectedRows ?? 0,
     lotteryLogs: r2.affectedRows ?? 0,
@@ -275,6 +299,7 @@ export async function purgeAllActivityDataByTenantRepository(
     spinCreditsShare: r4s.affectedRows ?? 0,
     spinCreditsInvite: r4i.affectedRows ?? 0,
     spinCreditsOther: r4x.affectedRows ?? 0,
+    mallRedemptions: r5.affectedRows ?? 0,
   };
 }
 

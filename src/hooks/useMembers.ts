@@ -370,7 +370,7 @@ export function useMembers() {
       }
       const memberToDelete = members.find(m => m.id === memberId);
       
-      const ok = await deleteMemberApi(memberId);
+      const ok = await deleteMemberApi(memberId, effectiveTenantId);
       if (!ok) throw new Error(t('删除会员失败', 'Failed to delete member'));
 
       if (memberToDelete) {

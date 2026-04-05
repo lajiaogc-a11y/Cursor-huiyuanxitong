@@ -537,6 +537,38 @@ export async function bulkDeleteRepository(
     }
   }
 
+  // 4c. 商城兑换订单 (redemptions where type='mall')
+  if (tenantId && (members.activityMallRedemptions === true || legacyActivity)) {
+    try {
+      const cntSql = deleteAll
+        ? `SELECT COUNT(*) as cnt FROM redemptions r
+           INNER JOIN members m ON m.id = r.member_id
+           WHERE m.tenant_id <=> ?
+             AND (r.mall_item_id IS NOT NULL OR LOWER(TRIM(COALESCE(r.type, ''))) = 'mall')`
+        : `SELECT COUNT(*) as cnt FROM redemptions r
+           INNER JOIN members m ON m.id = r.member_id
+           WHERE m.tenant_id <=> ? AND r.created_at < ?
+             AND (r.mall_item_id IS NOT NULL OR LOWER(TRIM(COALESCE(r.type, ''))) = 'mall')`;
+      const cntVals = deleteAll ? [tenantId] : [tenantId, cutoffDateStr];
+      const cnt = await safeCount(cntSql, cntVals);
+      if (cnt > 0) {
+        const delSql = deleteAll
+          ? `DELETE r FROM redemptions r
+             INNER JOIN members m ON m.id = r.member_id
+             WHERE m.tenant_id <=> ?
+               AND (r.mall_item_id IS NOT NULL OR LOWER(TRIM(COALESCE(r.type, ''))) = 'mall')`
+          : `DELETE r FROM redemptions r
+             INNER JOIN members m ON m.id = r.member_id
+             WHERE m.tenant_id <=> ? AND r.created_at < ?
+               AND (r.mall_item_id IS NOT NULL OR LOWER(TRIM(COALESCE(r.type, ''))) = 'mall')`;
+        await execute(delSql, deleteAll ? [tenantId] : [tenantId, cutoffDateStr]);
+        deletedSummary.push({ table: 'Mall redemptions', count: cnt });
+      }
+    } catch (e: unknown) {
+      errors.push(`Mall redemptions: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
   // 5. member_activity
   // 表结构 member_id 为 NOT NULL：删除会员时只能删除对应活动行，不能 SET NULL。
   // preserveActivityData 仅影响下方「整表按条件清空」，不应用于「按会员删除」。

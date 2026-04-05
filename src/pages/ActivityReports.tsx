@@ -27,6 +27,7 @@ import { useAuditWorkflow } from "@/hooks/useAuditWorkflow";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 import { useMembers } from "@/hooks/useMembers";
 import { cn } from "@/lib/utils";
+import { OrderMallRedemptionsSection, type MallOrderStatusFilter } from "@/components/orders/OrderMallRedemptionsSection";
 import { deleteActivityGiftApi } from "@/services/staff/dataApi";
 import { listEmployeesApi } from "@/api/employees";
 import { logOperation } from "@/services/audit/auditLogService";
@@ -42,15 +43,16 @@ import ActivityGiftsTabContent from "@/pages/activityReports/ActivityGiftsTabCon
 import ActivityGiftEditDrawer from "@/pages/activityReports/ActivityGiftEditDrawer";
 import { calculateTransactionFee } from "@/lib/feeCalculation";
 
-const TAB_MAP: Record<string, string> = { members: "members", activity: "activity", gifts: "gifts", points: "points" };
+const TAB_MAP: Record<string, string> = { members: "members", activity: "activity", gifts: "gifts", points: "points", mall: "mall" };
 const TAB_LABELS: Record<string, { zh: string; en: string }> = {
   members: { zh: "会员数据", en: "User Data" },
   activity: { zh: "活动数据", en: "Activity Data" },
   gifts: { zh: "活动赠送", en: "Activity Gifts" },
   points: { zh: "积分明细", en: "Points Ledger" },
+  mall: { zh: "商城订单", en: "Mall Orders" },
 };
 
-const MEMBER_TAB_ORDER = ["members", "activity", "gifts", "points"] as const;
+const MEMBER_TAB_ORDER = ["members", "activity", "gifts", "points", "mall"] as const;
 
 export default function ActivityReports() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -67,6 +69,8 @@ export default function ActivityReports() {
   const { activeProviders } = usePaymentProviders();
   const { checkNeedsApproval, submitBatchForApproval } = useAuditWorkflow();
   const [activeTab, setActiveTab] = useState(tabFromUrl);
+  const [mallStatusFilter, setMallStatusFilter] = useState<MallOrderStatusFilter>("all");
+  const [mallRefreshNonce, setMallRefreshNonce] = useState(0);
 
   useEffect(() => {
     setActiveTab(tabFromUrl);
@@ -92,6 +96,8 @@ export default function ActivityReports() {
     } else if (tabFromUrl === "points") {
       void queryClient.invalidateQueries({ queryKey: ["points-ledger"] });
       void queryClient.invalidateQueries({ queryKey: ["members"] });
+    } else if (tabFromUrl === "mall") {
+      setMallRefreshNonce((n) => n + 1);
     }
   }, [tabFromUrl, queryClient]);
   const exportConfirm = useExportConfirm();
@@ -496,7 +502,7 @@ const [editFormData, setEditFormData] = useState<ActivityGiftEditForm>({
                 ))}
               </TabsList>
             </div>
-            {(activeTab === "activity" || activeTab === "points") && (
+            {(activeTab === "activity" || activeTab === "points" || activeTab === "mall") && (
               <div className="flex shrink-0 items-center gap-2">
                 {activeTab === "activity" && (
                   <>
@@ -549,6 +555,17 @@ const [editFormData, setEditFormData] = useState<ActivityGiftEditForm>({
                       {!isMobile && <span>{t("导出", "Export")}</span>}
                     </Button>
                   </>
+                )}
+                {activeTab === "mall" && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 touch-manipulation"
+                    onClick={() => setMallRefreshNonce((n) => n + 1)}
+                    aria-label="Refresh"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
                 )}
               </div>
             )}
@@ -681,6 +698,25 @@ const [editFormData, setEditFormData] = useState<ActivityGiftEditForm>({
           <TabsContent value="points" className="mt-4">
             <ErrorBoundary>
               <PointsTransactionsTab toolbarActionsInTabRow />
+            </ErrorBoundary>
+          </TabsContent>
+
+          <TabsContent
+            value="mall"
+            className="mt-4 flex-1 min-h-0 overflow-y-auto"
+            data-spa-scroll-root="activity-reports-mall"
+          >
+            <ErrorBoundary>
+              <OrderMallRedemptionsSection
+                tenantId={effectiveTenantId}
+                searchTerm=""
+                statusFilter={mallStatusFilter}
+                isActive={activeTab === "mall"}
+                isMobile={isMobile}
+                refreshNonce={mallRefreshNonce}
+                canProcessOrders={isAdmin}
+                t={t}
+              />
             </ErrorBoundary>
           </TabsContent>
         </Tabs>

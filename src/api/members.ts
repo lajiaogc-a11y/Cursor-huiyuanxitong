@@ -183,8 +183,9 @@ export async function updateMemberByPhone(
   return data && typeof data === "object" ? data : null;
 }
 
-export async function deleteMember(id: string): Promise<boolean> {
-  const res = await apiClient.delete<unknown | { success?: boolean }>(`/api/members/${encodeURIComponent(id)}`);
+export async function deleteMember(id: string, tenantId?: string | null): Promise<boolean> {
+  const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : '';
+  const res = await apiClient.delete<unknown | { success?: boolean }>(`/api/members/${encodeURIComponent(id)}${q}`);
   if (res && typeof res === 'object' && 'success' in res) return !!(res as { success?: boolean }).success;
   return true;
 }

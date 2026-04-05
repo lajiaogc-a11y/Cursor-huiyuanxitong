@@ -70,6 +70,7 @@ export default function DataManagementTab() {
       activityMemberSummary: false,
       activityGift: false,
       pointsLedger: false,
+      activityMallRedemptions: false,
     },
     // 新增的数据表选项
     shiftData: {
@@ -87,6 +88,10 @@ export default function DataManagementTab() {
     knowledgeData: {           // 知识库数据
       categories: false,
       articles: false,
+    },
+    taskData: {
+      tasks: false,
+      taskItems: false,
     },
     preserveActivityData: true, // 保留消费奖励/推荐奖励/剩余积分
   });

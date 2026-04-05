@@ -34,11 +34,34 @@ interface DailyCache {
 
 const _dailyStatusCache = new Map<string, DailyCache>();
 
-export function clearDailyStatusCache(): void {
-  _dailyStatusCache.clear();
+const NONCE_SESSION_KEY = "member_share_pending_nonce";
+
+function _readPersistedNonce(memberId: string): string | null {
+  try {
+    const raw = sessionStorage.getItem(NONCE_SESSION_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as { mid?: string; nonce?: string; ts?: number };
+    if (obj.mid !== memberId) return null;
+    if (Date.now() - (obj.ts ?? 0) > 5 * 60 * 1000) {
+      sessionStorage.removeItem(NONCE_SESSION_KEY);
+      return null;
+    }
+    return obj.nonce ?? null;
+  } catch { return null; }
+}
+function _persistNonce(memberId: string, nonce: string | null): void {
+  try {
+    if (!nonce) { sessionStorage.removeItem(NONCE_SESSION_KEY); return; }
+    sessionStorage.setItem(NONCE_SESSION_KEY, JSON.stringify({ mid: memberId, nonce, ts: Date.now() }));
+  } catch { /* ignore */ }
 }
 
-function _clearDailyTasksCacheOnSignout() { _dailyStatusCache.clear(); }
+export function clearDailyStatusCache(): void {
+  _dailyStatusCache.clear();
+  try { sessionStorage.removeItem(NONCE_SESSION_KEY); } catch { /* ignore */ }
+}
+
+function _clearDailyTasksCacheOnSignout() { _dailyStatusCache.clear(); try { sessionStorage.removeItem(NONCE_SESSION_KEY); } catch { /* ignore */ } }
 if (typeof window !== "undefined") {
   window.addEventListener("member:signout", _clearDailyTasksCacheOnSignout);
   if (import.meta.hot) {
@@ -69,7 +92,11 @@ export function useMemberDashboardDailyTasks({
 
   const [claimingShare, setClaimingShare] = useState(false);
   const [sharing, setSharing] = useState(false);
-  const [pendingNonce, setPendingNonce] = useState<string | null>(null);
+  const [pendingNonce, _setPendingNonceRaw] = useState<string | null>(() => memberId ? _readPersistedNonce(memberId) : null);
+  const setPendingNonce = useCallback((nonce: string | null) => {
+    _setPendingNonceRaw(nonce);
+    if (memberId) _persistNonce(memberId, nonce);
+  }, [memberId]);
   const [checkInSpinsEarned, setCheckInSpinsEarned] = useState<number | null>(cached?.spinsEarned ?? null);
   const [checkInSummary, setCheckInSummary] = useState<MemberDailyStatus | null>(cached?.summary ?? null);
   const [shareSpinsEarned, setShareSpinsEarned] = useState<number | null>(cached?.shareSpinsEarned ?? null);
@@ -224,10 +251,15 @@ export function useMemberDashboardDailyTasks({
       try {
         const nonceRes = await requestShareNonce(memberId);
         if (!nonceRes?.success || !nonceRes.nonce) {
-          const errCode = nonceRes?.error;
+          const errCode = (nonceRes as Record<string, unknown>)?.error as string | undefined;
           if (errCode === "SHARE_REWARD_DISABLED") {
             notifyInfo(["未开启分享奖励", "Share reward is not enabled"]);
           } else if (errCode === "SHARE_DAILY_CAP_REACHED") {
+            // Sync frontend state from server response
+            const serverCap = Math.max(0, Number((nonceRes as Record<string, unknown>)?.cap ?? dailyShareCap));
+            const serverToday = Math.max(0, Number((nonceRes as Record<string, unknown>)?.today ?? shareCreditsToday));
+            if (serverCap > 0) setDailyShareCap(serverCap);
+            setShareCreditsToday(Math.max(serverToday, serverCap > 0 ? serverCap : serverToday));
             notifyInfo(["今日分享奖励已达上限", "Daily share reward limit reached"]);
           } else {
             notifyError([errCode || "领取凭证获取失败", errCode || "Failed to obtain share credential"]);
@@ -246,10 +278,13 @@ export function useMemberDashboardDailyTasks({
         let shared = false;
         if (typeof navigator.share === "function") {
           try {
-            await navigator.share({ text: shareText, url: inviteLink });
+            await navigator.share({ text: shareText });
             shared = true;
           } catch (e: unknown) {
             if (e instanceof DOMException && e.name === "AbortError") {
+              // Nonce was already created — still let user claim it
+              setPendingNonce(nonceRes.nonce);
+              notifyInfo(["已取消分享，仍可点击「领取奖励」领取", "Share cancelled. Tap 'Claim reward' to collect."]);
               return;
             }
           }
@@ -265,6 +300,8 @@ export function useMemberDashboardDailyTasks({
               notifySuccess(["邀请链接已复制，请粘贴发送给好友", "Invite link copied! Paste and send to friends."]);
             } catch {
               notifyError(["无法打开分享或复制链接", "Unable to share or copy link"]);
+              // Still set nonce so user can claim — nonce was already created
+              setPendingNonce(nonceRes.nonce);
               return;
             }
           }
@@ -282,7 +319,7 @@ export function useMemberDashboardDailyTasks({
         setSharing(false);
       }
     });
-  }, [memberId, sharing, shareCapReached, shareGuard, inviteToken, invitePathFallback, buildShareInviteText]);
+  }, [memberId, sharing, shareCapReached, shareGuard, inviteToken, invitePathFallback, buildShareInviteText, dailyShareCap, shareCreditsToday, setPendingNonce]);
 
   /**
    * Step 2: Claim the share reward using the previously obtained nonce.
@@ -353,7 +390,7 @@ export function useMemberDashboardDailyTasks({
         setClaimingShare(false);
       }
     });
-  }, [memberId, claimingShare, pendingNonce, claimGuard, refreshMember, refreshPoints, refreshSpinQuota, shareCreditsToday, dailyShareCap]);
+  }, [memberId, claimingShare, pendingNonce, claimGuard, refreshMember, refreshPoints, refreshSpinQuota, shareCreditsToday, dailyShareCap, setPendingNonce]);
 
   return {
     checkedInToday,

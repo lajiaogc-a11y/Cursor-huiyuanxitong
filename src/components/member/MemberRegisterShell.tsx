@@ -16,7 +16,7 @@ export function MemberRegisterShell({ themeColor, children }: MemberRegisterShel
 
   return (
     <div
-      className="member-login-premium-root member-portal-wrap relative flex min-h-dvh flex-col overflow-hidden"
+      className="member-login-premium-root member-portal-wrap relative flex min-h-dvh flex-col overflow-x-hidden overflow-y-auto"
       style={{
         background: "hsl(var(--pu-m-bg-1))",
         color: "hsl(var(--pu-m-text))",

@@ -117,8 +117,8 @@ export function ActivityDataRetentionPanel({ tenantId }: ActivityDataRetentionPa
       const s = r.summary;
       notify.success(
         t(
-          `已清理：抽奖 ${s.lotteryLogs}，签到 ${s.checkIns}，抽奖积分流水 ${s.lotteryPointsLedger}；次数 订单${s.spinCreditsOrder} 分享${s.spinCreditsShare} 邀请${s.spinCreditsInvite} 其他${s.spinCreditsOther}`,
-          `Cleaned: lottery ${s.lotteryLogs}, check-ins ${s.checkIns}, ledger ${s.lotteryPointsLedger}; spins order ${s.spinCreditsOrder} share ${s.spinCreditsShare} invite ${s.spinCreditsInvite} other ${s.spinCreditsOther}`,
+          `已清理：抽奖 ${s.lotteryLogs}，签到 ${s.checkIns}，抽奖积分流水 ${s.lotteryPointsLedger}；次数 订单${s.spinCreditsOrder} 分享${s.spinCreditsShare} 邀请${s.spinCreditsInvite} 其他${s.spinCreditsOther}；商城订单 ${s.mallRedemptions ?? 0}`,
+          `Cleaned: lottery ${s.lotteryLogs}, check-ins ${s.checkIns}, ledger ${s.lotteryPointsLedger}; spins order ${s.spinCreditsOrder} share ${s.spinCreditsShare} invite ${s.spinCreditsInvite} other ${s.spinCreditsOther}; mall orders ${s.mallRedemptions ?? 0}`,
         ),
       );
     } catch {
@@ -136,8 +136,8 @@ export function ActivityDataRetentionPanel({ tenantId }: ActivityDataRetentionPa
       const s = r.summary;
       notify.success(
         t(
-          `已全部清理：抽奖 ${s.lotteryLogs}，签到 ${s.checkIns}，抽奖积分流水 ${s.lotteryPointsLedger}；次数 订单${s.spinCreditsOrder} 分享${s.spinCreditsShare} 邀请${s.spinCreditsInvite} 其他${s.spinCreditsOther}`,
-          `Purged all: lottery ${s.lotteryLogs}, check-ins ${s.checkIns}, ledger ${s.lotteryPointsLedger}; spins order ${s.spinCreditsOrder} share ${s.spinCreditsShare} invite ${s.spinCreditsInvite} other ${s.spinCreditsOther}`,
+          `已全部清理：抽奖 ${s.lotteryLogs}，签到 ${s.checkIns}，抽奖积分流水 ${s.lotteryPointsLedger}；次数 订单${s.spinCreditsOrder} 分享${s.spinCreditsShare} 邀请${s.spinCreditsInvite} 其他${s.spinCreditsOther}；商城订单 ${s.mallRedemptions ?? 0}`,
+          `Purged all: lottery ${s.lotteryLogs}, check-ins ${s.checkIns}, ledger ${s.lotteryPointsLedger}; spins order ${s.spinCreditsOrder} share ${s.spinCreditsShare} invite ${s.spinCreditsInvite} other ${s.spinCreditsOther}; mall orders ${s.mallRedemptions ?? 0}`,
         ),
       );
     } catch {
@@ -179,8 +179,8 @@ export function ActivityDataRetentionPanel({ tenantId }: ActivityDataRetentionPa
           </CardTitle>
           <p className="text-sm text-muted-foreground font-normal mt-1">
             {t(
-              "仅清理超过保留期的明细：抽奖流水、签到流水、抽奖类积分流水；抽奖次数按来源分为订单完成、分享、邀请及其余（含签到发放等）。不含消费/推荐积分、活动赠送、订单。启用后服务端每 24 小时自动执行一次。",
-              "Deletes rows older than the retention period: lottery logs, check-ins, lottery-type points ledger; spin credits by source (order/share/invite/other including check-in grants). Not consumption/referral points, gifts, or orders. Server runs every 24h when enabled.",
+              "仅清理超过保留期的明细：抽奖流水、签到流水、抽奖类积分流水、商城兑换订单；抽奖次数按来源分为订单完成、分享、邀请及其余（含签到发放等）。不含消费/推荐积分、活动赠送、汇率订单。启用后服务端每 24 小时自动执行一次。",
+              "Deletes rows older than the retention period: lottery logs, check-ins, lottery-type points ledger, mall redemption orders; spin credits by source (order/share/invite/other including check-in grants). Not consumption/referral points, gifts, or exchange orders. Server runs every 24h when enabled.",
             )}
           </p>
         </CardHeader>
@@ -243,7 +243,8 @@ export function ActivityDataRetentionPanel({ tenantId }: ActivityDataRetentionPa
                       {t("订单", "Ord")} {retentionMeta.lastSummary.spinCreditsOrder} {t("分享", "Shr")}{" "}
                       {retentionMeta.lastSummary.spinCreditsShare} {t("邀请", "Inv")}{" "}
                       {retentionMeta.lastSummary.spinCreditsInvite} {t("其他", "Oth")}{" "}
-                      {retentionMeta.lastSummary.spinCreditsOther}
+                      {retentionMeta.lastSummary.spinCreditsOther}; {t("商城", "Mall")}{" "}
+                      {retentionMeta.lastSummary.mallRedemptions ?? 0}
                     </>
                   )}
                 </p>
@@ -284,8 +285,8 @@ export function ActivityDataRetentionPanel({ tenantId }: ActivityDataRetentionPa
             <AlertDialogTitle>{t("立即按保留期清理？", "Clean up expired activity data now?")}</AlertDialogTitle>
             <AlertDialogDescription>
               {t(
-                "将永久删除超过保留天数的抽奖流水、签到流水、抽奖类积分流水，以及按来源分类的抽奖次数（订单/分享/邀请/其他）。此操作不可撤销。确定继续？",
-                "Permanently deletes lottery logs, check-ins, lottery-type points ledger, and spin credits by source (order/share/invite/other) older than your retention period. Cannot be undone. Continue?",
+                "将永久删除超过保留天数的抽奖流水、签到流水、抽奖类积分流水、商城兑换订单，以及按来源分类的抽奖次数（订单/分享/邀请/其他）。此操作不可撤销。确定继续？",
+                "Permanently deletes lottery logs, check-ins, lottery-type points ledger, mall redemption orders, and spin credits by source (order/share/invite/other) older than your retention period. Cannot be undone. Continue?",
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -310,8 +311,8 @@ export function ActivityDataRetentionPanel({ tenantId }: ActivityDataRetentionPa
             <AlertDialogTitle>{t("全部清理活动数据？", "Purge ALL activity data?")}</AlertDialogTitle>
             <AlertDialogDescription>
               {t(
-                "将永久删除本租户全部抽奖流水、签到流水、抽奖类积分流水与全部抽奖次数记录（含订单/分享/邀请/其他来源，无论日期）。此操作不可撤销。确定继续？",
-                "Permanently deletes ALL lottery logs, check-ins, lottery-type points ledger, and all spin credit rows for this tenant (all sources). Cannot be undone. Continue?",
+                "将永久删除本租户全部抽奖流水、签到流水、抽奖类积分流水、商城兑换订单与全部抽奖次数记录（含订单/分享/邀请/其他来源，无论日期）。此操作不可撤销。确定继续？",
+                "Permanently deletes ALL lottery logs, check-ins, lottery-type points ledger, mall redemption orders, and all spin credit rows for this tenant (all sources). Cannot be undone. Continue?",
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>

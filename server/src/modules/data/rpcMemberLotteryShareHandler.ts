@@ -153,6 +153,49 @@ export async function handleRpcMemberLotteryShareGroup(ctx: RpcCtx): Promise<Rpc
       try {
         const mRow = await queryOne<{ tenant_id: string | null }>('SELECT tenant_id FROM members WHERE id = ?', [memberId]);
         if (!mRow) { result = { success: false, error: 'MEMBER_NOT_FOUND' }; break; }
+        const tid = mRow.tenant_id ?? null;
+
+        // Check daily cap BEFORE creating nonce
+        let shareReward = 1;
+        let dailyCap = 0;
+        if (tid) {
+          const sRow = await queryOne<{ share_reward_spins: number | string | null; daily_share_reward_limit?: number | null }>(
+            'SELECT share_reward_spins, daily_share_reward_limit FROM member_portal_settings WHERE tenant_id = ? LIMIT 1',
+            [tid],
+          );
+          if (sRow?.share_reward_spins != null && sRow.share_reward_spins !== '') {
+            shareReward = Math.max(0, Math.ceil(Number(sRow.share_reward_spins)));
+          }
+          dailyCap = Math.max(0, Number(sRow?.daily_share_reward_limit ?? 0));
+        }
+        if (shareReward <= 0) {
+          result = { success: false, error: 'SHARE_REWARD_DISABLED' };
+          break;
+        }
+        if (dailyCap > 0) {
+          const claimedRow = await queryOne<{ total: number }>(
+            `SELECT COALESCE(SUM(amount), 0) AS total FROM spin_credits
+             WHERE member_id = ? AND source = 'share'
+               AND created_at >= CURDATE()
+               AND created_at < DATE_ADD(CURDATE(), INTERVAL 1 DAY)`,
+            [memberId],
+          );
+          const claimedToday = Number(claimedRow?.total ?? 0);
+          // Also count outstanding (unclaimed, unexpired) nonces
+          const pendingRow = await queryOne<{ cnt: number }>(
+            `SELECT COUNT(*) AS cnt FROM share_nonces
+             WHERE member_id = ? AND used_at IS NULL AND expires_at > NOW(3)
+               AND created_at >= CURDATE()
+               AND created_at < DATE_ADD(CURDATE(), INTERVAL 1 DAY)`,
+            [memberId],
+          );
+          const pendingNonces = Number(pendingRow?.cnt ?? 0);
+          const effectiveToday = claimedToday + pendingNonces * shareReward;
+          if (effectiveToday + shareReward > dailyCap) {
+            result = { success: false, error: 'SHARE_DAILY_CAP_REACHED', cap: dailyCap, today: claimedToday };
+            break;
+          }
+        }
 
         const plainNonce = randomBytes(16).toString('hex');
         const nonceHash = createHash('sha256').update(plainNonce, 'utf8').digest('hex');

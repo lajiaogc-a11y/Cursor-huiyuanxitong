@@ -45,6 +45,7 @@ export type DeleteBulkSelections = {
     activityMemberSummary: boolean;
     activityGift: boolean;
     pointsLedger: boolean;
+    activityMallRedemptions: boolean;
   };
   shiftData: {
     shiftHandovers: boolean;
@@ -84,6 +85,7 @@ const SELECT_ALL_STATE: DeleteBulkSelections = {
     activityMemberSummary: true,
     activityGift: true,
     pointsLedger: true,
+    activityMallRedemptions: true,
   },
   shiftData: { shiftHandovers: true, shiftReceivers: true },
   merchantSettlement: { balanceChangeLogs: true, initialBalances: true },
@@ -111,6 +113,7 @@ const SELECT_NONE_STATE: DeleteBulkSelections = {
     activityMemberSummary: false,
     activityGift: false,
     pointsLedger: false,
+    activityMallRedemptions: false,
   },
   shiftData: { shiftHandovers: false, shiftReceivers: false },
   merchantSettlement: { balanceChangeLogs: false, initialBalances: false },
@@ -418,6 +421,18 @@ function DeleteCategoryPanel({
               }))
             }
             label={t("积分明细", "Points Ledger")}
+          />
+          <Row
+            id="delete-mall-redemptions"
+            checked={deleteSelections.members.activityMallRedemptions}
+            onCheckedChange={(checked) =>
+              setDeleteSelections((prev) => ({
+                ...prev,
+                members: { ...prev.members, activityMallRedemptions: checked },
+              }))
+            }
+            label={t("商城订单", "Mall Orders")}
+            hint={t("会员积分商城兑换订单", "Member points mall redemption orders")}
           />
           <Row
             id="delete-shift-handovers"

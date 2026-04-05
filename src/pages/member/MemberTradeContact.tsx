@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import BackHeader from "@/components/member/BackHeader";
 import { CustomerServiceAgentRows } from "@/components/member/CustomerServiceAgentRows";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
@@ -14,14 +14,17 @@ export default function MemberTradeContact() {
   const { member } = useMemberAuth();
   const { settings } = useMemberPortalSettings(member?.id);
   const [orderSpinTipAmount, setOrderSpinTipAmount] = useState<number | null>(null);
+  const [tipLoaded, setTipLoaded] = useState(false);
+  const prevMemberId = useRef(member?.id);
 
   useEffect(() => {
     let cancelled = false;
     const mid = member?.id?.trim();
     if (!mid) {
-      setOrderSpinTipAmount(null);
+      if (!prevMemberId.current) setTipLoaded(true);
       return;
     }
+    prevMemberId.current = mid;
     getMemberLotteryPrizes(mid).then((r) => {
       if (cancelled) return;
       if (r.order_completed_spin_enabled && r.order_completed_spin_amount > 0) {
@@ -29,6 +32,7 @@ export default function MemberTradeContact() {
       } else {
         setOrderSpinTipAmount(null);
       }
+      setTipLoaded(true);
     });
     return () => {
       cancelled = true;
@@ -60,8 +64,8 @@ export default function MemberTradeContact() {
     <div className="m-page-bg relative min-h-screen pb-24">
       <BackHeader title={t("联系客服交易", "Contact support to trade")} />
 
-      {orderSpinTipAmount != null && (
-        <div className="relative z-[2] mx-5 mt-2 rounded-xl border border-[hsl(var(--pu-m-accent)/0.35)] bg-[hsl(var(--pu-m-accent)/0.12)] px-4 py-3 text-[12px] leading-relaxed text-[hsl(var(--pu-m-text))]">
+      {tipLoaded && orderSpinTipAmount != null && (
+        <div className="relative z-[2] mx-5 mt-2 animate-in fade-in duration-300 rounded-xl border border-[hsl(var(--pu-m-accent)/0.35)] bg-[hsl(var(--pu-m-accent)/0.12)] px-4 py-3 text-[12px] leading-relaxed text-[hsl(var(--pu-m-text))]">
           {t(
             `每完成一笔交易可获得 ${orderSpinTipAmount} 次抽奖机会。`,
             `Earn ${orderSpinTipAmount} lottery spin(s) for each completed transaction.`,

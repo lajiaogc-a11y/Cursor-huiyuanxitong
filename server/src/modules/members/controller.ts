@@ -201,12 +201,21 @@ export async function updateMemberByPhoneController(req: AuthenticatedRequest, r
 }
 
 export async function deleteMemberController(req: AuthenticatedRequest, res: Response): Promise<void> {
-  const tenantId = resolveTenantId(req, (req.query.tenant_id as string | undefined) ?? undefined);
+  let tenantId = resolveTenantId(req, (req.query.tenant_id as string | undefined) ?? undefined);
+  const { id } = req.params;
+
+  // Platform admin without explicit tenant_id: look up the member's own tenant
+  if (!tenantId && req.user?.is_platform_super_admin) {
+    const member = await getMemberByIdService(id, undefined);
+    if (member && typeof (member as Record<string, unknown>).tenant_id === 'string') {
+      tenantId = (member as Record<string, unknown>).tenant_id as string;
+    }
+  }
+
   if (!tenantId) {
     res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenant_id required' } });
     return;
   }
-  const { id } = req.params;
   try {
     await deleteMemberService(id, tenantId);
     res.json({ success: true });

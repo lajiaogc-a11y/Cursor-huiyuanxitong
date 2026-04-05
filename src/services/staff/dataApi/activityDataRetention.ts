@@ -8,6 +8,7 @@ export interface ActivityDataRetentionLastSummary {
   spinCreditsShare: number;
   spinCreditsInvite: number;
   spinCreditsOther: number;
+  mallRedemptions: number;
 }
 
 export interface ActivityDataRetentionSettings {
