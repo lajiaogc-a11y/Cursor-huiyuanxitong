@@ -11,6 +11,8 @@ import {
   EyeOff,
   UserPlus,
   Sparkles,
+  Shield,
+  Lock,
 } from "lucide-react";
 import { memberRegisterInit, validateInviteAndSubmit } from "@/services/memberPortal/memberActivityService";
 import { ApiError } from "@/lib/apiClient";
