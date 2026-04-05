@@ -36,7 +36,6 @@ export const TABLE_QUERY_KEYS: Record<DataTable, string[][]> = {
     ['report-base'],
     ['activity-data-content'],
     ['member-activity-page-data'],
-    ['activity-report-members-map'],
   ],
   employees: [
     ['employees'],

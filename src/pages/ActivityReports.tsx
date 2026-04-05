@@ -58,6 +58,7 @@ import { usePaymentProviders } from "@/hooks/useMerchantConfig";
 import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
 import { useAuditWorkflow } from "@/hooks/useAuditWorkflow";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
+import { useMembers } from "@/hooks/useMembers";
 import { safeNumber } from "@/lib/safeCalc";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { formatDisplayGiftNumber } from "@/lib/giftNumber";
@@ -247,13 +248,12 @@ export default function ActivityReports() {
 
     if (tabFromUrl === "members") {
       void queryClient.invalidateQueries({ queryKey: ["members"] });
-      void queryClient.invalidateQueries({ queryKey: ["activity-report-members-map"] });
     } else if (tabFromUrl === "activity") {
       void queryClient.invalidateQueries({ queryKey: ["activity-data-content"] });
       void queryClient.invalidateQueries({ queryKey: ["members"] });
     } else if (tabFromUrl === "gifts") {
       void queryClient.invalidateQueries({ queryKey: ["activity-records"] });
-      void queryClient.invalidateQueries({ queryKey: ["activity-report-members-map"] });
+      void queryClient.invalidateQueries({ queryKey: ["members"] });
     } else if (tabFromUrl === "points") {
       void queryClient.invalidateQueries({ queryKey: ["points-ledger"] });
       void queryClient.invalidateQueries({ queryKey: ["members"] });
@@ -284,15 +284,12 @@ export default function ActivityReports() {
     },
   });
 
-  const { data: membersMap = new Map<string, string>() } = useQuery({
-    queryKey: ['activity-report-members-map', effectiveTenantId ?? ''],
-    queryFn: async () => {
-      const data = await import('@/services/members/membersApiService').then(m => m.listMembersApi({ tenant_id: effectiveTenantId || undefined, limit: 10000 }));
-      const map = new Map<string, string>();
-      (data || []).forEach(m => map.set(m.phone_number, m.member_code));
-      return map;
-    },
-  });
+  const { members: membersList } = useMembers();
+  const membersMap = useMemo(() => {
+    const map = new Map<string, string>();
+    membersList.forEach(m => map.set(m.phoneNumber, m.memberCode));
+    return map;
+  }, [membersList]);
 const [editFormData, setEditFormData] = useState({
     currency: "NGN",
     amount: "",
