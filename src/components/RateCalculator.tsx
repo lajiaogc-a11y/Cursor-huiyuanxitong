@@ -53,7 +53,7 @@ import { getMemberCurrentPoints } from "@/stores/pointsAccountStore";
 import { getActivitySettings, getRewardAmountByPointsAndCurrency } from "@/stores/activitySettingsStore";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { displayMemberLevelLabel } from "@/lib/memberLevelDisplay";
-import { getPointsLedger } from "@/stores/pointsLedgerStore";
+// pointsLedgerStore is deprecated — usePointsLedger hook is the single source of truth
 import { getPointsSettings } from "@/stores/pointsSettingsStore";
 import { getMemberLastResetTime } from "@/stores/pointsAccountStore";
 import { getCopySettings, generateEnglishCopyText } from "@/components/CopySettingsTab";

@@ -45,7 +45,8 @@ function setupMembersCrossTabSync(): () => void {
 
 function clearStoreCachesByTable(table: DataTable) {
   if (table === 'points_ledger') {
-    import('@/stores/pointsLedgerStore').then(m => m.resetPointsLedgerCache()).catch(() => {});
+    // usePointsLedger hook listens to 'data-refresh' events and auto-invalidates;
+    // the legacy pointsLedgerStore cache is no longer the authoritative source.
   }
   if (table === 'points_accounts') {
     import('@/stores/pointsAccountStore').then(m => m.resetPointsAccountCache()).catch(() => {});

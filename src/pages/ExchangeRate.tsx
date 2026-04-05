@@ -77,7 +77,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { CURRENCIES, CurrencyCode, getCurrencyDisplayName, CURRENCY_LIST } from "@/config/currencies";
 import CurrencySelect from "@/components/CurrencySelect";
 import { getActiveCustomerSources, initializeCustomerSourceCache } from "@/stores/customerSourceStore";
-import { getPointsLedger, initializePointsLedgerCache } from "@/stores/pointsLedgerStore";
+// pointsLedgerStore is deprecated — usePointsLedger hook is the single source of truth
 import { getPointsSettings } from "@/stores/pointsSettingsStore";
 import { getMemberLastResetTime } from "@/stores/pointsAccountStore";
 import { getMemberPointsSummary } from "@/services/points/pointsCalculationService";
@@ -492,9 +492,6 @@ export default function ExchangeRate() {
     void initializeCustomerSourceCache().then(() => {
       setCustomerSources(getActiveCustomerSources());
     });
-    
-    // 初始化积分缓存（确保推荐积分数据可用）
-    initializePointsLedgerCache();
     
     // 异步加载商家管理数据（从数据库）
     const loadMerchantData = async () => {

@@ -1,7 +1,11 @@
-// ============= Points Ledger Store - Immutable Audit Ledger =============
-// CRITICAL: This is an append-only ledger. NO modifications, NO deletions allowed.
-// 使用数据库 points_ledger 表作为唯一数据源
-// 注意：此文件提供同步方法供 orderStore 使用，但推荐使用 usePointsLedger hook
+// ============= Points Ledger Store - DEPRECATED =============
+// @deprecated Use usePointsLedger hook (src/hooks/usePointsLedger.ts) as the single
+// source of truth for all staff-side points ledger data. This module is retained only
+// for backward compatibility with any remaining consumers. New code must NOT import
+// from this file.
+//
+// Migration: React components → usePointsLedger() hook
+//            Non-React code  → fetchPointsLedgerFromDb() from usePointsLedger.ts
 
 import { apiGet, apiPost } from '@/api/client';
 import { CurrencyCode } from '@/config/currencies';

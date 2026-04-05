@@ -274,22 +274,23 @@ export default function MemberActivityDataContent() {
   const useMyTenantRpc = !!(effectiveTenantId && employee?.tenant_id && effectiveTenantId === employee.tenant_id);
   // 使用 useMembers 与会员管理保持一致（含租户过滤），避免活动数据与会员管理会员数量不一致
   const { members: membersFromHook } = useMembers();
-  // 详细弹窗使用积分明细同源数据（usePointsLedger 合并了 points_ledger + points_log）
-  const { entries: pointsLedgerEntries } = usePointsLedger();
-  // react-query 缓存，页面切换秒开
+  // usePointsLedger = single source of truth for all staff-side points ledger data.
+  // Both the main table aggregation and the detail drawer use the same entries.
+  const { entries: pointsLedgerEntries, loading: pointsLedgerLoading } = usePointsLedger();
+  // react-query 缓存，页面切换秒开（orders, gifts, accounts, spin credits, etc.）
   const {
     orders,
     gifts,
     paymentProviders,
     referrals,
     memberActivities,
-    pointsLedgerData,
     pointsAccountsData,
     spinCreditsData,
     cachedRates,
     isLoading: activityDataLoading,
     refetch: refetchActivityData,
   } = useActivityDataContent(effectiveTenantId, useMyTenantRpc);
+  const pointsLedgerData = pointsLedgerEntries;
   const [timeRange, setTimeRange] = useState<TimeRange>("thisMonth");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -1277,7 +1278,7 @@ export default function MemberActivityDataContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (activityDataLoading && orders.length === 0 && gifts.length === 0) {
+  if ((activityDataLoading || pointsLedgerLoading) && orders.length === 0 && gifts.length === 0) {
     return <TablePageSkeleton columns={8} rows={6} showTitle={false} />;
   }
 
