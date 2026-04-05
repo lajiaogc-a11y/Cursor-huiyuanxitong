@@ -165,15 +165,40 @@ export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok
       }
     }
 
+    // H4: Resolve member_id first, then use it for member_activity lookups
+    // (phone_number can be NULL or mismatched, causing silent skips)
+    const resolvedMemberIds = new Map<string, string>();
+
     // 3. 扣减消费者 remaining_points / accumulated_points
     const consumptionEntries = issuedEntries.filter((e: any) => e.transaction_type === 'consumption');
     for (const entry of consumptionEntries) {
       const pointsToDeduct = entry.points_earned || 0;
       if (pointsToDeduct <= 0) continue;
 
+      let memberId: string | undefined = entry.member_id || order.member_id;
+      const entPhone = String(entry.phone_number || '').trim();
+      const entCode = String(entry.member_code || '').trim();
+      if (!memberId && entPhone) {
+        if (resolvedMemberIds.has(entPhone)) {
+          memberId = resolvedMemberIds.get(entPhone);
+        } else {
+          const m = await queryOne<{ id: string }>('SELECT id FROM members WHERE phone_number = ? LIMIT 1', [entPhone]);
+          if (m) { memberId = m.id; resolvedMemberIds.set(entPhone, m.id); }
+        }
+      }
+      if (!memberId && entCode) {
+        if (resolvedMemberIds.has(entCode)) {
+          memberId = resolvedMemberIds.get(entCode);
+        } else {
+          const m = await queryOne<{ id: string }>('SELECT id FROM members WHERE member_code = ? LIMIT 1', [entCode]);
+          if (m) { memberId = m.id; resolvedMemberIds.set(entCode, m.id); }
+        }
+      }
+      if (!memberId) continue;
+
       const act = await queryOne<{ id: string; remaining_points?: number; accumulated_points?: number }>(
-        `SELECT id, remaining_points, accumulated_points FROM member_activity WHERE phone_number = ? LIMIT 1`,
-        [entry.phone_number]
+        `SELECT id, remaining_points, accumulated_points FROM member_activity WHERE member_id = ? LIMIT 1`,
+        [memberId]
       );
 
       if (act) {
@@ -192,14 +217,22 @@ export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok
     );
     const referrerMap = new Map<string, number>();
     for (const e of referralEntries) {
-      const phone = e.phone_number;
-      if (phone) referrerMap.set(phone, (referrerMap.get(phone) || 0) + (e.points_earned || 0));
+      let mid: string | undefined = e.member_id;
+      if (!mid && e.phone_number) {
+        if (resolvedMemberIds.has(e.phone_number)) {
+          mid = resolvedMemberIds.get(e.phone_number);
+        } else {
+          const m = await queryOne<{ id: string }>('SELECT id FROM members WHERE phone_number = ? LIMIT 1', [e.phone_number]);
+          if (m) { mid = m.id; resolvedMemberIds.set(e.phone_number, m.id); }
+        }
+      }
+      if (mid) referrerMap.set(mid, (referrerMap.get(mid) || 0) + (e.points_earned || 0));
     }
-    for (const [phone, pointsToDeduct] of referrerMap) {
+    for (const [mid, pointsToDeduct] of referrerMap) {
       if (pointsToDeduct <= 0) continue;
       const act = await queryOne<{ id: string; remaining_points?: number; referral_points?: number; referral_count?: number }>(
-        `SELECT id, remaining_points, referral_points, referral_count FROM member_activity WHERE phone_number = ? LIMIT 1`,
-        [phone]
+        `SELECT id, remaining_points, referral_points, referral_count FROM member_activity WHERE member_id = ? LIMIT 1`,
+        [mid]
       );
       if (act) {
         const newRemaining = Math.max(0, (act.remaining_points || 0) - pointsToDeduct);

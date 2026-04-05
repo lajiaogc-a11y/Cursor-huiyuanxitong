@@ -530,16 +530,27 @@ export async function grantOrderCompletedSpinCredits(args: {
   if (amount <= 0) return { granted: false, amount: 0 };
 
   const source = `order_completed:${args.orderId}`;
-  return withTransaction(async (conn) => {
-    const dup = await queryOneConn<{ id: string }>(
-      conn,
-      'SELECT id FROM spin_credits WHERE source = ? LIMIT 1',
-      [source],
-    );
-    if (dup) return { granted: false, amount: 0 };
+  const lockName = `spin_grant_order:${args.orderId}`.slice(0, 64);
 
-    await addSpinConn(conn, memberId, amount, source);
-    return { granted: true, amount };
+  return withTransaction(async (conn) => {
+    // H1: Advisory lock prevents concurrent double-grant for the same order
+    const [lockRows] = await conn.query('SELECT GET_LOCK(?, 5) AS got', [lockName]);
+    const gotLock = Number((lockRows as { got: number | null }[])[0]?.got) === 1;
+    if (!gotLock) return { granted: false, amount: 0 };
+
+    try {
+      const dup = await queryOneConn<{ id: string }>(
+        conn,
+        'SELECT id FROM spin_credits WHERE source = ? LIMIT 1',
+        [source],
+      );
+      if (dup) return { granted: false, amount: 0 };
+
+      await addSpinConn(conn, memberId, amount, source);
+      return { granted: true, amount };
+    } finally {
+      await conn.query('SELECT RELEASE_LOCK(?) AS rel', [lockName]);
+    }
   });
 }
 

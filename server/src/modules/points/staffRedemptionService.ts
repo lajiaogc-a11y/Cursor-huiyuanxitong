@@ -8,6 +8,7 @@ import { applyPointsLedgerDeltaOnConn } from './pointsLedgerAccount.js';
 import { syncPointsLog } from './pointsService.js';
 import { generateUniqueActivityGiftNumber } from '../../lib/giftNumber.js';
 import { buildStaffPointsRedemptionRemark } from '../data/staffPointsRedemptionRemark.js';
+import { applyMemberActivityDeltasOnConn } from '../members/memberActivityAccount.js';
 
 export interface StaffRedeemParams {
   memberCode: string;
@@ -120,40 +121,12 @@ export async function executeStaffPointsRedemption(
         ],
       );
 
-      const ngnAdd = p.giftCurrency === 'NGN' ? p.giftAmount : 0;
-      const ghsAdd = p.giftCurrency === 'GHS' ? p.giftAmount : 0;
-      const usdtAdd = p.giftCurrency === 'USDT' ? p.giftAmount : 0;
-
-      const [maRows] = await conn.query(
-        'SELECT id FROM member_activity WHERE member_id = ? LIMIT 1',
-        [p.memberId],
-      );
-      const maList = maRows as { id: string }[];
-      if (maList.length > 0) {
-        await conn.query(
-          `UPDATE member_activity SET
-            total_gift_ngn = total_gift_ngn + ?,
-            total_gift_ghs = total_gift_ghs + ?,
-            total_gift_usdt = total_gift_usdt + ?,
-            accumulated_profit = GREATEST(accumulated_profit - ?, 0),
-            updated_at = NOW(3)
-           WHERE member_id = ?`,
-          [ngnAdd, ghsAdd, usdtAdd, p.giftValue, p.memberId],
-        );
-      } else {
-        const newMaId = randomUUID();
-        await conn.query(
-          `INSERT INTO member_activity (
-            id, member_id, phone_number, order_count, remaining_points,
-            accumulated_profit, accumulated_profit_usdt,
-            total_accumulated_ngn, total_accumulated_ghs, total_accumulated_usdt,
-            referral_count, accumulated_points, referral_points,
-            total_gift_ngn, total_gift_ghs, total_gift_usdt,
-            created_at, updated_at
-          ) VALUES (?, ?, ?, 0, 0, GREATEST(0 - ?, 0), 0, 0, 0, 0, 0, 0, 0, ?, ?, ?, NOW(3), NOW(3))`,
-          [newMaId, p.memberId, p.phone || null, p.giftValue, ngnAdd, ghsAdd, usdtAdd],
-        );
-      }
+      await applyMemberActivityDeltasOnConn(conn, p.memberId, {
+        total_gift_ngn: p.giftCurrency === 'NGN' ? p.giftAmount : 0,
+        total_gift_ghs: p.giftCurrency === 'GHS' ? p.giftAmount : 0,
+        total_gift_usdt: p.giftCurrency === 'USDT' ? p.giftAmount : 0,
+        accumulated_profit: -(p.giftValue || 0),
+      }, p.phone || null);
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);

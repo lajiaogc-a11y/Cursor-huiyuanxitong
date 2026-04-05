@@ -1,10 +1,11 @@
 /**
  * 积分写入：points_ledger 插入、member_activity 更新
- * 与前端 pointsService 契约一致
+ * C2: member_activity updates now go through the unified helper.
  */
 import { queryOne, execute, withTransaction } from '../../database/index.js';
 import { randomUUID } from 'crypto';
 import { applyPointsLedgerDeltaOnConn } from './pointsLedgerAccount.js';
+import { applyMemberActivityDeltas, syncRemainingPoints } from '../members/memberActivityAccount.js';
 
 export type PointsTransactionType = 'consumption' | 'referral_1' | 'referral_2';
 
@@ -147,20 +148,6 @@ async function findMemberByPhone(phone: string, tenantId: string | null) {
   return queryOne<{ id: string }>(`SELECT id FROM members WHERE phone_number = ? LIMIT 1`, [phone]);
 }
 
-async function findActivityForMember(memberId: string, phone: string) {
-  let act = await queryOne<{ id: string }>(
-    `SELECT id FROM member_activity WHERE member_id = ? LIMIT 1`,
-    [memberId]
-  );
-  if (!act) {
-    act = await queryOne<{ id: string }>(
-      `SELECT id FROM member_activity WHERE phone_number = ? LIMIT 1`,
-      [phone]
-    );
-  }
-  return act;
-}
-
 /** 下单会员：增加可兑换/累计消费积分 */
 export async function addConsumptionToMemberActivity(
   phoneRaw: string,
@@ -173,32 +160,16 @@ export async function addConsumptionToMemberActivity(
   const member = await findMemberByPhone(phone, tenantId);
   if (!member) return { updated: false };
 
-  const act = await findActivityForMember(member.id, phone);
   const balance = await queryOne<{ balance: number }>(
     'SELECT COALESCE(balance, 0) AS balance FROM points_accounts WHERE member_id = ?',
     [member.id],
   );
   const actualBalance = Number(balance?.balance ?? 0);
 
-  if (!act) {
-    await execute(
-      `INSERT INTO member_activity (id, member_id, phone_number, remaining_points, accumulated_points)
-       VALUES (?, ?, ?, ?, ?)`,
-      [randomUUID(), member.id, phone, actualBalance, consumptionPoints]
-    );
-    return { updated: true };
-  }
+  // C2: Use unified helper for member_activity updates
+  await syncRemainingPoints(member.id, actualBalance);
+  await applyMemberActivityDeltas(member.id, { accumulated_points: consumptionPoints }, phone);
 
-  // Sync remaining_points from authoritative points_accounts
-  await execute(
-    `UPDATE member_activity SET
-       remaining_points = ?,
-       accumulated_points = COALESCE(accumulated_points, 0) + ?,
-       phone_number = COALESCE(phone_number, ?),
-       updated_at = NOW()
-     WHERE id = ?`,
-    [actualBalance, consumptionPoints, phone, act.id]
-  );
   return { updated: true };
 }
 
@@ -214,32 +185,19 @@ export async function addReferralToMemberActivity(
   const member = await findMemberByPhone(phone, tenantId);
   if (!member) return { updated: false };
 
-  const act = await findActivityForMember(member.id, phone);
   const balance = await queryOne<{ balance: number }>(
     'SELECT COALESCE(balance, 0) AS balance FROM points_accounts WHERE member_id = ?',
     [member.id],
   );
   const actualBalance = Number(balance?.balance ?? 0);
 
-  if (!act) {
-    await execute(
-      `INSERT INTO member_activity (id, member_id, phone_number, remaining_points, referral_points, referral_count)
-       VALUES (?, ?, ?, ?, ?, 1)`,
-      [randomUUID(), member.id, phone, actualBalance, referralPoints]
-    );
-    return { updated: true };
-  }
-
-  // Sync remaining_points from authoritative points_accounts
-  await execute(
-    `UPDATE member_activity SET
-       remaining_points = ?,
-       referral_points = COALESCE(referral_points, 0) + ?,
-       referral_count = COALESCE(referral_count, 0) + 1,
-       phone_number = COALESCE(phone_number, ?),
-       updated_at = NOW()
-     WHERE id = ?`,
-    [actualBalance, referralPoints, phone, act.id]
+  // C2: Use unified helper for member_activity updates
+  await syncRemainingPoints(member.id, actualBalance);
+  await applyMemberActivityDeltas(
+    member.id,
+    { referral_points: referralPoints, referral_count: 1 },
+    phone,
   );
+
   return { updated: true };
 }

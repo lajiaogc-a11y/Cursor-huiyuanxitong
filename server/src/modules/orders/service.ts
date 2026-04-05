@@ -54,16 +54,22 @@ export async function createOrderService(record: Record<string, unknown>) {
       console.warn('[Orders] insertMeikaZoneOrderLink:', (e as Error).message);
     }
   }
-  try {
-    await incrementMemberActivityForNewOrder(data as Record<string, unknown>);
-  } catch (e) {
-    console.warn('[Orders] incrementMemberActivityForNewOrder:', (e as Error).message);
+  // C3: Only increment member_activity when the order is created as 'completed'.
+  // Non-completed orders will trigger incrementMemberActivityForNewOrder later
+  // when they transition to 'completed' via the table proxy PATCH handler.
+  const orderRow = data as Record<string, unknown>;
+  const orderStatus = String(orderRow.status ?? '').toLowerCase().trim();
+  if (orderStatus === 'completed') {
+    try {
+      await incrementMemberActivityForNewOrder(orderRow);
+    } catch (e) {
+      console.warn('[Orders] incrementMemberActivityForNewOrder:', (e as Error).message);
+    }
   }
   try {
-    const row = data as Record<string, unknown>;
-    const memberId = row.member_id != null ? String(row.member_id).trim() : '';
-    const tid = row.tenant_id != null ? String(row.tenant_id).trim() : '';
-    const phone = row.phone_number != null ? String(row.phone_number).trim() : '';
+    const memberId = orderRow.member_id != null ? String(orderRow.member_id).trim() : '';
+    const tid = orderRow.tenant_id != null ? String(orderRow.tenant_id).trim() : '';
+    const phone = orderRow.phone_number != null ? String(orderRow.phone_number).trim() : '';
     if (memberId && tid) {
       await syncMemberCommonCardsFromOrdersRepository(memberId, tid, phone);
     }
@@ -71,12 +77,10 @@ export async function createOrderService(record: Record<string, unknown>) {
     console.warn('[Orders] syncMemberCommonCardsFromOrders:', (e as Error).message);
   }
   try {
-    const row = data as Record<string, unknown>;
-    const st = String(row.status ?? '').toLowerCase().trim();
-    const oid = row.id != null ? String(row.id).trim() : '';
-    const memberId = row.member_id != null ? String(row.member_id).trim() : '';
-    const tid = row.tenant_id != null ? String(row.tenant_id).trim() : '';
-    if (st === 'completed' && oid && memberId && tid) {
+    const oid = orderRow.id != null ? String(orderRow.id).trim() : '';
+    const memberId = orderRow.member_id != null ? String(orderRow.member_id).trim() : '';
+    const tid = orderRow.tenant_id != null ? String(orderRow.tenant_id).trim() : '';
+    if (orderStatus === 'completed' && oid && memberId && tid) {
       const { granted, amount } = await grantOrderCompletedSpinCredits({
         orderId: oid,
         memberId,

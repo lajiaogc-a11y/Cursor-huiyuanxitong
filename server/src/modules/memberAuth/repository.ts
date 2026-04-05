@@ -247,13 +247,9 @@ export async function grantReferralSpinsOnFirstLogin(memberId: string): Promise<
   if (Number(alreadyGranted?.cnt) > 0) return;
 
   await withTransaction(async (conn) => {
-    const [idempRows] = await conn.query(
-      `INSERT IGNORE INTO referral_events (id, tenant_id, referrer_id, referee_id, event_type, event_value, created_at)
-       VALUES (UUID(), ?, ?, ?, 'first_login_reward', NULL, NOW(3))`,
-      [regEvent.tenant_id, regEvent.referrer_id, memberId],
-    );
-    if ((idempRows as ResultSetHeader).affectedRows !== 1) return;
-
+    // C4: Read settings BEFORE consuming the idempotency slot.
+    // If rewardSpins <= 0, don't claim the slot so it can be retried
+    // after the admin configures a positive reward value.
     const [portalRows] = await conn.query<RowDataPacket[]>(
       `SELECT invite_reward_spins, daily_invite_reward_limit FROM member_portal_settings WHERE tenant_id = ? LIMIT 1`,
       [regEvent.tenant_id],
@@ -261,6 +257,14 @@ export async function grantReferralSpinsOnFirstLogin(memberId: string): Promise<
     const psRow = portalRows[0] as { invite_reward_spins?: number; daily_invite_reward_limit?: number } | undefined;
     const rewardSpins = Number(psRow?.invite_reward_spins ?? 3);
     if (rewardSpins <= 0) return;
+
+    // Now claim the idempotency slot
+    const [idempRows] = await conn.query(
+      `INSERT IGNORE INTO referral_events (id, tenant_id, referrer_id, referee_id, event_type, event_value, created_at)
+       VALUES (UUID(), ?, ?, ?, 'first_login_reward', NULL, NOW(3))`,
+      [regEvent.tenant_id, regEvent.referrer_id, memberId],
+    );
+    if ((idempRows as ResultSetHeader).affectedRows !== 1) return;
 
     const dailyInviteCap = Math.max(0, Number(psRow?.daily_invite_reward_limit ?? 0));
 

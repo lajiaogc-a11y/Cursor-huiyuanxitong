@@ -1504,5 +1504,32 @@ export async function migrateSchemaPatches(): Promise<void> {
     console.warn('[schema-patch] member_activity unique index:', ((e as Error).message || '').slice(0, 120));
   }
 
+  // ── M5: Add tenant_id to member_activity for tenant scoping ──
+  await addCol('member_activity', 'tenant_id', "VARCHAR(36) NULL DEFAULT NULL AFTER member_id");
+  try {
+    // Backfill tenant_id from members table
+    await execute(
+      `UPDATE member_activity ma
+       JOIN members m ON m.id = ma.member_id
+       SET ma.tenant_id = m.tenant_id
+       WHERE ma.tenant_id IS NULL AND m.tenant_id IS NOT NULL`
+    );
+  } catch (e) {
+    console.warn('[schema-patch] member_activity tenant_id backfill:', e instanceof Error ? e.message : e);
+  }
+
+  // ── Add tenant_id to spin_credits for tenant scoping ──
+  await addCol('spin_credits', 'tenant_id', "VARCHAR(36) NULL DEFAULT NULL AFTER member_id");
+  try {
+    await execute(
+      `UPDATE spin_credits sc
+       JOIN members m ON m.id = sc.member_id
+       SET sc.tenant_id = m.tenant_id
+       WHERE sc.tenant_id IS NULL AND m.tenant_id IS NOT NULL`
+    );
+  } catch (e) {
+    console.warn('[schema-patch] spin_credits tenant_id backfill:', e instanceof Error ? e.message : e);
+  }
+
   console.log('[schema-patch] done.');
 }

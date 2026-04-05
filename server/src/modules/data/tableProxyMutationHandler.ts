@@ -52,6 +52,17 @@ export async function tableInsertController(req: AuthenticatedRequest, res: Resp
   const { data: bodyData, upsert, onConflict } = req.body || {};
   const rows = Array.isArray(bodyData) ? bodyData : [bodyData];
 
+  // ── C1: 禁止表代理直接 INSERT 关键审计表 ──
+  // 管理员 upsert（备份恢复 / 数据导入）放行，普通 INSERT 一律拦截
+  const INSERT_BLOCKED_TABLES = new Set(['spin_credits', 'points_ledger']);
+  if (INSERT_BLOCKED_TABLES.has(table)) {
+    const isAdminUpsert = (upsert && onConflict) && isAdminUser(req);
+    if (!isAdminUpsert) {
+      rejectTableAccess(res, table, `Table '${table}' can only be written through dedicated service APIs`);
+      return;
+    }
+  }
+
   try {
     const results: unknown[] = [];
     for (let row of rows) {
@@ -197,17 +208,18 @@ export async function tableInsertController(req: AuthenticatedRequest, res: Resp
       const inserted = await queryOne(`SELECT * FROM \`${table}\` WHERE id = ?`, [row.id]);
       results.push(inserted);
 
+      // C3: Only increment member_activity for orders inserted as 'completed'
       if (table === 'orders' && inserted && typeof inserted === 'object') {
         const ins = inserted as Record<string, unknown>;
         const st = String(ins.status ?? '').toLowerCase().trim();
         if (st === 'completed' && ins.id) {
-          const memberId = ins.member_id != null ? String(ins.member_id).trim() : '';
-          const tenantId = ins.tenant_id != null ? String(ins.tenant_id).trim() : '';
           try {
             await incrementMemberActivityForNewOrder(ins);
           } catch (actErr) {
             logger.error('TableProxy', 'INSERT orders incrementMemberActivity:', actErr);
           }
+          const memberId = ins.member_id != null ? String(ins.member_id).trim() : '';
+          const tenantId = ins.tenant_id != null ? String(ins.tenant_id).trim() : '';
           if (memberId && tenantId) {
             try {
               const { granted, amount } = await grantOrderCompletedSpinCredits({
@@ -268,6 +280,26 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
   try {
     // 应用列名映射（前端列名 → 数据库实际列名）
     let mappedData = mapBodyColumns(table, updateData) as Record<string, unknown>;
+
+    // ── C1: 敏感表列级写入保护 ──
+    // 关键余额/次数列只能通过专用 service 修改，禁止表代理直接 PATCH
+    const BLOCKED_PATCH_COLUMNS: Record<string, Set<string>> = {
+      points_accounts: new Set(['frozen_points', 'total_earned', 'total_spent']),
+      member_activity: new Set(['lottery_spin_balance', 'lottery_free_draws_used', 'lottery_quota_day']),
+    };
+    const blocked = BLOCKED_PATCH_COLUMNS[table];
+    if (blocked) {
+      const violating = Object.keys(mappedData).filter(k => blocked.has(k));
+      if (violating.length > 0) {
+        logger.warn('TableProxy', `PATCH ${table}: blocked columns ${violating.join(', ')} stripped`);
+        mappedData = Object.fromEntries(Object.entries(mappedData).filter(([k]) => !blocked.has(k)));
+        if (Object.keys(mappedData).length === 0) {
+          res.status(400).json({ data: null, error: { message: `All requested columns are protected on ${table}` } });
+          return;
+        }
+      }
+    }
+
     let auditCasPending = false;
     if (table === 'audit_records') {
       const ALLOWED = new Set(['status', 'reviewer_id', 'review_time', 'review_comment']);

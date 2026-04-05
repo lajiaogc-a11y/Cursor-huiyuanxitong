@@ -166,3 +166,129 @@ export async function applyPointsLedgerDeltaOnConn(
   }
   return { actualDelta, balanceAfter: after };
 }
+
+// ─── H2: Unified freeze / unfreeze / confirm-frozen helpers ───
+
+/**
+ * Freeze points: atomically move `amount` from balance → frozen_points.
+ * Rejects if balance < amount or if there are already frozen points.
+ */
+export async function freezePointsOnConn(
+  conn: PoolConnection,
+  memberId: string,
+  amount: number,
+  ledgerDescription: string,
+  referenceId?: string | null,
+): Promise<{ balanceAfter: number; frozenAfter: number; ledgerId: string }> {
+  const cost = Math.max(0, Math.floor(amount));
+  if (cost <= 0) throw new Error('INVALID_FREEZE_AMOUNT');
+
+  const acct = await qOne<{ id: string; balance: number; frozen_points: number; tenant_id: string | null }>(
+    conn,
+    'SELECT id, COALESCE(balance, 0) AS balance, COALESCE(frozen_points, 0) AS frozen_points, tenant_id FROM points_accounts WHERE member_id = ? FOR UPDATE',
+    [memberId],
+  );
+  if (!acct) throw new Error('POINTS_ACCOUNT_NOT_FOUND');
+  if (acct.frozen_points > 0) throw new Error('HAS_FROZEN_POINTS');
+  if (acct.balance < cost) throw new Error('INSUFFICIENT_POINTS');
+
+  const balanceAfter = acct.balance - cost;
+  const frozenAfter = acct.frozen_points + cost;
+
+  await exec(
+    conn,
+    `UPDATE points_accounts SET balance = ?, frozen_points = ?, updated_at = NOW(3) WHERE id = ?`,
+    [balanceAfter, frozenAfter, acct.id],
+  );
+
+  const ledgerId = randomUUID();
+  await exec(
+    conn,
+    `INSERT INTO points_ledger (id, account_id, member_id, type, amount, balance_after, reference_type, reference_id, description, tenant_id)
+     VALUES (?, ?, ?, 'freeze', ?, ?, 'redemption', ?, ?, ?)`,
+    [ledgerId, acct.id, memberId, -cost, balanceAfter, referenceId ?? null, ledgerDescription, acct.tenant_id],
+  );
+
+  return { balanceAfter, frozenAfter, ledgerId };
+}
+
+/**
+ * Confirm frozen: finalize a redemption by consuming frozen_points.
+ * frozen_points -= amount, total_spent += amount.
+ */
+export async function confirmFrozenOnConn(
+  conn: PoolConnection,
+  memberId: string,
+  amount: number,
+  ledgerDescription: string,
+  referenceId?: string | null,
+): Promise<{ frozenAfter: number; ledgerId: string }> {
+  const cost = Math.max(0, Math.floor(amount));
+  if (cost <= 0) throw new Error('INVALID_CONFIRM_AMOUNT');
+
+  const acct = await qOne<{ id: string; frozen_points: number; balance: number; tenant_id: string | null }>(
+    conn,
+    'SELECT id, COALESCE(frozen_points, 0) AS frozen_points, COALESCE(balance, 0) AS balance, tenant_id FROM points_accounts WHERE member_id = ? FOR UPDATE',
+    [memberId],
+  );
+  if (!acct) throw new Error('POINTS_ACCOUNT_NOT_FOUND');
+  if (acct.frozen_points < cost) throw new Error('FROZEN_POINTS_INCONSISTENT');
+
+  const frozenAfter = acct.frozen_points - cost;
+  await exec(
+    conn,
+    `UPDATE points_accounts SET frozen_points = ?, total_spent = total_spent + ?, updated_at = NOW(3) WHERE id = ?`,
+    [frozenAfter, cost, acct.id],
+  );
+
+  const ledgerId = randomUUID();
+  await exec(
+    conn,
+    `INSERT INTO points_ledger (id, account_id, member_id, type, amount, balance_after, reference_type, reference_id, description, tenant_id)
+     VALUES (?, ?, ?, 'redeem_confirm', ?, ?, 'redemption', ?, ?, ?)`,
+    [ledgerId, acct.id, memberId, -cost, acct.balance, referenceId ?? null, ledgerDescription, acct.tenant_id],
+  );
+
+  return { frozenAfter, ledgerId };
+}
+
+/**
+ * Unfreeze points: return frozen_points back to balance (rejection/cancellation).
+ */
+export async function unfreezePointsOnConn(
+  conn: PoolConnection,
+  memberId: string,
+  amount: number,
+  ledgerDescription: string,
+  referenceId?: string | null,
+): Promise<{ balanceAfter: number; frozenAfter: number; ledgerId: string }> {
+  const cost = Math.max(0, Math.floor(amount));
+  if (cost <= 0) throw new Error('INVALID_UNFREEZE_AMOUNT');
+
+  const acct = await qOne<{ id: string; balance: number; frozen_points: number; tenant_id: string | null }>(
+    conn,
+    'SELECT id, COALESCE(balance, 0) AS balance, COALESCE(frozen_points, 0) AS frozen_points, tenant_id FROM points_accounts WHERE member_id = ? FOR UPDATE',
+    [memberId],
+  );
+  if (!acct) throw new Error('POINTS_ACCOUNT_NOT_FOUND');
+
+  const frozenAfter = Math.max(0, acct.frozen_points - cost);
+  const refundAmount = Math.min(cost, acct.frozen_points);
+  const balanceAfter = acct.balance + refundAmount;
+
+  await exec(
+    conn,
+    `UPDATE points_accounts SET balance = ?, frozen_points = ?, updated_at = NOW(3) WHERE id = ?`,
+    [balanceAfter, frozenAfter, acct.id],
+  );
+
+  const ledgerId = randomUUID();
+  await exec(
+    conn,
+    `INSERT INTO points_ledger (id, account_id, member_id, type, amount, balance_after, reference_type, reference_id, description, tenant_id)
+     VALUES (?, ?, ?, 'unfreeze', ?, ?, 'redemption', ?, ?, ?)`,
+    [ledgerId, acct.id, memberId, refundAmount, balanceAfter, referenceId ?? null, ledgerDescription, acct.tenant_id],
+  );
+
+  return { balanceAfter, frozenAfter, ledgerId };
+}

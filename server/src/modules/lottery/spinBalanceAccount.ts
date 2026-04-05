@@ -36,16 +36,21 @@ export async function ensureMemberActivityRowForLotteryConn(conn: PoolConnection
     [memberId],
   );
   if (existing) return;
+
+  const memRow = await queryOneConn<{ tenant_id: string | null }>(
+    conn, 'SELECT tenant_id FROM members WHERE id = ? LIMIT 1', [memberId],
+  );
+
   await execConn(
     conn,
     `INSERT INTO member_activity (
-      id, member_id, lottery_spin_balance, lottery_free_draws_used,
+      id, member_id, tenant_id, lottery_spin_balance, lottery_free_draws_used,
       remaining_points, accumulated_points, referral_count, referral_points, order_count,
       total_accumulated_ngn, total_accumulated_ghs, total_accumulated_usdt,
       accumulated_profit, accumulated_profit_usdt,
       total_gift_ngn, total_gift_ghs, total_gift_usdt
-    ) VALUES (UUID(), ?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)`,
-    [memberId],
+    ) VALUES (UUID(), ?, ?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)`,
+    [memberId, memRow?.tenant_id ?? null],
   );
 }
 
@@ -81,9 +86,12 @@ export async function addSpinConn(
     );
   }
 
+  const scTenantRow = await queryOneConn<{ tenant_id: string | null }>(
+    conn, 'SELECT tenant_id FROM members WHERE id = ? LIMIT 1', [memberId],
+  );
   await conn.query(
-    'INSERT INTO spin_credits (id, member_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, NOW(3))',
-    [memberId, delta, source],
+    'INSERT INTO spin_credits (id, member_id, tenant_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, ?, NOW(3))',
+    [memberId, scTenantRow?.tenant_id ?? null, delta, source],
   );
 
   const [balRows] = await conn.query(

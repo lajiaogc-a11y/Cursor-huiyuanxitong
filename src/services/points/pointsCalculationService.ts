@@ -192,12 +192,11 @@ export async function getMemberPointsSummary(
       })
       .reduce((sum: number, e: PointsLedgerRow) => sum + ledgerAmt(e), 0);
 
-    // 流水汇总净值（与分项展示一致）
-    const remainingFromLedger =
-      consumptionReward + referralRewardPoints + lotteryPoints + redemptionNet;
+    // H6/H7: The authoritative balance is points_accounts.balance from the server.
+    // Ledger-based calculation is a LAST RESORT fallback only.
     const balRaw = accountsRow != null ? Number(accountsRow.balance) : NaN;
-    // 与活动数据 Tab 一致：以积分账户余额为准（含商城兑换等全部入账类型）
-    const remainingPoints = Number.isFinite(balRaw) ? balRaw : remainingFromLedger;
+    const remainingPoints = Number.isFinite(balRaw) ? balRaw
+      : consumptionReward + referralRewardPoints + lotteryPoints + redemptionNet;
 
     return {
       remainingPoints,

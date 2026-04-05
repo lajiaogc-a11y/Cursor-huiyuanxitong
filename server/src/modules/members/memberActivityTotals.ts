@@ -1,13 +1,11 @@
 /**
  * 订单创建后同步「活动数据」永久累计字段（member_activity）
- * 与前端活动页 MemberActivityDataContent 展示的 order_count / total_accumulated_* / accumulated_profit* 一致。
+ * C2: Now uses the unified memberActivityAccount helper.
  */
-import { randomUUID } from 'node:crypto';
-import { queryOne, execute } from '../../database/index.js';
+import { applyMemberActivityDeltas, type MemberActivityDeltas } from './memberActivityAccount.js';
 
 export type OrderCurrencyBucket = 'NGN' | 'GHS' | 'USDT';
 
-/** 与 orderReversal、活动页筛选逻辑对齐 */
 export function resolveOrderCurrencyBucket(currency: string | null | undefined): OrderCurrencyBucket | null {
   const s = String(currency ?? '').trim();
   if (!s) return null;
@@ -33,53 +31,18 @@ export async function incrementMemberActivityForNewOrder(row: Record<string, unk
   const profitNgn = Number(row.profit_ngn) || 0;
   const profitUsdt = Number(row.profit_usdt) || 0;
 
-  let dNgn = 0;
-  let dGhs = 0;
-  let dUsdt = 0;
-  let dProfitRmb = 0;
-  let dProfitUsdt = 0;
+  const deltas: MemberActivityDeltas = { order_count: 1 };
 
   if (bucket === 'NGN') {
-    dNgn = actual;
-    dProfitRmb = profitNgn;
+    deltas.total_accumulated_ngn = actual;
+    deltas.accumulated_profit = profitNgn;
   } else if (bucket === 'GHS') {
-    dGhs = actual;
-    dProfitRmb = profitNgn;
+    deltas.total_accumulated_ghs = actual;
+    deltas.accumulated_profit = profitNgn;
   } else {
-    dUsdt = actual;
-    dProfitUsdt = profitUsdt;
+    deltas.total_accumulated_usdt = actual;
+    deltas.accumulated_profit_usdt = profitUsdt;
   }
 
-  const existing = await queryOne<{ id: string }>(
-    `SELECT id FROM member_activity WHERE member_id = ? LIMIT 1`,
-    [memberId]
-  );
-
-  if (!existing) {
-    await execute(
-      `INSERT INTO member_activity (
-        id, member_id, phone_number,
-        order_count, total_accumulated_ngn, total_accumulated_ghs, total_accumulated_usdt,
-        accumulated_profit, accumulated_profit_usdt,
-        remaining_points, accumulated_points, referral_count, referral_points,
-        total_gift_ngn, total_gift_ghs, total_gift_usdt
-      ) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, 0)`,
-      [randomUUID(), memberId, phone || null, dNgn, dGhs, dUsdt, dProfitRmb, dProfitUsdt]
-    );
-    return;
-  }
-
-  await execute(
-    `UPDATE member_activity SET
-      total_accumulated_ngn = COALESCE(total_accumulated_ngn, 0) + ?,
-      total_accumulated_ghs = COALESCE(total_accumulated_ghs, 0) + ?,
-      total_accumulated_usdt = COALESCE(total_accumulated_usdt, 0) + ?,
-      accumulated_profit = COALESCE(accumulated_profit, 0) + ?,
-      accumulated_profit_usdt = COALESCE(accumulated_profit_usdt, 0) + ?,
-      order_count = COALESCE(order_count, 0) + 1,
-      phone_number = COALESCE(NULLIF(?, ''), phone_number),
-      updated_at = NOW()
-     WHERE id = ?`,
-    [dNgn, dGhs, dUsdt, dProfitRmb, dProfitUsdt, phone, existing.id]
-  );
+  await applyMemberActivityDeltas(memberId, deltas, phone || undefined);
 }
