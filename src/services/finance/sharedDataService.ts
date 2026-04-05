@@ -247,21 +247,25 @@ export function subscribeToSharedData(
     callback(key, value);
   }, 200);
 
-  // 轮询：每 30 秒重新加载常用 key 并对比变化
+  // 轮询：每 30 秒通过单次 batch 请求重新加载常用 key 并对比变化
+  const commonKeys: SharedDataKey[] = [
+    'feeSettings', 'trxSettings', 'points_settings', 'activitySettings',
+    'exchangeRateSettings', 'rewardTypeSettings', 'copySettings',
+    'employeePermissions', 'auditSettings', 'production_lock',
+  ];
   const timer = setInterval(async () => {
     try {
       const tenantId = getEffectiveTenantId();
       if (!tenantId) return;
-      const commonKeys: SharedDataKey[] = [
-        'feeSettings', 'trxSettings', 'points_settings', 'activitySettings',
-        'exchangeRateSettings', 'rewardTypeSettings', 'copySettings',
-        'employeePermissions', 'auditSettings', 'production_lock',
-      ];
+      const oldSnapshots = new Map<SharedDataKey, string>();
       for (const key of commonKeys) {
-        const cacheKey = getSharedCacheKey(key, tenantId);
-        const oldCached = getCache(cacheKey);
-        const fresh = await loadSharedData(key);
-        if (fresh !== null && JSON.stringify(fresh) !== JSON.stringify(oldCached)) {
+        const old = getCache(getSharedCacheKey(key, tenantId));
+        oldSnapshots.set(key, old !== null ? JSON.stringify(old) : '');
+      }
+      const freshData = await loadMultipleSharedData(commonKeys);
+      for (const key of commonKeys) {
+        const fresh = freshData[key] ?? null;
+        if (fresh !== null && JSON.stringify(fresh) !== oldSnapshots.get(key)) {
           throttledCallback(key, fresh);
         }
       }
@@ -412,21 +416,21 @@ const DEFAULT_SHARED_DATA: Partial<Record<SharedDataKey, any>> = {
 
 // ============= 数据初始化 =============
 
-// 确保默认数据存在（按当前租户，登录后调用）- 通过 load/save 逐个检查并插入
+// 确保默认数据存在（按当前租户，登录后调用）- 一次 batch 加载后只补写缺失键
 export async function ensureDefaultSharedData(): Promise<void> {
   try {
     const tenantId = getEffectiveTenantId();
     if (!tenantId) return;
 
     const keysToInit = Object.keys(DEFAULT_SHARED_DATA) as SharedDataKey[];
+    const existing = await loadMultipleSharedData(keysToInit);
+
     let initialized = 0;
     for (const key of keysToInit) {
-      const existing = await loadSharedData(key);
-      if (existing === null || existing === undefined) {
-        const defaultValue = DEFAULT_SHARED_DATA[key];
-        if (defaultValue !== undefined && (await saveSharedData(key, defaultValue))) {
-          initialized++;
-        }
+      if (existing[key] != null) continue;
+      const defaultValue = DEFAULT_SHARED_DATA[key];
+      if (defaultValue !== undefined && (await saveSharedData(key, defaultValue))) {
+        initialized++;
       }
     }
     if (initialized > 0) {
