@@ -315,7 +315,7 @@ export default function Dashboard() {
                 <option value={300}>{t('refreshInterval.min5')}</option>
               </select>
             )}
-            <Button variant="outline" size="icon" onClick={handleRefresh} className="h-7 w-7">
+            <Button variant="outline" size="icon" onClick={handleRefresh} className="h-7 w-7" aria-label="Refresh">
               <RefreshCw className="h-3 w-3" />
             </Button>
           </div>

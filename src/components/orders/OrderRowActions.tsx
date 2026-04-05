@@ -40,7 +40,7 @@ export function OrderRowActions({
       <div className="flex items-center justify-center gap-0.5">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEdit(order)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEdit(order)} aria-label="Edit">
               <Pencil className="h-3 w-3" />
             </Button>
           </TooltipTrigger>
@@ -52,7 +52,7 @@ export function OrderRowActions({
               <span className="inline-flex">
                 <ConfirmDialog
                   trigger={
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-amber-500">
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-amber-500" aria-label="Cancel">
                       <X className="h-3 w-3" />
                     </Button>
                   }
@@ -74,7 +74,7 @@ export function OrderRowActions({
               <span className="inline-flex">
                 <ConfirmDialog
                   trigger={
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-primary">
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-primary" aria-label="Restore">
                       <RotateCcw className="h-3 w-3" />
                     </Button>
                   }
@@ -99,7 +99,7 @@ export function OrderRowActions({
               <span className="inline-flex">
                 <ConfirmDialog
                   trigger={
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive">
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" aria-label="Delete">
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   }

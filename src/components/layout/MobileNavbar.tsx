@@ -5,6 +5,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 interface MobileNavbarProps {
   onMenuOpen: () => void;
+  menuOpen?: boolean;
   memoUnreadCount?: number;
   knowledgeUnreadCount?: number;
   /** 审核中心待处理条数，与侧栏/抽屉菜单角标同源，合并进「更多」总角标 */
@@ -48,6 +49,7 @@ function NavItem({ icon, label, to, isActive }: NavItemProps) {
 
 export function MobileNavbar({
   onMenuOpen,
+  menuOpen = false,
   memoUnreadCount = 0,
   knowledgeUnreadCount = 0,
   pendingAuditCount = 0,
@@ -81,6 +83,7 @@ export function MobileNavbar({
       ))}
       <button
         onClick={onMenuOpen}
+        aria-expanded={menuOpen}
         className="relative flex flex-col items-center justify-center gap-0.5 py-1.5 px-1 min-w-0 flex-1 min-h-[48px] rounded-lg text-muted-foreground active:text-foreground transition-colors touch-manipulation"
       >
         <div className="h-6 w-6 flex items-center justify-center">

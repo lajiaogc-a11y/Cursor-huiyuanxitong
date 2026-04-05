@@ -264,6 +264,7 @@ export function MobileLayout({ children }: MobileLayoutProps) {
       <nav className="fixed bottom-0 left-0 right-0 z-[1000]" role="navigation" aria-label={t("主导航", "Main navigation")}>
         <MobileNavbar
           onMenuOpen={() => setMenuOpen(true)}
+          menuOpen={menuOpen}
           memoUnreadCount={memoUnreadCount}
           knowledgeUnreadCount={knowledgeUnreadCount}
           pendingAuditCount={pendingAuditCount}

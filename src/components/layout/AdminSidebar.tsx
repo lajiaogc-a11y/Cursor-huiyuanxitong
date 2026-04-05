@@ -102,6 +102,7 @@ export function AdminSidebar() {
           <div
             role="button"
             tabIndex={0}
+            aria-expanded={settingsExpanded}
             onClick={() => {
               setSettingsExpanded((v) => !v);
               if (!isSettingsActive) navigate("/staff/admin/settings/ip-control");

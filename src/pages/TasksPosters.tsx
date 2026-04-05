@@ -268,6 +268,7 @@ export default function TasksPosters() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 shrink-0"
+                          aria-label="Edit"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleEditOpen(p);
@@ -280,6 +281,7 @@ export default function TasksPosters() {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 text-destructive shrink-0"
+                            aria-label="Delete"
                             onClick={(e) => {
                               e.stopPropagation();
                               setConfirmDeleteId(p.id);
@@ -375,6 +377,7 @@ export default function TasksPosters() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
+                                aria-label="Edit"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleEditOpen(p);
@@ -387,6 +390,7 @@ export default function TasksPosters() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8 text-destructive hover:text-destructive"
+                                  aria-label="Delete"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setConfirmDeleteId(p.id);

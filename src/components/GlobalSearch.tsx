@@ -176,7 +176,7 @@ export function GlobalSearch() {
             className="border-0 bg-transparent focus-visible:ring-0 h-11 text-sm shadow-none"
           />
           {query ? (
-            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => { setQuery(''); setResults([]); }}>
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => { setQuery(''); setResults([]); }} aria-label="Clear">
               <X className="h-3.5 w-3.5" />
             </Button>
           ) : null}

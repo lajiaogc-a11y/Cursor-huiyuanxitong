@@ -1817,6 +1817,7 @@ export default function ExchangeRate() {
                   size="sm"
                   className="hidden lg:flex h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                   onClick={toggleRightPanel}
+                  aria-expanded={showRightPanel}
                   title={showRightPanel ? t("隐藏工作面板", "Hide Panel") : t("显示工作面板", "Show Panel")}
                 >
                   {showRightPanel ? (

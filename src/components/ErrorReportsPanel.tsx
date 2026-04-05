@@ -265,11 +265,11 @@ export default function ErrorReportsPanel() {
                       <p className="text-xs text-muted-foreground truncate">{truncateUA(report.user_agent)}</p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setDeleteReportId(report.id); }}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Delete" onClick={(e) => { e.stopPropagation(); setDeleteReportId(report.id); }}>
                         <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
                       <CollapsibleTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Expand">
                           <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                         </Button>
                       </CollapsibleTrigger>

@@ -142,6 +142,7 @@ export function MobileCardCollapsible({ children, label, className, defaultOpen 
       <button
         type="button"
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         className={cn(
           "flex items-center gap-1 text-[11px] w-full justify-center py-1.5 rounded-md transition-colors touch-manipulation",
           "text-muted-foreground hover:text-foreground hover:bg-muted/50 active:bg-muted/70"

@@ -625,6 +625,7 @@ export default function DataMigrationToolsTab() {
                   className="h-9 w-9 touch-manipulation"
                   disabled={jobPage <= 1 || loading}
                   onClick={() => setJobPage((p) => Math.max(1, p - 1))}
+                  aria-label="Previous"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -635,6 +636,7 @@ export default function DataMigrationToolsTab() {
                   className="h-9 w-9 touch-manipulation"
                   disabled={jobPage * jobPageSize >= jobTotal || loading}
                   onClick={() => setJobPage((p) => p + 1)}
+                  aria-label="Next"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>

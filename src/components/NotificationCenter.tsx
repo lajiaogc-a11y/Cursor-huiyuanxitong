@@ -85,6 +85,7 @@ function NotificationItem({
             size="icon"
             className="h-6 w-6"
             onClick={(e) => { e.stopPropagation(); onRead(notification.id); }}
+            aria-label="Confirm"
           >
             <Check className="h-3.5 w-3.5" />
           </Button>
@@ -94,6 +95,7 @@ function NotificationItem({
           size="icon"
           className="h-6 w-6 text-muted-foreground hover:text-destructive"
           onClick={(e) => { e.stopPropagation(); onDelete(notification.id); }}
+          aria-label="Delete"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
@@ -121,7 +123,7 @@ export function NotificationCenter() {
     <>
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-9 w-9 p-0 relative hover:bg-accent">
+        <Button variant="ghost" size="sm" className="h-9 w-9 p-0 relative hover:bg-accent" aria-label="Notifications">
           <Bell className="h-4 w-4 text-muted-foreground" />
           {unreadCount > 0 && (
             <Badge

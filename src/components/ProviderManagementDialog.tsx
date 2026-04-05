@@ -204,8 +204,8 @@ export default function ProviderManagementDialog({
                         <span className="text-xs text-muted-foreground">#{index + 1} · {r.createdAt}</span>
                         {canEditBalance && (
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setEditingRecharge({ ...r })}><Pencil className="h-3 w-3" /></Button>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => setDeletingRechargeId(r.id)}><Trash2 className="h-3 w-3" /></Button>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setEditingRecharge({ ...r })} aria-label="Edit"><Pencil className="h-3 w-3" /></Button>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => setDeletingRechargeId(r.id)} aria-label="Delete"><Trash2 className="h-3 w-3" /></Button>
                           </div>
                         )}
                       </div>

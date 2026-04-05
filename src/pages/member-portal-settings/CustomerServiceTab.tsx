@@ -229,6 +229,7 @@ export default function CustomerServiceTab({ settings, onSettingsChange, imageFi
                 variant="ghost"
                 size="icon"
                 className="mt-5 text-destructive hover:text-destructive"
+                aria-label="Delete"
                 onClick={() => {
                   setDeleteAgentIdx(idx);
                   setDeleteAgentPwd('');

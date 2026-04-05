@@ -317,7 +317,7 @@ export default function MemberManagement() {
         actions={
           !isMobile ? (
             <PageActions>
-              <Button variant="outline" size="icon" onClick={handleRefresh} aria-label={t("刷新", "Refresh")}>
+              <Button variant="outline" size="icon" onClick={handleRefresh} aria-label="Refresh">
                 <RefreshCw className="h-4 w-4" />
               </Button>
               <TableImportButton tableName="members" onImportComplete={refetch} />
@@ -431,6 +431,7 @@ export default function MemberManagement() {
                             else if (r.error) notify.error(r.error);
                           })
                         }
+                        aria-label="Export"
                       >
                         <Download className="h-4 w-4" />
                       </Button>
@@ -503,7 +504,7 @@ export default function MemberManagement() {
                       {isAdmin && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="outline" className="h-9 w-9 text-destructive border-destructive/30 touch-manipulation"><Trash2 className="h-3.5 w-3.5" /></Button>
+                            <Button size="sm" variant="outline" className="h-9 w-9 text-destructive border-destructive/30 touch-manipulation" aria-label="Delete"><Trash2 className="h-3.5 w-3.5" /></Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader><AlertDialogTitle>{t('members.confirmDelete')}</AlertDialogTitle><AlertDialogDescription>{t('members.deleteWarning')}</AlertDialogDescription></AlertDialogHeader>
@@ -694,6 +695,7 @@ export default function MemberManagement() {
                                 size="icon"
                                 className="h-8 w-8"
                                 onClick={() => handleEdit(member)}
+                                aria-label="Edit"
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
@@ -708,6 +710,7 @@ export default function MemberManagement() {
                                   size="icon"
                                   className="h-8 w-8"
                                   onClick={() => handleOpenSetPassword(member)}
+                                  aria-label="Set password"
                                 >
                                   <KeyRound className="h-4 w-4" />
                                 </Button>
@@ -723,6 +726,7 @@ export default function MemberManagement() {
                                   size="icon"
                                   className="h-8 w-8"
                                   onClick={() => handleCopyPassword(member)}
+                                  aria-label="Copy password"
                                 >
                                   <Copy className="h-4 w-4" />
                                 </Button>
@@ -737,6 +741,7 @@ export default function MemberManagement() {
                                 size="icon"
                                 className="h-8 w-8"
                                 onClick={() => handleViewReferrals(member)}
+                                aria-label="View referrals"
                               >
                                 <UsersRound className="h-4 w-4" />
                               </Button>
@@ -753,6 +758,7 @@ export default function MemberManagement() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-8 w-8 text-destructive hover:text-destructive"
+                                        aria-label="Delete"
                                       >
                                         <Trash2 className="h-4 w-4" />
                                       </Button>

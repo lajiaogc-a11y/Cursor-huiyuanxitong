@@ -731,12 +731,12 @@ export default function RateSettingsTab({
                       <TableCell className="text-center">{entry.profitRate}%</TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingRateEntry(entry)} disabled={isReadOnly}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingRateEntry(entry)} disabled={isReadOnly} aria-label="Edit">
                             <Pencil className="h-3 w-3" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" disabled={isReadOnly}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" disabled={isReadOnly} aria-label="Delete">
                                 <Trash2 className="h-3 w-3" />
                               </Button>
                             </AlertDialogTrigger>

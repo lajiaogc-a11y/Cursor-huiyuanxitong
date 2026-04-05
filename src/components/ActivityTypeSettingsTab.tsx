@@ -242,6 +242,7 @@ export default function ActivityTypeSettingsTab() {
                               size="icon"
                               className="h-7 w-7"
                               onClick={() => handleEdit(type)}
+                              aria-label="Edit"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -250,6 +251,7 @@ export default function ActivityTypeSettingsTab() {
                               size="icon"
                               className="h-7 w-7 text-destructive hover:text-destructive"
                               onClick={() => handleDeleteClick(type)}
+                              aria-label="Delete"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

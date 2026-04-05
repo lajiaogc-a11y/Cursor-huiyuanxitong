@@ -133,6 +133,7 @@ export function ModuleCoverageDashboard({ logs, serverModuleCounts, totalCount }
               size="sm"
               className="h-8 text-muted-foreground hover:text-foreground -ml-1"
               onClick={() => setShowInactive(!showInactive)}
+              aria-expanded={showInactive}
             >
               {showInactive ? (
                 <ChevronUp className="h-4 w-4 mr-1" />

@@ -972,13 +972,14 @@ export default function OperationLogs() {
                   dateRange={dateRange}
                 />
               </div>
-              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-lg touch-manipulation" onClick={handleRefresh}>
+              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-lg touch-manipulation" aria-label="Refresh" onClick={handleRefresh}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
               <Button
                 variant="outline"
                 size="icon"
                 className="h-9 w-9 shrink-0 rounded-lg touch-manipulation"
+                aria-label="Export"
                 disabled={exporting}
                 onClick={() => exportConfirm.requestExport(handleExport)}
               >

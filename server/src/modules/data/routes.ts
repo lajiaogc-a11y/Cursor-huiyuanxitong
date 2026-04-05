@@ -75,7 +75,6 @@ const PUBLIC_RPC_WHITELIST = new Set([
   'get_maintenance_mode_status',
   'validate_invite_and_submit',
   'check_api_rate_limit',
-  'get_tenant_feature_flag',
 ]);
 
 /** 分享凭证申请 — 与分享领奖共用限流（须在通用 /rpc/:fn 之前注册） */

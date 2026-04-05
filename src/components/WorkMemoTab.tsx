@@ -254,12 +254,12 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
                             <Check className="h-4 w-4 mr-1" />{t('workMemo.confirmRead')}
                           </Button>
                         )}
-                        <Button variant="ghost" size="sm" className="h-8 flex-1" onClick={() => handleOpenEdit(memo)}>
+                        <Button variant="ghost" size="sm" className="h-8 flex-1" onClick={() => handleOpenEdit(memo)} aria-label="Edit">
                           <Pencil className="h-4 w-4 mr-1" />
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 text-destructive">
+                            <Button variant="ghost" size="sm" className="h-8 text-destructive" aria-label="Delete">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>
@@ -358,6 +358,7 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 text-green-600 hover:text-green-700"
+                                    aria-label="Confirm"
                                   >
                                     <Check className="h-4 w-4" />
                                   </Button>
@@ -386,6 +387,7 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
                               size="icon"
                               className="h-8 w-8 text-blue-600 hover:text-blue-700"
                               onClick={() => handleOpenEdit(memo)}
+                              aria-label="Edit"
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -395,6 +397,7 @@ export default function WorkMemoTab({ onUnreadCountChange }: WorkMemoTabProps) {
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8 text-destructive hover:text-destructive"
+                                  aria-label="Delete"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>

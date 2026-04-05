@@ -148,6 +148,8 @@ export default function TasksHistory() {
                 return (
                   <Card key={ov.task_id}>
                     <CardHeader
+                      role="button"
+                      aria-expanded={isExpanded}
                       className="pb-2 cursor-pointer hover:bg-muted/30 transition-colors rounded-t-lg"
                       onClick={() => {
                         setExpandedTaskId(isExpanded ? null : ov.task_id);

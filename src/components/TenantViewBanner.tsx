@@ -199,6 +199,7 @@ export function TenantViewFloatingIndicator() {
               type="button"
               data-tenant-fab-interactive
               onClick={() => setExpanded(false)}
+              aria-expanded={expanded}
               className="p-0.5 rounded hover:bg-white/20 transition-colors shrink-0"
             >
               <ChevronDown className="h-4 w-4" />
@@ -226,6 +227,7 @@ export function TenantViewFloatingIndicator() {
             if (didDragRef.current) return;
             setExpanded(true);
           }}
+          aria-expanded={expanded}
           className="bg-amber-600 hover:bg-amber-700 text-white rounded-full shadow-2xl border-2 border-amber-400/50 pl-2 pr-3 py-3 flex items-center gap-1.5 transition-all active:scale-[0.98] group max-w-[min(100vw-24px,320px)]"
           title={t(
             "按住拖动可移动位置；点击展开",

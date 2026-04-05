@@ -521,6 +521,7 @@ export function ApiKeyManagementTab() {
                   size="icon"
                   className="h-7 w-7"
                   onClick={() => setNewKeyVisible(!newKeyVisible)}
+                  aria-label={newKeyVisible ? "Hide" : "Show"}
                 >
                   {newKeyVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -529,6 +530,7 @@ export function ApiKeyManagementTab() {
                   size="icon"
                   className="h-7 w-7"
                   onClick={() => copyToClipboard(generatedKey)}
+                  aria-label="Copy"
                 >
                   <Copy className="h-4 w-4" />
                 </Button>

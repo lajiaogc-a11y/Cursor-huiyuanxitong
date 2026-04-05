@@ -275,6 +275,7 @@ export default function TaskBoardContent({ compact, onRefresh }: TaskBoardConten
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 shrink-0"
+                          aria-label="Copy"
                           onClick={() => handleCopy(item)}
                         >
                           {copiedId === item.id ? (
@@ -289,6 +290,7 @@ export default function TaskBoardContent({ compact, onRefresh }: TaskBoardConten
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 shrink-0"
+                          aria-label="Download"
                           onClick={() => {
                             const link = document.createElement("a");
                             link.download = `poster_${item.id}.png`;

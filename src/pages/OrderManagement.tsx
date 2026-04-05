@@ -1885,12 +1885,14 @@ export default function OrderManagement() {
               size="sm"
               onClick={() => setShowAdvancedFilter(!showAdvancedFilter)}
               className="shrink-0"
+              aria-expanded={showAdvancedFilter}
+              aria-label={isMobile ? "Filter" : undefined}
             >
               <Filter className="h-4 w-4" />
               {!isMobile && <span className="ml-1">{t("筛选", "Filter")}</span>}
             </Button>
             {isMobile && (
-              <Button variant="outline" size="icon" onClick={handleRefresh} className="shrink-0">
+              <Button variant="outline" size="icon" onClick={handleRefresh} className="shrink-0" aria-label="Refresh">
                 <RefreshCw className="h-4 w-4" />
               </Button>
             )}

@@ -105,6 +105,7 @@ export const TablePagination = React.forwardRef<HTMLDivElement, TablePaginationP
               className="h-7 w-7 sm:h-8 sm:w-8"
               onClick={() => onPageChange(1)}
               disabled={currentPage <= 1}
+              aria-label="First page"
             >
               <ChevronsLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
@@ -116,6 +117,7 @@ export const TablePagination = React.forwardRef<HTMLDivElement, TablePaginationP
             className="h-7 w-7 sm:h-8 sm:w-8"
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage <= 1}
+            aria-label="Previous page"
           >
             <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </Button>
@@ -133,6 +135,7 @@ export const TablePagination = React.forwardRef<HTMLDivElement, TablePaginationP
             className="h-7 w-7 sm:h-8 sm:w-8"
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage >= totalPages}
+            aria-label="Next page"
           >
             <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </Button>
@@ -144,6 +147,7 @@ export const TablePagination = React.forwardRef<HTMLDivElement, TablePaginationP
               className="h-7 w-7 sm:h-8 sm:w-8"
               onClick={() => onPageChange(totalPages)}
               disabled={currentPage >= totalPages}
+              aria-label="Last page"
             >
               <ChevronsRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>

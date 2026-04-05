@@ -553,10 +553,10 @@ export default function PointsTransactionsTab({
               </Select>
               {!toolbarActionsInTabRow && (
                 <>
-                  <Button variant="outline" size="icon" onClick={handleRefresh}>
+                  <Button variant="outline" size="icon" onClick={handleRefresh} aria-label="Refresh">
                     <RefreshCw className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="icon" onClick={() => exportConfirm.requestExport(handleExport)}>
+                  <Button variant="outline" size="icon" onClick={() => exportConfirm.requestExport(handleExport)} aria-label="Export">
                     <Download className="h-4 w-4" />
                   </Button>
                 </>
@@ -824,6 +824,7 @@ export default function PointsTransactionsTab({
                     className="h-8 w-8"
                     onClick={() => setCurrentPage(1)}
                     disabled={currentPage === 1}
+                    aria-label="First page"
                   >
                     <ChevronsLeft className="h-4 w-4" />
                   </Button>
@@ -834,6 +835,7 @@ export default function PointsTransactionsTab({
                   className="h-8 w-8"
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
+                  aria-label="Previous page"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -846,6 +848,7 @@ export default function PointsTransactionsTab({
                   className="h-8 w-8"
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage >= totalPages}
+                  aria-label="Next page"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -856,6 +859,7 @@ export default function PointsTransactionsTab({
                     className="h-8 w-8"
                     onClick={() => setCurrentPage(totalPages)}
                     disabled={currentPage >= totalPages}
+                    aria-label="Last page"
                   >
                     <ChevronsRight className="h-4 w-4" />
                   </Button>

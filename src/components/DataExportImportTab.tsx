@@ -659,6 +659,7 @@ export default function DataExportImportTab() {
               size="icon"
               onClick={loadTableStats}
               disabled={loadingStats}
+              aria-label="Refresh"
             >
               <RefreshCw className={`h-4 w-4 ${loadingStats ? 'animate-spin' : ''}`} />
             </Button>

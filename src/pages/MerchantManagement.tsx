@@ -337,7 +337,7 @@ function CardTab() {
             <Download className="h-4 w-4" />
           </Button>
           <TableImportButton tableName="cards" onImportComplete={() => refetch()} />
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => refetch()}>
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => refetch()} aria-label="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
           <>
@@ -473,7 +473,7 @@ function CardTab() {
                         <TableCell className="text-center px-1.5">
                           <div className="flex items-center justify-center gap-2">
                             <>
-                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(card)}><Pencil className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(card)} aria-label="Edit"><Pencil className="h-4 w-4" /></Button>
                               <DrawerDetail open={editingCard?.id === card.id} onOpenChange={(open) => { if (!open) { setEditingCard(null); resetForm(); } }} title={t('merchants.editCard')} sheetMaxWidth="xl">
                                 {cardFormContent}
                                 <div className="flex flex-wrap justify-end gap-2 pt-4 mt-4 border-t border-border">
@@ -487,7 +487,7 @@ function CardTab() {
                             </>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="text-destructive" aria-label="Delete"><Trash2 className="h-4 w-4" /></Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
@@ -535,17 +535,17 @@ function CardTab() {
                 <span className="text-sm text-muted-foreground">{t('共', 'Total')} {filteredCards.length} {t('条', 'items')}</span>
               </div>
               <div className="flex items-center gap-1">
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(1)} disabled={currentPage <= 1}>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(1)} disabled={currentPage <= 1} aria-label="First page">
                   <ChevronsLeft className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage <= 1}>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage <= 1} aria-label="Previous">
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <span className="tabular-nums px-3 text-sm">{currentPage} / {totalPages}</span>
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage >= totalPages}>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage >= totalPages} aria-label="Next">
                   <ChevronRight className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(totalPages)} disabled={currentPage >= totalPages}>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(totalPages)} disabled={currentPage >= totalPages} aria-label="Last page">
                   <ChevronsRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -763,7 +763,7 @@ function VendorTab() {
             <Download className="h-4 w-4" />
           </Button>
           <TableImportButton tableName="vendors" onImportComplete={() => refetch()} />
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => refetch()}>
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => refetch()} aria-label="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
           <>
@@ -912,7 +912,7 @@ function VendorTab() {
                         <TableCell className="text-center px-1.5">
                           <div className="flex items-center justify-center gap-2">
                             <>
-                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(vendor)}><Pencil className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(vendor)} aria-label="Edit"><Pencil className="h-4 w-4" /></Button>
                               <DrawerDetail open={editingVendor?.id === vendor.id} onOpenChange={(open) => { if (!open) { setEditingVendor(null); resetForm(); } }} title={t('merchants.editVendor')} sheetMaxWidth="xl">
                                 {vendorFormContent}
                                 <div className="flex flex-wrap justify-end gap-2 pt-4 mt-4 border-t border-border">
@@ -926,7 +926,7 @@ function VendorTab() {
                             </>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="text-destructive" aria-label="Delete"><Trash2 className="h-4 w-4" /></Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
@@ -974,17 +974,17 @@ function VendorTab() {
                 <span className="text-sm text-muted-foreground">{t('共', 'Total')} {filteredVendors.length} {t('条', 'items')}</span>
               </div>
               <div className="flex items-center gap-1">
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(1)} disabled={currentPage <= 1}>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(1)} disabled={currentPage <= 1} aria-label="First page">
                   <ChevronsLeft className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage <= 1}>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage <= 1} aria-label="Previous">
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <span className="tabular-nums px-3 text-sm">{currentPage} / {totalPages}</span>
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage >= totalPages}>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage >= totalPages} aria-label="Next">
                   <ChevronRight className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(totalPages)} disabled={currentPage >= totalPages}>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(totalPages)} disabled={currentPage >= totalPages} aria-label="Last page">
                   <ChevronsRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -1168,7 +1168,7 @@ function PaymentProviderTab() {
             <Download className="h-4 w-4" />
           </Button>
           <TableImportButton tableName="payment_providers" onImportComplete={() => refetch()} />
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => refetch()}>
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => refetch()} aria-label="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
           <>
@@ -1280,7 +1280,7 @@ function PaymentProviderTab() {
                         <TableCell className="text-center px-1.5">
                           <div className="flex items-center justify-center gap-2">
                             <>
-                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(provider)}><Pencil className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(provider)} aria-label="Edit"><Pencil className="h-4 w-4" /></Button>
                               <DrawerDetail open={editingProvider?.id === provider.id} onOpenChange={(open) => { if (!open) { setEditingProvider(null); resetForm(); } }} title={t('merchants.editProvider')} sheetMaxWidth="xl">
                                 {providerFormContent}
                                 <div className="flex flex-wrap justify-end gap-2 pt-4 mt-4 border-t border-border">
@@ -1294,7 +1294,7 @@ function PaymentProviderTab() {
                             </>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="text-destructive" aria-label="Delete"><Trash2 className="h-4 w-4" /></Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
@@ -1342,17 +1342,17 @@ function PaymentProviderTab() {
                 <span className="text-sm text-muted-foreground">{t('共', 'Total')} {filteredProviders.length} {t('条', 'items')}</span>
               </div>
               <div className="flex items-center gap-1">
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(1)} disabled={currentPage <= 1}>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(1)} disabled={currentPage <= 1} aria-label="First page">
                   <ChevronsLeft className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage <= 1}>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage <= 1} aria-label="Previous">
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <span className="tabular-nums px-3 text-sm">{currentPage} / {totalPages}</span>
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage >= totalPages}>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage >= totalPages} aria-label="Next">
                   <ChevronRight className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(totalPages)} disabled={currentPage >= totalPages}>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage(totalPages)} disabled={currentPage >= totalPages} aria-label="Last page">
                   <ChevronsRight className="h-4 w-4" />
                 </Button>
               </div>

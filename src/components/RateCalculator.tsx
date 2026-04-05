@@ -1323,7 +1323,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
                   <span className="flex-1 text-sm font-bold text-orange-700 dark:text-orange-300 tabular-nums text-right">
                     {Number(profitAnalysis.naira[rateIndex]).toLocaleString()}
                   </span>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-orange-200/50 shrink-0" onClick={() => fillNairaAmount(profitAnalysis.naira[rateIndex])}>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-orange-200/50 shrink-0" aria-label="Apply amount" onClick={() => fillNairaAmount(profitAnalysis.naira[rateIndex])}>
                     <ArrowDown className="h-3.5 w-3.5 text-orange-600" />
                   </Button>
                 </div>
@@ -1335,7 +1335,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
                   <span className="flex-1 text-sm font-bold text-emerald-700 dark:text-emerald-300 tabular-nums text-right">
                     {Number(profitAnalysis.cedi[rateIndex]).toLocaleString()}
                   </span>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-emerald-200/50 shrink-0" onClick={() => fillCediAmount(profitAnalysis.cedi[rateIndex])}>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-emerald-200/50 shrink-0" aria-label="Apply amount" onClick={() => fillCediAmount(profitAnalysis.cedi[rateIndex])}>
                     <ArrowDown className="h-3.5 w-3.5 text-emerald-600" />
                   </Button>
                 </div>
@@ -1347,7 +1347,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
                   <span className="flex-1 text-sm font-bold text-blue-700 dark:text-blue-300 tabular-nums text-right">
                     {Number(profitAnalysis.usdt[rateIndex]).toLocaleString()}
                   </span>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-blue-200/50 shrink-0" onClick={() => fillUsdtAmount(profitAnalysis.usdt[rateIndex])}>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-blue-200/50 shrink-0" aria-label="Apply amount" onClick={() => fillUsdtAmount(profitAnalysis.usdt[rateIndex])}>
                     <ArrowDown className="h-3.5 w-3.5 text-blue-600" />
                   </Button>
                 </div>
@@ -1383,7 +1383,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
               {profitAnalysis.naira.map((value, index) => (
                 <div key={index} className="px-1 sm:px-2 py-1.5 border-r border-orange-200/30 last:border-r-0 flex items-center justify-between">
                   <span className="text-xs sm:text-sm font-bold text-orange-700 dark:text-orange-300 tabular-nums">{value}</span>
-                  <Button variant="ghost" size="sm" className="h-5 w-5 p-0 hover:bg-orange-200/50" onClick={() => fillNairaAmount(value)}>
+                  <Button variant="ghost" size="sm" className="h-5 w-5 p-0 hover:bg-orange-200/50" aria-label="Apply amount" onClick={() => fillNairaAmount(value)}>
                     <ArrowDown className="h-3 w-3 text-orange-600" />
                   </Button>
                 </div>
@@ -1398,7 +1398,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
               {profitAnalysis.cedi.map((value, index) => (
                 <div key={index} className="px-1 sm:px-2 py-1.5 border-r border-emerald-200/30 last:border-r-0 flex items-center justify-between">
                   <span className="text-xs sm:text-sm font-bold text-emerald-700 dark:text-emerald-300 tabular-nums">{value}</span>
-                  <Button variant="ghost" size="sm" className="h-5 w-5 p-0 hover:bg-emerald-200/50" onClick={() => fillCediAmount(value)}>
+                  <Button variant="ghost" size="sm" className="h-5 w-5 p-0 hover:bg-emerald-200/50" aria-label="Apply amount" onClick={() => fillCediAmount(value)}>
                     <ArrowDown className="h-3 w-3 text-emerald-600" />
                   </Button>
                 </div>
@@ -1413,7 +1413,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
               {profitAnalysis.usdt.map((value, index) => (
                 <div key={index} className="px-1 sm:px-2 py-1.5 border-r border-blue-200/30 last:border-r-0 flex items-center justify-between">
                   <span className="text-xs sm:text-sm font-bold text-blue-700 dark:text-blue-300 tabular-nums">{value}</span>
-                  <Button variant="ghost" size="sm" className="h-5 w-5 p-0 hover:bg-blue-200/50" onClick={() => fillUsdtAmount(value)}>
+                  <Button variant="ghost" size="sm" className="h-5 w-5 p-0 hover:bg-blue-200/50" aria-label="Apply amount" onClick={() => fillUsdtAmount(value)}>
                     <ArrowDown className="h-3 w-3 text-blue-600" />
                   </Button>
                 </div>
@@ -1660,7 +1660,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
                       placeholder={t("卡号 银行", "Card# Bank")}
                       className={`h-7 min-w-0 flex-1 text-xs ${bankCardError ? 'border-destructive' : ''}`}
                     />
-                    <Button variant="outline" size="sm" className="h-7 w-7 shrink-0 p-0" onClick={copyBankCard}>
+                    <Button variant="outline" size="sm" className="h-7 w-7 shrink-0 p-0" aria-label="Copy" onClick={copyBankCard}>
                       <Copy className="h-3 w-3" />
                     </Button>
                   </div>

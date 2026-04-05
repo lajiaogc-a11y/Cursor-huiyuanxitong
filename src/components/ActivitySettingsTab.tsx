@@ -366,6 +366,7 @@ export default function ActivitySettingsTab() {
                           className="h-8 w-8 text-destructive hover:text-destructive"
                           onClick={() => setTierDeleteId(tier.id)}
                           disabled={!settings.activity1Enabled}
+                          aria-label="Delete"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

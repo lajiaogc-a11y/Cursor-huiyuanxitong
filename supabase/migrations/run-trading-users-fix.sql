@@ -1,3 +1,0 @@
--- 仅修复仪表盘交易用户为 0
--- 在 Supabase SQL Editor 中执行：https://supabase.com/dashboard/project/dhlwefrcowefvbxutsmc/sql/new
--- 或执行：npm run db:migrate-fixes（需配置 DATABASE_PASSWORD）

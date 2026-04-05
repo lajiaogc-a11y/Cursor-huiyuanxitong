@@ -486,6 +486,7 @@ export default function KnowledgeBase() {
             variant="ghost"
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            aria-label="View"
             onClick={(e) => {
               e.stopPropagation();
               handleViewArticle(article);
@@ -499,6 +500,7 @@ export default function KnowledgeBase() {
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-blue-600"
+                aria-label="Edit"
                 onClick={(e) => {
                   e.stopPropagation();
                   openEditArticle(article);
@@ -510,6 +512,7 @@ export default function KnowledgeBase() {
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                aria-label="Delete"
                 onClick={(e) => {
                   e.stopPropagation();
                   setDeletingArticleId(article.id);
@@ -719,6 +722,7 @@ export default function KnowledgeBase() {
                     {searchQuery && (
                       <Button variant="ghost" size="sm"
                         className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                        aria-label="Close"
                         onClick={() => setSearchQuery("")}>
                         <X className="h-3.5 w-3.5" />
                       </Button>
@@ -856,16 +860,17 @@ export default function KnowledgeBase() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 w-7 p-0 text-muted-foreground"
+                                aria-label="View"
                                 onClick={() => handleViewArticle(article)}
                               >
                                 <Eye className="h-3.5 w-3.5" />
                               </Button>
                               {canManage && (
                                 <>
-                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground" onClick={() => openEditArticle(article)}>
+                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground" aria-label="Edit" onClick={() => openEditArticle(article)}>
                                     <Pencil className="h-3.5 w-3.5" />
                                   </Button>
-                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => setDeletingArticleId(article.id)}>
+                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" aria-label="Delete" onClick={() => setDeletingArticleId(article.id)}>
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
                                 </>

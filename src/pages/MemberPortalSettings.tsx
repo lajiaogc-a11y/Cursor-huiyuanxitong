@@ -2025,7 +2025,7 @@ export default function MemberPortalSettingsPage() {
                         <p className="text-sm font-medium flex-1">{t("公告", "Announcement")} #{idx + 1}</p>
                         <div className="flex items-center gap-1">
                           {idx > 0 && (
-                            <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => {
+                            <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label="Move up" onClick={() => {
                               setSettings((s) => {
                                 const arr = [...(s.announcements || [])];
                                 [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
@@ -2034,7 +2034,7 @@ export default function MemberPortalSettingsPage() {
                             }}><ChevronUp className="h-3.5 w-3.5" /></Button>
                           )}
                           {idx < (settings.announcements?.length || 0) - 1 && (
-                            <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => {
+                            <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label="Move down" onClick={() => {
                               setSettings((s) => {
                                 const arr = [...(s.announcements || [])];
                                 [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
@@ -2043,6 +2043,7 @@ export default function MemberPortalSettingsPage() {
                             }}><ChevronDown className="h-3.5 w-3.5" /></Button>
                           )}
                           <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                            aria-label="Delete"
                             onClick={() => requestRemoveAnnouncement(idx)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -2249,7 +2250,7 @@ export default function MemberPortalSettingsPage() {
                       <div className="flex items-center gap-2">
                         <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
                         <p className="text-sm font-medium flex-1">{t("轮播", "Banner")} #{idx + 1}</p>
-                        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" onClick={() => requestRemoveBanner(idx)}>
+                        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" aria-label="Delete" onClick={() => requestRemoveBanner(idx)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -2615,6 +2616,7 @@ export default function MemberPortalSettingsPage() {
                           variant="ghost"
                           size="sm"
                           className="h-8 text-destructive hover:text-destructive"
+                          aria-label="Delete"
                           onClick={() => requestRemoveMallCategory(cidx)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -2705,7 +2707,7 @@ export default function MemberPortalSettingsPage() {
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <Switch checked={item.enabled !== false} onCheckedChange={(v) => updateMallItem(idx, { enabled: v })} />
-                            <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" onClick={() => requestRemoveMallItem(idx)}>
+                            <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" aria-label="Delete" onClick={() => requestRemoveMallItem(idx)}>
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
@@ -2742,7 +2744,7 @@ export default function MemberPortalSettingsPage() {
                           <div className="flex items-center gap-2">
                             <Input value={item.image_url || ""} onChange={(e) => updateMallItem(idx, { image_url: e.target.value })} placeholder={t("图片 URL", "Image URL")} className="h-8 text-xs font-mono flex-1" />
                             <input ref={(el) => { mallItemInputRefs.current[idx] = el; }} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; uploadMallItemImage(idx, file); e.currentTarget.value = ""; }} />
-                            <Button type="button" variant="outline" size="sm" className="h-8 w-8 p-0 shrink-0" onClick={() => mallItemInputRefs.current[idx]?.click()} disabled={uploadingMallImageIndex === idx}>
+                            <Button type="button" variant="outline" size="sm" className="h-8 w-8 p-0 shrink-0" aria-label="Upload" onClick={() => mallItemInputRefs.current[idx]?.click()} disabled={uploadingMallImageIndex === idx}>
                               {uploadingMallImageIndex === idx ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
                             </Button>
                           </div>
@@ -2965,6 +2967,7 @@ export default function MemberPortalSettingsPage() {
                                   variant="ghost"
                                   size="sm"
                                   className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                                  aria-label="Delete"
                                   onClick={() => requestRemoveMallItem(idx)}
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />

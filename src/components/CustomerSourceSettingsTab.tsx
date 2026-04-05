@@ -234,10 +234,10 @@ export default function CustomerSourceSettingsTab() {
                           if (e.key === "Escape") handleCancelEdit();
                         }}
                       />
-                      <Button variant="ghost" size="icon" className="h-9 w-9 text-green-600 shrink-0" onClick={handleSaveEdit}>
+                      <Button variant="ghost" size="icon" className="h-9 w-9 text-green-600 shrink-0" onClick={handleSaveEdit} aria-label="Save">
                         <Check className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={handleCancelEdit}>
+                      <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={handleCancelEdit} aria-label="Cancel">
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
@@ -252,15 +252,15 @@ export default function CustomerSourceSettingsTab() {
                   )}
                   {editingId !== source.id && (
                     <div className="flex items-center gap-1 pt-1 border-t">
-                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => handleMoveUp(index)} disabled={index === 0}>↑</Button>
-                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => handleMoveDown(index)} disabled={index === sources.length - 1}>↓</Button>
+                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => handleMoveUp(index)} disabled={index === 0} aria-label="Move up">↑</Button>
+                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => handleMoveDown(index)} disabled={index === sources.length - 1} aria-label="Move down">↓</Button>
                       <div className="ml-auto flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleStartEdit(source)} disabled={editingId !== null}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleStartEdit(source)} disabled={editingId !== null} aria-label="Edit">
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Delete">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>
@@ -316,8 +316,8 @@ export default function CustomerSourceSettingsTab() {
                     <TableRow key={source.id}>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleMoveUp(index)} disabled={index === 0}>↑</Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleMoveDown(index)} disabled={index === sources.length - 1}>↓</Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleMoveUp(index)} disabled={index === 0} aria-label="Move up">↑</Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleMoveDown(index)} disabled={index === sources.length - 1} aria-label="Move down">↓</Button>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -333,10 +333,10 @@ export default function CustomerSourceSettingsTab() {
                                 if (e.key === "Escape") handleCancelEdit();
                               }}
                             />
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={handleSaveEdit}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={handleSaveEdit} aria-label="Save">
                               <Check className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleCancelEdit}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleCancelEdit} aria-label="Cancel">
                               <X className="h-4 w-4" />
                             </Button>
                           </div>
@@ -352,12 +352,12 @@ export default function CustomerSourceSettingsTab() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleStartEdit(source)} disabled={editingId !== null}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleStartEdit(source)} disabled={editingId !== null} aria-label="Edit">
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Delete">
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>

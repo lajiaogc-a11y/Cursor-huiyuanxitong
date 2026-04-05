@@ -367,6 +367,7 @@ export function PermissionVersionManager({
                               size="icon"
                               onClick={() => setDeleteVersionId(version.id)}
                               className="h-8 w-8 text-destructive hover:text-destructive"
+                              aria-label="Delete"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

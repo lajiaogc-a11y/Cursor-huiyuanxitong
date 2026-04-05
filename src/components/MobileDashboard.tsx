@@ -179,6 +179,7 @@ export default function MobileDashboard() {
             variant="ghost"
             size="icon"
             className="h-9 w-9 shrink-0"
+            aria-label="Refresh"
             onClick={handleRefresh}
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />

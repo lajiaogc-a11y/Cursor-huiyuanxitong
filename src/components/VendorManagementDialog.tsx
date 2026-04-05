@@ -215,8 +215,8 @@ export default function VendorManagementDialog({
                         <span className="text-xs text-muted-foreground">#{index + 1} · {w.createdAt}</span>
                         {canEditBalance && (
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setEditingWithdrawal({ ...w })}><Pencil className="h-3 w-3" /></Button>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => setDeletingWithdrawalId(w.id)}><Trash2 className="h-3 w-3" /></Button>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setEditingWithdrawal({ ...w })} aria-label="Edit"><Pencil className="h-3 w-3" /></Button>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => setDeletingWithdrawalId(w.id)} aria-label="Delete"><Trash2 className="h-3 w-3" /></Button>
                           </div>
                         )}
                       </div>

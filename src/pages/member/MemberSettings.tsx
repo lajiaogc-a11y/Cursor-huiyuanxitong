@@ -404,6 +404,7 @@ export default function MemberSettings() {
                   e.stopPropagation();
                   setExpandedSection(expandedSection === "avatar" ? null : "avatar");
                 }}
+                aria-expanded={expandedSection === "avatar"}
                 aria-label={t("账户设置", "Account settings")}
               >
                 <Camera className="h-3 w-3 text-[hsl(var(--pu-m-text-dim))]" aria-hidden />
@@ -533,6 +534,7 @@ export default function MemberSettings() {
                 type="button"
                 className="member-settings-trigger"
                 onClick={() => setExpandedSection(expandedSection === "avatar" ? null : "avatar")}
+                aria-expanded={expandedSection === "avatar"}
               >
                 <div className="flex items-center gap-3">
                   <div
@@ -573,7 +575,7 @@ export default function MemberSettings() {
             </div>
 
             <div className="member-settings-row">
-              <button type="button" className="member-settings-trigger" onClick={() => setExpandedSection(expandedSection === "nickname" ? null : "nickname")}>
+              <button type="button" className="member-settings-trigger" onClick={() => setExpandedSection(expandedSection === "nickname" ? null : "nickname")} aria-expanded={expandedSection === "nickname"}>
                 <div className="flex items-center gap-3">
                   <div
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
@@ -661,7 +663,7 @@ export default function MemberSettings() {
             </div>
 
             <div className="member-settings-row">
-              <button type="button" className="member-settings-trigger" onClick={() => setExpandedSection(expandedSection === "password" ? null : "password")}>
+              <button type="button" className="member-settings-trigger" onClick={() => setExpandedSection(expandedSection === "password" ? null : "password")} aria-expanded={expandedSection === "password"}>
                 <div className="flex items-center gap-3">
                   <div
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-[hsl(var(--pu-m-surface-border)/0.32)]"
@@ -799,6 +801,7 @@ export default function MemberSettings() {
                 type="button"
                 className="member-settings-trigger"
                 onClick={() => setExpandedPointsLedger(!expandedPointsLedger)}
+                aria-expanded={expandedPointsLedger}
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pu-gold/12 ring-1 ring-inset ring-pu-gold/15">
@@ -917,7 +920,7 @@ export default function MemberSettings() {
 
               <div id="orders" className="m-glass overflow-hidden rounded-2xl border border-pu-emerald/12">
             <div className="member-settings-row">
-              <button type="button" className="member-settings-trigger" onClick={() => setExpandedOrders(!expandedOrders)}>
+              <button type="button" className="member-settings-trigger" onClick={() => setExpandedOrders(!expandedOrders)} aria-expanded={expandedOrders}>
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pu-emerald/12 ring-1 ring-inset ring-[hsl(var(--pu-m-surface-border)/0.28)]">
                     <ShoppingCart className="h-4 w-4 text-pu-emerald-soft" strokeWidth={2} aria-hidden />

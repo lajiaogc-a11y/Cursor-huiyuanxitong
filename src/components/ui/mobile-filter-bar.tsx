@@ -46,6 +46,7 @@ export function MobileFilterBar({
           {searchValue && (
             <button
               onClick={() => onSearchChange("")}
+              aria-label="Clear search"
               className="absolute right-2.5 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 touch-manipulation"
             >
               <X className="h-3.5 w-3.5" />
@@ -62,6 +63,7 @@ export function MobileFilterBar({
               showFilters && "bg-primary/10 border-primary/40 text-primary"
             )}
             onClick={() => setShowFilters(!showFilters)}
+            aria-label="Filter"
           >
             <SlidersHorizontal className="h-4 w-4" />
             {activeFilterCount > 0 && (
@@ -79,6 +81,7 @@ export function MobileFilterBar({
             className="h-10 w-10 shrink-0 rounded-lg touch-manipulation"
             onClick={onRefresh}
             disabled={refreshing}
+            aria-label="Refresh"
           >
             <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
           </Button>

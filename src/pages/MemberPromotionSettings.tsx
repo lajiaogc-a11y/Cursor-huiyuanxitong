@@ -296,6 +296,7 @@ export default function MemberPromotionSettingsPage({ embedded = false }: Member
                             variant="ghost"
                             size="icon"
                             className="text-destructive"
+                            aria-label="Delete"
                             disabled={isReadonlyView || rows.length <= 1}
                           >
                             <Trash2 className="h-4 w-4" />

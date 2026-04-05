@@ -219,6 +219,7 @@ export default function ExchangeRateSettingsTab() {
                             className="h-8 w-8"
                             onClick={() => setEditingCountry(country)}
                             disabled={isSaving}
+                            aria-label="Edit"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -228,6 +229,7 @@ export default function ExchangeRateSettingsTab() {
                             className="h-8 w-8 text-destructive"
                             onClick={() => setCountryDeleteId(country.id)}
                             disabled={isSaving}
+                            aria-label="Delete"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

@@ -226,7 +226,7 @@ export default function TenantStaffLoginIpTab() {
                     <li key={r.ip} className="flex items-center gap-2 px-3 py-2 text-xs">
                       <code className="font-mono bg-muted px-1.5 py-0.5 rounded">{r.ip}</code>
                       <span className="text-muted-foreground flex-1 truncate">{r.label}</span>
-                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setRemoveRuleIp(r.ip)}>
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setRemoveRuleIp(r.ip)} aria-label="Remove">
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button>
                     </li>

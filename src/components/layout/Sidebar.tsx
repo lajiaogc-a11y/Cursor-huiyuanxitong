@@ -269,6 +269,7 @@ export function Sidebar() {
         <li key={item.path}>
           <button
             onClick={() => toggleMenu(item.navKey)}
+            aria-expanded={isExpanded}
             className={cn(
               "w-full flex items-center justify-between px-3 rounded-md text-sm transition-colors",
               isOverlay ? "py-3" : "py-2.5",
@@ -513,6 +514,7 @@ export function Sidebar() {
               ? t("展开侧栏", "Expand sidebar")
               : t("收起侧栏", "Collapse sidebar")
           }
+          aria-expanded={!collapsed}
           className="h-12 shrink-0 flex items-center justify-center border-t border-sidebar-border hover:bg-sidebar-accent/80 transition-all duration-150"
         >
           <ChevronLeft

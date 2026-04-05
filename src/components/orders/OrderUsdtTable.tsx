@@ -112,7 +112,7 @@ export function OrderUsdtTable(props: OrderUsdtTableProps) {
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 touch-manipulation" onClick={() => onEdit(order)}>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 touch-manipulation" onClick={() => onEdit(order)} aria-label="Edit">
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                     </TooltipTrigger>

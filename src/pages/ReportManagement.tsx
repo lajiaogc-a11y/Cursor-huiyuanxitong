@@ -1292,11 +1292,11 @@ export default function ReportManagement() {
           </span>
         </div>
         <div className={isMobile ? "flex items-center justify-center gap-1" : "flex items-center gap-1 shrink-0"}>
-          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage <= 1}>
+          <Button variant="outline" size="icon" className="h-7 w-7" aria-label="Previous page" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage <= 1}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="text-xs px-2 whitespace-nowrap">{currentPage} / {totalPages || 1}</span>
-          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage >= totalPages}>
+          <Button variant="outline" size="icon" className="h-7 w-7" aria-label="Next page" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage >= totalPages}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>

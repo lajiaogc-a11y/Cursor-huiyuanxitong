@@ -354,7 +354,7 @@ export default function UsdtRatePanel({ onRateUpdate, compact = false }: Props) 
           onCheckedChange={(v) => globalUpdateConfig({ enabled: v })}
           className="scale-75 shrink-0"
         />
-        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => globalFetchRates(true)} disabled={loading}>
+        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" aria-label="Refresh" onClick={() => globalFetchRates(true)} disabled={loading}>
           <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
         </Button>
         {config.paused && (

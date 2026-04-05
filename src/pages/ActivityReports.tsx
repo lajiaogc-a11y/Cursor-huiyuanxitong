@@ -670,7 +670,7 @@ const [editFormData, setEditFormData] = useState({
                       size="icon"
                       className="h-9 w-9 touch-manipulation"
                       onClick={() => window.dispatchEvent(new CustomEvent("activity-refresh"))}
-                      aria-label={t("刷新", "Refresh")}
+                      aria-label="Refresh"
                     >
                       <RefreshCw className="h-4 w-4" />
                     </Button>
@@ -696,7 +696,7 @@ const [editFormData, setEditFormData] = useState({
                       size="icon"
                       className="h-9 w-9 touch-manipulation"
                       onClick={() => window.dispatchEvent(new CustomEvent("points-ledger-refresh"))}
-                      aria-label={t("刷新", "Refresh")}
+                      aria-label="Refresh"
                     >
                       <RefreshCw className="h-4 w-4" />
                     </Button>
@@ -794,7 +794,7 @@ const [editFormData, setEditFormData] = useState({
                   />
                   {searchError && <span className="text-xs text-destructive whitespace-nowrap">{searchError}</span>}
                 </div>
-                <Button variant="outline" size="icon" onClick={handleRefresh}>
+                <Button variant="outline" size="icon" onClick={handleRefresh} aria-label="Refresh">
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
@@ -940,6 +940,7 @@ const [editFormData, setEditFormData] = useState({
                                   size="icon"
                                   className="h-9 w-9 touch-manipulation"
                                   onClick={() => handleEdit(record)}
+                                  aria-label="Edit"
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
@@ -948,6 +949,7 @@ const [editFormData, setEditFormData] = useState({
                                   size="icon"
                                   className="h-9 w-9 touch-manipulation text-destructive hover:text-destructive"
                                   onClick={() => handleDeleteClick(record)}
+                                  aria-label="Delete"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>

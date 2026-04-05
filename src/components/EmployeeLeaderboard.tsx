@@ -176,6 +176,7 @@ export default function EmployeeLeaderboard() {
             {data.length > 5 && (
               <button
                 onClick={() => setExpanded(!expanded)}
+                aria-expanded={expanded}
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mt-2 mx-auto transition-colors"
               >
                 {expanded ? (
