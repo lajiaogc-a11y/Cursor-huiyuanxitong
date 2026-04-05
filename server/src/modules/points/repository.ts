@@ -4,11 +4,13 @@
 import { query, queryOne } from '../../database/index.js';
 
 export async function getMemberPointsRepository(memberId: string) {
-  const row = await queryOne<{ balance: number | string | null }>(
-    `SELECT COALESCE(balance, 0) AS balance FROM points_accounts WHERE member_id = ? LIMIT 1`,
+  const row = await queryOne<{ balance: number | string | null; frozen_points: number | string | null }>(
+    `SELECT COALESCE(balance, 0) AS balance, COALESCE(frozen_points, 0) AS frozen_points FROM points_accounts WHERE member_id = ? LIMIT 1`,
     [memberId],
   );
-  return row?.balance ?? 0;
+  const balance = Number(row?.balance ?? 0);
+  const frozen = Number(row?.frozen_points ?? 0);
+  return { balance, frozen_points: frozen };
 }
 
 /** @deprecated 使用 computeMemberPointsBreakdown；保留避免外部直接引用时报错 */

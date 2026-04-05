@@ -7,10 +7,13 @@ import { getQuota } from '../lottery/service.js';
 import type { MemberPointsResult, MemberPointsBreakdownResult, MemberSpinQuotaResult } from './types.js';
 
 export async function getMemberPointsService(memberId: string): Promise<MemberPointsResult> {
-  const total = await getMemberPointsRepository(memberId);
+  const { balance, frozen_points } = await getMemberPointsRepository(memberId);
   return {
     success: true,
-    points: Number(total ?? 0),
+    points: balance,
+    balance,
+    frozen_points,
+    total_points: balance + frozen_points,
   };
 }
 

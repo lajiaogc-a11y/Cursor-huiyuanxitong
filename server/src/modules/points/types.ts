@@ -1,6 +1,9 @@
 export interface MemberPointsResult {
   success: boolean;
   points: number;
+  balance: number;
+  frozen_points: number;
+  total_points: number;
 }
 
 export interface MemberPointsBreakdownResult {

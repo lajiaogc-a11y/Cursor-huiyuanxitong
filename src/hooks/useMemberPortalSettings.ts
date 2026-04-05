@@ -31,19 +31,24 @@ function mergeCachedPortalSettings(memberId: string): MemberPortalSettings {
 
 /**
  * 已登录会员的门户设置：始终以 API 拉取为真源；localStorage 仅按 memberId 分桶作展示加速（见 memberPortalBrowserCache）。
+ *
+ * Race-condition safe: uses a generation counter so stale responses from a
+ * previous memberId (or a slower earlier request) never overwrite the state.
  */
 export function useMemberPortalSettings(memberId: string | undefined) {
+  const generationRef = useRef(0);
   const refreshInFlight = useRef(false);
   const [state, setState] = useState<State>(() => ({
     tenantId: null,
     tenantName: "",
     settings: memberId ? mergeCachedPortalSettings(memberId) : DEFAULT_SETTINGS,
   }));
-  /** 有 memberId 时首屏为 true，避免启动页在门户请求发出前就误判「已就绪」 */
   const [loading, setLoading] = useState(() => Boolean(memberId));
 
-  /** memberId 切换时立即换桶读缓存，避免短暂展示上一登录会员的门户皮肤 */
+  /** memberId 切换时立即换桶读缓存 + 递增 generation 使旧请求失效 */
   useEffect(() => {
+    generationRef.current += 1;
+    refreshInFlight.current = false;
     if (!memberId) {
       setState({ tenantId: null, tenantName: "", settings: DEFAULT_SETTINGS });
       setLoading(false);
@@ -56,17 +61,14 @@ export function useMemberPortalSettings(memberId: string | undefined) {
   /** 平台基准租户 Logo 先到则先写入 settings.logo_url，启动页不必等整包门户接口即可出图 */
   useEffect(() => {
     if (!memberId) return;
-    let cancelled = false;
+    const gen = generationRef.current;
     void getPlatformBrandLogoUrl().then((platformLogo) => {
-      if (cancelled || !platformLogo) return;
+      if (gen !== generationRef.current || !platformLogo) return;
       setState((s) => ({
         ...s,
         settings: mergePlatformBrandLogo(s.settings, platformLogo),
       }));
     });
-    return () => {
-      cancelled = true;
-    };
   }, [memberId]);
 
   const refresh = useCallback(async (options?: { silent?: boolean }) => {
@@ -77,12 +79,14 @@ export function useMemberPortalSettings(memberId: string | undefined) {
     }
     if (refreshInFlight.current) return;
     refreshInFlight.current = true;
+    const gen = generationRef.current;
     if (!silent) setLoading(true);
     try {
       const [platformLogo, data] = await Promise.all([
         getPlatformBrandLogoUrl(),
         getMemberPortalSettingsByMember(memberId),
       ]);
+      if (gen !== generationRef.current) return;
       const newSettings = mergePlatformBrandLogo(data.settings, platformLogo);
       setState({
         tenantId: data.tenant_id ?? null,
@@ -91,14 +95,15 @@ export function useMemberPortalSettings(memberId: string | undefined) {
       });
       writeMemberPortalSettingsCache(memberId, newSettings);
     } catch {
-      // Keep current settings on error instead of resetting to defaults
+      // Keep current settings on error
     } finally {
-      if (!silent) setLoading(false);
-      refreshInFlight.current = false;
+      if (gen === generationRef.current) {
+        if (!silent) setLoading(false);
+        refreshInFlight.current = false;
+      }
     }
   }, [memberId]);
 
-  /** 下拉刷新已有 PTR 指示器；静默拉门户设置，避免全页骨架与 Tab 切回时「重新加载」观感 */
   useMemberPullRefreshSignal(() => {
     void refresh({ silent: true });
   });
@@ -110,7 +115,6 @@ export function useMemberPortalSettings(memberId: string | undefined) {
   useEffect(() => {
     if (!memberId) return;
 
-    /** 后台标签页不跑定时刷新，减少无效请求（与会员订单轮询策略一致） */
     const pollTick = () => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       void refresh({ silent: true });

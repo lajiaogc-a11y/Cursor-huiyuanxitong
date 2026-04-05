@@ -67,7 +67,7 @@ export default defineConfig(({ mode }) => {
           if (id.includes("react-dom") || id.includes("/react/")) return "react-vendor";
           if (id.includes("react-router")) return "react-router";
           if (id.includes("date-fns") || id.includes("dayjs")) return "date-utils";
-          if (id.includes("zod") || id.includes("@hookform") || id.includes("react-hook-form")) return "form-utils";
+          if (id.includes("zod")) return "form-utils";
           if (id.includes("xlsx") || id.includes("exceljs") || id.includes("file-saver")) return "export-utils";
           if (id.includes("sortablejs") || id.includes("@dnd-kit")) return "sortable";
           if (id.includes("sonner")) return "sonner";
