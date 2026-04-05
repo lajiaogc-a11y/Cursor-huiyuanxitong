@@ -1531,5 +1531,28 @@ export async function migrateSchemaPatches(): Promise<void> {
     console.warn('[schema-patch] spin_credits tenant_id backfill:', e instanceof Error ? e.message : e);
   }
 
+  // ── Phase 5: 抽奖防刷升级 — draw_status 状态机 + 审计日志表 ──
+  await addCol('lottery_logs', 'draw_status', "VARCHAR(20) NOT NULL DEFAULT 'completed' COMMENT 'drawing|completed|reward_pending|rewarded|reward_failed'");
+  try {
+    await execute(`CREATE INDEX idx_lottery_logs_member_created ON lottery_logs (member_id, created_at)`);
+  } catch { /* exists */ }
+
+  // 全链路审计日志表
+  await createTbl('lottery_audit_trail', `
+    CREATE TABLE lottery_audit_trail (
+      id CHAR(36) NOT NULL PRIMARY KEY,
+      log_id CHAR(36) NOT NULL COMMENT 'lottery_logs.id',
+      member_id CHAR(36) NOT NULL,
+      action VARCHAR(50) NOT NULL COMMENT 'draw_start|draw_complete|reward_start|reward_done|reward_fail|retry|manual_confirm|manual_reject',
+      from_status VARCHAR(20) NULL,
+      to_status VARCHAR(20) NULL,
+      detail JSON NULL COMMENT '上下文快照',
+      operator_id CHAR(36) NULL COMMENT '操作人（管理员手动时）',
+      client_ip VARCHAR(45) NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      INDEX idx_lat_log (log_id),
+      INDEX idx_lat_member (member_id, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+
   console.log('[schema-patch] done.');
 }

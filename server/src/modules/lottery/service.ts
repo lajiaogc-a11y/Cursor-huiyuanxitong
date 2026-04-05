@@ -23,11 +23,13 @@ import { getLotterySettings, listEnabledPrizes } from './repository.js';
 import { pickLotteryPrizeByConfiguredProbability, budgetAwarePrizePick, type BudgetPolicy } from './prizePick.js';
 import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
 import { ensureMemberActivityRowForLotteryConn, addSpinConn } from './spinBalanceAccount.js';
-import { evaluateDrawRisk, loadRiskThresholds, recordDrawBurst, type RiskResult } from './riskControl.js';
+import { evaluateDrawRisk, loadRiskThresholds, recordDrawBurst, checkHardBehavioralLimit, type RiskResult } from './riskControl.js';
 
-// ── 内存防抖（仍保留作为热路径快速拦截，DB UNIQUE INDEX 是真正保障）──
+// ── 内存防抖（热路径快速拦截，DB 行为幂等是真正保障）──
 const recentDraws = new Map<string, number>();
 const DRAW_IDEMPOTENCY_WINDOW_MS = 2000;
+/** 行为级幂等窗口：同一会员在此秒数内只允许一次有效抽奖（DB 级） */
+const BEHAVIORAL_IDEMPOTENT_SECONDS = 3;
 const _drawGcTimer = setInterval(() => {
   const now = Date.now();
   for (const [key, ts] of recentDraws) {
@@ -127,6 +129,12 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
     }
   }
 
+  // ── Phase 5: 硬行为限流（始终生效，无需配置，防脚本连点）──
+  const hardLimit = checkHardBehavioralLimit(memberId);
+  if (hardLimit.blocked) {
+    return { success: false, error: 'RATE_LIMITED' };
+  }
+
   // ── Phase 3: 风控前置评估（在事务之外，不持锁） ──
   let riskResult: RiskResult | null = null;
   try {
@@ -186,6 +194,31 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
           idempotent_replay: true,
         };
       }
+    }
+
+    // ── 1b. 行为级幂等（同一会员 N 秒内只允许一次抽奖，DB 级保障）──
+    const recentLog = await queryOneConn<{ id: string; prize_id: string | null; prize_name: string; prize_type: string; prize_value: number; reward_status: string | null; reward_points: number | null }>(
+      conn,
+      `SELECT id, prize_id, prize_name, prize_type, prize_value, reward_status, COALESCE(reward_points, 0) AS reward_points
+       FROM lottery_logs
+       WHERE member_id = ? AND created_at >= DATE_SUB(NOW(3), INTERVAL ? SECOND)
+       ORDER BY created_at DESC LIMIT 1`,
+      [memberId, BEHAVIORAL_IDEMPOTENT_SECONDS],
+    );
+    if (recentLog) {
+      const quotaRow2 = await queryOneConn<{ remaining: number }>(
+        conn,
+        'SELECT COALESCE(lottery_spin_balance, 0) AS remaining FROM member_activity WHERE member_id = ?',
+        [memberId],
+      );
+      return {
+        success: true,
+        prize: { id: recentLog.prize_id ?? recentLog.id, name: recentLog.prize_name, type: recentLog.prize_type, value: recentLog.prize_value, description: null },
+        remaining: quotaRow2?.remaining ?? 0,
+        reward_status: (recentLog.reward_status as DrawResult['reward_status']) ?? 'done',
+        reward_points: Number(recentLog.reward_points ?? 0),
+        idempotent_replay: true,
+      };
     }
 
     // ── 2. 租户 + 全局开关 + 预算 / RTP 设置 ──
@@ -345,18 +378,23 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
       }
     }
 
-    // ── 7b. 每日库存限制检查（FOR UPDATE 防并发超发） ──
+    // ── 7b. 每日库存原子扣减（advisory lock + COUNT 保证不超发）──
     const dailyLimit = Number(hit.daily_stock_limit ?? -1);
     if (hit.type !== 'none' && dailyLimit > 0) {
       const dayStart = `${today} 00:00:00`;
-      const [dailyRow] = await queryConn<{ cnt: number }>(conn,
-        `SELECT COUNT(*) AS cnt FROM lottery_logs
-         WHERE prize_id = ? AND created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
-         FOR UPDATE`,
-        [hit.id, dayStart, dayStart],
-      );
-      if (Number(dailyRow?.cnt ?? 0) >= dailyLimit) {
-        if (nonePrize) hit = nonePrize;
+      const dailyStockLock = buildMysqlUserLockName('daily_stock', `${hit.id}_${today}`);
+      const gotDailyLock = await mysqlGetLock(conn, dailyStockLock, 5);
+      try {
+        const [dailyRow] = await queryConn<{ cnt: number }>(conn,
+          `SELECT COUNT(*) AS cnt FROM lottery_logs
+           WHERE prize_id = ? AND created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
+          [hit.id, dayStart, dayStart],
+        );
+        if (Number(dailyRow?.cnt ?? 0) >= dailyLimit) {
+          if (nonePrize) hit = nonePrize;
+        }
+      } finally {
+        if (gotDailyLock) await mysqlReleaseLock(conn, dailyStockLock);
       }
     }
 
@@ -369,18 +407,25 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
       return { success: false, error: 'NO_SPIN_QUOTA', remaining: 0 };
     }
 
-    // ── 9. 写抽奖日志（Phase 4: 含 prize_cost / reward_type，初始 reward_status='pending'） ──
+    // ── 9. 写抽奖日志（Phase 5: draw_status 状态机 + 审计日志）──
     const logId = randomUUID();
     const finalCost = Number(hit.prize_cost ?? 0);
     const rewardType = classifyRewardType(hit);
     await execConn(conn,
       `INSERT INTO lottery_logs
         (id, member_id, tenant_id, prize_id, prize_name, prize_type, prize_value,
-         request_id, reward_status, reward_type, prize_cost, client_ip, device_fingerprint)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
+         request_id, reward_status, reward_type, prize_cost, client_ip, device_fingerprint, draw_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, 'completed')`,
       [logId, memberId, tenantId, hit.id, hit.name, hit.type, hit.value,
        requestId ?? null, rewardType, finalCost, clientIp ?? null, deviceFingerprint ?? null]
     );
+
+    // 审计：draw_complete
+    await writeAuditTrail(conn, {
+      logId, memberId, action: 'draw_complete', fromStatus: null, toStatus: 'completed',
+      detail: { prizeId: hit.id, prizeName: hit.name, prizeType: hit.type, prizeValue: hit.value, cost: finalCost, requestId: requestId ?? null, riskDowngrade: riskDowngrade || false },
+      clientIp: clientIp ?? null,
+    });
 
     // ── 10. 奖励发放（Phase 4: 统一走 fulfillRewardOnConn） ──
     const reward = await fulfillRewardOnConn(conn, {
@@ -393,11 +438,22 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
       rewardType,
     });
 
-    // ── 11. 更新 reward_status + reward_points + retry_count ──
+    // ── 11. 更新 reward_status + draw_status + reward_points ──
+    const drawStatus = reward.status === 'done' ? 'rewarded' : reward.status === 'failed' ? 'reward_failed' : 'reward_pending';
     await execConn(conn,
-      'UPDATE lottery_logs SET reward_status = ?, fail_reason = ?, reward_points = ?, retry_count = COALESCE(retry_count, 0) + ? WHERE id = ?',
-      [reward.status, reward.failReason, reward.awardedPoints, 0, logId],
+      'UPDATE lottery_logs SET reward_status = ?, draw_status = ?, fail_reason = ?, reward_points = ?, retry_count = COALESCE(retry_count, 0) + ? WHERE id = ?',
+      [reward.status, drawStatus, reward.failReason, reward.awardedPoints, 0, logId],
     );
+
+    // 审计：reward outcome
+    if (reward.status !== 'pending') {
+      await writeAuditTrail(conn, {
+        logId, memberId, action: reward.status === 'done' ? 'reward_done' : 'reward_fail',
+        fromStatus: 'completed', toStatus: drawStatus,
+        detail: { rewardType, awardedPoints: reward.awardedPoints, balanceAfter: reward.balanceAfter, failReason: reward.failReason },
+        clientIp: clientIp ?? null,
+      });
+    }
 
     // ── 12. 事务内更新每日预算消耗 ──
     if (budgetEnabled && finalCost > 0 && reward.status === 'done') {
@@ -567,6 +623,36 @@ export async function fulfillRewardOnConn(
 
   // auto 但 value=0 或未知 type → 无实际发放
   return { status: 'done', failReason: null, awardedPoints: 0, balanceAfter: null };
+}
+
+/* ──────────── Phase 5: 审计日志写入 ──────────── */
+
+interface AuditTrailEntry {
+  logId: string;
+  memberId: string;
+  action: string;
+  fromStatus: string | null;
+  toStatus: string | null;
+  detail?: Record<string, unknown> | null;
+  operatorId?: string | null;
+  clientIp?: string | null;
+}
+
+export async function writeAuditTrail(conn: PoolConnection, entry: AuditTrailEntry): Promise<void> {
+  try {
+    await execConn(conn,
+      `INSERT INTO lottery_audit_trail (id, log_id, member_id, action, from_status, to_status, detail, operator_id, client_ip)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        randomUUID(), entry.logId, entry.memberId, entry.action,
+        entry.fromStatus, entry.toStatus,
+        entry.detail ? JSON.stringify(entry.detail) : null,
+        entry.operatorId ?? null, entry.clientIp ?? null,
+      ],
+    );
+  } catch (e) {
+    console.warn('[lottery/audit] write failed (non-fatal):', (e as Error).message?.slice(0, 120));
+  }
 }
 
 export async function getQuota(memberId: string) {

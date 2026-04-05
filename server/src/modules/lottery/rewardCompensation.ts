@@ -12,7 +12,7 @@
  *   - 所有状态变更都可追踪
  */
 import { withTransaction, query, queryOne, execute } from '../../database/index.js';
-import { fulfillRewardOnConn, type RewardType } from './service.js';
+import { fulfillRewardOnConn, writeAuditTrail, type RewardType } from './service.js';
 import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
 
 const MAX_AUTO_RETRY = 3;
@@ -104,7 +104,10 @@ export async function retryFailedRewards(tenantId: string | null, batchSize = 20
             COALESCE(retry_count, 0) AS retry_count,
             created_at
      FROM lottery_logs
-     WHERE tenant_id <=> ? AND reward_status = 'failed' AND COALESCE(retry_count, 0) < ?
+     WHERE tenant_id <=> ?
+       AND reward_status = 'failed'
+       AND COALESCE(draw_status, 'completed') IN ('completed', 'reward_failed')
+       AND COALESCE(retry_count, 0) < ?
      ORDER BY created_at ASC
      LIMIT ?`,
     [tenantId, MAX_AUTO_RETRY, batchSize],
@@ -138,6 +141,19 @@ export async function retryFailedRewards(tenantId: string | null, batchSize = 20
            WHERE id = ?`,
           [result.status, result.failReason, result.awardedPoints, row.id],
         );
+
+        const drawStatusAfter = result.status === 'done' ? 'rewarded' : 'reward_failed';
+        await conn.query(
+          'UPDATE lottery_logs SET draw_status = ? WHERE id = ? AND draw_status != ?',
+          [drawStatusAfter, row.id, drawStatusAfter],
+        );
+
+        await writeAuditTrail(conn, {
+          logId: row.id, memberId: row.member_id,
+          action: result.status === 'done' ? 'retry_done' : 'retry_fail',
+          fromStatus: 'reward_failed', toStatus: drawStatusAfter,
+          detail: { retryCount: row.retry_count + 1, awardedPoints: result.awardedPoints, failReason: result.failReason },
+        });
 
         if (result.status === 'done' && Number(row.prize_cost) > 0) {
           const logDate = String(row.created_at ?? '').slice(0, 10);
@@ -180,19 +196,29 @@ export async function confirmManualReward(
   action: 'done' | 'failed',
   reason?: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const row = await queryOne<{ reward_status: string; reward_type: string }>(
-    'SELECT reward_status, COALESCE(reward_type, \'auto\') AS reward_type FROM lottery_logs WHERE id = ?',
+  const row = await queryOne<{ reward_status: string; reward_type: string; draw_status: string }>(
+    "SELECT reward_status, COALESCE(reward_type, 'auto') AS reward_type, COALESCE(draw_status, 'completed') AS draw_status FROM lottery_logs WHERE id = ?",
     [logId],
   );
   if (!row) return { ok: false, error: 'LOG_NOT_FOUND' };
   if (row.reward_type !== 'manual') return { ok: false, error: 'NOT_MANUAL_REWARD' };
-  if (row.reward_status === 'done') return { ok: false, error: 'ALREADY_DONE' };
+  if (row.reward_status === 'done' || row.draw_status === 'rewarded') return { ok: false, error: 'ALREADY_DONE' };
 
+  const logRow = await queryOne<{ member_id: string }>('SELECT member_id FROM lottery_logs WHERE id = ?', [logId]);
   await withTransaction(async (conn) => {
+    const drawStatusAfter = action === 'done' ? 'rewarded' : 'reward_failed';
     await conn.execute(
-      `UPDATE lottery_logs SET reward_status = ?, fail_reason = ?, retry_count = COALESCE(retry_count, 0) + 1 WHERE id = ?`,
-      [action, reason?.slice(0, 500) ?? null, logId],
+      `UPDATE lottery_logs SET reward_status = ?, draw_status = ?, fail_reason = ?, retry_count = COALESCE(retry_count, 0) + 1 WHERE id = ?`,
+      [action, drawStatusAfter, reason?.slice(0, 500) ?? null, logId],
     );
+
+    await writeAuditTrail(conn, {
+      logId, memberId: logRow?.member_id ?? '',
+      action: action === 'done' ? 'manual_confirm' : 'manual_reject',
+      fromStatus: row.reward_status, toStatus: drawStatusAfter,
+      detail: { reason: reason ?? null },
+    });
+
     if (action === 'done') {
       const [costRows] = await conn.query(
         'SELECT COALESCE(prize_cost, 0) AS prize_cost, tenant_id, created_at FROM lottery_logs WHERE id = ?',
@@ -215,14 +241,15 @@ export async function confirmManualReward(
  * 管理员手动重试单条 auto 类型的 failed 记录。
  */
 export async function manualRetryReward(logId: string): Promise<{ ok: boolean; error?: string; newStatus?: string }> {
-  const row = await queryOne<PendingRewardRow>(
+  const row = await queryOne<PendingRewardRow & { draw_status: string }>(
     `SELECT id, member_id, tenant_id, prize_name, prize_type, prize_value,
-            COALESCE(reward_type, 'auto') AS reward_type, reward_status
+            COALESCE(reward_type, 'auto') AS reward_type, reward_status,
+            COALESCE(draw_status, 'completed') AS draw_status
      FROM lottery_logs WHERE id = ?`,
     [logId],
   );
   if (!row) return { ok: false, error: 'LOG_NOT_FOUND' };
-  if (row.reward_status === 'done') return { ok: false, error: 'ALREADY_DONE' };
+  if (row.reward_status === 'done' || row.draw_status === 'rewarded') return { ok: false, error: 'ALREADY_DONE' };
   if (row.reward_type === 'none') return { ok: false, error: 'NO_REWARD_NEEDED' };
 
   const result = await withTransaction(async (conn) => {
@@ -235,10 +262,19 @@ export async function manualRetryReward(logId: string): Promise<{ ok: boolean; e
       prizeValue: row.prize_value,
       rewardType: row.reward_type as RewardType,
     });
+    const drawStatusAfter = res.status === 'done' ? 'rewarded' : 'reward_failed';
     await conn.execute(
-      `UPDATE lottery_logs SET reward_status = ?, fail_reason = ?, reward_points = ?, retry_count = COALESCE(retry_count, 0) + 1 WHERE id = ?`,
-      [res.status, res.failReason, res.awardedPoints, logId],
+      `UPDATE lottery_logs SET reward_status = ?, draw_status = ?, fail_reason = ?, reward_points = ?, retry_count = COALESCE(retry_count, 0) + 1 WHERE id = ?`,
+      [res.status, drawStatusAfter, res.failReason, res.awardedPoints, logId],
     );
+
+    await writeAuditTrail(conn, {
+      logId, memberId: row.member_id,
+      action: 'manual_retry',
+      fromStatus: row.reward_status, toStatus: drawStatusAfter,
+      detail: { awardedPoints: res.awardedPoints, failReason: res.failReason },
+    });
+
     if (res.status === 'done') {
       const [costRows] = await conn.query(
         'SELECT COALESCE(prize_cost, 0) AS prize_cost, created_at FROM lottery_logs WHERE id = ?',

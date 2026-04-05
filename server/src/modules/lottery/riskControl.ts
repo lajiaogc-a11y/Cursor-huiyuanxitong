@@ -117,6 +117,17 @@ export async function loadRiskThresholds(tenantId: string | null): Promise<RiskT
   };
 }
 
+/* ──────────── 硬行为限流（始终生效，无需 risk_control_enabled）──────────── */
+
+/** 任何会员 10 秒内最多 3 次抽奖（内存级，防脚本连点）*/
+const HARD_BURST_WINDOW_MS = 10_000;
+const HARD_BURST_MAX = 3;
+
+export function checkHardBehavioralLimit(memberId: string): { blocked: boolean; count: number } {
+  const count = peekCount(accountBurstMap, memberId, HARD_BURST_WINDOW_MS) + 1;
+  return { blocked: count > HARD_BURST_MAX, count };
+}
+
 /* ──────────── 核心评估 ──────────── */
 
 /**
