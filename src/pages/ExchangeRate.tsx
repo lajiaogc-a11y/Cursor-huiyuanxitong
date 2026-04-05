@@ -263,8 +263,6 @@ export default function ExchangeRate() {
   const [quickAmounts, setQuickAmounts] = useState<string[]>(() => [...DEFAULT_QUICK_AMOUNTS]);
   const [quickRates, setQuickRates] = useState<string[]>(() => [...DEFAULT_QUICK_RATES]);
   const [quickSettingsLoaded, setQuickSettingsLoaded] = useState(false);
-  const [editingAmountIndex, setEditingAmountIndex] = useState<number | null>(null);
-  const [editingRateIndex, setEditingRateIndex] = useState<number | null>(null);
 
 
   // 利润分析百分比（可编辑，支持负数，显示为%格式）- 从数据库持久化
@@ -1117,20 +1115,6 @@ export default function ExchangeRate() {
     employee?.real_name,
     employee?.id,
   ]);
-
-  // 双击清空逻辑
-  const handleDoubleClick = (setter: (value: string) => void) => {
-    setter("");
-  };
-
-  // 快捷按钮双击编辑
-  const handleQuickAmountDoubleClick = (index: number) => {
-    setEditingAmountIndex(index);
-  };
-
-  const handleQuickRateDoubleClick = (index: number) => {
-    setEditingRateIndex(index);
-  };
 
   const handleQuickAmountChange = (index: number, value: string) => {
     if (!quickSettingsLoaded) return;

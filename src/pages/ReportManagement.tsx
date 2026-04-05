@@ -38,7 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 const ProfitComparisonTab = lazyWithRetry(() => import("@/components/ProfitComparisonTab"));
 

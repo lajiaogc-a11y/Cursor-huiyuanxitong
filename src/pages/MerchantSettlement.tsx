@@ -1,19 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { trackRender } from "@/lib/performanceUtils";
 import { TablePageSkeleton } from "@/components/skeletons/TablePageSkeleton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, RefreshCw, Download, ChevronLeft, ChevronRight, History, MoreHorizontal } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { PageSizeSelect } from "@/components/ui/page-size-select";
+import { Search, RefreshCw, Download } from "lucide-react";
 import { exportToCSV, formatNumberForExport } from "@/lib/exportUtils";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
 import { useExportConfirm } from "@/hooks/useExportConfirm";
@@ -107,7 +99,7 @@ export default function MerchantSettlement() {
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
   const { checkPermission } = useFieldPermissions();
-  const { t, tr } = useLanguage();
+  const { t } = useLanguage();
   const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant();
   // 编辑余额权限 - 控制提款/充值/初始余额/撤回操作
   const canEditBalance = useMemo(() => {
@@ -1380,7 +1372,6 @@ export default function MerchantSettlement() {
         setSelectedWithdrawalIds={setSelectedWithdrawalIds}
         onEditWithdrawal={handleEditWithdrawal}
         setDeletingWithdrawalId={setDeletingWithdrawalId}
-        setPendingBatchWithdrawalDelete={setPendingBatchWithdrawalDelete}
         editingWithdrawal={editingWithdrawal}
         setEditingWithdrawal={setEditingWithdrawal}
         onSaveEditWithdrawal={handleSaveEditWithdrawal}

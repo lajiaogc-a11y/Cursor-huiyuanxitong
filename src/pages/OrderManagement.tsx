@@ -93,7 +93,7 @@ export default function OrderManagement() {
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
-  const { t, tr } = useLanguage();
+  const { t } = useLanguage();
   const { isAdmin, employee: currentEmployee } = useAuth();
   const { viewingTenantId } = useTenantView() || {};
   const effectiveTenantId = viewingTenantId || currentEmployee?.tenant_id || null;
@@ -355,10 +355,12 @@ export default function OrderManagement() {
     const searchPhone = sessionStorage.getItem("orderSearchPhone");
     
     if (searchMemberCode) {
-      setSearchTerm(searchMemberCode);
+      setSearchDraft(searchMemberCode);
+      setSearchQuery(searchMemberCode);
       sessionStorage.removeItem("orderSearchMemberCode");
     } else if (searchPhone) {
-      setSearchTerm(searchPhone);
+      setSearchDraft(searchPhone);
+      setSearchQuery(searchPhone);
       sessionStorage.removeItem("orderSearchPhone");
     }
     

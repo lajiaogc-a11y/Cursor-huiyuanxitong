@@ -79,6 +79,7 @@ import CustomerServiceTab from "./member-portal-settings/CustomerServiceTab";
 import { MemberInboxTab } from "./member-portal-settings/MemberInboxTab";
 import LuckySpinTab from "./member-portal-settings/LuckySpinTab";
 import { PointsMallTab } from "./member-portal-settings/PointsMallTab";
+import { PublishTab } from "./member-portal-settings/PublishTab";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { verifyAdminPasswordApi } from "@/services/admin/adminApiService";
 import {
@@ -202,8 +203,6 @@ export default function MemberPortalSettingsPage() {
   const dragBannerFrom = useRef<number | null>(null);
   const bannerInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const loginCarouselInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
-  const agentAvatarInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
-  const [uploadingAgentAvatarIdx, setUploadingAgentAvatarIdx] = useState<number | null>(null);
 
   const [tenantName, setTenantName]   = useState("");
   const [publishNote, setPublishNote] = useState("");
@@ -236,9 +235,6 @@ export default function MemberPortalSettingsPage() {
   const mallItemInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const [onlineBuildTime, setOnlineBuildTime] = useState<string>("");
   const [checkingVersion, setCheckingVersion] = useState(false);
-  const [deleteAgentIdx, setDeleteAgentIdx] = useState<number | null>(null);
-  const [deleteAgentPwd, setDeleteAgentPwd] = useState("");
-  const [deletingAgent, setDeletingAgent] = useState(false);
   const [confirmForceRefreshOpen, setConfirmForceRefreshOpen] = useState(false);
   const [confirmRemoveMallIdx, setConfirmRemoveMallIdx] = useState<number | null>(null);
   const [confirmRemoveMallCategoryIdx, setConfirmRemoveMallCategoryIdx] = useState<number | null>(null);
