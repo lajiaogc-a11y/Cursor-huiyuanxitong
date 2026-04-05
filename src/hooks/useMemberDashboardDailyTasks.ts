@@ -267,7 +267,7 @@ export function useMemberDashboardDailyTasks({
         }
 
         setPendingNonce(nonceRes.nonce);
-        notifyInfo(["分享完成后，请点击"领取奖励"", "After sharing, tap \"Claim reward\" to collect."]);
+        notifyInfo(["分享完成后，请点击「领取奖励」", "After sharing, tap 'Claim reward' to collect."]);
       } catch (e: unknown) {
         if (e instanceof ApiError && e.statusCode === 429) {
           notifyError([e.message || "操作过于频繁，请稍后再试", e.message || "Too many attempts, try again later"]);
