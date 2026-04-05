@@ -84,19 +84,25 @@ export async function checkEmployeeLoginLockRepository(
 
 export async function getMaintenanceModeStatusRepository(
   tenantId: string | null
-): Promise<{ effectiveEnabled: boolean; globalMessage?: string }> {
-  const global = await queryOne<{ enabled: number; message: string | null }>(
-    'SELECT enabled, message FROM maintenance_mode LIMIT 1'
+): Promise<{ effectiveEnabled: boolean; globalMessage?: string; allowedRoles?: string[] }> {
+  const global = await queryOne<{ enabled: number; message: string | null; allowed_roles: string | null }>(
+    'SELECT enabled, message, allowed_roles FROM maintenance_mode LIMIT 1'
   );
   if (global?.enabled) {
-    return { effectiveEnabled: true, globalMessage: global.message ?? undefined };
+    let allowedRoles: string[] = [];
+    try { allowedRoles = global.allowed_roles ? JSON.parse(global.allowed_roles) : []; } catch { /* ignore */ }
+    return { effectiveEnabled: true, globalMessage: global.message ?? undefined, allowedRoles };
   }
   if (tenantId) {
-    const tenant = await queryOne<{ enabled: number }>(
-      'SELECT enabled FROM tenant_maintenance_modes WHERE tenant_id = ?',
+    const tenant = await queryOne<{ enabled: number; allowed_roles: string | null }>(
+      'SELECT enabled, allowed_roles FROM tenant_maintenance_modes WHERE tenant_id = ?',
       [tenantId]
     );
-    if (tenant?.enabled) return { effectiveEnabled: true };
+    if (tenant?.enabled) {
+      let allowedRoles: string[] = [];
+      try { allowedRoles = tenant.allowed_roles ? JSON.parse(tenant.allowed_roles) : []; } catch { /* ignore */ }
+      return { effectiveEnabled: true, allowedRoles };
+    }
   }
   return { effectiveEnabled: false };
 }

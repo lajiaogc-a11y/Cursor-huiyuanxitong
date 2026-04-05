@@ -102,14 +102,12 @@ export async function createTenantWithAdminRepository(
     const [checkRows] = await conn.execute<any[]>(
       `SELECT
          EXISTS(SELECT 1 FROM tenants WHERE tenant_code = ?) AS tenant_code_exists,
-         EXISTS(SELECT 1 FROM employees WHERE username = ?) AS admin_username_exists,
-         EXISTS(SELECT 1 FROM employees WHERE real_name = ?) AS admin_real_name_exists`,
-      [tenantCode, adminUsername, adminRealName]
+         EXISTS(SELECT 1 FROM employees WHERE username = ?) AS admin_username_exists`,
+      [tenantCode, adminUsername]
     );
     const check = checkRows[0];
     if (check?.tenant_code_exists) return { success: false, errorCode: 'TENANT_CODE_EXISTS' };
     if (check?.admin_username_exists) return { success: false, errorCode: 'ADMIN_USERNAME_EXISTS' };
-    if (check?.admin_real_name_exists) return { success: false, errorCode: 'ADMIN_REAL_NAME_EXISTS' };
 
     const bcrypt = await import('bcryptjs');
     const passwordHash = await bcrypt.hash(adminPassword, 10);

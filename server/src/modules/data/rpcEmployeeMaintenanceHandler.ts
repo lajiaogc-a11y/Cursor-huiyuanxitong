@@ -239,15 +239,19 @@ export async function handleRpcEmployeeMaintenanceGroup(ctx: RpcCtx): Promise<Rp
         const reqTid = String(params.p_tenant_id || params.tenant_id || tenantId || '');
         const callerTid = req.user?.tenant_id;
         const flagTid = req.user?.is_platform_super_admin ? reqTid : (callerTid ? String(callerTid) : reqTid);
-        if (!flagKey || !flagTid) { result = { enabled: true }; break; }
+        if (!flagKey || !flagTid) { result = { enabled: false, source: 'missing_params' }; break; }
         const flagRow = await queryOne<{ enabled: number }>(
           `SELECT enabled FROM tenant_feature_flags WHERE tenant_id = ? AND flag_key = ? LIMIT 1`,
           [flagTid, flagKey],
         );
-        result = { enabled: flagRow ? !!flagRow.enabled : true };
+        // missing row → source:'default' so client can apply its own default; explicit row → use DB value
+        result = flagRow
+          ? { enabled: !!flagRow.enabled, source: 'db' }
+          : { enabled: true, source: 'default' };
       } catch (e) {
         logger.warn('RPC', 'get_tenant_feature_flag:', (e as Error).message);
-        result = { enabled: true };
+        // fail-closed on errors
+        result = { enabled: false, source: 'error' };
       }
       break;
     }

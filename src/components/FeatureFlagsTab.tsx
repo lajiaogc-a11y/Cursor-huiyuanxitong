@@ -45,7 +45,7 @@ export default function FeatureFlagsTab() {
       const entries = await Promise.all(
         tenantResult.data.map(async (tenant) => {
           const result = await getTenantFeatureFlagResult(tenant.id, FEATURE_FLAGS.PHONE_EXTRACT, true);
-          return [tenant.id, result.ok ? result.data : true] as const;
+          return [tenant.id, result.ok ? result.data : false] as const;
         })
       );
       setPhoneExtractFlags(Object.fromEntries(entries));

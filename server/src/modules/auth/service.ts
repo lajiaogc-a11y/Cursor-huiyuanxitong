@@ -171,16 +171,20 @@ export async function loginService(
     }
   }
 
-  // 3. 维护模式（平台超管 + is_super_admin 不拦截）
+  // 3. 维护模式（平台超管 + is_super_admin 不拦截；allowed_roles 白名单内的角色也不拦截）
   if (!emp.is_super_admin && !isPlatformSuperAdmin) {
     try {
       const maintenance = await getMaintenanceModeStatusRepository(emp.tenant_id ?? null);
       if (maintenance.effectiveEnabled) {
-        logEmployeeLoginRepository(emp.employee_id, ip, ua, false, 'System under maintenance', username).catch(e => logger.error('Auth', 'login log write failed:', e));
-        return { success: false, error: 'System under maintenance. Please try again later.' };
+        const allowed = Array.isArray(maintenance.allowedRoles) ? maintenance.allowedRoles : [];
+        const roleAllowed = allowed.length > 0 && emp.role && allowed.includes(emp.role);
+        if (!roleAllowed) {
+          logEmployeeLoginRepository(emp.employee_id, ip, ua, false, 'System under maintenance', username).catch(e => logger.error('Auth', 'login log write failed:', e));
+          return { success: false, error: 'System under maintenance. Please try again later.' };
+        }
       }
     } catch (_) {
-      // RPC 可能不存在，跳过维护模式检查
+      // 维护模式表可能不存在，跳过检查
     }
   }
 

@@ -46,6 +46,7 @@ export async function handleRpcPlatformConfigGroup(ctx: RpcCtx): Promise<RpcDisp
         expiresAt = null;
       }
       let codeStr = '';
+      let codeUnique = false;
       for (let attempt = 0; attempt < 50; attempt++) {
         codeStr = createHash('md5')
           .update(randomBytes(16))
@@ -53,7 +54,11 @@ export async function handleRpcPlatformConfigGroup(ctx: RpcCtx): Promise<RpcDisp
           .slice(0, 8)
           .toUpperCase();
         const dup = await queryOne('SELECT id FROM invitation_codes WHERE code = ? LIMIT 1', [codeStr]);
-        if (!dup) break;
+        if (!dup) { codeUnique = true; break; }
+      }
+      if (!codeUnique) {
+        result = { success: false, error: 'CODE_GENERATION_FAILED' };
+        break;
       }
       const newId = randomUUID();
       const tenantId = empGen.tenant_id ? String(empGen.tenant_id) : null;
