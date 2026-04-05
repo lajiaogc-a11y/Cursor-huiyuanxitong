@@ -114,7 +114,6 @@ export function CardMerchantDialogs({
   setSelectedWithdrawalIds,
   onEditWithdrawal,
   setDeletingWithdrawalId,
-  setPendingBatchWithdrawalDelete,
   editingWithdrawal,
   setEditingWithdrawal,
   onSaveEditWithdrawal,
