@@ -30,8 +30,8 @@ import {
 import { memberPortalGoldCssVarsFromHex } from "@/utils/memberPortalGoldCssVars";
 import { cn } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
-import { memberQueryKeys } from "@/lib/memberQueryKeys";
-import { MEMBER_PULL_REFRESH_EVENT } from "@/lib/memberPullRefreshEvent";
+import { MEMBER_GLOBAL_REFRESH_REQUEST_EVENT } from "@/lib/memberPullRefreshEvent";
+import { safeMemberGlobalRefresh } from "@/lib/memberSafeRefresh";
 import { isMemberBottomTabPath } from "@/lib/memberBottomTabPaths";
 import { preloadMemberRouteChunk } from "@/lib/memberRouteChunkPreload";
 import { MemberTabbedShell } from "@/components/member/MemberTabbedShell";
@@ -146,14 +146,7 @@ export function MemberLayout({ children }: { children: ReactNode }) {
     let hidden = document.visibilityState === "hidden";
 
     const runForegroundSync = () => {
-      void queryClient.refetchQueries({
-        queryKey: memberQueryKeys.all,
-        type: "active",
-      }).then(() => {
-        window.dispatchEvent(new CustomEvent(MEMBER_PULL_REFRESH_EVENT));
-      }).catch(() => {
-        window.dispatchEvent(new CustomEvent(MEMBER_PULL_REFRESH_EVENT));
-      });
+      void safeMemberGlobalRefresh(queryClient);
     };
 
     const onVisibility = () => {
@@ -177,6 +170,16 @@ export function MemberLayout({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pageshow", onPageShow as EventListener);
     };
+  }, [member?.id]);
+
+  /** 手动全局刷新请求（与前台恢复 / PTR 同一节流策略） */
+  useEffect(() => {
+    if (!member?.id) return;
+    const onRequest = () => {
+      void safeMemberGlobalRefresh(queryClient);
+    };
+    window.addEventListener(MEMBER_GLOBAL_REFRESH_REQUEST_EVENT, onRequest);
+    return () => window.removeEventListener(MEMBER_GLOBAL_REFRESH_REQUEST_EVENT, onRequest);
   }, [member?.id]);
 
   useEffect(() => {

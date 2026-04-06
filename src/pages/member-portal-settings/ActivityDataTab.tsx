@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { LucideIcon } from "lucide-react";
 import { RefreshCw, Star, Settings2, ShoppingCart, Share2, UserPlus, CalendarClock } from "lucide-react";
+import { ROUTES } from "@/routes/constants";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -339,7 +340,7 @@ export function ActivityDataTab({ tenantId }: ActivityDataTabProps) {
             )}
           </span>
           <Button variant="outline" size="sm" className="shrink-0 w-fit" asChild>
-            <Link to="/staff/settings?tab=data&dataDeleteFocus=1">
+            <Link to={`${ROUTES.STAFF.DATA_MANAGEMENT}?dataDeleteFocus=1`}>
               {t("打开数据删除", "Open delete data")}
             </Link>
           </Button>

@@ -28,7 +28,6 @@ import { MemberPageLoadingShell } from "@/components/member/MemberPageLoadingShe
 import { ListSkeleton } from "@/components/member/MemberSkeleton";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ROUTES } from "@/routes/constants";
-import { MEMBER_SKELETON_MIN_MS } from "@/lib/memberPortalUx";
 import { MemberEmptyStateCta } from "@/components/member/MemberEmptyStateCta";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
@@ -141,8 +140,8 @@ export default function MemberNotifications() {
     if (!member?.id) {
       setNotifications([]);
       setNotifTotal(0);
-      const tmr = window.setTimeout(() => setLoading(false), MEMBER_SKELETON_MIN_MS);
-      return () => window.clearTimeout(tmr);
+      setLoading(false);
+      return;
     }
     if (portalSettingsLoading) {
       return;
@@ -154,7 +153,6 @@ export default function MemberNotifications() {
       return;
     }
     let cancelled = false;
-    const started = Date.now();
     setLoading(true);
     void (async () => {
       try {
@@ -169,10 +167,7 @@ export default function MemberNotifications() {
           setNotifTotal(0);
         }
       } finally {
-        const rest = Math.max(0, MEMBER_SKELETON_MIN_MS - (Date.now() - started));
-        window.setTimeout(() => {
-          if (!cancelled) setLoading(false);
-        }, rest);
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => {

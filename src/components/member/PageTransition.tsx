@@ -1,6 +1,6 @@
 /**
- * PageTransition — Framer Motion wrapper for smooth route transitions.
- * Pure UI component, no business logic.
+ * PageTransition — Framer Motion wrapper for route transitions.
+ * 轻量位移 + 极轻淡变，避免整页从透明「先藏再显」造成闪屏。
  */
 import { motion, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
@@ -10,26 +10,26 @@ interface PageTransitionProps {
   className?: string;
 }
 
-/** 轻微上浮 + 淡入淡出，接近原生转场 */
+const EASE_OUT = [0.22, 1, 0.36, 1] as const;
+
+/** 与 animate 接近，退场时内容仍基本连续，不整块变黑/变白 */
 const variants = {
-  initial: { opacity: 0, y: 8 },
   animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -4 },
+  exit: { opacity: 0.96, y: -3 },
 };
 
 export default function PageTransition({ children, className = "" }: PageTransitionProps) {
   const reduceMotion = useReducedMotion();
+  const duration = reduceMotion ? 0 : 0.2;
+
   return (
     <motion.div
       variants={variants}
-      initial="initial"
+      /** 进入页不再从 opacity:0 起步，避免与 Suspense/路由叠成明显闪烁 */
+      initial={false}
       animate="animate"
       exit="exit"
-      transition={
-        reduceMotion
-          ? { duration: 0 }
-          : { duration: 0.3, ease: [0.22, 1, 0.36, 1] }
-      }
+      transition={{ duration, ease: EASE_OUT }}
       className={className}
     >
       {children}

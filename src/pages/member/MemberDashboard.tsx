@@ -236,8 +236,9 @@ export default function MemberDashboard() {
   const showTodayEarnedSkeleton = useMemberSkeletonGate(todayEarnedLoading);
   const showCheckInSublineSkeleton = useMemberSkeletonGate(!checkInSummary);
 
-  /** 积分与门户设置就绪后渐显主内容区（与骨架门控解耦，避免「整块突然出现」） */
-  const dashboardMainReveal = Boolean(member) && !loading && !portalLoading;
+  /** Banner 独立占位：仅首拉且无缓存轮播数据时显示，避免用 portalLoading 锁整页 */
+  const hasHomeBannerRows = Array.isArray(ps.home_banners) && ps.home_banners.length > 0;
+  const showBannerPlaceholder = portalLoading && !hasHomeBannerRows;
 
   const announcementItems = useMemo((): AnnouncementItem[] => {
     const fromList = Array.isArray(ps.announcements)
@@ -334,21 +335,6 @@ export default function MemberDashboard() {
     })();
   }, [member?.id, pullRefreshGen, showMemberInbox]);
 
-  if (!member) return null;
-
-  const portalDisplayName =
-    getMemberPortalDisplayName({
-      nickname: member.nickname,
-      memberCode: member.member_code,
-      phoneNumber: member.phone_number,
-    }).trim() || t("会员", "Member");
-  const tierDisplay =
-    displayMemberLevelLabel(member.member_level, member.member_level_zh, language) ||
-    t("VIP 会员", "VIP Member");
-  const avatarLetter =
-    portalDisplayName.trim().slice(0, 1).toUpperCase() ||
-    (member.member_code?.trim().slice(0, 1).toUpperCase() ?? "M");
-
   const fmtPts = useCallback(
     (n: number) =>
       Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
@@ -386,6 +372,21 @@ export default function MemberDashboard() {
     ],
   );
 
+  if (!member) return null;
+
+  const portalDisplayName =
+    getMemberPortalDisplayName({
+      nickname: member.nickname,
+      memberCode: member.member_code,
+      phoneNumber: member.phone_number,
+    }).trim() || t("会员", "Member");
+  const tierDisplay =
+    displayMemberLevelLabel(member.member_level, member.member_level_zh, language) ||
+    t("VIP 会员", "VIP Member");
+  const avatarLetter =
+    portalDisplayName.trim().slice(0, 1).toUpperCase() ||
+    (member.member_code?.trim().slice(0, 1).toUpperCase() ?? "M");
+
   const securitySection = (
     <div key="security" className="m-trust-footer flex-wrap justify-center gap-x-3 gap-y-2">
       <div className="flex items-center gap-1.5">
@@ -406,6 +407,7 @@ export default function MemberDashboard() {
       <div className="relative flex-1 overflow-x-hidden">
         <MemberPageAmbientOrbs />
         <div className="relative z-[1] px-5 pb-8 pt-7">
+          {/* 顶栏：立即展示（主题 / 收件箱等），不依赖门户接口整页 gating */}
           <MemberDashboardProfileBar
             portalDisplayName={portalDisplayName}
             tierDisplay={tierDisplay}
@@ -420,35 +422,44 @@ export default function MemberDashboard() {
             t={t}
           />
 
-          <ContentReveal show={dashboardMainReveal} durationMs={300}>
-            <MemberDashboardBannerSection
-              homeBanners={ps.home_banners}
-              homeBannersCarouselIntervalSec={ps.home_banners_carousel_interval_sec}
-              themeColor={themeColor}
-              theme={theme}
-              t={t}
-              spinRemaining={spinRemaining}
-              spinError={spinError}
-              checkInSummary={checkInSummary}
-              showPointsSkeleton={showPointsSkeleton}
-              showCheckInSublineSkeleton={showCheckInSublineSkeleton}
-              announcementItems={announcementItems}
-              onSelectAnnouncement={setSelectedAnn}
+          {/* Banner：独立 loading；有缓存或已返回则直接渲染，避免整页等待 */}
+          {showBannerPlaceholder ? (
+            <div
+              className="mb-5 h-[min(9.5rem,28vh)] w-full animate-pulse rounded-2xl bg-[hsl(var(--pu-m-surface)/0.16)] ring-1 ring-inset ring-[hsl(var(--pu-m-surface-border)/0.12)]"
+              aria-hidden
             />
+          ) : (
+            <ContentReveal show durationMs={260}>
+              <MemberDashboardBannerSection
+                homeBanners={ps.home_banners}
+                homeBannersCarouselIntervalSec={ps.home_banners_carousel_interval_sec}
+                themeColor={themeColor}
+                theme={theme}
+                t={t}
+                spinRemaining={spinRemaining}
+                spinError={spinError}
+                checkInSummary={checkInSummary}
+                showPointsSkeleton={showPointsSkeleton}
+                showCheckInSublineSkeleton={showCheckInSublineSkeleton}
+                announcementItems={announcementItems}
+                onSelectAnnouncement={setSelectedAnn}
+              />
+            </ContentReveal>
+          )}
 
-            <MemberDashboardPointsStatGrid
-              t={t}
-              fmtPts={fmtPts}
-              showPointsSkeleton={showPointsSkeleton}
-              showTodayEarnedSkeleton={showTodayEarnedSkeleton}
-              pointsError={pointsError}
-              animDashTotal={animDashTotal}
-              animDashAvail={animDashAvail}
-              animDashFrozen={animDashFrozen}
-              animDashToday={animDashToday}
-              onOpenPointsInfo={() => setPointsInfoOpen(true)}
-            />
-          </ContentReveal>
+          {/* 积分区：独立骨架与错误态，由 useMemberPointsBreakdown 驱动 */}
+          <MemberDashboardPointsStatGrid
+            t={t}
+            fmtPts={fmtPts}
+            showPointsSkeleton={showPointsSkeleton}
+            showTodayEarnedSkeleton={showTodayEarnedSkeleton}
+            pointsError={pointsError}
+            animDashTotal={animDashTotal}
+            animDashAvail={animDashAvail}
+            animDashFrozen={animDashFrozen}
+            animDashToday={animDashToday}
+            onOpenPointsInfo={() => setPointsInfoOpen(true)}
+          />
         </div>
       </div>
 
@@ -488,7 +499,8 @@ export default function MemberDashboard() {
         />
       </div>
 
-      <ContentReveal show={dashboardMainReveal} durationMs={300}>
+      {/* 公告列表：局部渐显，不依赖门户整页 loading */}
+      <ContentReveal show durationMs={240}>
         <div className="mb-6 px-5">
           <div className="mb-3 flex items-center gap-2">
             <Megaphone className="h-4 w-4 text-pu-rose" aria-hidden />
@@ -531,44 +543,46 @@ export default function MemberDashboard() {
       </ContentReveal>
 
       <div className={cn("mb-6 px-5", !showInvite && "hidden")} aria-hidden={!showInvite}>
-        <ContentReveal show={showInvite && dashboardMainReveal} durationMs={300}>
-          <div className="relative overflow-hidden rounded-[1.25rem] border border-[hsl(var(--pu-emerald)/0.15)] p-6 text-center m-glass">
-            <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-emerald/[0.04] to-pu-gold/[0.03]" />
-            <div className="relative">
-              <Share2 className="mx-auto mb-3 h-8 w-8 text-pu-emerald" aria-hidden />
-              <h3 className="mb-1 text-lg font-extrabold text-[hsl(var(--pu-m-text))]">{t("邀请好友赚转盘", "Invite friends for spins")}</h3>
-              {(member?.invite_success_lifetime_count ?? 0) > 0 ? (
-                <p className="mb-2 text-xs font-semibold text-pu-emerald">
-                  {t("已成功邀请", "Successfully invited")}{" "}
-                  <span className="text-sm">+{member.invite_success_lifetime_count}</span> {t("位好友", "friends")}
+        {showInvite ? (
+          <ContentReveal show durationMs={240}>
+            <div className="relative overflow-hidden rounded-[1.25rem] border border-[hsl(var(--pu-emerald)/0.15)] p-6 text-center m-glass">
+              <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-emerald/[0.04] to-pu-gold/[0.03]" />
+              <div className="relative">
+                <Share2 className="mx-auto mb-3 h-8 w-8 text-pu-emerald" aria-hidden />
+                <h3 className="mb-1 text-lg font-extrabold text-[hsl(var(--pu-m-text))]">{t("邀请好友赚转盘", "Invite friends for spins")}</h3>
+                {(member?.invite_success_lifetime_count ?? 0) > 0 ? (
+                  <p className="mb-2 text-xs font-semibold text-pu-emerald">
+                    {t("已成功邀请", "Successfully invited")}{" "}
+                    <span className="text-sm">+{member.invite_success_lifetime_count}</span> {t("位好友", "friends")}
+                  </p>
+                ) : null}
+                <p className="mb-5 text-xs text-[hsl(var(--pu-m-text-dim))]">
+                  {ps.daily_invite_reward_limit > 0
+                    ? t(
+                        `双方各得 ${ps.invite_reward_spins} 次转盘 · 每日上限 ${ps.daily_invite_reward_limit}`,
+                        `${ps.invite_reward_spins} spins each · daily cap ${ps.daily_invite_reward_limit}`,
+                      )
+                    : t(
+                        `双方各得 ${ps.invite_reward_spins} 次转盘`,
+                        `${ps.invite_reward_spins} spins for each side`,
+                      )}
                 </p>
-              ) : null}
-              <p className="mb-5 text-xs text-[hsl(var(--pu-m-text-dim))]">
-                {ps.daily_invite_reward_limit > 0
-                  ? t(
-                      `双方各得 ${ps.invite_reward_spins} 次转盘 · 每日上限 ${ps.daily_invite_reward_limit}`,
-                      `${ps.invite_reward_spins} spins each · daily cap ${ps.daily_invite_reward_limit}`,
-                    )
-                  : t(
-                      `双方各得 ${ps.invite_reward_spins} 次转盘`,
-                      `${ps.invite_reward_spins} spins for each side`,
-                    )}
-              </p>
-              <Button
-                type="button"
-                className="btn-glow rounded-xl px-8 py-2.5 text-sm font-bold transition-transform active:scale-95"
-                asChild
-              >
-                <Link
-                  to={ROUTES.MEMBER.INVITE}
-                  onClick={() => stashPointsHashBeforeInviteNavigation(window.location.pathname, window.location.hash)}
+                <Button
+                  type="button"
+                  className="btn-glow rounded-xl px-8 py-2.5 text-sm font-bold transition-transform active:scale-95"
+                  asChild
                 >
-                  {t("立即邀请", "Invite now")}
-                </Link>
-              </Button>
+                  <Link
+                    to={ROUTES.MEMBER.INVITE}
+                    onClick={() => stashPointsHashBeforeInviteNavigation(window.location.pathname, window.location.hash)}
+                  >
+                    {t("立即邀请", "Invite now")}
+                  </Link>
+                </Button>
+              </div>
             </div>
-          </div>
-        </ContentReveal>
+          </ContentReveal>
+        ) : null}
       </div>
 
       <div className="flex flex-col items-center px-5 pb-24">{securitySection}</div>

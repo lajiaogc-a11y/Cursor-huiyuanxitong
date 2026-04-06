@@ -1,3 +1,4 @@
+// TODO: unused-candidate — verify callers / product intent before removal
 // ============= App Initializer Service =============
 // 应用启动时的初始化服务 - 预加载关键配置到缓存
 // 确保所有业务逻辑使用的配置在启动时已就绪

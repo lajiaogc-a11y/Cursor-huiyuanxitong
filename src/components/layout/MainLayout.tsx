@@ -66,6 +66,7 @@ export function MainLayout({ children }: MainLayoutProps) {
     void import("@/pages/MerchantSettlement");
     void import("@/pages/ReportManagement");
     void import("@/pages/SystemSettings");
+    void import("@/pages/DataManagementPage");
     void import("@/pages/EmployeeManagement");
     void import("@/pages/KnowledgeBase");
   }, []);

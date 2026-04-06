@@ -8,6 +8,7 @@ import {
   AuditCenter,
   CustomerQuery,
   Dashboard,
+  DataManagementPage,
   EmployeeManagement,
   ExchangeRate,
   InviteLanding,
@@ -90,6 +91,7 @@ export const staffCoreRoutes: Array<{ path: string; element: ReactNode }> = [
 ];
 
 export const staffExtendedRoutes: Array<{ path: string; element: ReactNode }> = [
+  { path: ROUTES.STAFF.DATA_MANAGEMENT, element: <DataManagementPage /> },
   { path: ROUTES.STAFF.MEMBER_MANAGEMENT, element: <MemberManagement /> },
   { path: ROUTES.STAFF.EXCHANGE_RATE, element: <ExchangeRate /> },
   { path: ROUTES.STAFF.CUSTOMER_QUERY, element: <CustomerQuery /> },

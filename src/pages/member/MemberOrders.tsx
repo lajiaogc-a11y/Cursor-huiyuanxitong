@@ -1,10 +1,10 @@
 /**
- * 会员订单页 — UI 对齐 premium-ui-boost；列表数据与设置页「我的订单」同源（memberGetOrdersRows + 同一 query 缓存键）。
+ * 会员订单页 — UI 对齐 premium-ui-boost；列表为分页接口 memberGetOrdersPage（缓存键 ordersPaged，与设置页全量 orders 键分离）。
  */
-import { useState, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ChevronDown, Gift, Loader2, ArrowLeftRight, LayoutGrid, Clock } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import BackHeader from "@/components/member/BackHeader";
 import { ListSkeleton } from "@/components/member/MemberSkeleton";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -18,7 +18,6 @@ import { mapDbRowToMemberPortalOrderView, type MemberPortalOrderView } from "@/h
 import { memberQueryKeys } from "@/lib/memberQueryKeys";
 import { resolveCardName, tryRecoverMisdecodedUtf8 } from "@/services/members/nameResolver";
 import { cn } from "@/lib/utils";
-import { useMemberSkeletonGate } from "@/hooks/useMemberSkeletonGate";
 import { MemberEmptyStateCta } from "@/components/member/MemberEmptyStateCta";
 import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
 
@@ -31,28 +30,37 @@ export default function MemberOrders() {
   const { member } = useMemberAuth();
   const memberId = member?.id;
 
-  const [orders, setOrders] = useState<MemberPortalOrderView[]>([]);
-  const [ordersTotal, setOrdersTotal] = useState(0);
-  const [loadingMore, setLoadingMore] = useState(false);
-
   const {
+    data,
     isLoading,
     isError,
     refetch,
     isFetching,
-  } = useQuery({
-    queryKey: memberId ? memberQueryKeys.orders(memberId) : ["member", "orders", "__none"],
-    queryFn: async () => {
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: memberId ? memberQueryKeys.ordersPaged(memberId) : ["member", "ordersPaged", "__none"],
+    queryFn: async ({ pageParam }) => {
       if (!memberId) return { rows: [] as MemberPortalOrderView[], total: 0 };
-      const { rows, total } = await memberGetOrdersPage(memberId, ORDER_PAGE_SIZE, 0);
+      const { rows, total } = await memberGetOrdersPage(memberId, ORDER_PAGE_SIZE, pageParam);
       const mapped = rows.map((r) => mapDbRowToMemberPortalOrderView(r as Record<string, unknown>));
-      setOrders(mapped);
-      setOrdersTotal(total);
       return { rows: mapped, total };
     },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((acc, p) => acc + p.rows.length, 0);
+      if (lastPage.rows.length === 0 || loaded >= lastPage.total) return undefined;
+      return loaded;
+    },
     enabled: !!memberId,
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
+
+  const orders = useMemo(() => data?.pages.flatMap((p) => p.rows) ?? [], [data?.pages]);
+
+  const ordersTotal = useMemo(() => data?.pages[0]?.total ?? 0, [data?.pages]);
 
   const [activeFilter, setActiveFilter] = useState<OrderStatusFilter>("all");
   const [expandedId, setExpandedId] = useState<string | null>("__list__");
@@ -63,25 +71,20 @@ export default function MemberOrders() {
     { key: "active", label: t("待处理", "Pending") },
   ];
 
-  const filtered =
-    activeFilter === "all"
-      ? orders
-      : orders.filter((o) => (activeFilter === "completed" ? o.status === "completed" : o.status === "active"));
+  const filtered = useMemo(() => {
+    if (activeFilter === "all") return orders;
+    return orders.filter((o) => (activeFilter === "completed" ? o.status === "completed" : o.status === "active"));
+  }, [orders, activeFilter]);
 
-  const hasMore = activeFilter === "all" && orders.length < ordersTotal;
+  const hasMore = useMemo(
+    () => activeFilter === "all" && Boolean(hasNextPage),
+    [activeFilter, hasNextPage],
+  );
 
-  const loadMore = useCallback(async () => {
-    if (!memberId || loadingMore || orders.length >= ordersTotal) return;
-    setLoadingMore(true);
-    try {
-      const { rows, total } = await memberGetOrdersPage(memberId, ORDER_PAGE_SIZE, orders.length);
-      const mapped = rows.map((r) => mapDbRowToMemberPortalOrderView(r as Record<string, unknown>));
-      setOrders((prev) => [...prev, ...mapped]);
-      setOrdersTotal(total);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [memberId, loadingMore, orders.length, ordersTotal]);
+  const loadMore = useCallback(() => {
+    if (!memberId || !hasNextPage || isFetchingNextPage) return;
+    void fetchNextPage();
+  }, [memberId, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   useMemberPullRefreshSignal(() => {
     if (!memberId) return;
@@ -200,7 +203,7 @@ export default function MemberOrders() {
                 <span>
                   {orders.length} {t("条记录", "records")}
                 </span>
-                {isFetching && !isLoading ? (
+                {isFetching && !isLoading && !isFetchingNextPage ? (
                   <span
                     className="inline-flex shrink-0 items-center"
                     role="status"
@@ -309,11 +312,11 @@ export default function MemberOrders() {
             {hasMore ? (
               <button
                 type="button"
-                onClick={() => void loadMore()}
-                disabled={loadingMore}
+                onClick={loadMore}
+                disabled={isFetchingNextPage}
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.3)] bg-[hsl(var(--pu-m-surface)/0.5)] py-3 text-xs font-bold text-[hsl(var(--pu-m-text-dim))] transition-all motion-reduce:transition-none hover:bg-[hsl(var(--pu-m-surface)/0.7)] hover:text-[hsl(var(--pu-m-text))] active:scale-95 motion-reduce:active:scale-100 disabled:opacity-60"
               >
-                {loadingMore ? (
+                {isFetchingNextPage ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden />
                     {t("加载中…", "Loading…")}

@@ -1,7 +1,7 @@
 /**
  * 会员积分分类 Hook — 与 memberQueryKeys.pointsBreakdown 绑定
  */
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getMemberPointsBreakdownRpc } from '@/services/memberPortal/memberPointsPortalService';
 import { memberQueryKeys } from '@/lib/memberQueryKeys';
 
@@ -50,6 +50,7 @@ export function useMemberPointsBreakdown(memberId: string | undefined) {
       throw new Error(result.error || 'Failed to fetch points breakdown');
     },
     enabled: !!memberId,
+    placeholderData: keepPreviousData,
     retry: 2,
     staleTime: 60_000,
   });

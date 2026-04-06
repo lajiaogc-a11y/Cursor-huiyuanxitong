@@ -1,5 +1,6 @@
 import { useEffect, useCallback, lazy, Suspense, useMemo } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { Navigate, useSearchParams, useNavigate } from "react-router-dom";
+import { ROUTES } from "@/routes/constants";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -14,7 +15,6 @@ const ExchangeRateSettingsTab = lazy(() => import("@/components/ExchangeRateSett
 const PointsSettingsTab = lazy(() => import("@/components/PointsSettingsTab"));
 const ActivitySettingsTab = lazy(() => import("@/components/ActivitySettingsTab"));
 const CustomerSourceSettingsTab = lazy(() => import("@/components/CustomerSourceSettingsTab"));
-const DataManagementTab = lazy(() => import("@/components/DataManagementTab"));
 const ActivityTypeSettingsTab = lazy(() => import("@/components/ActivityTypeSettingsTab"));
 const CopySettingsTab = lazy(() => import("@/components/CopySettingsTab"));
 const CurrencySettingsTab = lazy(() => import("@/components/CurrencySettingsTab"));
@@ -38,7 +38,7 @@ const SETTINGS_TAB_MAP: Record<string, string> = {
   fee: "fee", exchange: "exchange", currency: "currency", points: "points",
   "member-levels": "member-levels",
   activity: "activity", activityType: "activityType", giftDistribution: "giftDistribution",
-  source: "source", data: "data", copy: "copy", permission: "permission", api: "api",
+  source: "source", copy: "copy", permission: "permission", api: "api",
   overview: "overview", "staff-invite": "staff-invite", "staff-login-ip": "staff-login-ip",
   "staff-devices": "staff-devices",
   "version-update": "version-update",
@@ -46,7 +46,7 @@ const SETTINGS_TAB_MAP: Record<string, string> = {
 
 const TAB_ORDER_BASE = [
   "fee", "exchange", "currency", "points", "member-levels", "activity",
-  "activityType", "giftDistribution", "source", "data", "copy", "staff-devices",
+  "activityType", "giftDistribution", "source", "copy", "staff-devices",
   "version-update",
 ];
 const ADMIN_TABS = ["permission", "api", "overview", "staff-invite", "staff-login-ip"];
@@ -59,7 +59,6 @@ const TAB_COMPONENTS: Record<string, React.LazyExoticComponent<React.ComponentTy
   activityType: ActivityTypeSettingsTab,
   giftDistribution: GiftDistributionSettingsTab,
   source: CustomerSourceSettingsTab,
-  data: DataManagementTab,
   copy: CopySettingsTab,
   currency: CurrencySettingsTab,
   permission: PermissionSettingsTab,
@@ -107,14 +106,14 @@ export default function SystemSettings() {
   );
 
   const tabFromUrl = SETTINGS_TAB_MAP[searchParams.get("tab") || ""] || "fee";
-  let activeTab = !canAccessTab(tabFromUrl) ? "data" : tabFromUrl;
+  let activeTab = !canAccessTab(tabFromUrl) ? "fee" : tabFromUrl;
   if (activeTab === "member-levels" && !canSeeMemberLevels) {
     activeTab = "fee";
   }
 
   useEffect(() => {
     if (!canAccessTab(tabFromUrl)) {
-      navigate("/staff/settings?tab=data", { replace: true });
+      navigate("/staff/settings?tab=fee", { replace: true });
     }
   }, [canAccessTab, tabFromUrl, navigate]);
 
@@ -135,7 +134,6 @@ export default function SystemSettings() {
     activityType: t("settings.activityType"),
     giftDistribution: t("settings.giftDistribution"),
     source: t("settings.customerSource"),
-    data: t("settings.dataManagement"),
     copy: t("settings.copySettings"),
     permission: t("settings.permissions"),
     api: t("API管理", "API Management"),
@@ -154,12 +152,19 @@ export default function SystemSettings() {
 
   const ActiveComp = TAB_COMPONENTS[activeTab];
 
+  if (searchParams.get("tab") === "data") {
+    const next = new URLSearchParams(searchParams);
+    next.delete("tab");
+    const qs = next.toString();
+    return <Navigate to={`${ROUTES.STAFF.DATA_MANAGEMENT}${qs ? `?${qs}` : ""}`} replace />;
+  }
+
   return (
     <div className="flex h-full flex-col gap-4">
       <PageHeader
         description={t(
-          "租户级业务参数与数据配置：费率、汇率、币种、积分、活动、客户来源、数据管理与权限等；移动端可用下方标签切换。",
-          "Tenant-level business and data settings—fees, FX, currencies, points, activities, sources, data management, and permissions; use the tabs below on mobile.",
+          "租户级业务参数与配置：费率、汇率、币种、积分、活动、客户来源与权限等；数据导入导出与批量删除请使用侧栏「数据管理」。移动端可用下方标签切换。",
+          "Tenant-level business settings—fees, FX, currencies, points, activities, sources, and permissions. Use the sidebar Data Management page for import/export and bulk delete. Use the tabs below on mobile.",
         )}
       />
       {isMobile && (

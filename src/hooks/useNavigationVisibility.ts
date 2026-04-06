@@ -28,6 +28,7 @@ const PATH_NAV_PREFIXES: { prefix: string; navKey: string }[] = [
   { prefix: '/staff/employees', navKey: 'employees' },
   { prefix: '/staff/operation-logs', navKey: 'operation_logs' },
   { prefix: '/staff/login-logs', navKey: 'login_logs' },
+  { prefix: '/staff/data-management', navKey: 'data_management' },
   { prefix: '/staff/settings', navKey: 'system_settings' },
 ];
 

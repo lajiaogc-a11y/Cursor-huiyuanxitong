@@ -38,6 +38,7 @@ import {
   type AnnouncementItem,
 } from "@/services/members/memberPortalSettingsService";
 import { cn } from "@/lib/utils";
+import { ROUTES } from "@/routes/constants";
 import {
   BANNER_MAX_DIMENSION,
   LOGO_MAX_DIMENSION,
@@ -177,7 +178,7 @@ export default function MemberPortalSettingsPage() {
   useEffect(() => {
     if (!tabKeyParam) return;
     if (tabKeyParam === "data_management") {
-      navigate("/staff/settings?tab=data&dataDeleteFocus=1", { replace: true });
+      navigate(`${ROUTES.STAFF.DATA_MANAGEMENT}?dataDeleteFocus=1`, { replace: true });
       return;
     }
     if (tabKeyParam === "logs") {

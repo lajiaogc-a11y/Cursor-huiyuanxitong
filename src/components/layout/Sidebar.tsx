@@ -22,6 +22,7 @@ import {
   Landmark,
   SlidersHorizontal,
   MonitorSmartphone,
+  Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,6 +43,7 @@ import { prefetchStaffMemberPortalPage, STAFF_MEMBER_PORTAL_PATH } from "@/lib/p
 import { ROUTES } from "@/routes/constants";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { canonicalStaffMembersNavPath } from "@/lib/staffMembersNav";
+import { STAFF_NAV_TOP_LEVEL_ITEMS } from "@/staffNavigation/staffNavigationRegistry";
 
 interface MenuItem {
   icon: typeof LayoutDashboard;
@@ -60,106 +62,39 @@ interface MenuItem {
   badgeType?: 'unread' | 'pending';
 }
 
-// 侧栏文案以 labelZh/labelEn + 语言切换为准；可见性由权限（navigation 模块）与管理员规则决定
-const allMenuItems: MenuItem[] = [
-  { icon: LayoutDashboard, labelZh: "数据统计", labelEn: "Dashboard", path: "/staff", navKey: "dashboard" },
-  { icon: Calculator, labelZh: "汇率计算", labelEn: "Exchange Rate", path: "/staff/exchange-rate", navKey: "exchange_rate" },
-  { icon: ClipboardList, labelZh: "订单管理", labelEn: "Orders", path: "/staff/orders", navKey: "orders" },
-  {
-    icon: Star,
-    labelZh: "会员管理",
-    labelEn: "Users",
-    path: "/staff/members",
-    navKey: "members",
-    children: [
-      { labelZh: "会员数据", labelEn: "User Data", path: "/staff/members?tab=members" },
-      { labelZh: "活动数据", labelEn: "Activity Data", path: "/staff/members?tab=activity" },
-      { labelZh: "活动赠送", labelEn: "Activity Gifts", path: "/staff/members?tab=gifts" },
-      { labelZh: "积分明细", labelEn: "Points Ledger", path: "/staff/members?tab=points" },
-    ],
-  },
-  { icon: Landmark, labelZh: "商家结算", labelEn: "Settlement", path: "/staff/merchant-settlement", navKey: "merchant_settlement" },
-  { icon: BookOpen, labelZh: "公司文档", labelEn: "Company Docs", path: "/staff/knowledge", navKey: "knowledge_base", badgeType: "unread" as const },
-  { icon: BarChart3, labelZh: "报表管理", labelEn: "Reports", path: "/staff/reports", navKey: "reports" },
-  {
-    icon: ListTodo,
-    labelZh: "工作任务",
-    labelEn: "Tasks",
-    path: "/staff/tasks/settings",
-    navKey: "work_tasks",
-    children: [
-      { labelZh: "维护设置", labelEn: "Settings", path: "/staff/tasks/settings" },
-      { labelZh: "维护历史", labelEn: "History", path: "/staff/tasks/history" },
-      { labelZh: "动态任务", labelEn: "Post Tasks", path: "/staff/tasks/posters" },
-      { labelZh: "提取设置", labelEn: "Extract Settings", path: "/staff/tasks/phone-extract" },
-    ],
-  },
-  {
-    icon: Store,
-    labelZh: "商家管理",
-    labelEn: "Merchants",
-    path: "/staff/merchants",
-    navKey: "merchant_management",
-    children: [
-      { labelZh: "卡片管理", labelEn: "Cards", path: "/staff/merchants?tab=cards" },
-      { labelZh: "卡商管理", labelEn: "Vendors", path: "/staff/merchants?tab=vendors" },
-      { labelZh: "代付商家", labelEn: "Payment Providers", path: "/staff/merchants?tab=payment-providers" },
-    ],
-  },
-  { icon: Shield, labelZh: "审核中心", labelEn: "Audit", path: "/staff/audit-center", navKey: "audit_center", badgeType: "pending" as const },
-  { icon: UserCog, labelZh: "员工管理", labelEn: "Employees", path: "/staff/employees", navKey: "employees" },
-  { icon: MonitorSmartphone, labelZh: "会员系统", labelEn: "Member Portal", path: "/staff/member-portal", navKey: "member_portal_settings" },
-  { icon: History, labelZh: "操作日志", labelEn: "Logs", path: "/staff/operation-logs", navKey: "operation_logs" },
-  { icon: LogIn, labelZh: "登录日志", labelEn: "Login Logs", path: "/staff/login-logs", navKey: "login_logs" },
-  {
-    icon: Settings,
-    labelZh: "系统设置",
-    labelEn: "Settings",
-    path: "/staff/settings",
-    navKey: "system_settings",
-    children: [
-      {
-        labelZh: "手续费设置",
-        labelEn: "Fee",
-        path: "/staff/settings?tab=fee",
-        sectionLabel: "业务配置",
-        sectionLabelEn: "Business",
-      },
-      { labelZh: "汇率设置", labelEn: "Exchange", path: "/staff/settings?tab=exchange" },
-      { labelZh: "币种设置", labelEn: "Currency", path: "/staff/settings?tab=currency" },
-      {
-        labelZh: "积分设置",
-        labelEn: "Points",
-        path: "/staff/settings?tab=points",
-        sectionLabel: "会员配置",
-        sectionLabelEn: "Membership",
-      },
-      { labelZh: "会员等级", labelEn: "User levels", path: "/staff/settings?tab=member-levels" },
-      { labelZh: "活动设置", labelEn: "Activity", path: "/staff/settings?tab=activity" },
-      { labelZh: "活动类型", labelEn: "Activity Type", path: "/staff/settings?tab=activityType" },
-      { labelZh: "活动分配", labelEn: "Gift Distribution", path: "/staff/settings?tab=giftDistribution" },
-      { labelZh: "客户来源", labelEn: "Customer Source", path: "/staff/settings?tab=source" },
-      {
-        labelZh: "数据管理",
-        labelEn: "Data",
-        path: "/staff/settings?tab=data",
-        sectionLabel: "系统管理",
-        sectionLabelEn: "System",
-      },
-      { labelZh: "复制设置", labelEn: "Copy", path: "/staff/settings?tab=copy" },
-      { labelZh: "员工邀请码", labelEn: "Staff invite", path: "/staff/settings?tab=staff-invite" },
-      { labelZh: "登录IP限制", labelEn: "Staff login IP", path: "/staff/settings?tab=staff-login-ip" },
-      { labelZh: "后台登录设备", labelEn: "Staff login devices", path: "/staff/settings?tab=staff-devices" },
-      { labelZh: "版本更新", labelEn: "Version update", path: "/staff/settings?tab=version-update" },
-      { labelZh: "权限设置", labelEn: "Permissions", path: "/staff/settings?tab=permission" },
-      { labelZh: "API管理", labelEn: "API", path: "/staff/settings?tab=api" },
-      { labelZh: "设置总览", labelEn: "Overview", path: "/staff/settings?tab=overview" },
-    ],
-  },
-  { icon: Building2, labelZh: "租户管理", labelEn: "Tenants", path: "/staff/admin/tenants", navKey: "platform_tenant_management" },
-  { icon: Users, labelZh: "租户数据查看", labelEn: "View Tenant Data", path: "/staff/admin/tenant-view", navKey: "platform_tenant_view" },
-  { icon: SlidersHorizontal, labelZh: "平台设置", labelEn: "Platform Settings", path: "/staff/admin/settings", navKey: "platform_settings" },
-];
+/** 与 staffNavigationRegistry 中 navKey 一一对应 */
+const NAV_ICON_BY_KEY: Record<string, MenuItem["icon"]> = {
+  dashboard: LayoutDashboard,
+  exchange_rate: Calculator,
+  orders: ClipboardList,
+  members: Star,
+  merchant_settlement: Landmark,
+  knowledge_base: BookOpen,
+  reports: BarChart3,
+  work_tasks: ListTodo,
+  merchant_management: Store,
+  audit_center: Shield,
+  employees: UserCog,
+  member_portal_settings: MonitorSmartphone,
+  operation_logs: History,
+  login_logs: LogIn,
+  data_management: Database,
+  system_settings: Settings,
+  platform_tenant_management: Building2,
+  platform_tenant_view: Users,
+  platform_settings: SlidersHorizontal,
+};
+
+// 侧栏文案以 labelZh/labelEn + 语言切换为准；数据源见 staffNavigationRegistry
+const allMenuItems: MenuItem[] = STAFF_NAV_TOP_LEVEL_ITEMS.map((row) => ({
+  icon: NAV_ICON_BY_KEY[row.navKey],
+  labelZh: row.labelZh,
+  labelEn: row.labelEn,
+  path: row.path,
+  navKey: row.navKey,
+  badgeType: row.badgeType,
+  children: row.children,
+}));
 
 export function Sidebar() {
   const { t, language } = useLanguage();

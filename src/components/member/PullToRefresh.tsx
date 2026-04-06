@@ -12,8 +12,8 @@ import {
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
-import { memberQueryKeys } from "@/lib/memberQueryKeys";
-import { MEMBER_PULL_REFRESH_EVENT } from "@/lib/memberPullRefreshEvent";
+import { MEMBER_GLOBAL_REFRESH_REQUEST_EVENT, MEMBER_PULL_REFRESH_EVENT } from "@/lib/memberPullRefreshEvent";
+import { safeMemberGlobalRefresh } from "@/lib/memberSafeRefresh";
 import { isMemberBottomTabPath } from "@/lib/memberBottomTabPaths";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -65,7 +65,7 @@ function touchTargetDefersPull(target: EventTarget | null): boolean {
   );
 }
 
-export { MEMBER_PULL_REFRESH_EVENT };
+export { MEMBER_GLOBAL_REFRESH_REQUEST_EVENT, MEMBER_PULL_REFRESH_EVENT };
 
 interface Props {
   children: ReactNode;
@@ -130,18 +130,9 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
     if (!androidMode) return;
 
     const handleNativeRefresh = () => {
-      queryClient
-        .refetchQueries({
-          queryKey: memberQueryKeys.all,
-          type: "active",
-        })
-        .then(() => {
-          window.dispatchEvent(new CustomEvent(MEMBER_PULL_REFRESH_EVENT));
-          try { window.AndroidBridge?.onRefreshComplete?.(); } catch { /* noop */ }
-        })
-        .catch(() => {
-          try { window.AndroidBridge?.onRefreshComplete?.(); } catch { /* noop */ }
-        });
+      void safeMemberGlobalRefresh(queryClient).finally(() => {
+        try { window.AndroidBridge?.onRefreshComplete?.(); } catch { /* noop */ }
+      });
     };
 
     window.addEventListener("native:refresh", handleNativeRefresh);
@@ -176,20 +167,15 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
       }, SETTLE_MS);
     };
 
-    queryClient
-      .refetchQueries({
-        queryKey: memberQueryKeys.all,
-        type: "active",
-      })
-      .then(() => {
-        window.dispatchEvent(new CustomEvent(MEMBER_PULL_REFRESH_EVENT));
+    void safeMemberGlobalRefresh(queryClient).then((didRun) => {
+      if (didRun) {
         setTimeout(() => {
           if (!unmountedRef.current) settle();
         }, 300);
-      })
-      .catch(() => {
+      } else {
         settle();
-      });
+      }
+    });
   }, [prefersReducedMotion]);
 
   // ═══════════════════════════════════════════════════════════════════════

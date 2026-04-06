@@ -32,6 +32,7 @@ export const NAVIGATION_FIELD_DEFS: Record<
   member_portal_settings: { label_zh: '会员系统', label_en: 'Member Portal' },
   operation_logs: { label_zh: '操作日志', label_en: 'Operation Logs' },
   login_logs: { label_zh: '登录日志', label_en: 'Login Logs' },
+  data_management: { label_zh: '数据管理', label_en: 'Data Management' },
   system_settings: { label_zh: '系统设置', label_en: 'System Settings' },
   platform_tenant_management: { label_zh: '租户管理', label_en: 'Tenant Management' },
   platform_tenant_view: { label_zh: '租户数据查看', label_en: 'View Tenant Data' },

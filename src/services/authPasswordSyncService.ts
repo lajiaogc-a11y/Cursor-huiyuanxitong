@@ -1,3 +1,4 @@
+// TODO: unused-candidate — verify callers / product intent before removal
 import { apiPost, ApiError } from '@/api/client';
 import { STAFF_AUTH_PATHS } from '@/services/auth/authPaths';
 

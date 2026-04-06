@@ -12,6 +12,7 @@ export const EmployeeManagement = lazyWithRetry(() => import("@/pages/EmployeeMa
 export const ExchangeRate = lazyWithRetry(() => import("@/pages/ExchangeRate"));
 export const PublicRates = lazyWithRetry(() => import("@/pages/PublicRates"));
 export const SystemSettings = lazyWithRetry(() => import("@/pages/SystemSettings"));
+export const DataManagementPage = lazyWithRetry(() => import("@/pages/DataManagementPage"));
 export const CustomerQuery = lazyWithRetry(() => import("@/pages/CustomerQuery"));
 export const MerchantManagement = lazyWithRetry(() => import("@/pages/MerchantManagement"));
 export const MerchantSettlement = lazyWithRetry(() => import("@/pages/MerchantSettlement"));

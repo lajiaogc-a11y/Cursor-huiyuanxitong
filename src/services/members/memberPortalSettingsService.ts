@@ -573,7 +573,7 @@ export async function upsertMyMemberPortalSettings(settings: MemberPortalSetting
   if (!r.success) throw new Error(r.error || "Save settings failed");
 }
 
-/** 合并同一 memberId 的并发请求（多组件各调 useMemberPortalSettings 时切 Tab 只打一条） */
+/** 合并同一 memberId 的并发请求（React Query 已去重；此处防非 RQ 调用方并行打爆接口） */
 const memberPortalSettingsByMemberInflight = new Map<string, Promise<MemberPortalSettingsPayload>>();
 
 export async function getMemberPortalSettingsByMember(memberId: string): Promise<MemberPortalSettingsPayload> {

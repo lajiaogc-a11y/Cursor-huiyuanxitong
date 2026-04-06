@@ -70,7 +70,7 @@ export type DeleteBulkSelections = {
   preserveActivityData: boolean;
 };
 
-const SELECT_ALL_STATE: DeleteBulkSelections = {
+export const SELECT_ALL_STATE: DeleteBulkSelections = {
   orders: true,
   recycleActivityDataOnOrderDelete: false,
   reports: { employee: true, card: true, vendor: true, daily: true },
@@ -98,7 +98,7 @@ const SELECT_ALL_STATE: DeleteBulkSelections = {
   preserveActivityData: true,
 };
 
-const SELECT_NONE_STATE: DeleteBulkSelections = {
+export const SELECT_NONE_STATE: DeleteBulkSelections = {
   orders: false,
   recycleActivityDataOnOrderDelete: false,
   reports: { employee: false, card: false, vendor: false, daily: false },

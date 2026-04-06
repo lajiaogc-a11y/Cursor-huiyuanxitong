@@ -1,7 +1,7 @@
 /**
  * 会员积分 Hook - 通过 RPC 获取；与 memberQueryKeys.points 绑定便于 mutation 后 invalidate
  */
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getMemberPointsRpc } from '@/services/memberPortal/memberPointsPortalService';
 import { memberQueryKeys } from '@/lib/memberQueryKeys';
 
@@ -16,6 +16,7 @@ export function useMemberPoints(memberId: string | undefined) {
       };
     },
     enabled: !!memberId,
+    placeholderData: keepPreviousData,
     retry: 2,
   });
 

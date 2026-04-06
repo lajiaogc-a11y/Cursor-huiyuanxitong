@@ -25,8 +25,10 @@ import { queryClient } from "@/lib/queryClient";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 import {
   DataManagementDeleteDialog,
+  SELECT_ALL_STATE,
   type DeleteBulkSelections,
 } from "@/components/DataManagementDeleteDialog";
+import { DataCleanupCenterPanel } from "@/components/dataCleanup/DataCleanupCenterPanel";
 import { MemberPortalInviteMemberCleanupPanel } from "@/components/MemberPortalInviteMemberCleanupPanel";
 import { ActivityDataRetentionPanel } from "@/components/ActivityDataRetentionPanel";
 import { Separator } from "@/components/ui/separator";
@@ -158,7 +160,7 @@ export default function DataManagementTab() {
       if (deletedSummary.length > 0) {
         const summaryText = deletedSummary.map(s => `${s.table}: ${s.count}条`).join(', ');
         logOperation(
-          'system_settings',
+          'data_management',
           'delete',
           'batch_data_cleanup',
           {
@@ -365,6 +367,18 @@ export default function DataManagementTab() {
               )}
             </p>
           </div>
+
+          <DataCleanupCenterPanel
+            t={t}
+            canBulkDeleteBusinessData={canBulkDeleteBusinessData}
+            onRequestFullBulkClear={() => {
+              setDeleteSelections(SELECT_ALL_STATE);
+              setIsDeleteDialogOpen(true);
+            }}
+            onOpenBulkDeleteDialog={() => setIsDeleteDialogOpen(true)}
+          />
+
+          <Separator className="my-2" />
 
           <MemberPortalInviteMemberCleanupPanel tenantId={tenantIdForCleanup} />
 

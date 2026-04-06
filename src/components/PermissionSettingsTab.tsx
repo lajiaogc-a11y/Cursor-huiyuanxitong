@@ -234,6 +234,7 @@ export default function PermissionSettingsTab() {
       'merchant_management',
       'operation_logs',
       'login_logs',
+      'data_management',
       'system_settings',
       'member_portal_settings',
     ]);

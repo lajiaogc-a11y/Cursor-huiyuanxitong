@@ -35,6 +35,8 @@ export const ROUTES = {
     EMPLOYEES: "/staff/employees",
     REPORTS: "/staff/reports",
     SETTINGS: "/staff/settings",
+    /** 数据管理（独立主导航，非系统设置 tab） */
+    DATA_MANAGEMENT: "/staff/data-management",
     MEMBER_MANAGEMENT: "/staff/member-management",
     EXCHANGE_RATE: "/staff/exchange-rate",
     CUSTOMER_QUERY: "/staff/customer-query",

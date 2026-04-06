@@ -9,7 +9,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { displayMemberLevelLabel } from "@/lib/memberLevelDisplay";
 import { mapDbRowToMemberPortalOrderView, type MemberPortalOrderView } from "@/hooks/orders/utils";
 import { notify } from "@/lib/notifyHub";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { memberQueryKeys } from "@/lib/memberQueryKeys";
 import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
 import { memberGetOrdersRows, memberUpdateNickname } from "@/services/memberPortal/memberActivityService";
@@ -144,6 +144,7 @@ export default function MemberSettings() {
       return rows.map((r) => mapDbRowToMemberPortalOrderView(r as Record<string, unknown>));
     },
     enabled: !!memberId,
+    placeholderData: keepPreviousData,
     refetchInterval: expandedOrders && pageVisible ? 30_000 : false,
     refetchIntervalInBackground: false,
   });
@@ -153,13 +154,14 @@ export default function MemberSettings() {
   const [ledgerExtraRows, setLedgerExtraRows] = useState<MemberPointsLedgerRow[]>([]);
   const [ledgerLoadingMore, setLedgerLoadingMore] = useState(false);
 
-  const { isLoading: ledgerLoading, isFetching: ledgerFetching, data: ledgerPack } = useQuery({
+  const { isLoading: ledgerLoading, data: ledgerPack } = useQuery({
     queryKey: memberId ? memberQueryKeys.pointsLedger(memberId, ledgerCategory) : ["member", "pointsLedger", "__none"],
     queryFn: async () => {
       if (!memberId) return { success: false as const, rows: [] as MemberPointsLedgerRow[], total: 0 };
       return getMemberPointsLedgerRpc(memberId, ledgerCategory, LEDGER_PAGE, 0);
     },
     enabled: !!memberId && expandedPointsLedger,
+    placeholderData: keepPreviousData,
     staleTime: 20_000,
     refetchInterval: expandedPointsLedger && pageVisible ? 30_000 : false,
     refetchIntervalInBackground: false,
@@ -214,7 +216,8 @@ export default function MemberSettings() {
   });
 
   const showSettingsPtsSkeleton = useMemberSkeletonGate(settingsPtsLoading);
-  const showLedgerSkeleton = useMemberSkeletonGate(ledgerLoading || ledgerFetching);
+  /** 仅首屏无缓存时骨架；后台刷新 / 分类切换时 keepPreviousData 保留上一帧，不闪骨架 */
+  const showLedgerSkeleton = useMemberSkeletonGate(ledgerLoading);
   const showOrdersSkeleton = useMemberSkeletonGate(ordersLoading);
 
   const queryClient = useQueryClient();
