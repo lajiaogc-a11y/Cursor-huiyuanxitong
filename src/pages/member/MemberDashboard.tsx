@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Share2, ShieldCheck, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,7 @@ export default function MemberDashboard() {
   const [todayEarned, setTodayEarned] = useState(0);
   const [todayEarnedLoading, setTodayEarnedLoading] = useState(true);
   const [pullRefreshGen, setPullRefreshGen] = useState(0);
+  const todayEarnedHydratedRef = useRef(false);
 
   useMemberPullRefreshSignal(() => {
     setPullRefreshGen((g) => g + 1);
@@ -74,6 +75,8 @@ export default function MemberDashboard() {
 
   useEffect(() => {
     setPullRefreshGen(0);
+    todayEarnedHydratedRef.current = false;
+    setTodayEarnedLoading(true);
   }, [member?.id]);
 
   const themeColor = useMemo(() => {
@@ -282,11 +285,14 @@ export default function MemberDashboard() {
   useEffect(() => {
     if (!member?.id) return;
     let cancelled = false;
-    setTodayEarnedLoading(true);
+    if (!todayEarnedHydratedRef.current) {
+      setTodayEarnedLoading(true);
+    }
     void (async () => {
       const earned = await getMemberTodayEarnedRpc(member.id);
       if (cancelled) return;
       setTodayEarned(earned);
+      todayEarnedHydratedRef.current = true;
       setTodayEarnedLoading(false);
     })();
     return () => {

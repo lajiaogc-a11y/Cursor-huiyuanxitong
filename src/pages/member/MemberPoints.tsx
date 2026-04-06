@@ -39,6 +39,7 @@ import {
 } from "@/pages/member/MemberPointsMallCatalogSection";
 import { MemberPointsRedeemDrawerBody } from "@/pages/member/MemberPointsRedeemDrawerBody";
 import { ContentReveal } from "@/components/member/ContentReveal";
+import { scrollToMemberHashAnchor } from "@/lib/memberHashAnchorScroll";
 
 type PointsMainTab = "mall" | "history";
 
@@ -193,6 +194,7 @@ export default function MemberPoints() {
   const [historyPanelActivated, setHistoryPanelActivated] = useState(false);
   const [todayEarned, setTodayEarned] = useState(0);
   const [todayEarnedLoading, setTodayEarnedLoading] = useState(true);
+  const todayEarnedHydratedRef = useRef(false);
   const [pullNonce, setPullNonce] = useState(0);
   const lastSeenPullForMall = useRef(0);
   const showMallSkeleton = useMemberSkeletonGate(loading || itemsLoading);
@@ -209,6 +211,8 @@ export default function MemberPoints() {
     lastSeenPullForMall.current = 0;
     setPointsTab("mall");
     setHistoryPanelActivated(false);
+    todayEarnedHydratedRef.current = false;
+    setTodayEarnedLoading(true);
   }, [member?.id]);
 
   useEffect(() => {
@@ -224,10 +228,11 @@ export default function MemberPoints() {
     if (!member?.id) return;
     let cancelled = false;
     const fetchTodayEarned = async (showLoading: boolean) => {
-      if (showLoading) setTodayEarnedLoading(true);
+      if (showLoading && !todayEarnedHydratedRef.current) setTodayEarnedLoading(true);
       const earned = await getMemberTodayEarnedRpc(member.id);
       if (cancelled) return;
       setTodayEarned(earned);
+      todayEarnedHydratedRef.current = true;
       setTodayEarnedLoading(false);
     };
     void fetchTodayEarned(true);
@@ -238,13 +243,18 @@ export default function MemberPoints() {
     };
   }, [member?.id, redemptionsKey, pullNonce]);
 
+  const lastHandledHashRef = useRef<string>("");
   useEffect(() => {
-    const id = location.hash.replace(/^#/, "").trim();
-    if (!id) return;
-    const run = () => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    const t0 = window.setTimeout(run, itemsLoading ? 280 : 80);
-    return () => window.clearTimeout(t0);
-  }, [location.hash, itemsLoading, items.length]);
+    const hash = String(location.hash || "").trim();
+    if (!hash) {
+      lastHandledHashRef.current = "";
+      return;
+    }
+    if (hash === lastHandledHashRef.current) return;
+    const cancel = scrollToMemberHashAnchor(hash, { behavior: "smooth", block: "start", maxFrames: 24 });
+    lastHandledHashRef.current = hash;
+    return cancel;
+  }, [location.hash, items.length]);
 
   const filteredItems = useMemo(() => {
     const base = [...items];

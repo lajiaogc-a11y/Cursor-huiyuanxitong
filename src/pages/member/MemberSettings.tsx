@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type CSSProperties } from "react";
+import { useState, useEffect, useCallback, useRef, type CSSProperties } from "react";
 import { useLocation, Navigate, Link } from "react-router-dom";
 import { Camera, ChevronRight, LogOut, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ import { useMemberSkeletonGate } from "@/hooks/useMemberSkeletonGate";
 import { MemberSettingsAccountSection } from "@/pages/member/settings/MemberSettingsAccountSection";
 import { MemberSettingsPointsLedgerSection } from "@/pages/member/settings/MemberSettingsPointsLedgerSection";
 import { MemberSettingsOrdersSection } from "@/pages/member/settings/MemberSettingsOrdersSection";
+import { scrollToMemberHashAnchor } from "@/lib/memberHashAnchorScroll";
 
 function MemberSettingsSupportAgentAvatar({
   agent,
@@ -118,22 +119,25 @@ export default function MemberSettings() {
     return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
 
+  const lastHandledSettingsHashRef = useRef<string>("");
   useEffect(() => {
-    if (location.hash !== "#member-contact-support") return;
-    const id = window.setTimeout(() => {
-      document.getElementById("member-contact-support")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 150);
-    return () => window.clearTimeout(id);
-  }, [location.pathname, location.hash]);
-
-  useEffect(() => {
-    if (location.hash !== "#orders") return;
-    setExpandedOrders(true);
-    const id = window.setTimeout(() => {
-      document.getElementById("orders")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 150);
-    return () => window.clearTimeout(id);
-  }, [location.pathname, location.hash]);
+    const hash = String(location.hash || "").trim();
+    if (!hash) {
+      lastHandledSettingsHashRef.current = "";
+      return;
+    }
+    if (hash === lastHandledSettingsHashRef.current) return;
+    const cancel = scrollToMemberHashAnchor(hash, {
+      behavior: "smooth",
+      block: "start",
+      maxFrames: 24,
+      onFound: () => {
+        if (hash === "#orders") setExpandedOrders(true);
+      },
+    });
+    lastHandledSettingsHashRef.current = hash;
+    return cancel;
+  }, [location.hash]);
 
   const memberId = member?.id;
   const { data: memberOrders = [], isLoading: ordersLoading, isFetching: ordersFetching } = useQuery({

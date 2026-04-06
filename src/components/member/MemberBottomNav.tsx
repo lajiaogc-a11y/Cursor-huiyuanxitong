@@ -7,6 +7,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { ROUTES } from "@/routes/constants";
 import { stashPointsHashBeforeInviteNavigation } from "@/lib/memberPortalInviteReturn";
 import { cn } from "@/lib/utils";
+import { preloadMemberRouteChunk } from "@/lib/memberRouteChunkPreload";
 import "@/styles/member-portal.css";
 
 function hapticNavTap() {
@@ -28,6 +29,14 @@ const navItems = [
   { path: ROUTES.MEMBER.SETTINGS, icon: Settings, zh: "设置", en: "Settings" },
 ] as const;
 
+const _memberNavPrefetchedPaths = new Set<string>();
+
+function prefetchMemberNavPath(path: string) {
+  if (_memberNavPrefetchedPaths.has(path)) return;
+  _memberNavPrefetchedPaths.add(path);
+  void preloadMemberRouteChunk(path);
+}
+
 export function MemberBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -46,6 +55,7 @@ export function MemberBottomNav() {
       e.preventDefault();
       hapticNavTap();
       if (location.pathname === path) return;
+      prefetchMemberNavPath(path);
       if (path === ROUTES.MEMBER.INVITE) {
         stashPointsHashBeforeInviteNavigation(location.pathname, location.hash);
       }
@@ -70,8 +80,11 @@ export function MemberBottomNav() {
               href={item.path}
               aria-current={isActive ? "page" : undefined}
               onClick={(e) => handleNav(e, item.path)}
+              onPointerEnter={() => prefetchMemberNavPath(item.path)}
+              onFocus={() => prefetchMemberNavPath(item.path)}
+              onTouchStart={() => prefetchMemberNavPath(item.path)}
               className={cn(
-                "relative flex flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 transition-all duration-300 motion-reduce:transition-none",
+                "relative flex flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 transition-[color,transform,opacity] duration-180 motion-reduce:transition-none",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pu-gold-soft focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(220_22%_5%)]",
                 isActive ? "text-[hsl(var(--pu-m-text))]" : "text-[hsl(var(--pu-m-text-dim))] hover:text-[hsl(var(--pu-m-text)/0.7)]",
               )}
@@ -84,7 +97,7 @@ export function MemberBottomNav() {
               ) : null}
               <Icon
                 className={cn(
-                  "h-5 w-5 transition-all duration-300 motion-reduce:transition-none",
+                  "h-5 w-5 transition-[color,transform,filter] duration-180 motion-reduce:transition-none",
                   isActive &&
                     "scale-110 text-pu-gold-soft drop-shadow-[0_0_10px_hsl(var(--pu-gold)/0.6)] motion-reduce:scale-100 motion-reduce:drop-shadow-none",
                 )}
@@ -93,7 +106,7 @@ export function MemberBottomNav() {
               />
               <span
                 className={cn(
-                  "text-[10px] font-bold tracking-wide transition-all duration-300 motion-reduce:transition-none",
+                  "text-[10px] font-bold tracking-wide transition-[color,opacity] duration-180 motion-reduce:transition-none",
                   isActive && "text-[hsl(var(--pu-gold-soft))]",
                 )}
               >

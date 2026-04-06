@@ -10,7 +10,6 @@ import {
 } from "react";
 import { useLocation } from "react-router-dom";
 import { ROUTES } from "@/routes/constants";
-import { AnimatePresence } from "framer-motion";
 import { MemberBottomNav } from "./MemberBottomNav";
 import { CustomerServiceWidget } from "./CustomerServiceWidget";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -45,26 +44,40 @@ const MEMBER_ENTRY_SPLASH_MIN_MS = 1200;
 const MEMBER_ENTRY_SPLASH_MAX_MS = 3800;
 
 let _chunksPreloaded = false;
+let _shellTabsPreloadPromise: Promise<void> | null = null;
 
 const _scheduleIdle =
   typeof requestIdleCallback === "function"
     ? (fn: () => void) => requestIdleCallback(fn, { timeout: 4000 })
     : (fn: () => void) => setTimeout(fn, 80);
 
+function preloadMemberShellTabs() {
+  if (_shellTabsPreloadPromise) return _shellTabsPreloadPromise;
+
+  const swallow = (err: unknown) => {
+    console.warn("[MemberLayout] shell tab preload failed:", err);
+  };
+
+  _shellTabsPreloadPromise = Promise.allSettled([
+    import("@/pages/member/MemberDashboard").catch(swallow),
+    import("@/pages/member/MemberPoints").catch(swallow),
+    import("@/pages/member/MemberSpin").catch(swallow),
+    import("@/pages/member/MemberInvite").catch(swallow),
+    import("@/pages/member/MemberSettings").catch(swallow),
+  ]).then(() => undefined);
+
+  return _shellTabsPreloadPromise;
+}
+
 function preloadMemberChunks() {
   if (_chunksPreloaded) return;
   _chunksPreloaded = true;
 
-  const swallow = (err: unknown) => { console.warn('[MemberLayout] chunk preload failed:', err); };
+  const swallow = (err: unknown) => {
+    console.warn("[MemberLayout] chunk preload failed:", err);
+  };
 
-  import("@/pages/member/MemberDashboard").catch(swallow);
-  import("@/pages/member/MemberPoints").catch(swallow);
-
-  _scheduleIdle(() => {
-    import("@/pages/member/MemberSpin").catch(swallow);
-    import("@/pages/member/MemberInvite").catch(swallow);
-    import("@/pages/member/MemberSettings").catch(swallow);
-  });
+  void preloadMemberShellTabs();
 
   _scheduleIdle(() => {
     import("@/pages/member/MemberWallet").catch(swallow);
@@ -127,6 +140,7 @@ export function MemberLayout({ children }: { children: ReactNode }) {
     try { return sessionStorage.getItem("member_splash_shown") === "1"; } catch { return false; }
   });
   const [entryChunkReady, setEntryChunkReady] = useState(() => !member?.id);
+  const [shellTabsReady, setShellTabsReady] = useState(() => !member?.id);
 
   useLayoutEffect(() => {
     document.documentElement.classList.add("member-html");
@@ -138,6 +152,21 @@ export function MemberLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     preloadMemberChunks();
   }, []);
+
+  useEffect(() => {
+    if (!member?.id) {
+      setShellTabsReady(true);
+      return;
+    }
+    let cancelled = false;
+    setShellTabsReady(false);
+    void preloadMemberShellTabs().finally(() => {
+      if (!cancelled) setShellTabsReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [member?.id]);
 
   /** 从后台回到前台 / 浏览器恢复 bfcache：强刷会员域 Query + 触发与下拉刷新相同的业务回调 */
   useEffect(() => {
@@ -227,7 +256,7 @@ export function MemberLayout({ children }: { children: ReactNode }) {
 
   const splashDismissReady =
     !member?.id ||
-    (!portalLoading && entryChunkReady && (!tenantLogoRaw || entryLogoDecoded));
+    (!portalLoading && shellTabsReady && entryChunkReady && (!tenantLogoRaw || entryLogoDecoded));
 
   useEffect(() => {
     if (!member?.id || !splashDone) return;
@@ -275,7 +304,9 @@ export function MemberLayout({ children }: { children: ReactNode }) {
             e.preventDefault();
             const el = document.getElementById("member-main");
             el?.scrollIntoView({ behavior: "smooth", block: "start" });
-            window.setTimeout(() => el?.focus({ preventScroll: true }), 100);
+            window.requestAnimationFrame(() => {
+              el?.focus({ preventScroll: true });
+            });
           }}
         >
           {t("跳到主要内容", "Skip to main content")}
@@ -297,11 +328,9 @@ export function MemberLayout({ children }: { children: ReactNode }) {
                   inert={isBottomTab ? true : undefined}
                   data-member-sub-route-outlet="1"
                 >
-                  <AnimatePresence mode="wait">
-                    <PageTransition key={pathname}>
-                      <Suspense fallback={suspenseFallback}>{children}</Suspense>
-                    </PageTransition>
-                  </AnimatePresence>
+                  <PageTransition key={pathname}>
+                    <Suspense fallback={suspenseFallback}>{children}</Suspense>
+                  </PageTransition>
                 </div>
               </main>
             </MemberAppShellPageSlot>

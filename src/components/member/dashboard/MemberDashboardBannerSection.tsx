@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Megaphone } from "lucide-react";
 import { MemberHomeBannerModule } from "@/components/member/MemberHomeBannerModule";
 import type { AnnouncementItem, MemberPortalSettings } from "@/services/members/memberPortalSettingsService";
@@ -84,20 +84,38 @@ export function MemberDashboardBannerSection({
   const fallbackBannerSlides = useFallbackHomeBannerSlides(t, theme);
   const [fallbackBannerIdx, setFallbackBannerIdx] = useState(0);
   const [fallbackBannerSliding, setFallbackBannerSliding] = useState(false);
+  const fallbackSwitchTimerRef = useRef<number | null>(null);
+
+  const scheduleFallbackBannerSwitch = useCallback((next: number | ((idx: number) => number)) => {
+    if (fallbackSwitchTimerRef.current != null) {
+      window.clearTimeout(fallbackSwitchTimerRef.current);
+      fallbackSwitchTimerRef.current = null;
+    }
+    setFallbackBannerSliding(true);
+    fallbackSwitchTimerRef.current = window.setTimeout(() => {
+      setFallbackBannerIdx((i) => (typeof next === "function" ? next(i) : next));
+      setFallbackBannerSliding(false);
+      fallbackSwitchTimerRef.current = null;
+    }, 300);
+  }, []);
 
   const nextFallbackBanner = useCallback(() => {
-    setFallbackBannerSliding(true);
-    window.setTimeout(() => {
-      setFallbackBannerIdx((i) => (i + 1) % fallbackBannerSlides.length);
-      setFallbackBannerSliding(false);
-    }, 300);
-  }, [fallbackBannerSlides.length]);
+    scheduleFallbackBannerSwitch((i) => (i + 1) % fallbackBannerSlides.length);
+  }, [fallbackBannerSlides.length, scheduleFallbackBannerSwitch]);
 
   useEffect(() => {
     if (Array.isArray(homeBanners) && homeBanners.length > 0) return;
     const timer = window.setInterval(nextFallbackBanner, 4000);
     return () => window.clearInterval(timer);
   }, [nextFallbackBanner, homeBanners]);
+
+  useEffect(() => {
+    return () => {
+      if (fallbackSwitchTimerRef.current != null) {
+        window.clearTimeout(fallbackSwitchTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <>
@@ -166,13 +184,7 @@ export function MemberDashboardBannerSection({
                     key={i}
                     type="button"
                     aria-label={`${t("活动", "Promo")} ${i + 1}`}
-                    onClick={() => {
-                      setFallbackBannerSliding(true);
-                      window.setTimeout(() => {
-                        setFallbackBannerIdx(i);
-                        setFallbackBannerSliding(false);
-                      }, 300);
-                    }}
+                    onClick={() => scheduleFallbackBannerSwitch(i)}
                     className="rounded-full transition-all duration-300"
                     style={{
                       width: i === fallbackBannerIdx ? 20 : 6,

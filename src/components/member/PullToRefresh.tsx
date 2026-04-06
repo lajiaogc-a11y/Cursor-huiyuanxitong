@@ -91,6 +91,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   const prefersReducedMotion = usePrefersReducedMotion();
   const memberTabScrollMemoryRef = useRef<Record<string, number>>({});
   const memberScrollPrevPathRef = useRef<string | null>(null);
+  const scrollRestoreFrameRef = useRef<number | null>(null);
 
   const [scrollNode, setScrollNode] = useState<HTMLDivElement | null>(null);
   const scrollRefCallback = useCallback((node: HTMLDivElement | null) => {
@@ -302,13 +303,32 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
     if (prev != null && isMemberBottomTabPath(prev)) {
       memberTabScrollMemoryRef.current[prev] = el.scrollTop;
     }
+
+    if (scrollRestoreFrameRef.current != null) {
+      window.cancelAnimationFrame(scrollRestoreFrameRef.current);
+      scrollRestoreFrameRef.current = null;
+    }
+
     if (isMemberBottomTabPath(pathname)) {
-      el.scrollTop = memberTabScrollMemoryRef.current[pathname] ?? 0;
-    } else {
-      el.scrollTop = 0;
+      const nextTop = memberTabScrollMemoryRef.current[pathname] ?? 0;
+      if (Math.abs(el.scrollTop - nextTop) > 1) {
+        el.scrollTop = nextTop;
+      }
       el.scrollLeft = 0;
+    } else {
+      scrollRestoreFrameRef.current = window.requestAnimationFrame(() => {
+        el.scrollTo({ top: 0, left: 0, behavior: "auto" });
+        scrollRestoreFrameRef.current = null;
+      });
     }
     memberScrollPrevPathRef.current = pathname;
+
+    return () => {
+      if (scrollRestoreFrameRef.current != null) {
+        window.cancelAnimationFrame(scrollRestoreFrameRef.current);
+        scrollRestoreFrameRef.current = null;
+      }
+    };
   }, [location.pathname, scrollContainer, scrollNode]);
 
   // ═══════════════════════════════════════════════════════════════════════

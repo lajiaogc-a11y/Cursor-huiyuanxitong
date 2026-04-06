@@ -7,25 +7,24 @@ export function MemberRouteSuspenseFallback({ className }: { className?: string 
   return (
     <div
       className={cn(
-        "member-route-suspense-fallback flex min-h-[45vh] w-full flex-col items-center justify-center px-6 py-12",
+        "member-route-suspense-fallback pointer-events-none flex min-h-[18vh] w-full flex-col items-center justify-start px-5 pb-6 pt-6",
         className,
       )}
       aria-busy="true"
       aria-label="Loading"
     >
       <div
-        className="flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl border border-[hsl(var(--pu-m-surface-border)/0.12)] bg-[hsl(var(--pu-m-bg-2)/0.35)] px-8 py-10"
+        className="flex w-full max-w-xs items-center justify-center gap-3 rounded-full border border-[hsl(var(--pu-m-surface-border)/0.1)] bg-[hsl(var(--pu-m-surface)/0.42)] px-4 py-3 shadow-[0_10px_30px_hsl(var(--pu-m-bg)/0.12)] backdrop-blur-md"
         style={{
-          opacity: 0.72,
-          filter: "blur(8px)",
-          transition: "opacity 300ms cubic-bezier(0.22, 1, 0.36, 1), filter 300ms cubic-bezier(0.22, 1, 0.36, 1)",
+          opacity: 0.9,
+          transition: "opacity 180ms cubic-bezier(0.22, 1, 0.36, 1)",
         }}
       >
         <div
-          className="h-9 w-9 rounded-full border-2 border-[hsl(var(--pu-gold)/0.2)] border-t-[hsl(var(--pu-gold)/0.75)] motion-safe:animate-spin motion-reduce:animate-none"
+          className="h-5 w-5 rounded-full border-2 border-[hsl(var(--pu-gold)/0.18)] border-t-[hsl(var(--pu-gold)/0.78)] motion-safe:animate-spin motion-reduce:animate-none"
           aria-hidden
         />
-        <div className="h-1 w-12 rounded-full bg-[hsl(var(--pu-gold)/0.2)] motion-safe:animate-pulse motion-reduce:animate-none" />
+        <div className="h-1.5 w-20 rounded-full bg-[hsl(var(--pu-gold)/0.16)] motion-safe:animate-pulse motion-reduce:animate-none" />
       </div>
     </div>
   );

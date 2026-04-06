@@ -29,9 +29,9 @@ export function ContentReveal({ children, show, className, durationMs = 300 }: C
       className={cn("will-change-[opacity,filter]", className)}
       style={{
         opacity: visible ? 1 : 0,
-        filter: visible ? "blur(0px)" : "blur(8px)",
+        filter: visible ? "blur(0px)" : "blur(3px)",
         transitionProperty: "opacity, filter",
-        transitionDuration: `${durationMs}ms`,
+        transitionDuration: `${Math.max(180, durationMs)}ms`,
         transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
       }}
     >
