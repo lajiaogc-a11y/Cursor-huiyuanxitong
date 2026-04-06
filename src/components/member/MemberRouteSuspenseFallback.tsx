@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -14,10 +15,9 @@ export function MemberRouteSuspenseFallback({ className }: { className?: string 
       aria-label="Loading"
     >
       <div
-        className="flex w-full max-w-xs items-center justify-center gap-3 rounded-full border border-[hsl(var(--pu-m-surface-border)/0.1)] bg-[hsl(var(--pu-m-surface)/0.42)] px-4 py-3 shadow-[0_10px_30px_hsl(var(--pu-m-bg)/0.12)] backdrop-blur-md"
+        className="flex w-full max-w-xs items-center justify-center gap-3 rounded-full border border-[hsl(var(--pu-m-surface-border)/0.1)] bg-[hsl(var(--pu-m-surface)/0.42)] px-4 py-3 shadow-[0_10px_30px_hsl(var(--pu-m-bg)/0.12)] backdrop-blur-md member-transition-surface member-motion-fast"
         style={{
           opacity: 0.9,
-          transition: "opacity 180ms cubic-bezier(0.22, 1, 0.36, 1)",
         }}
       >
         <div
@@ -28,4 +28,35 @@ export function MemberRouteSuspenseFallback({ className }: { className?: string 
       </div>
     </div>
   );
+}
+
+export function MemberDeferredRouteSuspenseFallback({
+  delayMs = 120,
+  className,
+}: {
+  delayMs?: number;
+  className?: string;
+}) {
+  const [visible, setVisible] = useState(delayMs <= 0);
+
+  useEffect(() => {
+    if (delayMs <= 0) {
+      setVisible(true);
+      return;
+    }
+    setVisible(false);
+    const timer = window.setTimeout(() => setVisible(true), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [delayMs]);
+
+  if (!visible) {
+    return (
+      <div
+        className={cn("pointer-events-none min-h-[18vh] w-full", className)}
+        aria-hidden="true"
+      />
+    );
+  }
+
+  return <MemberRouteSuspenseFallback className={cn("member-route-suspense-fade-in", className)} />;
 }

@@ -334,7 +334,7 @@ export default function MemberInvite() {
                   />
                 ) : null}
                 <div
-                  className="relative rounded-2xl p-4 text-center transition-transform hover:scale-[1.01]"
+                  className="relative rounded-2xl p-4 text-center transition-transform member-motion-fast motion-reduce:transition-none hover:scale-[1.01]"
                   style={{
                     background: `linear-gradient(135deg, hsl(var(${item.color}) / 0.06), hsl(var(--pu-m-surface) / 0.4))`,
                     border: `1px solid hsl(var(${item.color}) / 0.12)`,
@@ -390,7 +390,7 @@ export default function MemberInvite() {
                   type="button"
                   disabled={!inviteLink || tokenLoading}
                   onClick={copyLink}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all active:scale-90 disabled:opacity-40"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl member-transition-surface member-motion-fast active:scale-90 disabled:opacity-40"
                   style={{
                     background: copied
                       ? "hsl(var(--pu-emerald))"
@@ -414,7 +414,7 @@ export default function MemberInvite() {
                   disabled={!inviteLink}
                   onClick={shareWhatsApp}
                   className={cn(
-                    "flex items-center justify-center gap-2 rounded-xl border py-3 text-xs font-bold transition-all active:scale-95",
+                    "flex items-center justify-center gap-2 rounded-xl border py-3 text-xs font-bold member-transition-surface member-motion-fast active:scale-95",
                     inviteLink
                       ? "border-[hsl(var(--pu-m-surface-border)/0.3)] bg-[hsl(var(--pu-m-surface)/0.7)] hover:border-pu-emerald/30 hover:bg-pu-emerald/[0.06]"
                       : "cursor-not-allowed opacity-40",
@@ -428,7 +428,7 @@ export default function MemberInvite() {
                   disabled={!inviteLink}
                   onClick={shareTelegram}
                   className={cn(
-                    "flex items-center justify-center gap-2 rounded-xl border py-3 text-xs font-bold transition-all active:scale-95",
+                    "flex items-center justify-center gap-2 rounded-xl border py-3 text-xs font-bold member-transition-surface member-motion-fast active:scale-95",
                     inviteLink
                       ? "border-[hsl(var(--pu-m-surface-border)/0.3)] bg-[hsl(var(--pu-m-surface)/0.7)] hover:border-[hsl(200_80%_50%)/0.35] hover:bg-[hsl(200_80%_50%)/0.06]"
                       : "cursor-not-allowed opacity-40",
@@ -482,7 +482,7 @@ export default function MemberInvite() {
                 <button
                   type="button"
                   onClick={downloadInvitePoster}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold text-[hsl(var(--pu-m-bg-1))] transition-all active:scale-95"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold text-[hsl(var(--pu-m-bg-1))] member-transition-surface member-motion-fast active:scale-95"
                   style={{
                     background: "linear-gradient(135deg, hsl(var(--pu-emerald)), hsl(var(--pu-emerald-soft)))",
                     boxShadow: "0 4px 16px -4px hsl(var(--pu-emerald) / 0.4)",

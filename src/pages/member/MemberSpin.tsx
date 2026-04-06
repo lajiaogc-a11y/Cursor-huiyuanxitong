@@ -517,7 +517,7 @@ export default function MemberSpin() {
             maxHeight: simFeedDisplayItems.length > 0 ? "4rem" : "0px",
             overflow: "hidden",
             transitionProperty: "opacity, max-height",
-            transitionDuration: "280ms",
+            transitionDuration: "220ms",
             transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
           }}
           aria-hidden={simFeedDisplayItems.length === 0}
@@ -590,7 +590,7 @@ export default function MemberSpin() {
           <Collapsible open={prizesPanelOpen} onOpenChange={setPrizesPanelOpen} className={cn(blocking && "hidden")}>
             <CollapsibleTrigger
               type="button"
-              className="flex w-full items-center justify-between rounded-lg px-1 py-1.5 text-left text-xs font-bold text-[hsl(var(--pu-m-text-dim)/0.8)] outline-none transition-colors hover:text-[hsl(var(--pu-m-text)/0.92)] focus-visible:ring-2 focus-visible:ring-pu-gold/40"
+              className="flex w-full items-center justify-between rounded-lg px-1 py-1.5 text-left text-xs font-bold text-[hsl(var(--pu-m-text-dim)/0.8)] outline-none member-transition-color member-motion-fast hover:text-[hsl(var(--pu-m-text)/0.92)] focus-visible:ring-2 focus-visible:ring-pu-gold/40"
               aria-expanded={prizesPanelOpen}
             >
               <span className="flex items-center gap-1.5">
@@ -598,7 +598,7 @@ export default function MemberSpin() {
                 {t("活动奖品", "Prizes")}
               </span>
               <ChevronDown
-                className={cn("h-3.5 w-3.5 shrink-0 opacity-60 transition-transform duration-200", prizesPanelOpen && "rotate-180")}
+                className={cn("h-3.5 w-3.5 shrink-0 opacity-60 transition-transform member-motion-fast motion-reduce:transition-none", prizesPanelOpen && "rotate-180")}
                 aria-hidden
               />
             </CollapsibleTrigger>
@@ -703,14 +703,14 @@ export default function MemberSpin() {
                     onClick={() => setHistoryOpen(!historyOpen)}
                     aria-expanded={historyOpen}
                     aria-controls="member-spin-history-panel"
-                    className="flex min-h-[40px] w-full items-center justify-center gap-1.5 py-2.5 text-[12px] font-semibold text-[hsl(var(--pu-m-text-dim)/0.65)] touch-manipulation transition hover:text-[hsl(var(--pu-m-text))]"
+                    className="flex min-h-[40px] w-full items-center justify-center gap-1.5 py-2.5 text-[12px] font-semibold text-[hsl(var(--pu-m-text-dim)/0.65)] touch-manipulation member-transition-color member-motion-fast hover:text-[hsl(var(--pu-m-text))]"
                   >
                     {historyOpen
                       ? t("收起", "Show less")
                       : t(`展开全部 ${lotteryLogsOnly.length} 条`, `Show all ${lotteryLogsOnly.length}`)}
                     <ChevronDown
                       size={14}
-                      className={cn("transition-transform duration-200 motion-reduce:transition-none", historyOpen && "rotate-180")}
+                      className={cn("transition-transform member-motion-fast motion-reduce:transition-none", historyOpen && "rotate-180")}
                       aria-hidden
                     />
                   </button>

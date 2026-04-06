@@ -52,7 +52,7 @@ import "@/styles/member-portal.css";
 type LandingPanel = null | "login";
 
 const loginThemeSurfaceBtn =
-  "rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.3)] bg-[hsl(var(--pu-m-surface)/0.55)] p-2.5 transition motion-reduce:transition-none hover:bg-[hsl(var(--pu-m-surface)/0.85)]";
+  "rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.3)] bg-[hsl(var(--pu-m-surface)/0.55)] p-2.5 member-transition-surface member-motion-fast motion-reduce:transition-none hover:bg-[hsl(var(--pu-m-surface)/0.85)]";
 
 export default function MemberLogin() {
   const navigate = useNavigate();
@@ -295,7 +295,7 @@ export default function MemberLogin() {
             <button
               type="button"
               onClick={() => setPanel("login")}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold transition-all motion-reduce:transition-none motion-reduce:active:scale-100 active:scale-[0.97]"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold member-transition-surface member-motion-fast motion-reduce:transition-none motion-reduce:active:scale-100 active:scale-[0.97]"
               style={{
                 background: "linear-gradient(135deg, hsl(var(--pu-gold)), hsl(var(--pu-gold-soft)))",
                 color: "white",
@@ -308,7 +308,7 @@ export default function MemberLogin() {
             <button
               type="button"
               onClick={() => navigate(ROUTES.MEMBER.REGISTER)}
-              className="w-full rounded-2xl py-4 text-sm font-bold transition-all motion-reduce:transition-none motion-reduce:active:scale-100 active:scale-[0.97]"
+              className="w-full rounded-2xl py-4 text-sm font-bold member-transition-surface member-motion-fast motion-reduce:transition-none motion-reduce:active:scale-100 active:scale-[0.97]"
               style={{
                 background: "hsl(var(--pu-m-surface) / 0.5)",
                 border: "1px solid hsl(var(--pu-m-surface-border) / 0.3)",

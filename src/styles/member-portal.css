@@ -200,6 +200,74 @@ html.member-html .font-mono,
   font-family: "Space Mono", ui-monospace, monospace;
 }
 
+.member-portal-wrap {
+  --m-motion-fast: 150ms;
+  --m-motion-base: 220ms;
+  --m-motion-slow: 320ms;
+  --m-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.member-motion-fast {
+  transition-duration: var(--m-motion-fast) !important;
+  transition-timing-function: var(--m-motion-ease) !important;
+}
+
+.member-motion-base {
+  transition-duration: var(--m-motion-base) !important;
+  transition-timing-function: var(--m-motion-ease) !important;
+}
+
+.member-motion-slow {
+  transition-duration: var(--m-motion-slow) !important;
+  transition-timing-function: var(--m-motion-ease) !important;
+}
+
+.member-transition-surface {
+  transition-property: background-color, border-color, box-shadow, transform, opacity;
+}
+
+.member-transition-color {
+  transition-property: color, background-color, border-color, opacity;
+}
+
+.member-tab-panel {
+  will-change: opacity, transform;
+}
+
+.member-app-shell-tabbar {
+  will-change: opacity, transform;
+  transform: translateZ(0);
+}
+
+.member-shell-layer {
+  will-change: opacity, transform;
+}
+
+.member-points-tab-panel {
+  will-change: opacity, transform;
+}
+
+.member-route-suspense-fade-in {
+  animation: memberRouteFallbackFade var(--m-motion-fast, 180ms) var(--m-motion-ease, cubic-bezier(0.22, 0.61, 0.36, 1));
+}
+
+@keyframes memberRouteFallbackFade {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .member-route-suspense-fade-in {
+    animation: none;
+  }
+}
+
 @supports (text-wrap: balance) {
   html.member-html .member-hero h2 {
     text-wrap: balance;
@@ -633,6 +701,39 @@ html.member-html:not(.dark) .member-card {
 .member-settings-expand {
   padding: 8px 20px 18px;
   border-bottom: none;
+}
+
+.member-settings-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    grid-template-rows var(--m-motion-base, 280ms) var(--m-motion-ease, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    opacity var(--m-motion-fast, 180ms) var(--m-motion-ease, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    transform var(--m-motion-base, 280ms) var(--m-motion-ease, cubic-bezier(0.22, 0.61, 0.36, 1));
+  pointer-events: none;
+  visibility: hidden;
+}
+.member-settings-collapse > * {
+  min-height: 0;
+  overflow: hidden;
+}
+.member-settings-collapse.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.member-notification-list {
+  opacity: 1;
+  transform: translateY(0);
+}
+.member-notification-list.is-filtering {
+  opacity: 0.86;
+  transform: translateY(1px);
 }
 
 /* 订单条目 */

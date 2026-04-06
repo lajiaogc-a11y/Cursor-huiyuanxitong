@@ -136,15 +136,20 @@ export function MemberSettingsPointsLedgerSection({
           </div>
           <ChevronDown
             className={cn(
-              "h-4 w-4 shrink-0 text-[hsl(var(--pu-m-text-dim)/0.4)] transition-transform duration-300",
+              "h-4 w-4 shrink-0 text-[hsl(var(--pu-m-text-dim)/0.4)] transition-transform member-motion-base",
               expandedPointsLedger && "rotate-180",
             )}
             strokeWidth={2}
             aria-hidden
           />
         </button>
-        {expandedPointsLedger && (
-          <div className="member-settings-expand">
+        <div
+          className={cn(
+            "member-settings-expand member-settings-collapse member-motion-base",
+            expandedPointsLedger ? "is-open" : "is-closed",
+          )}
+          aria-hidden={!expandedPointsLedger}
+        >
             <div className="mb-3 flex flex-wrap gap-2">
               {(
                 [
@@ -159,7 +164,7 @@ export function MemberSettingsPointsLedgerSection({
                   type="button"
                   onClick={() => setLedgerCategory(key)}
                   className={cn(
-                    "cursor-pointer rounded-full px-3 py-1.5 text-xs transition-colors",
+                    "cursor-pointer rounded-full px-3 py-1.5 text-xs member-transition-color member-motion-fast",
                     ledgerCategory === key
                       ? "border-[1.5px] font-bold shadow-sm"
                       : "border border-[hsl(var(--pu-m-surface-border)/0.28)] font-medium text-[hsl(var(--pu-m-text-dim)/0.72)] hover:border-[hsl(var(--pu-m-surface-border)/0.42)] hover:text-[hsl(var(--pu-m-text-dim)/0.88)]",
@@ -216,7 +221,7 @@ export function MemberSettingsPointsLedgerSection({
                 {hasMoreLedger ? (
                   <button
                     type="button"
-                    className="mx-auto mt-3 flex items-center gap-1.5 rounded-full bg-[hsl(var(--pu-m-surface)/0.35)] px-4 py-1.5 text-[11px] font-medium text-[hsl(var(--pu-m-text-dim))] transition-colors active:bg-[hsl(var(--pu-m-surface)/0.55)]"
+                    className="mx-auto mt-3 flex items-center gap-1.5 rounded-full bg-[hsl(var(--pu-m-surface)/0.35)] px-4 py-1.5 text-[11px] font-medium text-[hsl(var(--pu-m-text-dim))] member-transition-color member-motion-fast active:bg-[hsl(var(--pu-m-surface)/0.55)]"
                     disabled={ledgerLoadingMore}
                     onClick={() => void onLoadMoreLedger()}
                   >
@@ -232,7 +237,6 @@ export function MemberSettingsPointsLedgerSection({
               </>
             )}
           </div>
-        )}
       </div>
     </div>
   );

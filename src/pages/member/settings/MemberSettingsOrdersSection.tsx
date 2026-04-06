@@ -63,15 +63,20 @@ export function MemberSettingsOrdersSection({
           </div>
           <ChevronDown
             className={cn(
-              "h-4 w-4 shrink-0 text-[hsl(var(--pu-m-text-dim)/0.4)] transition-transform duration-300",
+              "h-4 w-4 shrink-0 text-[hsl(var(--pu-m-text-dim)/0.4)] transition-transform member-motion-base motion-reduce:transition-none",
               expandedOrders && "rotate-180",
             )}
             strokeWidth={2}
             aria-hidden
           />
         </button>
-        {expandedOrders && (
-          <div className="member-settings-expand">
+        <div
+          className={cn(
+            "member-settings-expand member-settings-collapse member-motion-base",
+            expandedOrders ? "is-open" : "is-closed",
+          )}
+          aria-hidden={!expandedOrders}
+        >
             {showOrdersSkeleton ? (
               <MemberStackedRowSkeleton rows={4} />
             ) : memberOrders.length === 0 ? (
@@ -139,7 +144,6 @@ export function MemberSettingsOrdersSection({
               </div>
             )}
           </div>
-        )}
       </div>
     </div>
   );

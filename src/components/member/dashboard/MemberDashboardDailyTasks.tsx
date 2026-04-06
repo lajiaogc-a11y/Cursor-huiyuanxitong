@@ -33,7 +33,7 @@ export interface MemberDashboardDailyTasksProps {
 }
 
 const taskRowBase =
-  "rounded-xl p-4 flex items-center justify-between transition-all duration-200 gap-3";
+  "rounded-xl p-4 flex items-center justify-between member-transition-surface member-motion-fast gap-3";
 const taskRowDone = "bg-pu-emerald/[0.07] border border-pu-emerald/10 ring-1 ring-inset ring-pu-emerald/10";
 const taskRowTodo = "bg-[hsl(var(--pu-m-surface)/0.4)] border border-[hsl(var(--pu-m-surface-border)/0.3)]";
 
@@ -160,7 +160,7 @@ export function MemberDashboardDailyTasks({
               <LoadingButton
                 type="button"
                 loading={claimingShare}
-                className="shrink-0 rounded-xl border-0 bg-[hsl(var(--pu-amber,45_90%_55%))] px-4 py-1.5 text-xs font-bold text-[hsl(var(--pu-m-bg-1))] shadow-[0_4px_14px_-4px_hsl(var(--pu-amber,45_90%_55%)/0.45)] transition hover:opacity-90 active:scale-95 disabled:opacity-60"
+                className="shrink-0 rounded-xl border-0 bg-[hsl(var(--pu-amber,45_90%_55%))] px-4 py-1.5 text-xs font-bold text-[hsl(var(--pu-m-bg-1))] shadow-[0_4px_14px_-4px_hsl(var(--pu-amber,45_90%_55%)/0.45)] member-transition-surface member-motion-fast hover:opacity-90 active:scale-95 disabled:opacity-60"
                 onClick={() => void handleClaimShareReward()}
               >
                 {t("领取奖励", "Claim reward")}
@@ -169,7 +169,7 @@ export function MemberDashboardDailyTasks({
               <LoadingButton
                 type="button"
                 loading={sharing}
-                className="shrink-0 rounded-xl border-0 bg-[hsl(var(--pu-emerald))] px-4 py-1.5 text-xs font-bold text-[hsl(var(--pu-m-bg-1))] shadow-[0_4px_14px_-4px_hsl(var(--pu-emerald)/0.45)] transition hover:bg-[hsl(var(--pu-emerald-soft))] hover:shadow-[0_6px_18px_-4px_hsl(var(--pu-emerald)/0.4)] active:scale-95 disabled:opacity-60"
+                className="shrink-0 rounded-xl border-0 bg-[hsl(var(--pu-emerald))] px-4 py-1.5 text-xs font-bold text-[hsl(var(--pu-m-bg-1))] shadow-[0_4px_14px_-4px_hsl(var(--pu-emerald)/0.45)] member-transition-surface member-motion-fast hover:bg-[hsl(var(--pu-emerald-soft))] hover:shadow-[0_6px_18px_-4px_hsl(var(--pu-emerald)/0.4)] active:scale-95 disabled:opacity-60"
                 onClick={() => void handleShare()}
               >
                 {t("去分享", "Share")}
@@ -200,7 +200,7 @@ export function MemberDashboardDailyTasks({
             </div>
             <Button
               asChild
-              className="h-auto shrink-0 rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.38)] bg-[hsl(var(--pu-m-surface)/0.55)] px-4 py-1.5 text-xs font-semibold text-[hsl(var(--pu-m-text))] shadow-none hover:bg-[hsl(var(--pu-m-surface)/0.72)] active:scale-95"
+              className="h-auto shrink-0 rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.38)] bg-[hsl(var(--pu-m-surface)/0.55)] px-4 py-1.5 text-xs font-semibold text-[hsl(var(--pu-m-text))] shadow-none member-transition-surface member-motion-fast hover:bg-[hsl(var(--pu-m-surface)/0.72)] active:scale-95"
             >
               <Link
                 to={ROUTES.MEMBER.INVITE}
@@ -226,7 +226,7 @@ export function MemberDashboardDailyTasks({
           </div>
           <button
             type="button"
-            className="btn-glow shrink-0 rounded-xl px-4 py-1.5 text-xs active:scale-95"
+            className="btn-glow shrink-0 rounded-xl px-4 py-1.5 text-xs member-transition-surface member-motion-fast active:scale-95"
             style={{
               background: "linear-gradient(135deg, hsl(var(--pu-gold)), hsl(var(--pu-gold-soft)))",
             }}

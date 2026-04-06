@@ -90,7 +90,7 @@ function BannerIndicator({ count, current, onSelect, labelSlide, labelList }: Ba
           role="tab"
           aria-selected={i === current}
           className={cn(
-            "h-2 min-w-2 rounded-full transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pu-gold/55",
+            "h-2 min-w-2 rounded-full transition-[width,background-color,opacity,box-shadow] member-motion-base motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pu-gold/55",
             i === current
               ? "w-6 bg-pu-gold-soft shadow-[0_0_12px_hsl(var(--pu-gold)/0.4)]"
               : "w-2 bg-[hsl(var(--pu-m-text)/0.35)] hover:bg-[hsl(var(--pu-m-text)/0.52)]",
@@ -165,7 +165,7 @@ function BannerContent({
           onClick={onAction}
           className={cn(
             "mt-1 inline-flex min-h-11 max-w-full shrink-0 items-center justify-center gap-1.5 self-start rounded-xl px-5 py-2.5",
-            "text-sm font-semibold text-[hsl(var(--pu-primary-foreground))] shadow-lg transition active:scale-[0.98]",
+            "text-sm font-semibold text-[hsl(var(--pu-primary-foreground))] shadow-lg member-transition-surface member-motion-fast active:scale-[0.98]",
             "ring-1 ring-[hsl(var(--pu-m-surface-border)/0.35)] hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pu-gold/45",
           )}
           style={{
@@ -307,8 +307,8 @@ function BannerSlide({ active, children }: BannerSlideProps) {
   return (
     <div
       className={cn(
-        "absolute inset-0 transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none",
-        active ? "z-10 translate-x-0 opacity-100" : "z-0 translate-x-8 opacity-0 pointer-events-none",
+        "absolute inset-0 transition-[opacity,transform] member-motion-slow motion-reduce:transition-none",
+        active ? "z-10 translate-x-0 opacity-100" : "z-0 translate-x-3 opacity-0 pointer-events-none",
       )}
       role="tabpanel"
       aria-hidden={!active}

@@ -251,7 +251,7 @@ export function MemberLoginCarousel({ displaySettings, theme, t, paused }: Membe
             return (
               <div
                 key={layer.id}
-                className="member-login-banner-slide absolute inset-0 transition-all duration-700 ease-in-out motion-reduce:transition-none"
+                className="member-login-banner-slide absolute inset-0 transition-[opacity,transform] duration-700 ease-in-out motion-reduce:transition-none"
                 style={{
                   opacity: active ? 1 : 0,
                   transform: active ? "scale(1)" : "scale(1.05)",
@@ -278,7 +278,7 @@ export function MemberLoginCarousel({ displaySettings, theme, t, paused }: Membe
                 alt={layer.alt}
                 width={1024}
                 height={512}
-                className="absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-in-out"
+                className="absolute inset-0 h-full w-full object-cover transition-[opacity,transform,filter] duration-700 ease-in-out"
                 style={{
                   opacity: active ? 1 : 0,
                   transform: active ? "scale(1)" : "scale(1.05)",
@@ -291,7 +291,7 @@ export function MemberLoginCarousel({ displaySettings, theme, t, paused }: Membe
           return (
             <div
               key={layer.id}
-              className="member-login-banner-slide absolute inset-0 transition-all duration-700 ease-in-out motion-reduce:transition-none"
+              className="member-login-banner-slide absolute inset-0 transition-[opacity,transform] duration-700 ease-in-out motion-reduce:transition-none"
               style={{
                 opacity: active ? 1 : 0,
                 transform: active ? "scale(1)" : "scale(1.05)",
@@ -356,7 +356,7 @@ export function MemberLoginCarousel({ displaySettings, theme, t, paused }: Membe
                 onPointerDown={(ev) => ev.stopPropagation()}
                 onClick={() => setBannerIdx(i)}
                 className={cn(
-                  "member-login-carousel-dot shrink-0 rounded-full transition-all duration-300 ease-out motion-reduce:transition-none",
+                  "member-login-carousel-dot shrink-0 rounded-full transition-[width,background-color,opacity,box-shadow] duration-300 ease-out motion-reduce:transition-none",
                   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(var(--pu-gold)/0.6)]",
                   i === bannerIdx
                     ? "h-2 w-[22px] bg-slate-500/85 shadow-sm ring-1 ring-slate-600/20 dark:bg-[#1e3a5c] dark:ring-black/10"

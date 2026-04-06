@@ -80,7 +80,7 @@ export default function MemberOnboarding() {
         <button
           type="button"
           onClick={goDash}
-          className="text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))] transition motion-reduce:transition-none hover:text-[hsl(var(--pu-m-text))]"
+          className="text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))] member-transition-color member-motion-fast motion-reduce:transition-none hover:text-[hsl(var(--pu-m-text))]"
         >
           {t("跳过", "Skip")}
         </button>
@@ -123,7 +123,7 @@ export default function MemberOnboarding() {
           {steps.map((_, i) => (
             <div
               key={i}
-              className="h-1.5 rounded-full transition-all duration-300 motion-reduce:transition-none"
+              className="h-1.5 rounded-full transition-[width,background-color,opacity] member-motion-base motion-reduce:transition-none"
               style={{
                 width: i === current ? 24 : 8,
                 background:

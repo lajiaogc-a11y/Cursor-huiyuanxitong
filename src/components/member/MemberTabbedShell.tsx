@@ -8,7 +8,7 @@ import {
   MemberSettings,
   MemberSpin,
 } from "@/routes/lazyPages";
-import { MemberRouteSuspenseFallback } from "@/components/member/MemberRouteSuspenseFallback";
+import { MemberDeferredRouteSuspenseFallback } from "@/components/member/MemberRouteSuspenseFallback";
 import { cn } from "@/lib/utils";
 
 function TabPanel({
@@ -36,8 +36,13 @@ function TabPanel({
     <div
       ref={panelRef}
       role="tabpanel"
-      hidden={!show}
-      className={cn(!show && "hidden")}
+      aria-hidden={!show}
+      className={cn(
+        "member-tab-panel transition-[opacity,transform] member-motion-base motion-reduce:transition-none",
+        show
+          ? "relative z-[1] translate-y-0 opacity-100"
+          : "pointer-events-none absolute inset-0 z-0 translate-y-1 opacity-0",
+      )}
       inert={!show ? true : undefined}
       data-member-tab-panel={path}
     >
@@ -46,7 +51,7 @@ function TabPanel({
   );
 }
 
-const suspenseFallback = <MemberRouteSuspenseFallback />;
+const suspenseFallback = <MemberDeferredRouteSuspenseFallback delayMs={120} />;
 
 /**
  * 底部 Tab 区：五个面板**始终挂载**（keep-alive），切换仅切换 visibility，不销毁子树。
@@ -54,7 +59,7 @@ const suspenseFallback = <MemberRouteSuspenseFallback />;
  */
 export function MemberTabbedShell({ activePath }: { activePath: string }) {
   return (
-    <>
+    <div className="relative min-h-[20vh]">
       <TabPanel path={ROUTES.MEMBER.DASHBOARD} activePath={activePath}>
         <Suspense fallback={suspenseFallback}>
           <MemberDashboard />
@@ -88,6 +93,6 @@ export function MemberTabbedShell({ activePath }: { activePath: string }) {
           <MemberSettings />
         </Suspense>
       </TabPanel>
-    </>
+    </div>
   );
 }

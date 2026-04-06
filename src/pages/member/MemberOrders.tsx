@@ -114,7 +114,7 @@ export default function MemberOrders() {
             end
             className={({ isActive }) =>
               cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-bold no-underline transition motion-reduce:transition-none",
+                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-bold no-underline member-transition-color member-motion-fast motion-reduce:transition-none",
                 isActive
                   ? "bg-pu-gold/15 text-pu-gold-soft ring-1 ring-inset ring-pu-gold/20"
                   : "text-[hsl(var(--pu-m-text-dim))] hover:text-[hsl(var(--pu-m-text))]",
@@ -128,7 +128,7 @@ export default function MemberOrders() {
             to={ROUTES.MEMBER.ORDERS}
             className={({ isActive }) =>
               cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-bold no-underline transition motion-reduce:transition-none",
+                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-bold no-underline member-transition-color member-motion-fast motion-reduce:transition-none",
                 isActive
                   ? "bg-pu-gold/15 text-pu-gold-soft ring-1 ring-inset ring-pu-gold/20"
                   : "text-[hsl(var(--pu-m-text-dim))] hover:text-[hsl(var(--pu-m-text))]",
@@ -190,7 +190,7 @@ export default function MemberOrders() {
           <button
             type="button"
             onClick={() => setExpandedId(expandedId === "__list__" ? null : "__list__")}
-            className="flex w-full items-center gap-3 rounded-[1.25rem] border border-[hsl(var(--pu-m-surface-border)/0.25)] p-4 transition-all motion-reduce:transition-none m-glass"
+            className="flex w-full items-center gap-3 rounded-[1.25rem] border border-[hsl(var(--pu-m-surface-border)/0.25)] p-4 member-transition-surface member-motion-base motion-reduce:transition-none m-glass"
             aria-expanded={expandedId === "__list__"}
             aria-controls="member-orders-panel"
           >
@@ -216,7 +216,7 @@ export default function MemberOrders() {
             </div>
             <ChevronDown
               className={cn(
-                "h-4 w-4 shrink-0 text-[hsl(var(--pu-m-text-dim)/0.5)] transition-transform duration-300 motion-reduce:transition-none",
+                "h-4 w-4 shrink-0 text-[hsl(var(--pu-m-text-dim)/0.5)] transition-transform member-motion-base motion-reduce:transition-none",
                 expandedId === "__list__" && "rotate-180",
               )}
               aria-hidden
@@ -226,11 +226,10 @@ export default function MemberOrders() {
 
         <div
           id="member-orders-panel"
-          className="relative z-[1] member-orders-list-collapse overflow-hidden transition-all ease-in-out"
+          className="relative z-[1] member-orders-list-collapse overflow-hidden transition-[max-height,opacity] member-motion-slow motion-reduce:transition-none"
           style={{
             maxHeight: expandedId === "__list__" ? "3000px" : "0",
             opacity: expandedId === "__list__" ? 1 : 0,
-            transitionDuration: "400ms",
           }}
         >
           <div className="mb-4 px-5">
@@ -242,7 +241,7 @@ export default function MemberOrders() {
                   onClick={() => handleFilterChange(f.key)}
                   aria-pressed={activeFilter === f.key}
                   className={cn(
-                    "shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-200 motion-reduce:transition-none",
+                    "shrink-0 rounded-full px-4 py-1.5 text-xs font-bold member-transition-color member-motion-fast motion-reduce:transition-none",
                     activeFilter === f.key
                       ? "bg-pu-gold/15 text-pu-gold-soft ring-1 ring-inset ring-pu-gold/25"
                       : "border border-[hsl(var(--pu-m-surface-border)/0.2)] bg-[hsl(var(--pu-m-surface)/0.4)] text-[hsl(var(--pu-m-text-dim))] hover:text-[hsl(var(--pu-m-text))]",
@@ -314,7 +313,7 @@ export default function MemberOrders() {
                 type="button"
                 onClick={loadMore}
                 disabled={isFetchingNextPage}
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.3)] bg-[hsl(var(--pu-m-surface)/0.5)] py-3 text-xs font-bold text-[hsl(var(--pu-m-text-dim))] transition-all motion-reduce:transition-none hover:bg-[hsl(var(--pu-m-surface)/0.7)] hover:text-[hsl(var(--pu-m-text))] active:scale-95 motion-reduce:active:scale-100 disabled:opacity-60"
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.3)] bg-[hsl(var(--pu-m-surface)/0.5)] py-3 text-xs font-bold text-[hsl(var(--pu-m-text-dim))] member-transition-surface member-motion-fast motion-reduce:transition-none hover:bg-[hsl(var(--pu-m-surface)/0.7)] hover:text-[hsl(var(--pu-m-text))] active:scale-95 motion-reduce:active:scale-100 disabled:opacity-60"
               >
                 {isFetchingNextPage ? (
                   <>

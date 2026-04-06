@@ -28,7 +28,7 @@ const puInputShell: React.CSSProperties = {
 };
 
 const loginThemeSurfaceBtn =
-  "rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.3)] bg-[hsl(var(--pu-m-surface)/0.55)] p-2.5 transition motion-reduce:transition-none hover:bg-[hsl(var(--pu-m-surface)/0.85)]";
+  "rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.3)] bg-[hsl(var(--pu-m-surface)/0.55)] p-2.5 member-transition-surface member-motion-fast motion-reduce:transition-none hover:bg-[hsl(var(--pu-m-surface)/0.85)]";
 
 export type MemberLoginFormPanelProps = {
   displaySettings: MemberPortalSettings;
@@ -103,7 +103,7 @@ export function MemberLoginFormPanel({
           <button
             type="button"
             onClick={onBack}
-            className="mb-4 mt-5 self-start text-xs font-bold text-[hsl(var(--pu-m-text-dim))] transition motion-reduce:transition-none hover:text-[hsl(var(--pu-m-text))]"
+            className="mb-4 mt-5 self-start text-xs font-bold text-[hsl(var(--pu-m-text-dim))] member-transition-color member-motion-fast motion-reduce:transition-none hover:text-[hsl(var(--pu-m-text))]"
           >
             ← {t("返回", "Back")}
           </button>
@@ -158,7 +158,7 @@ export function MemberLoginFormPanel({
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}
-                    className="w-full rounded-xl py-3.5 pl-10 pr-4 text-sm font-medium outline-none transition-all motion-reduce:transition-none focus:ring-2 focus:ring-[hsl(var(--pu-gold)/0.25)]"
+                    className="w-full rounded-xl py-3.5 pl-10 pr-4 text-sm font-medium outline-none member-transition-surface member-motion-fast motion-reduce:transition-none focus:ring-2 focus:ring-[hsl(var(--pu-gold)/0.25)]"
                     style={puInputShell}
                   />
                 </div>
@@ -180,7 +180,7 @@ export function MemberLoginFormPanel({
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={t("请输入密码", "Enter password")}
                     autoComplete="current-password"
-                    className="w-full rounded-xl py-3.5 pl-10 pr-12 text-sm font-medium outline-none transition-all motion-reduce:transition-none focus:ring-2 focus:ring-[hsl(var(--pu-gold)/0.25)]"
+                    className="w-full rounded-xl py-3.5 pl-10 pr-12 text-sm font-medium outline-none member-transition-surface member-motion-fast motion-reduce:transition-none focus:ring-2 focus:ring-[hsl(var(--pu-gold)/0.25)]"
                     style={puInputShell}
                   />
                   <button
@@ -209,7 +209,7 @@ export function MemberLoginFormPanel({
                 </button>
                 <button
                   type="button"
-                  className="text-[11px] font-bold transition motion-reduce:transition-none"
+                  className="text-[11px] font-bold member-transition-color member-motion-fast motion-reduce:transition-none"
                   style={{ color: "hsl(var(--pu-gold-soft))" }}
                   onClick={() =>
                     notify.info(t("忘记密码请联系客服或邀请人。", "Forgot? Contact support or your inviter."))
@@ -222,7 +222,7 @@ export function MemberLoginFormPanel({
                 type="submit"
                 disabled={loading}
                 aria-busy={loading}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold transition-all motion-reduce:transition-none motion-reduce:active:scale-100 active:scale-[0.97] disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold member-transition-surface member-motion-fast motion-reduce:transition-none motion-reduce:active:scale-100 active:scale-[0.97] disabled:opacity-60"
                 style={{
                   background: "linear-gradient(135deg, hsl(var(--pu-gold)), hsl(var(--pu-gold-soft)))",
                   color: "hsl(var(--pu-primary-foreground))",
@@ -246,7 +246,7 @@ export function MemberLoginFormPanel({
             <button
               type="button"
               onClick={() => navigate(ROUTES.MEMBER.REGISTER)}
-              className="ml-1 font-bold underline underline-offset-2 transition motion-reduce:transition-none"
+              className="ml-1 font-bold underline underline-offset-2 member-transition-color member-motion-fast motion-reduce:transition-none"
               style={{ color: "hsl(var(--pu-emerald-soft))" }}
             >
               {t("注册账号", "Create account")}

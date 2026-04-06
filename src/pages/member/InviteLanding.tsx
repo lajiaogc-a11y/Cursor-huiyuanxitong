@@ -214,7 +214,7 @@ export default function InviteLanding() {
   };
 
   const inputBase =
-    "h-12 w-full rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.25)] bg-[hsl(var(--pu-m-surface)/0.45)] text-sm font-medium text-[hsl(var(--pu-m-text))] outline-none transition-all placeholder:text-[hsl(var(--pu-m-text-dim)/0.4)] focus-visible:ring-2 focus-visible:ring-pu-gold/25";
+    "h-12 w-full rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.25)] bg-[hsl(var(--pu-m-surface)/0.45)] text-sm font-medium text-[hsl(var(--pu-m-text))] outline-none member-transition-surface member-motion-fast placeholder:text-[hsl(var(--pu-m-text-dim)/0.4)] focus-visible:ring-2 focus-visible:ring-pu-gold/25";
 
   return (
     <MemberRegisterShell themeColor={themeColor}>
@@ -455,7 +455,7 @@ export default function InviteLanding() {
               <button
                 type="submit"
                 disabled={loading || registerInitLoading || !registerToken}
-                className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold text-[hsl(var(--pu-primary-foreground))] transition-all active:scale-[0.97] disabled:opacity-50 motion-reduce:transition-none"
+                className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold text-[hsl(var(--pu-primary-foreground))] member-transition-surface member-motion-fast active:scale-[0.97] disabled:opacity-50 motion-reduce:transition-none"
                 style={{
                   background: "linear-gradient(135deg, hsl(var(--pu-gold)), hsl(var(--pu-gold-soft)))",
                   boxShadow: "0 8px 28px -8px hsl(var(--pu-gold) / 0.5)",

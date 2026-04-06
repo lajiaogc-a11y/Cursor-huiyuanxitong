@@ -1,7 +1,7 @@
 /**
  * MemberNotifications — 收件箱数据来自 /api/member-inbox（门户公告同步 + 商城兑换结果等）。
  */
-import { useCallback, useEffect, useState } from "react";
+import { startTransition, useCallback, useDeferredValue, useEffect, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -131,6 +131,7 @@ export default function MemberNotifications() {
   const [deleteNotifId, setDeleteNotifId] = useState<string | null>(null);
   const [detailNotif, setDetailNotif] = useState<NotifItem | null>(null);
   const [reloadGen, setReloadGen] = useState(0);
+  const deferredFilter = useDeferredValue(activeFilter);
 
   useMemberPullRefreshSignal(() => {
     setReloadGen((g) => g + 1);
@@ -198,9 +199,10 @@ export default function MemberNotifications() {
   }, [member?.id, portalSettingsLoading, inboxEnabled]);
 
   const filtered =
-    activeFilter === "all"
+    deferredFilter === "all"
       ? notifications
-      : notifications.filter((n) => n.type === activeFilter);
+      : notifications.filter((n) => n.type === deferredFilter);
+  const filterTransitioning = deferredFilter !== activeFilter;
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -326,9 +328,9 @@ export default function MemberNotifications() {
                 <button
                   key={f}
                   type="button"
-                  onClick={() => setActiveFilter(f)}
+                  onClick={() => startTransition(() => setActiveFilter(f))}
                   aria-pressed={activeFilter === f}
-                  className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-200 motion-reduce:transition-none ${
+                  className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold member-transition-color member-motion-fast motion-reduce:transition-none ${
                     activeFilter === f
                       ? "bg-pu-gold/15 text-pu-gold-soft ring-1 ring-inset ring-pu-gold/25"
                       : "border border-[hsl(var(--pu-m-surface-border)/0.2)] bg-[hsl(var(--pu-m-surface)/0.4)] text-[hsl(var(--pu-m-text-dim))] hover:text-[hsl(var(--pu-m-text))]"
@@ -340,7 +342,10 @@ export default function MemberNotifications() {
             </div>
           </div>
 
-          <div className="space-y-2.5 px-5">
+          <div
+            className={`member-notification-list space-y-2.5 px-5 member-motion-base ${filterTransitioning ? "is-filtering" : ""}`}
+            aria-busy={filterTransitioning}
+          >
         {filtered.map((notif) => {
           const cfg = TYPE_CONFIG[notif.type] || TYPE_CONFIG.other;
           const Icon = cfg.icon;
@@ -361,13 +366,11 @@ export default function MemberNotifications() {
                   markRead(notif.id);
                 }
               }}
-              className={`m-glass relative cursor-pointer overflow-hidden px-4 py-4 transition-all motion-reduce:transition-none ${
-                !notif.read ? "border-l-2" : ""
-              }`}
+              className="m-glass relative cursor-pointer overflow-hidden border-l-2 px-4 py-4 member-transition-surface member-motion-base motion-reduce:transition-none"
               style={
                 !notif.read
                   ? { borderLeftColor: `hsl(var(${cfg.colorVar}))` }
-                  : undefined
+                  : { borderLeftColor: "transparent" }
               }
             >
               <div className="flex items-start gap-3">
@@ -411,7 +414,7 @@ export default function MemberNotifications() {
                         e.stopPropagation();
                         setDeleteNotifId(notif.id);
                       }}
-                      className="rounded-lg p-1.5 text-[hsl(var(--pu-m-text-dim)/0.3)] transition motion-reduce:transition-none hover:bg-destructive/10 hover:text-destructive"
+                      className="rounded-lg p-1.5 text-[hsl(var(--pu-m-text-dim)/0.3)] member-transition-color member-motion-fast motion-reduce:transition-none hover:bg-destructive/10 hover:text-destructive"
                       aria-label={t("删除", "Delete")}
                     >
                       <Trash2 className="h-3 w-3" aria-hidden />
@@ -426,7 +429,7 @@ export default function MemberNotifications() {
         {hasMoreNotifications && activeFilter === "all" && (
           <button
             type="button"
-            className="mx-auto mt-3 flex items-center gap-1.5 rounded-full bg-[hsl(var(--pu-m-surface)/0.35)] px-5 py-2 text-xs font-medium text-[hsl(var(--pu-m-text-dim))] transition-colors active:bg-[hsl(var(--pu-m-surface)/0.55)]"
+            className="mx-auto mt-3 flex items-center gap-1.5 rounded-full bg-[hsl(var(--pu-m-surface)/0.35)] px-5 py-2 text-xs font-medium text-[hsl(var(--pu-m-text-dim))] member-transition-color member-motion-fast active:bg-[hsl(var(--pu-m-surface)/0.55)]"
             disabled={loadingMore}
             onClick={() => void loadMoreNotifications()}
           >

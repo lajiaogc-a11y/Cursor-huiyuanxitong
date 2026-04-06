@@ -307,7 +307,7 @@ export default function MemberSettings() {
               </div>
               <button
                 type="button"
-                className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-lg border border-[hsl(var(--pu-m-surface-border)/0.5)] bg-[hsl(var(--pu-m-surface))] transition active:scale-95"
+                className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-lg border border-[hsl(var(--pu-m-surface-border)/0.5)] bg-[hsl(var(--pu-m-surface))] member-transition-surface member-motion-fast active:scale-95"
                 onClick={(e) => {
                   e.stopPropagation();
                   setExpandedSection(expandedSection === "avatar" ? null : "avatar");
@@ -366,7 +366,7 @@ export default function MemberSettings() {
           ) : (
             <Link
               to={ROUTES.MEMBER.POINTS}
-              className="mb-3 grid grid-cols-3 gap-1 rounded-xl border border-pu-gold/18 bg-gradient-to-b from-pu-gold/[0.07] to-[hsl(var(--pu-m-surface)/0.32)] p-3 text-[hsl(var(--pu-m-text))] shadow-sm outline-none ring-offset-[hsl(var(--pu-m-bg-1))] transition hover:border-pu-gold/28 hover:from-pu-gold/[0.09] focus-visible:ring-2 focus-visible:ring-pu-gold/35"
+              className="mb-3 grid grid-cols-3 gap-1 rounded-xl border border-pu-gold/18 bg-gradient-to-b from-pu-gold/[0.07] to-[hsl(var(--pu-m-surface)/0.32)] p-3 text-[hsl(var(--pu-m-text))] shadow-sm outline-none ring-offset-[hsl(var(--pu-m-bg-1))] member-transition-surface member-motion-base hover:border-pu-gold/28 hover:from-pu-gold/[0.09] focus-visible:ring-2 focus-visible:ring-pu-gold/35"
             >
               <div className="min-w-0 text-center">
                 <div className="mb-1 text-[8px] font-bold uppercase tracking-wider text-[hsl(var(--pu-m-text-dim)/0.75)]">

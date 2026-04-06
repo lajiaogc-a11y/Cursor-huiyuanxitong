@@ -89,13 +89,18 @@ export function MemberSettingsAccountSection({
             <ChevronRight
               size={12}
               className={cn(
-                "shrink-0 text-[hsl(var(--pu-m-text-dim)/0.35)] transition-transform duration-200",
+                "shrink-0 text-[hsl(var(--pu-m-text-dim)/0.35)] transition-transform member-motion-base",
                 expandedSection === "avatar" && "rotate-90",
               )}
             />
           </button>
-          {expandedSection === "avatar" && (
-            <div className="member-settings-expand">
+          <div
+            className={cn(
+              "member-settings-expand member-settings-collapse member-motion-base",
+              expandedSection === "avatar" ? "is-open" : "is-closed",
+            )}
+            aria-hidden={expandedSection !== "avatar"}
+          >
               <MemberPointsAccountSettings
                 variant="inline"
                 avatarUrl={settingsAvatarUrl}
@@ -105,7 +110,6 @@ export function MemberSettingsAccountSection({
                 t={t}
               />
             </div>
-          )}
         </div>
 
         <div className="member-settings-row">
@@ -134,13 +138,18 @@ export function MemberSettingsAccountSection({
             <ChevronRight
               size={12}
               className={cn(
-                "shrink-0 text-[hsl(var(--pu-m-text-dim)/0.35)] transition-transform duration-200",
+                "shrink-0 text-[hsl(var(--pu-m-text-dim)/0.35)] transition-transform member-motion-base",
                 expandedSection === "nickname" && "rotate-90",
               )}
             />
           </button>
-          {expandedSection === "nickname" && (
-            <div className="member-settings-expand">
+          <div
+            className={cn(
+              "member-settings-expand member-settings-collapse member-motion-base",
+              expandedSection === "nickname" ? "is-open" : "is-closed",
+            )}
+            aria-hidden={expandedSection !== "nickname"}
+          >
               <div className="flex flex-wrap gap-2">
                 <div className="relative min-w-0 flex-[1_1_160px]">
                   <User
@@ -173,7 +182,6 @@ export function MemberSettingsAccountSection({
                 </Button>
               </div>
             </div>
-          )}
         </div>
 
         <div className="member-settings-row">
@@ -228,13 +236,18 @@ export function MemberSettingsAccountSection({
             <ChevronRight
               size={12}
               className={cn(
-                "shrink-0 text-[hsl(var(--pu-m-text-dim)/0.35)] transition-transform duration-200",
+                "shrink-0 text-[hsl(var(--pu-m-text-dim)/0.35)] transition-transform member-motion-base",
                 expandedSection === "password" && "rotate-90",
               )}
             />
           </button>
-          {expandedSection === "password" && (
-            <div className="member-settings-expand">
+          <div
+            className={cn(
+              "member-settings-expand member-settings-collapse member-motion-base",
+              expandedSection === "password" ? "is-open" : "is-closed",
+            )}
+            aria-hidden={expandedSection !== "password"}
+          >
               <form
                 className="flex flex-col gap-3"
                 onSubmit={(e) => {
@@ -336,7 +349,6 @@ export function MemberSettingsAccountSection({
                 </Button>
               </form>
             </div>
-          )}
         </div>
       </div>
     </div>

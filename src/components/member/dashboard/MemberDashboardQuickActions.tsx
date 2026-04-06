@@ -27,31 +27,31 @@ export function MemberDashboardQuickActions({
         <div className="grid grid-cols-4 gap-3">
           <Link
             to={ROUTES.MEMBER.POINTS}
-            className="group flex flex-col items-center gap-2 rounded-2xl p-3 no-underline transition-all duration-200"
+            className="group flex flex-col items-center gap-2 rounded-2xl p-3 no-underline member-transition-surface member-motion-base"
           >
             <div
-              className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-gradient-to-br from-pu-gold to-pu-gold-deep transition-transform duration-300 group-hover:scale-105 motion-reduce:group-hover:scale-100"
+              className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-gradient-to-br from-pu-gold to-pu-gold-deep transition-transform member-motion-base group-hover:scale-105 motion-reduce:group-hover:scale-100"
               style={{ boxShadow: "0 6px 20px -6px hsl(var(--pu-m-surface-border) / 0.4)" }}
             >
               <Gift className="h-[22px] w-[22px] text-[hsl(var(--pu-primary-foreground))]" strokeWidth={2} aria-hidden />
             </div>
-            <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))] transition group-hover:text-[hsl(var(--pu-m-text))]">
+            <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))] member-transition-color member-motion-fast group-hover:text-[hsl(var(--pu-m-text))]">
               {t("积分商城", "Points mall")}
             </span>
           </Link>
           {showSpin ? (
             <Link
               to={ROUTES.MEMBER.SPIN}
-              className="group flex flex-col items-center gap-2 rounded-2xl p-3 no-underline transition-all duration-200"
+              className="group flex flex-col items-center gap-2 rounded-2xl p-3 no-underline member-transition-surface member-motion-base"
               aria-label={t("进入幸运抽奖", "Go to lucky draw")}
             >
               <div
-                className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-gradient-to-br from-pu-rose to-pu-rose-soft transition-transform duration-300 group-hover:scale-105 motion-reduce:group-hover:scale-100"
+                className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-gradient-to-br from-pu-rose to-pu-rose-soft transition-transform member-motion-base group-hover:scale-105 motion-reduce:group-hover:scale-100"
                 style={{ boxShadow: "0 6px 20px -6px hsl(var(--pu-m-surface-border) / 0.4)" }}
               >
                 <Star className="h-[22px] w-[22px] text-[hsl(var(--pu-m-bg-1))]" strokeWidth={2} aria-hidden />
               </div>
-              <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))] transition group-hover:text-[hsl(var(--pu-m-text))]">
+              <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))] member-transition-color member-motion-fast group-hover:text-[hsl(var(--pu-m-text))]">
                 {t("幸运抽奖", "Lucky spin")}
               </span>
             </Link>
@@ -67,17 +67,17 @@ export function MemberDashboardQuickActions({
             <Link
               to={ROUTES.MEMBER.INVITE}
               onClick={() => stashPointsHashBeforeInviteNavigation(window.location.pathname, window.location.hash)}
-              className="group flex flex-col items-center gap-2 rounded-2xl p-3 no-underline transition-all duration-200"
+              className="group flex flex-col items-center gap-2 rounded-2xl p-3 no-underline member-transition-surface member-motion-base"
             >
               <div className="relative">
                 <div
-                  className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-gradient-to-br from-pu-emerald to-pu-emerald-soft transition-transform duration-300 group-hover:scale-105 motion-reduce:group-hover:scale-100"
+                  className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-gradient-to-br from-pu-emerald to-pu-emerald-soft transition-transform member-motion-base group-hover:scale-105 motion-reduce:group-hover:scale-100"
                   style={{ boxShadow: "0 6px 20px -6px hsl(var(--pu-m-surface-border) / 0.4)" }}
                 >
                   <Users className="h-[22px] w-[22px] text-[hsl(var(--pu-m-bg-1))]" strokeWidth={2} aria-hidden />
                 </div>
               </div>
-              <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))] transition group-hover:text-[hsl(var(--pu-m-text))]">
+              <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))] member-transition-color member-motion-fast group-hover:text-[hsl(var(--pu-m-text))]">
                 {t("邀请好友", "Invite")}
               </span>
             </Link>
@@ -92,16 +92,16 @@ export function MemberDashboardQuickActions({
           <button
             type="button"
             onClick={() => notifyInfo(t("维护中", "Under maintenance"))}
-            className="group flex cursor-pointer flex-col items-center gap-2 rounded-2xl p-3 text-left transition-all duration-200 motion-reduce:transition-none active:scale-[0.96] motion-reduce:active:scale-100"
+            className="group flex cursor-pointer flex-col items-center gap-2 rounded-2xl p-3 text-left member-transition-surface member-motion-base motion-reduce:transition-none active:scale-[0.96] motion-reduce:active:scale-100"
             aria-label={t("我的钱包（维护中）", "Wallet (under maintenance)")}
           >
             <div
-              className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-gradient-to-br from-pu-silver to-pu-silver-soft transition-transform duration-300 group-hover:scale-105 motion-reduce:group-hover:scale-100"
+              className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-gradient-to-br from-pu-silver to-pu-silver-soft transition-transform member-motion-base group-hover:scale-105 motion-reduce:group-hover:scale-100"
               style={{ boxShadow: "0 6px 20px -6px hsl(var(--pu-m-surface-border) / 0.4)" }}
             >
               <Wallet className="h-[22px] w-[22px] text-[hsl(var(--pu-m-bg-1))]" strokeWidth={2} aria-hidden />
             </div>
-            <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))] transition group-hover:text-[hsl(var(--pu-m-text))]">
+            <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))] member-transition-color member-motion-fast group-hover:text-[hsl(var(--pu-m-text))]">
               {t("我的钱包", "Wallet")}
             </span>
           </button>

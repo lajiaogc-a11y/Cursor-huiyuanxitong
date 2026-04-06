@@ -55,7 +55,7 @@ export function SpinWheel({
                   loading={spinning}
                   disabled={spinning || remaining <= 0}
                   className={cn(
-                    "btn-spin relative !flex !h-full !min-h-0 !w-full !min-w-0 flex-col touch-manipulation items-center justify-center gap-0.5 overflow-hidden rounded-xl border-0 bg-transparent px-1 py-0.5 text-inherit shadow-none outline-none transition-opacity duration-150 hover:bg-transparent focus-visible:ring-2 focus-visible:ring-[hsl(var(--pu-gold))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pu-m-surface))] [&_svg]:shrink-0 [&_svg]:text-white",
+                    "btn-spin relative !flex !h-full !min-h-0 !w-full !min-w-0 flex-col touch-manipulation items-center justify-center gap-0.5 overflow-hidden rounded-xl border-0 bg-transparent px-1 py-0.5 text-inherit shadow-none outline-none transition-opacity member-motion-fast hover:bg-transparent focus-visible:ring-2 focus-visible:ring-[hsl(var(--pu-gold))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pu-m-surface))] [&_svg]:shrink-0 [&_svg]:text-white",
                     spinning ? "cursor-wait opacity-80" : remaining <= 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer",
                     "motion-reduce:transition-none",
                   )}
@@ -116,7 +116,7 @@ export function SpinWheel({
                 key={cellIdx}
                 className={cn(
                   SPIN_PRIZE_CELL_FRAME,
-                  "flex flex-col items-center justify-center gap-0.5 rounded-xl p-1.5 transition-all duration-150 motion-reduce:transition-none",
+                  "flex flex-col items-center justify-center gap-0.5 rounded-xl p-1.5 member-transition-surface member-motion-fast motion-reduce:transition-none",
                   highlightClass,
                 )}
               >

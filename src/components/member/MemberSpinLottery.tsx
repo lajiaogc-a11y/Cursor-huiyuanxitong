@@ -54,7 +54,7 @@ export function Lottery({
   const showEmpty = !loading && lotteryEnabled && prizes.length === 0 && !loadError;
   /** 转盘始终在 DOM 中；不可展示时叠在下方并透明，避免延迟挂载导致闪现 */
   const wheelLayerClass = cn(
-    "transition-opacity duration-300 ease-out",
+    "transition-opacity member-motion-base motion-reduce:transition-none",
     !showWheel && "pointer-events-none absolute inset-x-0 top-0 opacity-0",
   );
 
@@ -67,7 +67,7 @@ export function Lottery({
     >
       {/* 加载层：与内容层叠，opacity 切换 */}
       <div
-        className={cn("transition-opacity duration-300 ease-out", !loading && "pointer-events-none absolute inset-x-0 top-0 z-[1] opacity-0")}
+        className={cn("transition-opacity member-motion-base motion-reduce:transition-none", !loading && "pointer-events-none absolute inset-x-0 top-0 z-[1] opacity-0")}
         style={{ opacity: loading ? 1 : 0 }}
         aria-hidden={!loading}
       >
@@ -75,7 +75,7 @@ export function Lottery({
       </div>
 
       <div
-        className={cn("relative z-0 transition-opacity duration-300 ease-out", loading && "pointer-events-none")}
+        className={cn("relative z-0 transition-opacity member-motion-base motion-reduce:transition-none", loading && "pointer-events-none")}
         style={{ opacity: loading ? 0 : 1 }}
       >
         {showDisabled ? (

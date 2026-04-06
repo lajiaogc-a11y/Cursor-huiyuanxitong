@@ -580,7 +580,7 @@ export default function MemberDashboard() {
               </p>
               <Button
                 type="button"
-                className="btn-glow rounded-xl px-8 py-2.5 text-sm font-bold transition-transform active:scale-95"
+                className="btn-glow rounded-xl px-8 py-2.5 text-sm font-bold transition-transform member-motion-fast active:scale-95"
                 asChild
               >
                 <Link

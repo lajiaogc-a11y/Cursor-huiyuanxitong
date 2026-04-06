@@ -96,7 +96,7 @@ export function MemberDashboardBannerSection({
       setFallbackBannerIdx((i) => (typeof next === "function" ? next(i) : next));
       setFallbackBannerSliding(false);
       fallbackSwitchTimerRef.current = null;
-    }, 300);
+    }, 220);
   }, []);
 
   const nextFallbackBanner = useCallback(() => {
@@ -131,7 +131,7 @@ export function MemberDashboardBannerSection({
       ) : (
         <div className="mb-5">
           <div
-            className="relative min-h-[120px] overflow-hidden rounded-2xl border border-[hsl(var(--pu-m-surface-border)/0.25)] p-5 pb-4 transition-all duration-300"
+            className="relative min-h-[120px] overflow-hidden rounded-2xl border border-[hsl(var(--pu-m-surface-border)/0.25)] p-5 pb-4 member-transition-surface member-motion-slow"
             style={{
               background: fallbackBannerSlides[fallbackBannerIdx].gradient,
               opacity: fallbackBannerSliding ? 0 : 1,
@@ -185,7 +185,7 @@ export function MemberDashboardBannerSection({
                     type="button"
                     aria-label={`${t("活动", "Promo")} ${i + 1}`}
                     onClick={() => scheduleFallbackBannerSwitch(i)}
-                    className="rounded-full transition-all duration-300"
+                    className="rounded-full transition-[width,background-color,opacity] member-motion-base"
                     style={{
                       width: i === fallbackBannerIdx ? 20 : 6,
                       height: 6,

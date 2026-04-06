@@ -20,7 +20,7 @@ import { PullToRefresh } from "@/components/member/PullToRefresh";
 import PageTransition from "@/components/member/PageTransition";
 import SplashScreen from "@/components/member/SplashScreen";
 import { MemberGlobalLoader } from "@/components/member/GlobalLoader";
-import { MemberRouteSuspenseFallback } from "@/components/member/MemberRouteSuspenseFallback";
+import { MemberDeferredRouteSuspenseFallback } from "@/components/member/MemberRouteSuspenseFallback";
 import {
   MEMBER_POST_LOGIN_VEIL_MS,
   peekMemberPostLoginShellTransition,
@@ -134,7 +134,7 @@ export function MemberLayout({ children }: { children: ReactNode }) {
     }
   }, [isBottomTab, pathname]);
 
-  const suspenseFallback = <MemberRouteSuspenseFallback />;
+  const suspenseFallback = <MemberDeferredRouteSuspenseFallback delayMs={120} />;
   const [postLoginVeil, setPostLoginVeil] = useState(false);
   const [splashDone, setSplashDone] = useState(() => {
     try { return sessionStorage.getItem("member_splash_shown") === "1"; } catch { return false; }
@@ -317,14 +317,24 @@ export function MemberLayout({ children }: { children: ReactNode }) {
               <main id="member-main" className="member-content-rail" tabIndex={-1}>
                 <div
                   ref={tabShellWrapperRef}
-                  className={cn(!isBottomTab && "hidden")}
+                  className={cn(
+                    "member-shell-layer transition-[opacity,transform] member-motion-base motion-reduce:transition-none",
+                    isBottomTab
+                      ? "relative z-[1] translate-y-0 opacity-100"
+                      : "pointer-events-none absolute inset-0 z-0 translate-y-1 opacity-0",
+                  )}
                   inert={!isBottomTab ? true : undefined}
                   data-member-tab-stack="1"
                 >
                   <MemberTabbedShell activePath={shellActivePath} />
                 </div>
                 <div
-                  className={cn(isBottomTab && "hidden")}
+                  className={cn(
+                    "member-shell-layer transition-[opacity,transform] member-motion-base motion-reduce:transition-none",
+                    isBottomTab
+                      ? "pointer-events-none absolute inset-0 z-0 translate-y-1 opacity-0"
+                      : "relative z-[1] translate-y-0 opacity-100",
+                  )}
                   inert={isBottomTab ? true : undefined}
                   data-member-sub-route-outlet="1"
                 >
@@ -340,7 +350,12 @@ export function MemberLayout({ children }: { children: ReactNode }) {
           <MemberBottomNav />
         </MemberAppShellTabbarSlot>
         <div
-          className={cn(pathname !== ROUTES.MEMBER.DASHBOARD && "hidden")}
+          className={cn(
+            "member-transition-surface member-motion-fast motion-reduce:transition-none",
+            pathname === ROUTES.MEMBER.DASHBOARD
+              ? "pointer-events-auto opacity-100"
+              : "pointer-events-none opacity-0",
+          )}
           aria-hidden={pathname !== ROUTES.MEMBER.DASHBOARD}
         >
           <CustomerServiceWidget

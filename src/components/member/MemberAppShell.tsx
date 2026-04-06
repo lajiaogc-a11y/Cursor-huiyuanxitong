@@ -25,7 +25,13 @@ export function MemberAppShellTabbarSlot({
 }) {
   return (
     <div
-      className={cn("member-app-shell-tabbar", hidden && "hidden", className)}
+      className={cn(
+        "member-app-shell-tabbar transition-[opacity,transform] member-motion-fast motion-reduce:transition-none",
+        hidden
+          ? "pointer-events-none translate-y-2 opacity-0"
+          : "pointer-events-auto translate-y-0 opacity-100",
+        className,
+      )}
       data-member-app-shell="tabbar"
       aria-hidden={hidden ? true : undefined}
     >

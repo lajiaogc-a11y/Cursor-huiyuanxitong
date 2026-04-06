@@ -49,7 +49,7 @@ export default function MemberWallet() {
           <button
             type="button"
             onClick={() => navigate(ROUTES.MEMBER.DASHBOARD)}
-            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.3)] bg-[hsl(var(--pu-m-surface)/0.6)] px-5 py-2.5 text-sm font-bold text-[hsl(var(--pu-m-text))] transition-all hover:bg-[hsl(var(--pu-m-surface)/0.8)] active:scale-95"
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.3)] bg-[hsl(var(--pu-m-surface)/0.6)] px-5 py-2.5 text-sm font-bold text-[hsl(var(--pu-m-text))] member-transition-surface member-motion-fast hover:bg-[hsl(var(--pu-m-surface)/0.8)] active:scale-95"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden />
             {t("返回首页", "Back to home")}

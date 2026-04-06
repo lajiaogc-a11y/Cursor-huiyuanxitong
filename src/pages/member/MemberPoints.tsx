@@ -413,7 +413,7 @@ export default function MemberPoints() {
           </p>
         </div>
 
-        <ContentReveal show={pointsHeroReveal} durationMs={300}>
+        <ContentReveal show={pointsHeroReveal} durationMs={220}>
           <MemberPortalPointsHero
             points={points}
             frozenPoints={frozenPoints}
@@ -435,7 +435,7 @@ export default function MemberPoints() {
               role="tab"
               aria-selected={pointsTab === "mall"}
               className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-bold transition motion-reduce:transition-none",
+                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-bold member-transition-color member-motion-fast motion-reduce:transition-none",
                 pointsTab === "mall"
                   ? "bg-pu-gold/15 text-pu-gold-soft ring-1 ring-inset ring-pu-gold/20"
                   : "text-[hsl(var(--pu-m-text-dim))] hover:text-[hsl(var(--pu-m-text))]",
@@ -450,7 +450,7 @@ export default function MemberPoints() {
               role="tab"
               aria-selected={pointsTab === "history"}
               className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-bold transition motion-reduce:transition-none",
+                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-bold member-transition-color member-motion-fast motion-reduce:transition-none",
                 pointsTab === "history"
                   ? "bg-pu-gold/15 text-pu-gold-soft ring-1 ring-inset ring-pu-gold/20"
                   : "text-[hsl(var(--pu-m-text-dim))] hover:text-[hsl(var(--pu-m-text))]",
@@ -463,14 +463,19 @@ export default function MemberPoints() {
           </div>
         </div>
 
-        <div className="member-page-body flex flex-1 flex-col">
+        <div className="member-page-body relative flex flex-1 flex-col">
           <div
-            className={cn(pointsTab !== "mall" && "hidden")}
+            className={cn(
+              "member-points-tab-panel transition-[opacity,transform] member-motion-base motion-reduce:transition-none",
+              pointsTab === "mall"
+                ? "relative z-[1] translate-y-0 opacity-100"
+                : "pointer-events-none absolute inset-0 z-0 translate-y-1 overflow-hidden opacity-0",
+            )}
             role="tabpanel"
             aria-hidden={pointsTab !== "mall"}
             id="member-points-tab-mall"
           >
-            <ContentReveal show={mallCatalogReveal} durationMs={300}>
+            <ContentReveal show={mallCatalogReveal} durationMs={220}>
               <MemberPointsMallCatalogSection
                 t={t}
                 language={language}
@@ -498,7 +503,12 @@ export default function MemberPoints() {
           </div>
 
           <div
-            className={cn("px-5 pb-10", pointsTab !== "history" && "hidden")}
+            className={cn(
+              "member-points-tab-panel px-5 pb-10 transition-[opacity,transform] member-motion-base motion-reduce:transition-none",
+              pointsTab === "history"
+                ? "relative z-[1] translate-y-0 opacity-100"
+                : "pointer-events-none absolute inset-0 z-0 translate-y-1 overflow-hidden opacity-0",
+            )}
             role="tabpanel"
             aria-hidden={pointsTab !== "history"}
             id="member-points-tab-history"
@@ -516,7 +526,7 @@ export default function MemberPoints() {
               )}
             </p>
             {historyPanelActivated ? (
-              <ContentReveal show={pointsTab === "history"} durationMs={300}>
+              <ContentReveal show={pointsTab === "history"} durationMs={220}>
                 <MemberRedemptionHistoryFeed
                   memberId={member.id}
                   refreshKey={redemptionsKey}
