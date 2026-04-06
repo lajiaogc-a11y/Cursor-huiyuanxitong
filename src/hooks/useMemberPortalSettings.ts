@@ -20,7 +20,8 @@ function mergeCachedPortalSettings(memberId: string): MemberPortalSettings {
   const cached = readMemberPortalSettingsCache(memberId);
   if (cached) return { ...DEFAULT_SETTINGS, ...cached };
   const splash = readMemberPortalSplashBootstrap("");
-  if (splash?.logo_url) return { ...DEFAULT_SETTINGS, ...splash };
+  /** splash 仅用于主题/Logo 等展示加速；login_badges 必须以会员接口为准，避免与后台不同步 */
+  if (splash?.logo_url) return { ...DEFAULT_SETTINGS, ...splash, login_badges: [] };
   return DEFAULT_SETTINGS;
 }
 

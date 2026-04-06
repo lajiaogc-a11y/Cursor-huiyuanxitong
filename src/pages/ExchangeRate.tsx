@@ -284,10 +284,10 @@ export default function ExchangeRate() {
     });
   };
   
-  // Tab响应式溢出导航
+  // Tab响应式溢出导航（桌面：窄宽时收起到「更多」；移动端：全部 Tab 横向滚动，避免子导航被藏进下拉而难以发现）
   const tabsContainerRef = useRef<HTMLDivElement>(null);
-  const [visibleTabCount, setVisibleTabCount] = useState(8); // 默认显示所有8个Tab
-  
+  const [visibleTabCount, setVisibleTabCount] = useState(9);
+
   // Tab配置数组
   const TAB_CONFIG = useMemo(() => [
     { value: 'calc1', label: { zh: '台位 A', en: 'Desk A' } },
@@ -300,16 +300,25 @@ export default function ExchangeRate() {
     { value: 'memberEntry', label: { zh: '新增会员', en: 'New Member' } },
     { value: 'shiftHandover', label: { zh: '交班对账', en: 'Handover' } },
   ], []);
-  
+
+  const effectiveVisibleTabCount = isMobile ? TAB_CONFIG.length : visibleTabCount;
+
   // 可见Tab和溢出Tab
-  const visibleTabs = useMemo(() => TAB_CONFIG.slice(0, visibleTabCount), [TAB_CONFIG, visibleTabCount]);
-  const overflowTabs = useMemo(() => TAB_CONFIG.slice(visibleTabCount), [TAB_CONFIG, visibleTabCount]);
-  
-  // ResizeObserver监听容器宽度变化
+  const visibleTabs = useMemo(
+    () => TAB_CONFIG.slice(0, effectiveVisibleTabCount),
+    [TAB_CONFIG, effectiveVisibleTabCount],
+  );
+  const overflowTabs = useMemo(
+    () => TAB_CONFIG.slice(effectiveVisibleTabCount),
+    [TAB_CONFIG, effectiveVisibleTabCount],
+  );
+
+  // ResizeObserver监听容器宽度变化（移动端不收缩，由横向滚动承载全部子导航）
   useEffect(() => {
+    if (isMobile) return;
     const container = tabsContainerRef.current;
     if (!container) return;
-    
+
     const calculateVisibleTabs = () => {
       const containerWidth = container.offsetWidth;
       // 每个Tab平均宽度约90px（中文）或75px（英文），"更多"按钮约70px
@@ -318,16 +327,16 @@ export default function ExchangeRate() {
       const padding = 20; // 容器内边距
       const availableWidth = containerWidth - moreButtonWidth - padding;
       const count = Math.floor(availableWidth / tabWidth);
-      // 至少显示3个Tab，最多全部显示（8个）
+      // 至少显示3个Tab，最多全部显示
       setVisibleTabCount(Math.min(Math.max(count, 3), TAB_CONFIG.length));
     };
-    
+
     const observer = new ResizeObserver(calculateVisibleTabs);
     observer.observe(container);
     calculateVisibleTabs(); // 初始计算
-    
+
     return () => observer.disconnect();
-  }, [TAB_CONFIG.length]);
+  }, [TAB_CONFIG.length, isMobile]);
 
   const [searchParams] = useSearchParams();
   const tabFromUrl = searchParams.get("tab");
@@ -1295,14 +1304,19 @@ export default function ExchangeRate() {
               <div ref={tabsContainerRef} className="flex-1 min-w-0">
                 <TabsList className={cn(
                   "bg-muted/60 p-1 lg:p-1.5 rounded-xl shadow-inner gap-0.5 lg:gap-1 flex-nowrap overflow-visible",
-                  isMobile && "overflow-x-auto w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                  isMobile &&
+                    "w-full min-w-0 justify-start overflow-x-auto overflow-y-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
                 )}>
                   {/* 可见的Tab */}
                   {visibleTabs.map((tab) => (
                     <TabsTrigger 
                       key={tab.value}
                       value={tab.value} 
-                      className={`rounded-lg px-2 lg:px-4 py-1.5 lg:py-2 text-xs lg:text-sm font-medium transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:scale-105 hover:bg-muted ${tab.showBadge ? 'relative overflow-visible' : ''}`}
+                      className={cn(
+                        "rounded-lg px-2 lg:px-4 py-1.5 lg:py-2 text-xs lg:text-sm font-medium transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:scale-105 hover:bg-muted",
+                        tab.showBadge ? "relative overflow-visible" : "",
+                        isMobile && "shrink-0 whitespace-nowrap",
+                      )}
                     >
                       {t(tab.label.zh, tab.label.en)}
                       {tab.showBadge && memoUnreadCount > 0 && (

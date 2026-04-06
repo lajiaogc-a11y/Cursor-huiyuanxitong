@@ -69,7 +69,9 @@ export default function MemberLogin() {
   const [defaultPortalSettings, setDefaultPortalSettings] = useState<MemberPortalSettings>(() => {
     if (typeof window === "undefined") return DEFAULT_SETTINGS;
     const boot = readMemberPortalSplashBootstrap(parseInviteFromWindowSearch(window.location.search));
-    return boot ? { ...DEFAULT_SETTINGS, ...boot } : DEFAULT_SETTINGS;
+    const merged = boot ? { ...DEFAULT_SETTINGS, ...boot } : DEFAULT_SETTINGS;
+    /** 功能徽章仅来自后台接口，勿用 splash 缓存避免与员工端配置不一致 */
+    return { ...merged, login_badges: [] };
   });
   const [settingsReady, setSettingsReady] = useState(false);
 
@@ -119,7 +121,7 @@ export default function MemberLogin() {
       return;
     }
     const bootstrap = readMemberPortalSplashBootstrap(inviteOrRefCode);
-    setDefaultPortalSettings({ ...DEFAULT_SETTINGS, ...(bootstrap || {}) });
+    setDefaultPortalSettings({ ...DEFAULT_SETTINGS, ...(bootstrap || {}), login_badges: [] });
     setPreviewSettings(null);
     let cancelled = false;
     (async () => {

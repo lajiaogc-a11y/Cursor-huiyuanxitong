@@ -37,7 +37,6 @@ import {
   setMemberInboxUnreadCount,
   subscribeMemberInboxUnreadCount,
 } from "@/lib/memberInboxUnreadStore";
-import { ContentReveal } from "@/components/member/ContentReveal";
 import { cn } from "@/lib/utils";
 
 function localCalendarDateKey(): string {
@@ -208,27 +207,38 @@ export default function MemberDashboard() {
     Math.round((totalStaffRemaining - pendingMallFrozen) * 100) / 100,
   );
   const ptsTilesAnimOn = Boolean(member) && !loading && !pointsError;
-  const animDashTotal = useMemberAnimatedCount(totalStaffRemaining, { enabled: ptsTilesAnimOn, durationMs: 780 });
-  const animDashAvail = useMemberAnimatedCount(availablePointsHome, { enabled: ptsTilesAnimOn, durationMs: 880 });
-  const animDashFrozen = useMemberAnimatedCount(pendingMallFrozen, { enabled: ptsTilesAnimOn, durationMs: 980 });
+  /** 首页关闭滚字动画：就绪后直接显示数值，避免从 0 扫到目标造成闪跳（积分页等仍可保留动画） */
+  const rollPointsOnDashboard = false;
+  const animDashTotal = useMemberAnimatedCount(totalStaffRemaining, {
+    enabled: rollPointsOnDashboard && ptsTilesAnimOn,
+    durationMs: 780,
+  });
+  const animDashAvail = useMemberAnimatedCount(availablePointsHome, {
+    enabled: rollPointsOnDashboard && ptsTilesAnimOn,
+    durationMs: 880,
+  });
+  const animDashFrozen = useMemberAnimatedCount(pendingMallFrozen, {
+    enabled: rollPointsOnDashboard && ptsTilesAnimOn,
+    durationMs: 980,
+  });
   const animDashToday = useMemberAnimatedCount(todayEarned, {
-    enabled: Boolean(member) && !todayEarnedLoading,
+    enabled: rollPointsOnDashboard && Boolean(member) && !todayEarnedLoading,
     durationMs: 820,
   });
   const animReferralCount = useMemberAnimatedCount(breakdown.referral_count, {
-    enabled: ptsTilesAnimOn,
+    enabled: rollPointsOnDashboard && ptsTilesAnimOn,
     durationMs: 700,
   });
   const animConsumptionPts = useMemberAnimatedCount(breakdown.consumption_points, {
-    enabled: ptsTilesAnimOn,
+    enabled: rollPointsOnDashboard && ptsTilesAnimOn,
     durationMs: 720,
   });
   const animBucketReferralPts = useMemberAnimatedCount(breakdown.referral_points, {
-    enabled: ptsTilesAnimOn,
+    enabled: rollPointsOnDashboard && ptsTilesAnimOn,
     durationMs: 740,
   });
   const animLotteryPts = useMemberAnimatedCount(breakdown.lottery_points, {
-    enabled: ptsTilesAnimOn,
+    enabled: rollPointsOnDashboard && ptsTilesAnimOn,
     durationMs: 760,
   });
 
@@ -429,22 +439,20 @@ export default function MemberDashboard() {
               aria-hidden
             />
           ) : (
-            <ContentReveal show durationMs={260}>
-              <MemberDashboardBannerSection
-                homeBanners={ps.home_banners}
-                homeBannersCarouselIntervalSec={ps.home_banners_carousel_interval_sec}
-                themeColor={themeColor}
-                theme={theme}
-                t={t}
-                spinRemaining={spinRemaining}
-                spinError={spinError}
-                checkInSummary={checkInSummary}
-                showPointsSkeleton={showPointsSkeleton}
-                showCheckInSublineSkeleton={showCheckInSublineSkeleton}
-                announcementItems={announcementItems}
-                onSelectAnnouncement={setSelectedAnn}
-              />
-            </ContentReveal>
+            <MemberDashboardBannerSection
+              homeBanners={ps.home_banners}
+              homeBannersCarouselIntervalSec={ps.home_banners_carousel_interval_sec}
+              themeColor={themeColor}
+              theme={theme}
+              t={t}
+              spinRemaining={spinRemaining}
+              spinError={spinError}
+              checkInSummary={checkInSummary}
+              showPointsSkeleton={showPointsSkeleton}
+              showCheckInSublineSkeleton={showCheckInSublineSkeleton}
+              announcementItems={announcementItems}
+              onSelectAnnouncement={setSelectedAnn}
+            />
           )}
 
           {/* 积分区：独立骨架与错误态，由 useMemberPointsBreakdown 驱动 */}
@@ -499,89 +507,85 @@ export default function MemberDashboard() {
         />
       </div>
 
-      {/* 公告列表：局部渐显，不依赖门户整页 loading */}
-      <ContentReveal show durationMs={240}>
-        <div className="mb-6 px-5">
-          <div className="mb-3 flex items-center gap-2">
-            <Megaphone className="h-4 w-4 text-pu-rose" aria-hidden />
-            <h3 className="text-base font-extrabold text-[hsl(var(--pu-m-text))]">{t("系统公告", "Announcements")}</h3>
-          </div>
-          {announcementItems.length === 0 ? (
-            <p className="rounded-[1.25rem] border border-dashed border-[hsl(var(--pu-m-surface-border)/0.35)] bg-[hsl(var(--pu-m-surface)/0.12)] px-4 py-6 text-center text-xs text-[hsl(var(--pu-m-text-dim))]">
-              {t("暂无公告", "No announcements yet")}
-            </p>
-          ) : (
-            <div className="space-y-2.5">
-              {announcementItems.slice(0, 8).map((item) => {
-                const annDate = formatAnnouncementPublishedAt(item.published_at, language);
-                return (
-                  <button
-                    key={`${item.sort_order}-${item.title}-${item.content?.slice(0, 12)}`}
-                    type="button"
-                    onClick={() => setSelectedAnn(item)}
-                    className="w-full rounded-[1.25rem] p-4 text-left m-glass"
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-bold text-[hsl(var(--pu-m-text))]">
-                        {(item.title && item.title.trim()) || t("公告", "Notice")}
-                      </span>
-                      {annDate ? (
-                        <span className="shrink-0 text-[10px] font-medium tabular-nums text-[hsl(var(--pu-m-text-dim)/0.6)]">
-                          {annDate}
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="line-clamp-3 text-xs leading-relaxed text-[hsl(var(--pu-m-text-dim))]">
-                      {(item.content && item.content.trim()) || ""}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+      {/* 公告列表：直接渲染，避免 ContentReveal 渐入造成闪跳 */}
+      <div className="mb-6 px-5">
+        <div className="mb-3 flex items-center gap-2">
+          <Megaphone className="h-4 w-4 text-pu-rose" aria-hidden />
+          <h3 className="text-base font-extrabold text-[hsl(var(--pu-m-text))]">{t("系统公告", "Announcements")}</h3>
         </div>
-      </ContentReveal>
+        {announcementItems.length === 0 ? (
+          <p className="rounded-[1.25rem] border border-dashed border-[hsl(var(--pu-m-surface-border)/0.35)] bg-[hsl(var(--pu-m-surface)/0.12)] px-4 py-6 text-center text-xs text-[hsl(var(--pu-m-text-dim))]">
+            {t("暂无公告", "No announcements yet")}
+          </p>
+        ) : (
+          <div className="space-y-2.5">
+            {announcementItems.slice(0, 8).map((item) => {
+              const annDate = formatAnnouncementPublishedAt(item.published_at, language);
+              return (
+                <button
+                  key={`${item.sort_order}-${item.title}-${item.content?.slice(0, 12)}`}
+                  type="button"
+                  onClick={() => setSelectedAnn(item)}
+                  className="w-full rounded-[1.25rem] p-4 text-left m-glass"
+                >
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-bold text-[hsl(var(--pu-m-text))]">
+                      {(item.title && item.title.trim()) || t("公告", "Notice")}
+                    </span>
+                    {annDate ? (
+                      <span className="shrink-0 text-[10px] font-medium tabular-nums text-[hsl(var(--pu-m-text-dim)/0.6)]">
+                        {annDate}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="line-clamp-3 text-xs leading-relaxed text-[hsl(var(--pu-m-text-dim))]">
+                    {(item.content && item.content.trim()) || ""}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <div className={cn("mb-6 px-5", !showInvite && "hidden")} aria-hidden={!showInvite}>
         {showInvite ? (
-          <ContentReveal show durationMs={240}>
-            <div className="relative overflow-hidden rounded-[1.25rem] border border-[hsl(var(--pu-emerald)/0.15)] p-6 text-center m-glass">
-              <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-emerald/[0.04] to-pu-gold/[0.03]" />
-              <div className="relative">
-                <Share2 className="mx-auto mb-3 h-8 w-8 text-pu-emerald" aria-hidden />
-                <h3 className="mb-1 text-lg font-extrabold text-[hsl(var(--pu-m-text))]">{t("邀请好友赚转盘", "Invite friends for spins")}</h3>
-                {(member?.invite_success_lifetime_count ?? 0) > 0 ? (
-                  <p className="mb-2 text-xs font-semibold text-pu-emerald">
-                    {t("已成功邀请", "Successfully invited")}{" "}
-                    <span className="text-sm">+{member.invite_success_lifetime_count}</span> {t("位好友", "friends")}
-                  </p>
-                ) : null}
-                <p className="mb-5 text-xs text-[hsl(var(--pu-m-text-dim))]">
-                  {ps.daily_invite_reward_limit > 0
-                    ? t(
-                        `双方各得 ${ps.invite_reward_spins} 次转盘 · 每日上限 ${ps.daily_invite_reward_limit}`,
-                        `${ps.invite_reward_spins} spins each · daily cap ${ps.daily_invite_reward_limit}`,
-                      )
-                    : t(
-                        `双方各得 ${ps.invite_reward_spins} 次转盘`,
-                        `${ps.invite_reward_spins} spins for each side`,
-                      )}
+          <div className="relative overflow-hidden rounded-[1.25rem] border border-[hsl(var(--pu-emerald)/0.15)] p-6 text-center m-glass">
+            <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-emerald/[0.04] to-pu-gold/[0.03]" />
+            <div className="relative">
+              <Share2 className="mx-auto mb-3 h-8 w-8 text-pu-emerald" aria-hidden />
+              <h3 className="mb-1 text-lg font-extrabold text-[hsl(var(--pu-m-text))]">{t("邀请好友赚转盘", "Invite friends for spins")}</h3>
+              {(member?.invite_success_lifetime_count ?? 0) > 0 ? (
+                <p className="mb-2 text-xs font-semibold text-pu-emerald">
+                  {t("已成功邀请", "Successfully invited")}{" "}
+                  <span className="text-sm">+{member.invite_success_lifetime_count}</span> {t("位好友", "friends")}
                 </p>
-                <Button
-                  type="button"
-                  className="btn-glow rounded-xl px-8 py-2.5 text-sm font-bold transition-transform active:scale-95"
-                  asChild
+              ) : null}
+              <p className="mb-5 text-xs text-[hsl(var(--pu-m-text-dim))]">
+                {ps.daily_invite_reward_limit > 0
+                  ? t(
+                      `双方各得 ${ps.invite_reward_spins} 次转盘 · 每日上限 ${ps.daily_invite_reward_limit}`,
+                      `${ps.invite_reward_spins} spins each · daily cap ${ps.daily_invite_reward_limit}`,
+                    )
+                  : t(
+                      `双方各得 ${ps.invite_reward_spins} 次转盘`,
+                      `${ps.invite_reward_spins} spins for each side`,
+                    )}
+              </p>
+              <Button
+                type="button"
+                className="btn-glow rounded-xl px-8 py-2.5 text-sm font-bold transition-transform active:scale-95"
+                asChild
+              >
+                <Link
+                  to={ROUTES.MEMBER.INVITE}
+                  onClick={() => stashPointsHashBeforeInviteNavigation(window.location.pathname, window.location.hash)}
                 >
-                  <Link
-                    to={ROUTES.MEMBER.INVITE}
-                    onClick={() => stashPointsHashBeforeInviteNavigation(window.location.pathname, window.location.hash)}
-                  >
-                    {t("立即邀请", "Invite now")}
-                  </Link>
-                </Button>
-              </div>
+                  {t("立即邀请", "Invite now")}
+                </Link>
+              </Button>
             </div>
-          </ContentReveal>
+          </div>
         ) : null}
       </div>
 

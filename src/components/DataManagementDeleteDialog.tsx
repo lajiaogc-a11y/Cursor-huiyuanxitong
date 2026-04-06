@@ -145,8 +145,36 @@ function Panel({
       <h3 className="mb-2 border-b border-border/50 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         {title}
       </h3>
-      <div className="space-y-1.5">{children}</div>
+      <div className="space-y-2.5">{children}</div>
     </section>
+  );
+}
+
+/** 一级模块下的二级分类区块 */
+function SubPanel({
+  title,
+  hint,
+  className,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-md border border-border/45 bg-background/50 p-2.5 dark:bg-background/20",
+        className,
+      )}
+    >
+      <div className="mb-1.5">
+        <h4 className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{title}</h4>
+        {hint ? <p className="mt-0.5 text-[9px] leading-tight text-muted-foreground/90">{hint}</p> : null}
+      </div>
+      <div className="space-y-1.5">{children}</div>
+    </div>
   );
 }
 
@@ -212,394 +240,423 @@ function DeleteCategoryPanel({
     case "orders":
       return (
         <Panel title={t("订单 / 报表", "Orders / Reports")}>
-          <Row
-            id="delete-orders"
-            checked={deleteSelections.orders}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                orders: checked,
-                recycleActivityDataOnOrderDelete: checked ? prev.recycleActivityDataOnOrderDelete : false,
-              }))
-            }
-            label={t("订单管理", "Order Management")}
-            hint={t("赛地/奈拉与 USDT 订单", "GHS/NGN and USDT orders")}
-          />
-          {deleteSelections.orders ? (
-            <div className="ml-1 rounded border border-border bg-muted/40 p-1.5">
-              <Row
-                id="recycle-activity-data"
-                checked={deleteSelections.recycleActivityDataOnOrderDelete}
-                onCheckedChange={(checked) =>
-                  setDeleteSelections((prev) => ({
-                    ...prev,
-                    recycleActivityDataOnOrderDelete: checked,
-                  }))
-                }
-                label={t("同时回收会员活动数据", "Also recycle member activity data")}
-                labelTitle={t(
-                  "回收累积次数、累积利润、累积奈拉/赛地/US 等（与订单删除行为一致）",
-                  "Recycle order_count, accumulated_profit, accumulated amounts (same as order deletion)",
-                )}
-              />
-              {deleteSelections.recycleActivityDataOnOrderDelete ? (
-                <p
-                  className="mt-1 flex items-start gap-1 rounded bg-amber-500/15 px-1.5 py-1 text-[10px] leading-tight text-amber-800 dark:text-amber-200"
-                  title={t(
-                    "启用后将逐条处理订单并回收对应的会员活动数据，处理时间较长",
-                    "This will process each order and recycle corresponding activity data, which takes longer",
+          <SubPanel title={t("订单管理", "Order Management")} hint={t("赛地/奈拉与 USDT 订单", "GHS/NGN and USDT orders")}>
+            <Row
+              id="delete-orders"
+              checked={deleteSelections.orders}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  orders: checked,
+                  recycleActivityDataOnOrderDelete: checked ? prev.recycleActivityDataOnOrderDelete : false,
+                }))
+              }
+              label={t("订单主数据", "Orders")}
+              hint={t("订单列表与明细", "Order list and details")}
+            />
+            {deleteSelections.orders ? (
+              <div className="ml-1 rounded border border-border bg-muted/40 p-1.5">
+                <Row
+                  id="recycle-activity-data"
+                  checked={deleteSelections.recycleActivityDataOnOrderDelete}
+                  onCheckedChange={(checked) =>
+                    setDeleteSelections((prev) => ({
+                      ...prev,
+                      recycleActivityDataOnOrderDelete: checked,
+                    }))
+                  }
+                  label={t("同时回收会员活动数据", "Also recycle member activity data")}
+                  labelTitle={t(
+                    "回收累积次数、累积利润、累积奈拉/赛地/US 等（与订单删除行为一致）",
+                    "Recycle order_count, accumulated_profit, accumulated amounts (same as order deletion)",
                   )}
-                >
-                  <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-                  {t("逐条回收，耗时较长", "Per-order recycle; slower")}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-          <Row
-            id="delete-report-employee"
-            checked={deleteSelections.reports.employee}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                reports: { ...prev.reports, employee: checked },
-              }))
-            }
-            label={t("员工利润报表", "Employee Report")}
-          />
-          <Row
-            id="delete-report-card"
-            checked={deleteSelections.reports.card}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                reports: { ...prev.reports, card: checked },
-              }))
-            }
-            label={t("卡片报表", "Card Report")}
-          />
-          <Row
-            id="delete-report-vendor"
-            checked={deleteSelections.reports.vendor}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                reports: { ...prev.reports, vendor: checked },
-              }))
-            }
-            label={t("卡商报表", "Vendor Report")}
-          />
-          <Row
-            id="delete-report-daily"
-            checked={deleteSelections.reports.daily}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                reports: { ...prev.reports, daily: checked },
-              }))
-            }
-            label={t("每日报表", "Daily Report")}
-          />
+                />
+                {deleteSelections.recycleActivityDataOnOrderDelete ? (
+                  <p
+                    className="mt-1 flex items-start gap-1 rounded bg-amber-500/15 px-1.5 py-1 text-[10px] leading-tight text-amber-800 dark:text-amber-200"
+                    title={t(
+                      "启用后将逐条处理订单并回收对应的会员活动数据，处理时间较长",
+                      "This will process each order and recycle corresponding activity data, which takes longer",
+                    )}
+                  >
+                    <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                    {t("逐条回收，耗时较长", "Per-order recycle; slower")}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </SubPanel>
+          <SubPanel title={t("报表数据", "Report Data")}>
+            <Row
+              id="delete-report-employee"
+              checked={deleteSelections.reports.employee}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  reports: { ...prev.reports, employee: checked },
+                }))
+              }
+              label={t("员工利润报表", "Employee Report")}
+            />
+            <Row
+              id="delete-report-card"
+              checked={deleteSelections.reports.card}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  reports: { ...prev.reports, card: checked },
+                }))
+              }
+              label={t("卡片报表", "Card Report")}
+            />
+            <Row
+              id="delete-report-vendor"
+              checked={deleteSelections.reports.vendor}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  reports: { ...prev.reports, vendor: checked },
+                }))
+              }
+              label={t("卡商报表", "Vendor Report")}
+            />
+            <Row
+              id="delete-report-daily"
+              checked={deleteSelections.reports.daily}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  reports: { ...prev.reports, daily: checked },
+                }))
+              }
+              label={t("每日报表", "Daily Report")}
+            />
+          </SubPanel>
         </Panel>
       );
     case "members":
       return (
         <Panel title={t("会员 / 交班", "Members / Shift")}>
-          <Row
-            id="delete-member-management"
-            checked={deleteSelections.members.memberManagement}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                members: { ...prev.members, memberManagement: checked },
-              }))
-            }
-            label={t("会员管理", "Member Management")}
-          />
-          <Row
-            id="delete-activity-lottery-logs"
-            checked={deleteSelections.members.activityLotteryLogs}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                members: { ...prev.members, activityLotteryLogs: checked },
-              }))
-            }
-            label={t("抽奖数据", "Lottery data")}
-            hint={t("抽奖流水+抽奖类积分流水", "Lottery logs + lottery points ledger")}
-          />
-          <Row
-            id="delete-activity-checkins"
-            checked={deleteSelections.members.activityCheckIns}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                members: { ...prev.members, activityCheckIns: checked },
-              }))
-            }
-            label={t("签到数据", "Check-in data")}
-            hint={t("签到流水+签到发放的抽奖次数", "Check-ins + check-in spin credits")}
-          />
-          <Row
-            id="delete-activity-spin-order"
-            checked={deleteSelections.members.activitySpinOrder}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                members: { ...prev.members, activitySpinOrder: checked },
-              }))
-            }
-            label={t("订单抽奖", "Order spin credits")}
-            hint={t("完成订单发放的抽奖次数", "Spins from completed orders")}
-          />
-          <Row
-            id="delete-activity-spin-share"
-            checked={deleteSelections.members.activitySpinShare}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                members: { ...prev.members, activitySpinShare: checked },
-              }))
-            }
-            label={t("分享数据", "Share data")}
-            hint={t("分享奖励抽奖次数", "Share spin credits")}
-          />
-          <Row
-            id="delete-activity-spin-invite"
-            checked={deleteSelections.members.activitySpinInvite}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                members: { ...prev.members, activitySpinInvite: checked },
-              }))
-            }
-            label={t("邀请数据", "Invite data")}
-            hint={t("邀请/注册欢迎抽奖次数", "Invite + welcome spin credits")}
-          />
-          <Row
-            id="delete-activity-spin-other"
-            checked={deleteSelections.members.activitySpinOther}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                members: { ...prev.members, activitySpinOther: checked },
-              }))
-            }
-            label={t("其他抽奖次数", "Other spin credits")}
-            hint={t("未归类来源", "Uncategorised sources")}
-          />
-          <Row
-            id="delete-activity-member-summary"
-            checked={deleteSelections.members.activityMemberSummary}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                members: { ...prev.members, activityMemberSummary: checked },
-              }))
-            }
-            label={t("会员活动汇总", "Member activity summary")}
-            hint={t("member_activity 等，见下方保留选项", "See preserve option below")}
-          />
-          <Row
-            id="delete-activity-gift"
-            checked={deleteSelections.members.activityGift}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                members: { ...prev.members, activityGift: checked },
-              }))
-            }
-            label={t("活动赠送", "Activity Gift")}
-          />
-          <Row
-            id="delete-points-ledger"
-            checked={deleteSelections.members.pointsLedger}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                members: { ...prev.members, pointsLedger: checked },
-              }))
-            }
-            label={t("积分明细", "Points Ledger")}
-          />
-          <Row
-            id="delete-mall-redemptions"
-            checked={deleteSelections.members.activityMallRedemptions}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                members: { ...prev.members, activityMallRedemptions: checked },
-              }))
-            }
-            label={t("商城订单", "Mall Orders")}
-            hint={t("会员积分商城兑换订单", "Member points mall redemption orders")}
-          />
-          <Row
-            id="delete-shift-handovers"
-            checked={deleteSelections.shiftData.shiftHandovers}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                shiftData: { ...prev.shiftData, shiftHandovers: checked },
-              }))
-            }
-            label={t("交班记录", "Shift Handovers")}
-          />
-          <Row
-            id="delete-shift-receivers"
-            checked={deleteSelections.shiftData.shiftReceivers}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                shiftData: { ...prev.shiftData, shiftReceivers: checked },
-              }))
-            }
-            label={t("接班人列表", "Shift Receivers")}
-          />
-          {deleteSelections.members.activityMemberSummary ? (
-            <div className="mt-1 flex items-start gap-2 rounded border border-amber-500/30 bg-amber-500/10 p-1.5">
-              <Checkbox
-                id="preserve-activity-data"
-                className="mt-0.5"
-                checked={deleteSelections.preserveActivityData}
-                onCheckedChange={(c) =>
-                  setDeleteSelections((prev) => ({
-                    ...prev,
-                    preserveActivityData: c === true,
-                  }))
-                }
-              />
-              <Label htmlFor="preserve-activity-data" className="cursor-pointer text-[11px] leading-snug">
-                {t("保留消费奖励/推荐奖励/剩余积分", "Preserve consumption/referral rewards and remaining points")}
-              </Label>
-            </div>
-          ) : null}
+          <SubPanel title={t("会员数据", "Member Data")} hint={t("与侧栏「会员管理」主数据对应", "Matches main member records in Member Management")}>
+            <Row
+              id="delete-member-management"
+              checked={deleteSelections.members.memberManagement}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  members: { ...prev.members, memberManagement: checked },
+                }))
+              }
+              label={t("会员主数据", "Member records")}
+              hint={t("账号、等级、基础档案等", "Accounts, tiers, profiles")}
+            />
+          </SubPanel>
+          <SubPanel title={t("活动数据", "Activity Data")} hint={t("抽奖、签到、抽奖次数与活动汇总", "Lottery, check-ins, spin credits, summaries")}>
+            <Row
+              id="delete-activity-lottery-logs"
+              checked={deleteSelections.members.activityLotteryLogs}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  members: { ...prev.members, activityLotteryLogs: checked },
+                }))
+              }
+              label={t("抽奖数据", "Lottery data")}
+              hint={t("抽奖流水+抽奖类积分流水", "Lottery logs + lottery points ledger")}
+            />
+            <Row
+              id="delete-activity-checkins"
+              checked={deleteSelections.members.activityCheckIns}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  members: { ...prev.members, activityCheckIns: checked },
+                }))
+              }
+              label={t("签到数据", "Check-in data")}
+              hint={t("签到流水+签到发放的抽奖次数", "Check-ins + check-in spin credits")}
+            />
+            <Row
+              id="delete-activity-spin-order"
+              checked={deleteSelections.members.activitySpinOrder}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  members: { ...prev.members, activitySpinOrder: checked },
+                }))
+              }
+              label={t("订单抽奖", "Order spin credits")}
+              hint={t("完成订单发放的抽奖次数", "Spins from completed orders")}
+            />
+            <Row
+              id="delete-activity-spin-share"
+              checked={deleteSelections.members.activitySpinShare}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  members: { ...prev.members, activitySpinShare: checked },
+                }))
+              }
+              label={t("分享数据", "Share data")}
+              hint={t("分享奖励抽奖次数", "Share spin credits")}
+            />
+            <Row
+              id="delete-activity-spin-invite"
+              checked={deleteSelections.members.activitySpinInvite}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  members: { ...prev.members, activitySpinInvite: checked },
+                }))
+              }
+              label={t("邀请数据", "Invite data")}
+              hint={t("邀请/注册欢迎抽奖次数", "Invite + welcome spin credits")}
+            />
+            <Row
+              id="delete-activity-spin-other"
+              checked={deleteSelections.members.activitySpinOther}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  members: { ...prev.members, activitySpinOther: checked },
+                }))
+              }
+              label={t("其他抽奖次数", "Other spin credits")}
+              hint={t("未归类来源", "Uncategorised sources")}
+            />
+            <Row
+              id="delete-activity-member-summary"
+              checked={deleteSelections.members.activityMemberSummary}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  members: { ...prev.members, activityMemberSummary: checked },
+                }))
+              }
+              label={t("会员活动汇总", "Member activity summary")}
+              hint={t("member_activity 等，见下方保留选项", "See preserve option below")}
+            />
+            {deleteSelections.members.activityMemberSummary ? (
+              <div className="mt-1 flex items-start gap-2 rounded border border-amber-500/30 bg-amber-500/10 p-1.5">
+                <Checkbox
+                  id="preserve-activity-data"
+                  className="mt-0.5"
+                  checked={deleteSelections.preserveActivityData}
+                  onCheckedChange={(c) =>
+                    setDeleteSelections((prev) => ({
+                      ...prev,
+                      preserveActivityData: c === true,
+                    }))
+                  }
+                />
+                <Label htmlFor="preserve-activity-data" className="cursor-pointer text-[11px] leading-snug">
+                  {t("保留消费奖励/推荐奖励/剩余积分", "Preserve consumption/referral rewards and remaining points")}
+                </Label>
+              </div>
+            ) : null}
+          </SubPanel>
+          <SubPanel title={t("活动赠送", "Activity Gifts")}>
+            <Row
+              id="delete-activity-gift"
+              checked={deleteSelections.members.activityGift}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  members: { ...prev.members, activityGift: checked },
+                }))
+              }
+              label={t("活动赠送记录", "Activity gift records")}
+            />
+          </SubPanel>
+          <SubPanel title={t("积分明细", "Points & Mall")} hint={t("积分流水与积分商城兑换", "Points ledger and mall redemptions")}>
+            <Row
+              id="delete-points-ledger"
+              checked={deleteSelections.members.pointsLedger}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  members: { ...prev.members, pointsLedger: checked },
+                }))
+              }
+              label={t("积分明细", "Points Ledger")}
+            />
+            <Row
+              id="delete-mall-redemptions"
+              checked={deleteSelections.members.activityMallRedemptions}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  members: { ...prev.members, activityMallRedemptions: checked },
+                }))
+              }
+              label={t("积分商城订单", "Mall Orders")}
+              hint={t("会员积分商城兑换订单", "Member points mall redemption orders")}
+            />
+          </SubPanel>
+          <SubPanel title={t("交班 / 门店", "Shift / Store")}>
+            <Row
+              id="delete-shift-handovers"
+              checked={deleteSelections.shiftData.shiftHandovers}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  shiftData: { ...prev.shiftData, shiftHandovers: checked },
+                }))
+              }
+              label={t("交班记录", "Shift Handovers")}
+            />
+            <Row
+              id="delete-shift-receivers"
+              checked={deleteSelections.shiftData.shiftReceivers}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  shiftData: { ...prev.shiftData, shiftReceivers: checked },
+                }))
+              }
+              label={t("接班人列表", "Shift Receivers")}
+            />
+          </SubPanel>
         </Panel>
       );
     case "merchant":
       return (
         <Panel title={t("商家结算", "Merchant Settlement")}>
-          <Row
-            id="delete-balance-change-logs"
-            checked={deleteSelections.merchantSettlement.balanceChangeLogs}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                merchantSettlement: { ...prev.merchantSettlement, balanceChangeLogs: checked },
-              }))
-            }
-            label={t("变动明细 + 账本明细", "Change logs + ledger")}
-            labelTitle={mbLong1}
-          />
-          <Row
-            id="delete-initial-balances"
-            checked={deleteSelections.merchantSettlement.initialBalances}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                merchantSettlement: { ...prev.merchantSettlement, initialBalances: checked },
-              }))
-            }
-            label={t("结算档案（余额/提款充值）", "Settlement records (balances)")}
-            labelTitle={mbLong2}
-          />
+          <SubPanel title={t("流水与账本", "Flows & Ledger")} hint={t("与结算页数据源一致", "Same source as settlement page")}>
+            <Row
+              id="delete-balance-change-logs"
+              checked={deleteSelections.merchantSettlement.balanceChangeLogs}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  merchantSettlement: { ...prev.merchantSettlement, balanceChangeLogs: checked },
+                }))
+              }
+              label={t("变动明细 + 账本明细", "Change logs + ledger")}
+              labelTitle={mbLong1}
+            />
+          </SubPanel>
+          <SubPanel title={t("结算档案", "Settlement Records")}>
+            <Row
+              id="delete-initial-balances"
+              checked={deleteSelections.merchantSettlement.initialBalances}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  merchantSettlement: { ...prev.merchantSettlement, initialBalances: checked },
+                }))
+              }
+              label={t("余额 / 提款 / 充值档案", "Balances, withdrawals, recharges")}
+              labelTitle={mbLong2}
+            />
+          </SubPanel>
         </Panel>
       );
     case "tasks":
       return (
         <Panel title={t("工作任务", "Work Tasks")}>
-          <Row
-            id="delete-tasks"
-            checked={deleteSelections.taskData.tasks}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                taskData: { ...prev.taskData, tasks: checked },
-              }))
-            }
-            label={t("任务列表", "Task List")}
-            hint={t("已发布/已关闭的工作任务", "Published and closed tasks")}
-          />
-          <Row
-            id="delete-task-items"
-            checked={deleteSelections.taskData.taskItems}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                taskData: { ...prev.taskData, taskItems: checked },
-              }))
-            }
-            label={t("维护历史", "Maintenance History")}
-            hint={t("任务完成明细/进度记录", "Task completion details and progress")}
-          />
+          <SubPanel title={t("任务主数据", "Tasks")}>
+            <Row
+              id="delete-tasks"
+              checked={deleteSelections.taskData.tasks}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  taskData: { ...prev.taskData, tasks: checked },
+                }))
+              }
+              label={t("任务列表", "Task List")}
+              hint={t("已发布/已关闭的工作任务", "Published and closed tasks")}
+            />
+          </SubPanel>
+          <SubPanel title={t("执行与进度", "Execution & Progress")}>
+            <Row
+              id="delete-task-items"
+              checked={deleteSelections.taskData.taskItems}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  taskData: { ...prev.taskData, taskItems: checked },
+                }))
+              }
+              label={t("维护历史", "Maintenance History")}
+              hint={t("任务完成明细/进度记录", "Task completion details and progress")}
+            />
+          </SubPanel>
         </Panel>
       );
     case "other":
       return (
         <Panel title={t("其他 / 知识库", "Other / Knowledge")}>
-          <Row
-            id="delete-referral-relations"
-            checked={deleteSelections.referralRelations}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({ ...prev, referralRelations: checked }))
-            }
-            label={t("推荐关系", "Referral Relations")}
-          />
-          <Row
-            id="delete-knowledge-articles"
-            checked={deleteSelections.knowledgeData.articles}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                knowledgeData: { ...prev.knowledgeData, articles: checked },
-              }))
-            }
-            label={t("知识库文章", "Knowledge Articles")}
-          />
-          <Row
-            id="delete-knowledge-categories"
-            checked={deleteSelections.knowledgeData.categories}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({
-                ...prev,
-                knowledgeData: { ...prev.knowledgeData, categories: checked },
-              }))
-            }
-            label={t("知识库分类", "Knowledge Categories")}
-          />
-          <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-2 dark:border-amber-700 dark:bg-amber-950/30">
-            <p className="flex items-center gap-1.5 text-[10px] font-medium text-amber-800 dark:text-amber-300">
-              <AlertTriangle className="h-3 w-3 shrink-0" />
-              {t(
-                "以下为留痕数据，删除后无法恢复且影响审计追溯，「全选」不会默认勾选。",
-                "The following are audit trail data. Deletion is irreversible and affects traceability. \"Select All\" does not check these by default.",
-              )}
-            </p>
-          </div>
-          <Row
-            id="delete-audit-records"
-            checked={deleteSelections.auditRecords}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({ ...prev, auditRecords: checked }))
-            }
-            label={t("⚠ 审核记录", "⚠ Audit Records")}
-          />
-          <Row
-            id="delete-operation-logs"
-            checked={deleteSelections.operationLogs}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({ ...prev, operationLogs: checked }))
-            }
-            label={t("⚠ 操作日志", "⚠ Operation Logs")}
-          />
-          <Row
-            id="delete-login-logs"
-            checked={deleteSelections.loginLogs}
-            onCheckedChange={(checked) =>
-              setDeleteSelections((prev) => ({ ...prev, loginLogs: checked }))
-            }
-            label={t("⚠ 登录日志", "⚠ Login Logs")}
-          />
+          <SubPanel title={t("推荐与关系", "Referrals")}>
+            <Row
+              id="delete-referral-relations"
+              checked={deleteSelections.referralRelations}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({ ...prev, referralRelations: checked }))
+              }
+              label={t("推荐关系", "Referral Relations")}
+            />
+          </SubPanel>
+          <SubPanel title={t("知识库", "Knowledge Base")}>
+            <Row
+              id="delete-knowledge-articles"
+              checked={deleteSelections.knowledgeData.articles}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  knowledgeData: { ...prev.knowledgeData, articles: checked },
+                }))
+              }
+              label={t("知识库文章", "Knowledge Articles")}
+            />
+            <Row
+              id="delete-knowledge-categories"
+              checked={deleteSelections.knowledgeData.categories}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({
+                  ...prev,
+                  knowledgeData: { ...prev.knowledgeData, categories: checked },
+                }))
+              }
+              label={t("知识库分类", "Knowledge Categories")}
+            />
+          </SubPanel>
+          <SubPanel title={t("审计与日志", "Audit & Logs")}>
+            <div className="-mx-0.5 mb-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 dark:border-amber-700 dark:bg-amber-950/30">
+              <p className="flex items-center gap-1.5 text-[10px] font-medium text-amber-800 dark:text-amber-300">
+                <AlertTriangle className="h-3 w-3 shrink-0" />
+                {t(
+                  "以下为留痕数据，删除后无法恢复且影响审计追溯，「全选」不会默认勾选。",
+                  "The following are audit trail data. Deletion is irreversible and affects traceability. \"Select All\" does not check these by default.",
+                )}
+              </p>
+            </div>
+            <Row
+              id="delete-audit-records"
+              checked={deleteSelections.auditRecords}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({ ...prev, auditRecords: checked }))
+              }
+              label={t("⚠ 审核记录", "⚠ Audit Records")}
+            />
+            <Row
+              id="delete-operation-logs"
+              checked={deleteSelections.operationLogs}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({ ...prev, operationLogs: checked }))
+              }
+              label={t("⚠ 操作日志", "⚠ Operation Logs")}
+            />
+            <Row
+              id="delete-login-logs"
+              checked={deleteSelections.loginLogs}
+              onCheckedChange={(checked) =>
+                setDeleteSelections((prev) => ({ ...prev, loginLogs: checked }))
+              }
+              label={t("⚠ 登录日志", "⚠ Login Logs")}
+            />
+          </SubPanel>
         </Panel>
       );
     default:

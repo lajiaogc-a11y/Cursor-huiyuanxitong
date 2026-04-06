@@ -305,7 +305,7 @@ export default function InviteLanding() {
               </p>
             </div>
 
-            <MemberLoginBadgeGrid loginBadges={portalSettings?.login_badges} />
+            <MemberLoginBadgeGrid loading={portalSettings === null} loginBadges={portalSettings?.login_badges} />
 
             <form
               className="flex flex-1 flex-col"

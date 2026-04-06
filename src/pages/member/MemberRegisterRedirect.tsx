@@ -54,7 +54,9 @@ export default function MemberRegisterRedirect() {
   const [submitted, setSubmitted] = useState(false);
   const [portalSettings, setPortalSettings] = useState<MemberPortalSettings>(() => {
     const cached = readMemberPortalSplashBootstrap("");
-    return cached ? { ...DEFAULT_SETTINGS, ...cached } : DEFAULT_SETTINGS;
+    const base = cached ? { ...DEFAULT_SETTINGS, ...cached } : DEFAULT_SETTINGS;
+    /** 徽章仅以后端 default 接口为准，避免 splash 缓存与后台不一致导致闪跳 */
+    return { ...base, login_badges: [] };
   });
   const [settingsLoaded, setSettingsLoaded] = useState(() => {
     const cached = readMemberPortalSplashBootstrap("");
@@ -199,16 +201,15 @@ export default function MemberRegisterRedirect() {
 
   return (
     <MemberRegisterShell themeColor={themeColor}>
-      <div className="relative flex shrink-0 flex-col overflow-x-hidden overflow-y-visible pb-4 pt-[max(1.25rem,env(safe-area-inset-top))]">
-        <Link
-          to={ROUTES.MEMBER.ROOT}
-          className="absolute left-[max(1.25rem,env(safe-area-inset-left))] top-[max(1.25rem,env(safe-area-inset-top))] z-[2] text-xs font-bold text-[hsl(var(--pu-m-text-dim))] transition hover:text-[hsl(var(--pu-m-text))]"
-        >
-          ← {t("返回", "Back")}
-        </Link>
-      </div>
-
-      <div className="relative z-[1] mx-auto flex w-full max-w-[480px] flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="relative z-[1] mx-auto flex w-full max-w-[480px] flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))]">
+        <div className="mb-10">
+          <Link
+            to={ROUTES.MEMBER.ROOT}
+            className="inline-flex items-center text-xs font-bold tracking-wide text-[hsl(var(--pu-m-text-dim))] transition hover:text-[hsl(var(--pu-m-text))]"
+          >
+            ← {t("返回", "Back")}
+          </Link>
+        </div>
         {!inviteEnabled ? (
           <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-pu-gold/22 bg-gradient-to-b from-pu-gold/[0.08] via-[hsl(var(--pu-m-surface)/0.22)] to-[hsl(var(--pu-m-surface)/0.28)] px-5 py-12 text-center">
             <p className="m-0 text-base font-semibold text-[hsl(var(--pu-m-text))]">{t("邀请已关闭", "Invite Disabled")}</p>
@@ -258,8 +259,8 @@ export default function MemberRegisterRedirect() {
           </div>
         ) : (
           <>
-            <div className="mb-5">
-              <div className="mb-1 flex items-center gap-2">
+            <div className="mb-6">
+              <div className="mb-2 flex items-center gap-3">
                 <div
                   className="flex h-9 w-9 items-center justify-center rounded-xl"
                   style={{
