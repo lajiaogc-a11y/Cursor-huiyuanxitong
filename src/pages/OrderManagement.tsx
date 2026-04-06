@@ -111,8 +111,10 @@ export default function OrderManagement() {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [allEmployees, setAllEmployees] = useState<{ id: string; real_name: string }[]>([]);
   
-  // 获取订单管理模块的所有字段权限
+  // 获取订单管理模块的所有字段权限（批量删除/批量处理与单条删除、取消独立）
   const { canEditField, canDeleteField } = useModulePermissions('orders');
+  const canBatchDeleteOrders = canDeleteField('batch_delete');
+  const canBatchProcessOrders = canEditField('batch_process');
   
   // 审核工作流
   const { checkNeedsApproval, submitBatchForApproval } = useAuditWorkflow();
@@ -1398,6 +1400,10 @@ export default function OrderManagement() {
   };
 
   const runBatchNormalDelete = async () => {
+    if (!canBatchDeleteOrders) {
+      notify.error(t("无批量删除订单权限", "No permission to batch delete orders"));
+      return;
+    }
     if (!orderBatchDialog) return;
     const { tab } = orderBatchDialog;
     setOrderBatchDialog(null);
@@ -1434,6 +1440,10 @@ export default function OrderManagement() {
   };
 
   const runBatchNormalCancel = async () => {
+    if (!canBatchProcessOrders) {
+      notify.error(t("无批量处理订单权限", "No permission for batch order actions"));
+      return;
+    }
     if (!orderBatchDialog) return;
     const { tab } = orderBatchDialog;
     setOrderBatchDialog(null);
@@ -1472,6 +1482,10 @@ export default function OrderManagement() {
   };
 
   const runBatchUsdtDelete = async () => {
+    if (!canBatchDeleteOrders) {
+      notify.error(t("无批量删除订单权限", "No permission to batch delete orders"));
+      return;
+    }
     if (!orderBatchDialog) return;
     const { tab } = orderBatchDialog;
     setOrderBatchDialog(null);
@@ -1508,6 +1522,10 @@ export default function OrderManagement() {
   };
 
   const runBatchUsdtCancel = async () => {
+    if (!canBatchProcessOrders) {
+      notify.error(t("无批量处理订单权限", "No permission for batch order actions"));
+      return;
+    }
     if (!orderBatchDialog) return;
     const { tab } = orderBatchDialog;
     setOrderBatchDialog(null);
@@ -1836,7 +1854,7 @@ export default function OrderManagement() {
                                 </TooltipTrigger>
                                 <TooltipContent>{t("取消全部勾选", "Clear all checkboxes")}</TooltipContent>
                               </Tooltip>
-                              {canDeleteField("delete_button") ? (
+                              {canBatchDeleteOrders ? (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
@@ -1850,7 +1868,7 @@ export default function OrderManagement() {
                                   <TooltipContent>{t("删除所选订单", "Delete selected orders")}</TooltipContent>
                                 </Tooltip>
                               ) : null}
-                              {canEditField("cancel_button") ? (
+                              {canBatchProcessOrders ? (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
@@ -1932,7 +1950,7 @@ export default function OrderManagement() {
                                 </TooltipTrigger>
                                 <TooltipContent>{t("取消全部勾选", "Clear all checkboxes")}</TooltipContent>
                               </Tooltip>
-                              {canDeleteField("delete_button") ? (
+                              {canBatchDeleteOrders ? (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
@@ -1946,7 +1964,7 @@ export default function OrderManagement() {
                                   <TooltipContent>{t("删除所选订单", "Delete selected orders")}</TooltipContent>
                                 </Tooltip>
                               ) : null}
-                              {canEditField("cancel_button") ? (
+                              {canBatchProcessOrders ? (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button

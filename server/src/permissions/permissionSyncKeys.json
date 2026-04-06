@@ -1,0 +1,322 @@
+[
+  {
+    "module_name": "orders",
+    "field_name": "card_type"
+  },
+  {
+    "module_name": "orders",
+    "field_name": "card_value"
+  },
+  {
+    "module_name": "orders",
+    "field_name": "card_rate"
+  },
+  {
+    "module_name": "orders",
+    "field_name": "actual_payment"
+  },
+  {
+    "module_name": "orders",
+    "field_name": "exchange_rate"
+  },
+  {
+    "module_name": "orders",
+    "field_name": "fee"
+  },
+  {
+    "module_name": "orders",
+    "field_name": "currency"
+  },
+  {
+    "module_name": "orders",
+    "field_name": "phone_number"
+  },
+  {
+    "module_name": "orders",
+    "field_name": "payment_provider"
+  },
+  {
+    "module_name": "orders",
+    "field_name": "vendor"
+  },
+  {
+    "module_name": "orders",
+    "field_name": "remark"
+  },
+  {
+    "module_name": "orders",
+    "field_name": "member_code"
+  },
+  {
+    "module_name": "orders",
+    "field_name": "sales_person"
+  },
+  {
+    "module_name": "orders",
+    "field_name": "cancel_button"
+  },
+  {
+    "module_name": "orders",
+    "field_name": "delete_button"
+  },
+  {
+    "module_name": "orders",
+    "field_name": "batch_delete"
+  },
+  {
+    "module_name": "orders",
+    "field_name": "batch_process"
+  },
+  {
+    "module_name": "members",
+    "field_name": "phone_number"
+  },
+  {
+    "module_name": "members",
+    "field_name": "member_level"
+  },
+  {
+    "module_name": "members",
+    "field_name": "common_cards"
+  },
+  {
+    "module_name": "members",
+    "field_name": "bank_card"
+  },
+  {
+    "module_name": "members",
+    "field_name": "currency_preferences"
+  },
+  {
+    "module_name": "members",
+    "field_name": "customer_feature"
+  },
+  {
+    "module_name": "members",
+    "field_name": "source"
+  },
+  {
+    "module_name": "members",
+    "field_name": "remark"
+  },
+  {
+    "module_name": "members",
+    "field_name": "referrer"
+  },
+  {
+    "module_name": "members",
+    "field_name": "recorder"
+  },
+  {
+    "module_name": "members",
+    "field_name": "member_code"
+  },
+  {
+    "module_name": "members",
+    "field_name": "points"
+  },
+  {
+    "module_name": "members",
+    "field_name": "delete_button"
+  },
+  {
+    "module_name": "activity",
+    "field_name": "currency"
+  },
+  {
+    "module_name": "activity",
+    "field_name": "amount"
+  },
+  {
+    "module_name": "activity",
+    "field_name": "rate"
+  },
+  {
+    "module_name": "activity",
+    "field_name": "phone_number"
+  },
+  {
+    "module_name": "activity",
+    "field_name": "payment_agent"
+  },
+  {
+    "module_name": "activity",
+    "field_name": "gift_type"
+  },
+  {
+    "module_name": "activity",
+    "field_name": "remark"
+  },
+  {
+    "module_name": "activity",
+    "field_name": "delete_button"
+  },
+  {
+    "module_name": "audit",
+    "field_name": "can_approve"
+  },
+  {
+    "module_name": "audit",
+    "field_name": "require_approval"
+  },
+  {
+    "module_name": "login_logs",
+    "field_name": "view_all_logs"
+  },
+  {
+    "module_name": "login_logs",
+    "field_name": "export_logs"
+  },
+  {
+    "module_name": "activity_reports",
+    "field_name": "view_member_data"
+  },
+  {
+    "module_name": "activity_reports",
+    "field_name": "view_activity_data"
+  },
+  {
+    "module_name": "activity_reports",
+    "field_name": "view_points_details"
+  },
+  {
+    "module_name": "activity_reports",
+    "field_name": "adjust_points"
+  },
+  {
+    "module_name": "activity_reports",
+    "field_name": "redeem_points"
+  },
+  {
+    "module_name": "referral",
+    "field_name": "view_referrals"
+  },
+  {
+    "module_name": "referral",
+    "field_name": "edit_referrals"
+  },
+  {
+    "module_name": "referral",
+    "field_name": "delete_button"
+  },
+  {
+    "module_name": "shift_handover",
+    "field_name": "view_handover"
+  },
+  {
+    "module_name": "shift_handover",
+    "field_name": "create_handover"
+  },
+  {
+    "module_name": "shift_handover",
+    "field_name": "confirm_handover"
+  },
+  {
+    "module_name": "shift_handover",
+    "field_name": "delete_button"
+  },
+  {
+    "module_name": "data_management",
+    "field_name": "import_data"
+  },
+  {
+    "module_name": "data_management",
+    "field_name": "export_data"
+  },
+  {
+    "module_name": "data_management",
+    "field_name": "batch_delete"
+  },
+  {
+    "module_name": "data_management",
+    "field_name": "batch_action"
+  },
+  {
+    "module_name": "merchant_settlement",
+    "field_name": "view_card_settlement"
+  },
+  {
+    "module_name": "merchant_settlement",
+    "field_name": "view_provider_settlement"
+  },
+  {
+    "module_name": "merchant_settlement",
+    "field_name": "view_shift_data"
+  },
+  {
+    "module_name": "merchant_settlement",
+    "field_name": "edit_balance"
+  },
+  {
+    "module_name": "merchant_settlement",
+    "field_name": "export_data"
+  },
+  {
+    "module_name": "merchant_management",
+    "field_name": "view_cards"
+  },
+  {
+    "module_name": "merchant_management",
+    "field_name": "edit_cards"
+  },
+  {
+    "module_name": "merchant_management",
+    "field_name": "delete_cards"
+  },
+  {
+    "module_name": "merchant_management",
+    "field_name": "view_vendors"
+  },
+  {
+    "module_name": "merchant_management",
+    "field_name": "edit_vendors"
+  },
+  {
+    "module_name": "merchant_management",
+    "field_name": "delete_vendors"
+  },
+  {
+    "module_name": "merchant_management",
+    "field_name": "view_providers"
+  },
+  {
+    "module_name": "merchant_management",
+    "field_name": "edit_providers"
+  },
+  {
+    "module_name": "merchant_management",
+    "field_name": "delete_providers"
+  },
+  {
+    "module_name": "knowledge_base",
+    "field_name": "view_articles"
+  },
+  {
+    "module_name": "knowledge_base",
+    "field_name": "create_articles"
+  },
+  {
+    "module_name": "knowledge_base",
+    "field_name": "edit_articles"
+  },
+  {
+    "module_name": "knowledge_base",
+    "field_name": "delete_articles"
+  },
+  {
+    "module_name": "knowledge_base",
+    "field_name": "manage_categories"
+  },
+  {
+    "module_name": "knowledge_base",
+    "field_name": "create_public_categories"
+  },
+  {
+    "module_name": "error_reports",
+    "field_name": "delete_report"
+  },
+  {
+    "module_name": "error_reports",
+    "field_name": "batch_clear"
+  }
+]

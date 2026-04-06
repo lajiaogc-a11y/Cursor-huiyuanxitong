@@ -16,6 +16,10 @@ export interface OperationLogRow {
   object_description: string | null;
   before_data: unknown;
   after_data: unknown;
+  /** 请求体/上下文 JSON（结构化，非纯文案） */
+  request_data?: unknown;
+  /** 批量操作时的目标 id 列表 */
+  target_ids?: unknown;
   ip_address: string | null;
   is_restored: boolean;
   restored_by: string | null;
@@ -155,6 +159,9 @@ export interface InsertOperationLogParams {
   object_description?: string | null;
   before_data?: unknown;
   after_data?: unknown;
+  request_data?: unknown;
+  /** 批量操作时的目标 id 数组 */
+  target_ids?: string[] | null;
   ip_address?: string | null;
 }
 
@@ -174,22 +181,52 @@ function serializeJsonColumn(value: unknown): string | null {
 }
 
 export async function insertOperationLogRepository(params: InsertOperationLogParams): Promise<void> {
-  await execute(
-    `INSERT INTO operation_logs (
-       operator_id, operator_account, operator_role, module, operation_type,
-       object_id, object_description, before_data, after_data, ip_address, timestamp
-     ) VALUES (?,?,?,?,?,?,?,?,?,?,NOW(3))`,
-    [
-      params.operator_id ?? null,
-      params.operator_account,
-      params.operator_role,
-      params.module,
-      params.operation_type,
-      params.object_id ?? null,
-      params.object_description ?? null,
-      serializeJsonColumn(params.before_data),
-      serializeJsonColumn(params.after_data),
-      params.ip_address ?? null,
-    ]
-  );
+  const extendedVals = [
+    params.operator_id ?? null,
+    params.operator_account,
+    params.operator_role,
+    params.module,
+    params.operation_type,
+    params.object_id ?? null,
+    params.object_description ?? null,
+    serializeJsonColumn(params.before_data),
+    serializeJsonColumn(params.after_data),
+    serializeJsonColumn(params.request_data),
+    serializeJsonColumn(params.target_ids ?? null),
+    params.ip_address ?? null,
+  ];
+  const legacyVals = [
+    params.operator_id ?? null,
+    params.operator_account,
+    params.operator_role,
+    params.module,
+    params.operation_type,
+    params.object_id ?? null,
+    params.object_description ?? null,
+    serializeJsonColumn(params.before_data),
+    serializeJsonColumn(params.after_data),
+    params.ip_address ?? null,
+  ];
+  try {
+    await execute(
+      `INSERT INTO operation_logs (
+         operator_id, operator_account, operator_role, module, operation_type,
+         object_id, object_description, before_data, after_data, request_data, target_ids, ip_address, timestamp
+       ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,NOW(3))`,
+      extendedVals,
+    );
+  } catch (e: unknown) {
+    const msg = (e as Error).message || '';
+    if (msg.includes('Unknown column') && (msg.includes('request_data') || msg.includes('target_ids'))) {
+      await execute(
+        `INSERT INTO operation_logs (
+           operator_id, operator_account, operator_role, module, operation_type,
+           object_id, object_description, before_data, after_data, ip_address, timestamp
+         ) VALUES (?,?,?,?,?,?,?,?,?,?,NOW(3))`,
+        legacyVals,
+      );
+      return;
+    }
+    throw e;
+  }
 }

@@ -10,6 +10,9 @@ import {
   deleteMemberService,
   cleanupWebhookEventQueueService,
 } from './service.js';
+import { assertBulkDataDeleteAllowed, assertOrderDeleteAllowed } from '../../permissions/rolePermissionAssert.js';
+import { createLog } from '../operationLog/logService.js';
+import { LOG_ACTIONS, LOG_MODULES } from '../operationLog/logCatalog.js';
 
 export async function verifyPasswordController(req: Request, res: Response): Promise<void> {
   const authReq = req as AuthenticatedRequest;
@@ -44,12 +47,48 @@ export async function bulkDeleteController(req: Request, res: Response): Promise
     res.status(403).json({ success: false, error: { code: 'INVALID_PASSWORD', message: 'Invalid admin password' } });
     return;
   }
+  try {
+    await assertBulkDataDeleteAllowed(authReq.user);
+  } catch (err: unknown) {
+    const code = (err as Error & { statusCode?: number })?.statusCode;
+    if (code === 403) {
+      res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'No permission for bulk data delete (data_management.batch_delete)' },
+      });
+      return;
+    }
+    if (code === 401) {
+      res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+      return;
+    }
+    throw err;
+  }
   const tenantId = authReq.user?.tenant_id ?? null;
   try {
     const result = await bulkDeleteService(
       { password: body.password, retainMonths: body.retainMonths, deleteSelections: body.deleteSelections },
       tenantId
     );
+    try {
+      await createLog(authReq, {
+        module: LOG_MODULES.data_management,
+        action: LOG_ACTIONS.batch_delete,
+        description: '批量删除业务数据',
+        requestData: {
+          retainMonths: body.retainMonths,
+          deleteSelections: body.deleteSelections,
+        },
+        afterData: {
+          deletedSummary: result.deletedSummary,
+          totalCount: result.totalCount,
+          errors: result.errors,
+          warnings: result.warnings,
+        },
+      });
+    } catch (logErr) {
+      console.warn('[bulkDeleteController] operation log failed:', logErr);
+    }
     res.status(200).json({ success: true, data: result });
   } catch (err: unknown) {
     console.error('[bulkDeleteController] Unhandled error:', err);
@@ -68,11 +107,43 @@ export async function deleteOrderController(req: Request, res: Response): Promis
     res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Order id required' } });
     return;
   }
+  try {
+    await assertOrderDeleteAllowed(authReq.user);
+  } catch (err: unknown) {
+    const code = (err as Error & { statusCode?: number })?.statusCode;
+    if (code === 403) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'No permission to delete order (orders.delete_button or orders.batch_delete)',
+        },
+      });
+      return;
+    }
+    if (code === 401) {
+      res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+      return;
+    }
+    throw err;
+  }
   const tenantId = authReq.user?.tenant_id ?? null;
   const result = await deleteOrderService(orderId, tenantId);
   if (!result.success) {
     res.status(400).json({ success: false, error: { code: 'DELETE_FAILED', message: result.error } });
     return;
+  }
+  try {
+    await createLog(authReq, {
+      module: LOG_MODULES.orders,
+      action: LOG_ACTIONS.delete,
+      targetId: orderId,
+      description: `删除订单 ${orderId}`,
+      requestData: { route: 'DELETE /api/admin/orders/:id', orderId },
+      afterData: { ok: true },
+    });
+  } catch (logErr) {
+    console.warn('[deleteOrderController] operation log failed:', logErr);
   }
   res.json({ success: true });
 }
@@ -93,6 +164,23 @@ export async function archiveOrdersController(req: Request, res: Response): Prom
   if (!valid) {
     res.status(403).json({ success: false, error: { code: 'INVALID_PASSWORD', message: 'Invalid admin password' } });
     return;
+  }
+  try {
+    await assertBulkDataDeleteAllowed(authReq.user);
+  } catch (err: unknown) {
+    const code = (err as Error & { statusCode?: number })?.statusCode;
+    if (code === 403) {
+      res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'No permission for bulk data delete (data_management.batch_delete)' },
+      });
+      return;
+    }
+    if (code === 401) {
+      res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+      return;
+    }
+    throw err;
   }
   const tenantId = authReq.user?.tenant_id ?? null;
   try {
@@ -140,6 +228,23 @@ export async function archiveMembersController(req: Request, res: Response): Pro
   if (!valid) {
     res.status(403).json({ success: false, error: { code: 'INVALID_PASSWORD', message: 'Invalid admin password' } });
     return;
+  }
+  try {
+    await assertBulkDataDeleteAllowed(authReq.user);
+  } catch (err: unknown) {
+    const code = (err as Error & { statusCode?: number })?.statusCode;
+    if (code === 403) {
+      res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'No permission for bulk data delete (data_management.batch_delete)' },
+      });
+      return;
+    }
+    if (code === 401) {
+      res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+      return;
+    }
+    throw err;
   }
   const tenantId = authReq.user?.tenant_id ?? null;
   try {

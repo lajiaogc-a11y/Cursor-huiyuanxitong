@@ -41,6 +41,8 @@ export type OperationLogListItem = {
   objectDescription: string | null;
   beforeData: unknown;
   afterData: unknown;
+  requestData: unknown;
+  targetIds: unknown;
   ipAddress: string | null;
   isRestored: boolean;
   restoredBy: string | null;
@@ -62,6 +64,8 @@ function mapOperationLogRow(r: OperationLogRow): OperationLogListItem {
       : r.object_description,
     beforeData: coerceOperationLogJsonColumn(r.before_data),
     afterData: coerceOperationLogJsonColumn(r.after_data),
+    requestData: coerceOperationLogJsonColumn(r.request_data),
+    targetIds: coerceOperationLogJsonColumn(r.target_ids),
     ipAddress: r.ip_address,
     isRestored: !!(r.is_restored),
     restoredBy: r.restored_by,

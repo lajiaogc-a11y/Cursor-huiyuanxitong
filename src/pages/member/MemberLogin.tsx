@@ -21,19 +21,16 @@ import {
   getDefaultMemberPortalSettings,
   getMemberPortalSettingsByAccount,
   getMemberPortalSettingsByInviteCode,
-  normalizeLoginBadgesField,
   type MemberPortalSettings,
 } from "@/services/members/memberPortalSettingsService";
 import { warmupApiHealth } from "@/services/system/apiWarmup";
 import { ROUTES } from "@/routes/constants";
 import { markMemberPostLoginShellTransition } from "@/lib/memberPostLoginTransition";
 import { useMemberLogin } from "@/hooks/useMemberLogin";
-import { cn } from "@/lib/utils";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
 import SplashScreen from "@/components/member/SplashScreen";
 import { memberPortalLegalBody } from "@/lib/memberPortalLegalBody";
 import { memberPortalGoldCssVarsFromHex } from "@/utils/memberPortalGoldCssVars";
-import { MEMBER_LOGIN_BADGE_SLOT_COUNT, parseMemberLoginBadge } from "@/lib/memberLoginBadge";
 import {
   parseInviteFromWindowSearch,
   readMemberPortalSplashBootstrap,
@@ -46,6 +43,7 @@ import {
 } from "@/lib/memberPortalPlatformBrandLogo";
 import { preloadMemberPortalLogo } from "@/lib/memberPortalLogoPreload";
 import { applyMemberPortalFaviconFromLogoRaw } from "@/lib/memberPortalFavicon";
+import { MemberLoginBadgeGrid } from "@/components/member/MemberLoginBadgeGrid";
 import { MemberLoginCarousel } from "@/components/member/MemberLoginCarousel";
 import { MemberLoginFormPanel } from "@/components/member/MemberLoginFormPanel";
 import { LoginIdleHeaderLogo } from "@/components/member/LoginIdleHeaderLogo";
@@ -200,18 +198,6 @@ export default function MemberLogin() {
     warmupApiHealth();
   }, []);
 
-  /** 须在任意 early return 之前调用，避免 React #310（hooks 数量不一致） */
-  const loginBadgeSlots = useMemo(() => {
-    const lines = normalizeLoginBadgesField(displaySettings.login_badges).slice(0, MEMBER_LOGIN_BADGE_SLOT_COUNT);
-    return Array.from({ length: MEMBER_LOGIN_BADGE_SLOT_COUNT }, (_, i) => {
-      try {
-        return parseMemberLoginBadge(lines[i] ?? "");
-      } catch {
-        return { icon: "", label: String(lines[i] ?? "").trim() };
-      }
-    });
-  }, [displaySettings.login_badges]);
-
   if (!settingsReady) {
     return (
       <div
@@ -299,34 +285,7 @@ export default function MemberLogin() {
             </p>
           </div>
 
-          <div className="mb-6 grid grid-cols-3 gap-2.5 px-5 [grid-auto-rows:1fr]">
-            {loginBadgeSlots.map((slot, idx) => {
-              const { icon, label } = slot;
-              const isEmpty = !icon && !label;
-              return (
-                <div
-                  key={idx}
-                  className={cn(
-                    "flex h-full min-h-[5.75rem] flex-col items-stretch rounded-2xl p-3 text-center",
-                    isEmpty
-                      ? "border border-dashed border-[hsl(var(--pu-m-surface-border)/0.38)] bg-[hsl(var(--pu-m-surface)/0.12)]"
-                      : "border border-[hsl(var(--pu-m-surface-border)/0.2)] bg-[hsl(var(--pu-m-surface)/0.35)]",
-                  )}
-                >
-                  <div className="flex min-h-[2.25rem] flex-shrink-0 items-center justify-center text-[1.35rem] leading-none">
-                    {icon ? (
-                      <span className="select-none" aria-hidden>
-                        {icon}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="flex min-h-0 flex-1 items-start justify-center text-[10px] font-medium leading-snug text-[hsl(var(--pu-m-text-dim))] break-words">
-                    {label}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <MemberLoginBadgeGrid loginBadges={displaySettings.login_badges} className="px-5" />
 
           <div className="flex-1" />
 

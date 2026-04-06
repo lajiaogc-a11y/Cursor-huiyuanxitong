@@ -30,6 +30,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { ROUTES } from "@/routes/constants";
 import { MEMBER_SKELETON_MIN_MS } from "@/lib/memberPortalUx";
 import { MemberEmptyStateCta } from "@/components/member/MemberEmptyStateCta";
+import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
 import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
@@ -51,7 +52,10 @@ interface NotifItem {
   titleEn: string;
   contentZh: string;
   contentEn: string;
+  /** 列表用短日期 */
   date: string;
+  /** 详情用完整时间 */
+  createdAtIso: string;
   read: boolean;
 }
 
@@ -75,6 +79,19 @@ function formatInboxDate(iso: string, locale: "zh" | "en"): string {
   });
 }
 
+function formatInboxDetailDate(iso: string, locale: "zh" | "en"): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  return d.toLocaleString(locale === "zh" ? "zh-CN" : "en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
 function mapApiToNotif(raw: MemberInboxApiItem, locale: "zh" | "en"): NotifItem {
   return {
     id: raw.id,
@@ -84,6 +101,7 @@ function mapApiToNotif(raw: MemberInboxApiItem, locale: "zh" | "en"): NotifItem 
     contentZh: raw.content_zh,
     contentEn: raw.content_en,
     date: formatInboxDate(raw.created_at, locale),
+    createdAtIso: raw.created_at,
     read: raw.read,
   };
 }
@@ -102,7 +120,7 @@ const FILTER_KEYS = ["all", "trade", "redemption", "announcement"] as const;
 
 export default function MemberNotifications() {
   const { t, language } = useLanguage();
-  const { refreshMember, member } = useMemberAuth();
+  const { member } = useMemberAuth();
   const { settings: portalSettings, loading: portalSettingsLoading } = useMemberPortalSettings(member?.id);
   const inboxEnabled = !!portalSettings.enable_member_inbox;
   const NOTIF_PAGE_SIZE = 40;
@@ -112,10 +130,10 @@ export default function MemberNotifications() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [notifTotal, setNotifTotal] = useState(0);
   const [deleteNotifId, setDeleteNotifId] = useState<string | null>(null);
+  const [detailNotif, setDetailNotif] = useState<NotifItem | null>(null);
   const [reloadGen, setReloadGen] = useState(0);
 
   useMemberPullRefreshSignal(() => {
-    void refreshMember();
     setReloadGen((g) => g + 1);
   });
 
@@ -218,6 +236,7 @@ export default function MemberNotifications() {
     try {
       await deleteMemberInboxNotification(id);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
+      setDetailNotif((cur) => (cur?.id === id ? null : cur));
       notify.success(t("通知已删除", "Notification removed"));
     } catch {
       notify.error(t("删除失败", "Delete failed"));
@@ -335,10 +354,15 @@ export default function MemberNotifications() {
               key={notif.id}
               role="button"
               tabIndex={0}
-              onClick={() => markRead(notif.id)}
+              aria-label={t("查看通知全文", "View full notification")}
+              onClick={() => {
+                setDetailNotif(notif);
+                markRead(notif.id);
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
+                  setDetailNotif(notif);
                   markRead(notif.id);
                 }
               }}
@@ -376,8 +400,11 @@ export default function MemberNotifications() {
                       />
                     ) : null}
                   </div>
-                  <p className="mb-2 line-clamp-2 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim))]">
+                  <p className="mb-1 line-clamp-2 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim))]">
                     {t(notif.contentZh, notif.contentEn)}
+                  </p>
+                  <p className="mb-2 text-[10px] font-medium text-pu-gold-soft/90">
+                    {t("点击查看全文", "Tap to read full message")}
                   </p>
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-medium text-[hsl(var(--pu-m-text-dim)/0.5)]">
@@ -443,6 +470,43 @@ export default function MemberNotifications() {
         </div>
       </div>
       </div>
+
+      <DrawerDetail
+        open={!!detailNotif}
+        onOpenChange={(open) => {
+          if (!open) setDetailNotif(null);
+        }}
+        variant="member"
+        title={
+          detailNotif
+            ? t(detailNotif.titleZh, detailNotif.titleEn)
+            : t("消息详情", "Message")
+        }
+        description={
+          detailNotif
+            ? formatInboxDetailDate(detailNotif.createdAtIso, language === "en" ? "en" : "zh")
+            : undefined
+        }
+        sheetMaxWidth="2xl"
+        sheetContentProps={{ className: "member-inbox-detail-drawer" }}
+      >
+        {detailNotif ? (
+          <div className="space-y-4">
+            <div
+              className="rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.25)] bg-[hsl(var(--pu-m-surface)/0.35)] px-4 py-3"
+              role="region"
+              aria-label={t("通知正文", "Notification body")}
+            >
+              <p className="m-0 whitespace-pre-wrap break-words text-[13px] leading-[1.65] text-[hsl(var(--pu-m-text)/0.92)]">
+                {t(detailNotif.contentZh, detailNotif.contentEn) || t("（无正文）", "(No body text)")}
+              </p>
+            </div>
+            <p className="text-center text-[10px] text-[hsl(var(--pu-m-text-dim)/0.55)]">
+              {t("下拉或滑动可阅读长文", "Scroll to read long messages")}
+            </p>
+          </div>
+        ) : null}
+      </DrawerDetail>
 
       <AlertDialog open={!!deleteNotifId} onOpenChange={(open) => !open && setDeleteNotifId(null)}>
         <AlertDialogContent className="max-w-[min(100vw-2rem,24rem)] border-[hsl(var(--pu-m-surface-border)/0.5)] bg-[hsl(var(--pu-m-surface)/0.95)]">

@@ -10,7 +10,7 @@
     "seed:invite-leaderboard": "tsx src/cli/seedInviteLeaderboardFifty.ts",
     "migrate:lottery": "tsx src/modules/lottery/runLotteryMigrate.ts",
     "db:phone-pool-reserved-by": "node scripts/ensure-phone-pool-reserved-by-null.mjs",
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-permission-sync.mjs",
     "start": "node dist/app.js",
     "start:dev": "tsx src/app.ts",
     "start:verify-trust-proxy": "cross-env NODE_ENV=production TRUST_PROXY=1 tsx src/app.ts",

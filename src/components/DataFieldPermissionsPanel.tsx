@@ -13,8 +13,16 @@ import { saveRolePermissions } from '@/services/staff/dataApi/permissionsAndSett
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { useIsMobile, useIsTablet } from '@/hooks/use-mobile';
-import { DATA_FIELD_MODULES } from '@/lib/dataFieldPermissionModules';
+import { DATA_FIELD_MODULES, type FieldMeta } from '@/lib/dataFieldPermissionModules';
 import type { PermissionRole } from '@/lib/permissionModels';
+
+/** 数据字段 / 完整操作行 / 仅批量删 / 仅批量处理 */
+function fieldColumnMode(f: FieldMeta): 'data' | 'action_full' | 'delete_only' | 'edit_only' {
+  if (f.permissionColumns === 'delete_only') return 'delete_only';
+  if (f.permissionColumns === 'edit_only') return 'edit_only';
+  if (f.isAction) return 'action_full';
+  return 'data';
+}
 
 interface RolePermission {
   id: string;
@@ -92,6 +100,13 @@ export default function DataFieldPermissionsPanel() {
     (module: string, field: string): { can_view: boolean; can_edit: boolean; can_delete: boolean } => {
       const p = getPermission(permissions, selectedRole, module, field);
       if (p) return { can_view: p.can_view, can_edit: p.can_edit, can_delete: p.can_delete };
+      const isIsolatedBatch =
+        (module === 'orders' && (field === 'batch_delete' || field === 'batch_process')) ||
+        (module === 'data_management' && (field === 'batch_delete' || field === 'batch_action')) ||
+        (module === 'error_reports' && field === 'batch_clear');
+      if (isIsolatedBatch) {
+        return { can_view: false, can_edit: false, can_delete: false };
+      }
       if (selectedRole === 'admin' || selectedRole === 'super_admin') {
         return { can_view: true, can_edit: true, can_delete: true };
       }
@@ -184,11 +199,19 @@ export default function DataFieldPermissionsPanel() {
 
   const hasEditableFields = (moduleKey: string) => {
     const m = DATA_FIELD_MODULES[moduleKey];
-    return Object.values(m.fields).some((f) => !f.readonly);
+    return Object.values(m.fields).some((f) => {
+      const mode = fieldColumnMode(f);
+      if (mode === 'edit_only') return true;
+      if (mode === 'delete_only') return false;
+      return !f.readonly;
+    });
   };
   const hasActionFields = (moduleKey: string) => {
     const m = DATA_FIELD_MODULES[moduleKey];
-    return Object.values(m.fields).some((f) => f.isAction);
+    return Object.values(m.fields).some((f) => {
+      const mode = fieldColumnMode(f);
+      return mode === 'action_full' || mode === 'delete_only' || mode === 'edit_only';
+    });
   };
 
   const toggleModuleAllFields = useCallback(
@@ -198,8 +221,10 @@ export default function DataFieldPermissionsPanel() {
       setPermissions((prev) => {
         let updated = [...prev];
         for (const [fieldKey, fieldConfig] of Object.entries(moduleConfig.fields)) {
-          if (key === 'can_edit' && fieldConfig.readonly) continue;
-          if (key === 'can_delete' && !fieldConfig.isAction) continue;
+          const mode = fieldColumnMode(fieldConfig);
+          if (key === 'can_view' && (mode === 'delete_only' || mode === 'edit_only')) continue;
+          if (key === 'can_edit' && (fieldConfig.readonly || mode === 'delete_only')) continue;
+          if (key === 'can_delete' && (mode === 'data' || mode === 'edit_only')) continue;
           const existing = updated.find(
             (p) => p.role === selectedRole && p.module_name === moduleKey && p.field_name === fieldKey,
           );
@@ -230,8 +255,10 @@ export default function DataFieldPermissionsPanel() {
       if (!moduleConfig) return false;
       const fields = Object.entries(moduleConfig.fields);
       const relevantFields = fields.filter(([, fc]) => {
-        if (key === 'can_edit' && fc.readonly) return false;
-        if (key === 'can_delete' && !fc.isAction) return false;
+        const mode = fieldColumnMode(fc);
+        if (key === 'can_view' && (mode === 'delete_only' || mode === 'edit_only')) return false;
+        if (key === 'can_edit' && (fc.readonly || mode === 'delete_only')) return false;
+        if (key === 'can_delete' && (mode === 'data' || mode === 'edit_only')) return false;
         return true;
       });
       if (relevantFields.length === 0) return false;
@@ -314,8 +341,8 @@ export default function DataFieldPermissionsPanel() {
         </div>
         <p className="text-xs text-muted-foreground mt-2">
           {t(
-            '配置各模块字段的查看、编辑与删除。总管理员行用于 is_super_admin 账号；与「审核规则」配合：无编辑权且需审核的改动会进入待审核队列。',
-            'Configure view/edit/delete per module. Super Admin rows apply to is_super_admin accounts. Works with audit rules below.',
+            '数据级权限（module + field）：控制各业务模块字段与操作（含单条/批量删除等）。与「权限设置」中的导航权限（左侧菜单可见性）相互独立。总管理员可编辑本页；总管理员行对应 is_super_admin 账号。与「审核规则」配合：无编辑权且需审核的改动会进入待审核队列。',
+            'Data-level permissions (module + field): controls fields and actions including single/batch deletes. Independent from Navigation permissions in Permission settings (sidebar visibility). Super admins edit this page; Super Admin role rows apply to is_super_admin accounts. With audit rules: edits without permission may go to the approval queue.',
           )}
         </p>
       </CardHeader>
@@ -393,6 +420,10 @@ export default function DataFieldPermissionsPanel() {
               <CollapsibleContent className="border rounded-lg mt-1 overflow-hidden">
                 {fieldEntries.map(([fieldKey, fieldConfig]) => {
                   const perm = getOrDefault(moduleKey, fieldKey);
+                  const mode = fieldColumnMode(fieldConfig);
+                  const showView = mode === 'data' || mode === 'action_full';
+                  const showEdit = (mode === 'data' || mode === 'action_full' || mode === 'edit_only') && !fieldConfig.readonly;
+                  const showDel = mode === 'action_full' || mode === 'delete_only';
                   return (
                     <div
                       key={`${moduleKey}-${fieldKey}`}
@@ -416,6 +447,7 @@ export default function DataFieldPermissionsPanel() {
                         )}
                       </div>
                       <div className={useCompactLayout ? 'flex flex-wrap gap-3 pl-1' : 'flex items-center gap-4'}>
+                        {showView && (
                         <div className="flex items-center gap-1.5">
                           <Label className="text-xs text-muted-foreground w-7">{t('查看', 'View')}</Label>
                           <Switch
@@ -423,7 +455,8 @@ export default function DataFieldPermissionsPanel() {
                             onCheckedChange={(v) => handleChange(moduleKey, fieldKey, 'can_view', v)}
                           />
                         </div>
-                        {!fieldConfig.readonly && (
+                        )}
+                        {showEdit && (
                           <div className="flex items-center gap-1.5">
                             <Label className="text-xs text-muted-foreground w-7">{t('编辑', 'Edit')}</Label>
                             <Switch
@@ -432,7 +465,7 @@ export default function DataFieldPermissionsPanel() {
                             />
                           </div>
                         )}
-                        {fieldConfig.isAction && (
+                        {showDel && (
                           <div className="flex items-center gap-1.5">
                             <Label className="text-xs text-muted-foreground w-7">{t('删除', 'Del')}</Label>
                             <Switch

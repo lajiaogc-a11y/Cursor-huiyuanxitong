@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { MEMBER_PULL_REFRESH_EVENT } from "@/components/member/PullToRefresh";
+import { MEMBER_PULL_REFRESH_EVENT } from "@/lib/memberPullRefreshEvent";
 
 /**
  * 会员端下拉刷新完成后会派发 MEMBER_PULL_REFRESH_EVENT。

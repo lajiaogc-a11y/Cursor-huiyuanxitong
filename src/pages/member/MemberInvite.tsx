@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
 import { getPosterFrame, drawInvitePoster } from "@/lib/invitePosterFrames";
-import { useMemberPoints } from "@/hooks/useMemberPoints";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { MemberInviteHero } from "@/components/member/MemberInviteHero";
 import { notify } from "@/lib/notifyHub";
@@ -37,7 +36,6 @@ export default function MemberInvite() {
   const { member, refreshMember } = useMemberAuth();
   const { settings: portalSettings } = useMemberPortalSettings(member?.id);
   const { t } = useLanguage();
-  const { refresh: refetchInvitePoints } = useMemberPoints(member?.id);
   const [copied, setCopied] = useState(false);
   const [inviteToken, setInviteToken] = useState("");
   const [tokenLoading, setTokenLoading] = useState(true);
@@ -75,8 +73,6 @@ export default function MemberInvite() {
 
   useMemberPullRefreshSignal(() => {
     loadToken();
-    void refreshMemberRef.current();
-    void refetchInvitePoints();
   });
 
   /** refreshMember 依赖 member，每次拉完资料会换引用；若放进 deps 会反复把 hydrated 打回 false →「已邀请/已奖励」闪跳 */

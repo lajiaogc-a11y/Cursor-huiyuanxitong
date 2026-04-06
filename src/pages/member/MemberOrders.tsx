@@ -28,7 +28,7 @@ type OrderStatusFilter = "all" | "completed" | "active";
 
 export default function MemberOrders() {
   const { t } = useLanguage();
-  const { member, refreshMember } = useMemberAuth();
+  const { member } = useMemberAuth();
   const memberId = member?.id;
 
   const [orders, setOrders] = useState<MemberPortalOrderView[]>([]);
@@ -86,7 +86,6 @@ export default function MemberOrders() {
   useMemberPullRefreshSignal(() => {
     if (!memberId) return;
     void refetch();
-    void refreshMember();
   });
 
   const handleFilterChange = (key: OrderStatusFilter) => {

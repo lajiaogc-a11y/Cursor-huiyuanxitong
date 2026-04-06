@@ -29,6 +29,9 @@ import {
 } from "@/lib/memberPostLoginTransition";
 import { memberPortalGoldCssVarsFromHex } from "@/utils/memberPortalGoldCssVars";
 import { cn } from "@/lib/utils";
+import { queryClient } from "@/lib/queryClient";
+import { memberQueryKeys } from "@/lib/memberQueryKeys";
+import { MEMBER_PULL_REFRESH_EVENT } from "@/lib/memberPullRefreshEvent";
 import { isMemberBottomTabPath } from "@/lib/memberBottomTabPaths";
 import { preloadMemberRouteChunk } from "@/lib/memberRouteChunkPreload";
 import { MemberTabbedShell } from "@/components/member/MemberTabbedShell";
@@ -135,6 +138,46 @@ export function MemberLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     preloadMemberChunks();
   }, []);
+
+  /** 从后台回到前台 / 浏览器恢复 bfcache：强刷会员域 Query + 触发与下拉刷新相同的业务回调 */
+  useEffect(() => {
+    if (!member?.id) return;
+
+    let hidden = document.visibilityState === "hidden";
+
+    const runForegroundSync = () => {
+      void queryClient.refetchQueries({
+        queryKey: memberQueryKeys.all,
+        type: "active",
+      }).then(() => {
+        window.dispatchEvent(new CustomEvent(MEMBER_PULL_REFRESH_EVENT));
+      }).catch(() => {
+        window.dispatchEvent(new CustomEvent(MEMBER_PULL_REFRESH_EVENT));
+      });
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        hidden = true;
+        return;
+      }
+      if (hidden && document.visibilityState === "visible") {
+        hidden = false;
+        runForegroundSync();
+      }
+    };
+
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) runForegroundSync();
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pageshow", onPageShow as EventListener);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pageshow", onPageShow as EventListener);
+    };
+  }, [member?.id]);
 
   useEffect(() => {
     applyMemberPortalFaviconFromLogoRaw(settings.logo_url);

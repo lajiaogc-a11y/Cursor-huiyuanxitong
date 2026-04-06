@@ -30,10 +30,13 @@ import {
 import { MemberPortalInviteMemberCleanupPanel } from "@/components/MemberPortalInviteMemberCleanupPanel";
 import { ActivityDataRetentionPanel } from "@/components/ActivityDataRetentionPanel";
 import { Separator } from "@/components/ui/separator";
+import { useModulePermissions } from "@/hooks/useFieldPermissions";
 
 export default function DataManagementTab() {
   const { t } = useLanguage();
   const { employee } = useAuth();
+  const { canDeleteField } = useModulePermissions("data_management");
+  const canBulkDeleteBusinessData = canDeleteField("batch_delete");
   const { viewingTenantId } = useTenantView() || {};
   const [searchParams, setSearchParams] = useSearchParams();
   const tenantIdForCleanup = viewingTenantId || employee?.tenant_id || null;
@@ -121,7 +124,11 @@ export default function DataManagementTab() {
       notify.error(t("需要管理员权限", "Admin permission required"));
       return;
     }
-    
+    if (!canBulkDeleteBusinessData) {
+      notify.error(t("无批量删除业务数据权限（请在审核设置中开启 data_management · 批量删除）", "No permission for bulk data delete. Enable data_management → batch delete in audit settings."));
+      return;
+    }
+
     const passwordValid = await verifyAdminPasswordApi(deletePassword);
     if (!passwordValid) {
       notify.error(t("管理员密码错误", "Invalid admin password"));
@@ -381,7 +388,20 @@ export default function DataManagementTab() {
               </p>
             </CardHeader>
             <CardContent>
-              <Button variant="destructive" className="gap-2" onClick={() => setIsDeleteDialogOpen(true)}>
+              <Button
+                variant="destructive"
+                className="gap-2"
+                disabled={!canBulkDeleteBusinessData}
+                title={
+                  canBulkDeleteBusinessData
+                    ? undefined
+                    : t("无批量删除权限", "No bulk delete permission")
+                }
+                onClick={() => {
+                  if (!canBulkDeleteBusinessData) return;
+                  setIsDeleteDialogOpen(true);
+                }}
+              >
                 <Trash2 className="h-4 w-4" />
                 {t("打开批量删除对话框", "Open bulk delete dialog")}
               </Button>

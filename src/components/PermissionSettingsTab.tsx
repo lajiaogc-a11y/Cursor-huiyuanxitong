@@ -374,8 +374,8 @@ export default function PermissionSettingsTab() {
         </div>
         <p className="text-xs text-muted-foreground mt-2">
           {t(
-            '为「员工 / 主管 / 管理员 / 总管理员」四档分别配置左侧菜单与入口是否可见。下方「数据统计」仅控制数据页是否只看本人数据。数据表字段能否编辑、是否需审核，请在「审核中心 → 审核设置」中配置（总管理员可改「数据编辑权限」页签；主管可改「审核规则」页签）。',
-            'Configure sidebar visibility per role (Staff / Manager / Admin / Super Admin). “Statistics” below limits dashboard to own data only. Field-level edit and audit rules: Audit Center → Audit Settings (super admin: Data permissions tab; manager: Audit rules tab).',
+            '为「员工 / 主管 / 管理员 / 总管理员」四档分别配置左侧菜单与入口是否可见。下方「数据统计」仅控制数据页是否只看本人数据。数据级权限（各业务模块字段的查看/编辑/删除、单条与批量操作、与审核规则联动）在「审核中心 → 审核设置 → 数据编辑权限」中配置，与本页的导航权限相互独立：隐藏某菜单不等于关闭其数据权限，反之亦然。主管可改「审核规则」页签；总管理员可改「数据编辑权限」页签。',
+            'Sidebar visibility per role (Staff / Manager / Admin / Super Admin). “Statistics” below limits dashboard to own data. Data-level permissions (field view/edit/delete, single/batch actions, audit workflow) live under Audit Center → Audit Settings → Data permissions—they are independent from navigation: hiding a menu does not revoke data access, and vice versa. Managers edit Audit rules; super admins edit Data permissions.',
           )}
         </p>
       </CardHeader>

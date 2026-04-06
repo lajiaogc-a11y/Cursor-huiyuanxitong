@@ -27,6 +27,7 @@ import { incrementLotterySpinBalanceConn } from '../lottery/spinBalanceAccount.j
 import { notifyMemberOrderCompletedSpinReward } from '../memberInboxNotifications/repository.js';
 import { incrementMemberActivityForNewOrder } from '../members/memberActivityTotals.js';
 import { reverseActivityDataForOrder } from '../admin/orderReversal.js';
+import { assertErrorReportsDeleteAllowed } from '../../permissions/rolePermissionAssert.js';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { runWebhookProcessorRpc } from '../webhooks/rpcBridge.js';
 import { runTenantMigrationRpc } from './tenantMigrationMysql.js';
@@ -471,6 +472,29 @@ export async function tableDeleteController(req: AuthenticatedRequest, res: Resp
   if (!where) {
     res.status(400).json({ data: null, error: { message: 'DELETE without WHERE is not allowed' } });
     return;
+  }
+
+  if (table === 'error_reports') {
+    try {
+      await assertErrorReportsDeleteAllowed(req.user);
+    } catch (err: unknown) {
+      const code = (err as Error & { statusCode?: number })?.statusCode;
+      if (code === 403) {
+        res.status(403).json({
+          data: null,
+          error: {
+            message:
+              'No permission to delete error reports (error_reports.delete_report or error_reports.batch_clear)',
+          },
+        });
+        return;
+      }
+      if (code === 401) {
+        res.status(401).json({ data: null, error: { message: 'Unauthorized' } });
+        return;
+      }
+      throw err;
+    }
   }
 
   try {

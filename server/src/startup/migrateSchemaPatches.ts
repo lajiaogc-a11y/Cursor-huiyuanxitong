@@ -1554,5 +1554,9 @@ export async function migrateSchemaPatches(): Promise<void> {
       INDEX idx_lat_member (member_id, created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
 
+  // ── operation_logs：结构化 request_data、批量 target_ids（与权限 module 对齐的可筛选字段）──
+  await addCol('operation_logs', 'request_data', 'JSON NULL COMMENT \'请求/上下文 JSON，禁止仅依赖 object_description 纯文本\'');
+  await addCol('operation_logs', 'target_ids', 'JSON NULL COMMENT \'批量操作时的目标 id 数组\'');
+
   console.log('[schema-patch] done.');
 }

@@ -19,6 +19,7 @@ import { clearMemberPortalSettingsBrowserCaches } from '@/lib/memberPortalBrowse
 import { queryClient } from '@/lib/queryClient';
 import { memberQueryKeys } from '@/lib/memberQueryKeys';
 import { clearMallCatalogCache } from '@/lib/mallCatalogCache';
+import { MEMBER_PULL_REFRESH_EVENT } from '@/lib/memberPullRefreshEvent';
 
 export interface MemberInfo {
   id: string;
@@ -247,6 +248,15 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [member, bumpAuth]);
+
+  /** 下拉刷新 / 回到前台：与 React Query refetch 同步拉最新会员资料（积分、钱包等） */
+  useEffect(() => {
+    const onPullOrForeground = () => {
+      void refreshMember();
+    };
+    window.addEventListener(MEMBER_PULL_REFRESH_EVENT, onPullOrForeground);
+    return () => window.removeEventListener(MEMBER_PULL_REFRESH_EVENT, onPullOrForeground);
+  }, [refreshMember]);
 
   useEffect(() => {
     if (!sessionVerifying) return;

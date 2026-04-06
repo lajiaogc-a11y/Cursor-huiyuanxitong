@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Navigate, useSearchParams, Link } from "react-router-dom";
 import {
   Gift,
-  Globe,
   Loader2,
   ArrowRight,
   Phone,
@@ -25,7 +24,7 @@ import {
   type MemberPortalSettings,
 } from "@/services/members/memberPortalSettingsService";
 import { ROUTES } from "@/routes/constants";
-import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
+import { MemberLoginBadgeGrid } from "@/components/member/MemberLoginBadgeGrid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,50 +34,6 @@ import { memberPortalLegalBody } from "@/lib/memberPortalLegalBody";
 import { MemberRegisterShell } from "@/components/member/MemberRegisterShell";
 import { MemberRegisterTrustFooter } from "@/components/member/MemberRegisterTrustFooter";
 import { cn } from "@/lib/utils";
-
-function RegisterBrandLogo({
-  logoUrl,
-  logoKey,
-  logoAlt,
-}: {
-  logoUrl: string | null | undefined;
-  logoKey: string;
-  logoAlt: string;
-}) {
-  const raw = String(logoUrl ?? "").trim();
-  const { resolvedSrc, usePlaceholder, onImageError } = useMemberResolvableMedia(logoKey, raw || undefined);
-  const showImg = raw && !usePlaceholder;
-  /** 勿对容器设小于「图高+padding」的 max-h，否则会裁切 logo */
-  const imgShellClass =
-    "mb-3 flex min-h-[3.5rem] w-auto max-w-[min(300px,90vw)] items-center justify-center rounded-2xl border border-[hsl(var(--pu-m-surface-border)/0.25)] bg-[hsl(var(--pu-m-surface)/0.2)] px-4 py-3 shadow-[0_8px_28px_rgba(0,0,0,0.3)]";
-  if (showImg) {
-    return (
-      <div className={imgShellClass}>
-        <img
-          src={resolvedSrc}
-          alt={logoAlt}
-          loading="lazy"
-          decoding="async"
-          onError={onImageError}
-          className="max-h-[min(8rem,36vw)] w-auto max-w-full object-contain object-center"
-        />
-      </div>
-    );
-  }
-  return (
-    <div
-      className={cn(
-        "mb-3 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--pu-m-surface-border)/0.25)]",
-        "shadow-[0_8px_28px_hsl(var(--pu-gold)/0.3)]",
-      )}
-      style={{
-        background: "linear-gradient(135deg, hsl(var(--pu-gold)), hsl(var(--pu-gold-soft)))",
-      }}
-    >
-      <Gift className="h-[26px] w-[26px] text-[hsl(var(--pu-primary-foreground))]" strokeWidth={2} aria-hidden />
-    </div>
-  );
-}
 
 /**
  * /member/register?ref= / ?code= → 跳转 /invite/CODE（与推广链接一致）
@@ -105,12 +60,9 @@ export default function MemberRegisterRedirect() {
     const cached = readMemberPortalSplashBootstrap("");
     return Boolean(cached?.logo_url);
   });
-  const [defaultTenantId, setDefaultTenantId] = useState<string | null>(null);
   const [agreeLegal, setAgreeLegal] = useState(false);
   const [legalDoc, setLegalDoc] = useState<null | "terms" | "privacy">(null);
 
-  const brandName = portalSettings.company_name || "FastGC";
-  const logoUrl = portalSettings.logo_url;
   const inviteReward = Number(portalSettings.invite_reward_spins || 3);
   const inviteEnabled = !!portalSettings.enable_invite;
   const themeColor = useMemo(() => {
@@ -134,7 +86,6 @@ export default function MemberRegisterRedirect() {
         if (data?.settings) {
           seedPlatformBrandLogoFromSettings(data.settings.logo_url);
           setPortalSettings(data.settings);
-          setDefaultTenantId(data.tenant_id ?? null);
         }
       } catch {
         /* keep cached or DEFAULT_SETTINGS */
@@ -229,21 +180,8 @@ export default function MemberRegisterRedirect() {
     }
   };
 
-  const brandSlug = String(brandName || "MEMBER")
-    .trim()
-    .slice(0, 24)
-    .toUpperCase();
-
   const inputBase =
     "h-12 w-full rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.25)] bg-[hsl(var(--pu-m-surface)/0.45)] text-sm font-medium text-[hsl(var(--pu-m-text))] outline-none transition-all placeholder:text-[hsl(var(--pu-m-text-dim)/0.4)] focus-visible:ring-2 focus-visible:ring-pu-gold/25";
-
-  const perks = inviteEnabled
-    ? [
-        { emoji: "🎰", text: t(`${inviteReward} 次免费转盘`, `${inviteReward} free spins`) },
-        { emoji: "💰", text: t("积分商城", "Points mall") },
-        { emoji: "🎁", text: t("新人礼遇", "Welcome perks") },
-      ]
-    : [];
 
   if (ref) {
     return <Navigate to={`/invite/${encodeURIComponent(ref)}`} replace />;
@@ -261,24 +199,13 @@ export default function MemberRegisterRedirect() {
 
   return (
     <MemberRegisterShell themeColor={themeColor}>
-      <div className="relative flex shrink-0 flex-col items-center overflow-x-hidden overflow-y-visible pb-10 pt-[max(4.25rem,calc(env(safe-area-inset-top)+2rem))]">
+      <div className="relative flex shrink-0 flex-col overflow-x-hidden overflow-y-visible pb-4 pt-[max(1.25rem,env(safe-area-inset-top))]">
         <Link
           to={ROUTES.MEMBER.ROOT}
           className="absolute left-[max(1.25rem,env(safe-area-inset-left))] top-[max(1.25rem,env(safe-area-inset-top))] z-[2] text-xs font-bold text-[hsl(var(--pu-m-text-dim))] transition hover:text-[hsl(var(--pu-m-text))]"
         >
           ← {t("返回", "Back")}
         </Link>
-
-        <div className="relative z-[2] flex flex-col items-center px-3 pt-2">
-          <RegisterBrandLogo
-            logoUrl={logoUrl}
-            logoKey={`member-register-logo-${defaultTenantId ?? "default"}`}
-            logoAlt={t("品牌标识", "Brand logo")}
-          />
-          <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-[hsl(var(--pu-m-text-dim))]">
-            {brandSlug}
-          </span>
-        </div>
       </div>
 
       <div className="relative z-[1] mx-auto flex w-full max-w-[480px] flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
@@ -354,18 +281,8 @@ export default function MemberRegisterRedirect() {
               </p>
             </div>
 
-            {perks.length > 0 ? (
-              <div className="mb-6 flex flex-wrap justify-center gap-2">
-                {perks.map((p) => (
-                  <span
-                    key={p.text}
-                    className="flex items-center gap-1.5 rounded-full border border-[hsl(var(--pu-m-surface-border)/0.2)] bg-[hsl(var(--pu-m-surface)/0.5)] px-3 py-1.5 text-[11px] font-bold text-[hsl(var(--pu-m-text))]"
-                  >
-                    <span aria-hidden>{p.emoji}</span>
-                    {p.text}
-                  </span>
-                ))}
-              </div>
+            {inviteEnabled ? (
+              <MemberLoginBadgeGrid loginBadges={portalSettings.login_badges} />
             ) : null}
 
             <form

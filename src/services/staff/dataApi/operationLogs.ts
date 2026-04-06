@@ -13,6 +13,8 @@ export interface OperationLogsResult {
     objectDescription: string | null;
     beforeData: unknown;
     afterData: unknown;
+    requestData?: unknown;
+    targetIds?: unknown;
     ipAddress: string | null;
     isRestored: boolean;
     restoredBy: string | null;
@@ -44,6 +46,10 @@ export interface PostOperationLogParams {
   objectDescription?: string | null;
   beforeData?: unknown;
   afterData?: unknown;
+  /** 结构化请求/上下文（与 description 并存，筛选统计用） */
+  requestData?: unknown;
+  /** 批量操作目标 id 列表 */
+  targetIds?: string[] | null;
   ipAddress?: string | null;
 }
 

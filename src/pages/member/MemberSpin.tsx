@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
 import { formatMemberLocalTime } from "@/lib/memberLocalTime";
 import { History, Trophy, Star, ChevronDown, Info } from "lucide-react";
@@ -99,6 +100,7 @@ if (typeof window !== "undefined") {
 
 /** Member spin page: duplicate-tap guard via spinGuard + spinning/remaining. */
 export default function MemberSpin() {
+  const { pathname } = useLocation();
   const { member, refreshMember } = useMemberAuth();
   const { t } = useLanguage();
   const spinGuard = useActionGuard(1000);
@@ -208,6 +210,21 @@ export default function MemberSpin() {
     return () => window.clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [member?.id]);
+
+  /**
+   * 底部 Tab 为 keep-alive（MemberTabbedShell）：签到/分享等在其它页更新抽奖次数后，本页仍挂载且不会自动重拉配额。
+   * 在路由切到「抽奖」Tab 时再拉一次，使右上角剩余次数与最新 spin_credits 一致。
+   */
+  const wasSpinTabRef = useRef(false);
+  useEffect(() => {
+    const onSpinTab = pathname === ROUTES.MEMBER.SPIN;
+    const was = wasSpinTabRef.current;
+    wasSpinTabRef.current = onSpinTab;
+    if (!member?.id) return;
+    if (onSpinTab && !was) {
+      setSpinDataRefreshNonce((n) => n + 1);
+    }
+  }, [pathname, member?.id]);
 
   const applyQuota = useCallback((q: Pick<QuotaResult, "remaining" | "used_today">) => {
     setRemaining(q.remaining);

@@ -155,6 +155,34 @@ export type RedeemPointsMallItemResult = {
   message?: string;
 };
 
+/** 解析 RPC 的 success 标记（兼容 1/0、嵌套 result/data 等中间层形态） */
+function coerceRedeemSuccessFlag(v: unknown): boolean | null {
+  if (typeof v === "boolean") return v;
+  if (v === 1) return true;
+  if (v === 0) return false;
+  if (v === "true") return true;
+  if (v === "false") return false;
+  return null;
+}
+
+function unwrapRedeemRpcPayload(raw: unknown): Record<string, unknown> {
+  let cur: unknown = raw;
+  for (let depth = 0; depth < 3 && cur && typeof cur === "object"; depth++) {
+    const o = cur as Record<string, unknown>;
+    const ok = coerceRedeemSuccessFlag(o.success);
+    if (ok !== null) return o;
+    const inner =
+      o.result && typeof o.result === "object"
+        ? o.result
+        : o.data && typeof o.data === "object" && o.data !== null && "success" in (o.data as object)
+          ? o.data
+          : null;
+    if (!inner) break;
+    cur = inner;
+  }
+  return (cur && typeof cur === "object" ? cur : {}) as Record<string, unknown>;
+}
+
 export async function redeemPointsMallItem(
   memberId: string,
   itemId: string,
@@ -170,10 +198,13 @@ export async function redeemPointsMallItem(
       ? { p_client_request_id: clientRequestId }
       : {}),
   });
-  const r = (data || {}) as RedeemPointsMallItemResult & { success?: boolean; error?: string };
-  // 业务错误（积分不足、库存等）原样返回，由页面展示结构化提示；仅异常响应才抛错
-  if (r && typeof r.success === "boolean") return r as RedeemPointsMallItemResult;
-  throw new Error((r as { error?: string }).error || "Redeem failed");
+  const raw = unwrapRedeemRpcPayload(data);
+  const ok = coerceRedeemSuccessFlag(raw.success);
+  // 业务错误（积分不足、库存等）原样返回，由页面展示结构化提示；仅无法识别 success 时抛错
+  if (ok !== null) {
+    return { ...raw, success: ok } as RedeemPointsMallItemResult;
+  }
+  throw new Error(typeof raw.error === "string" ? raw.error : "Redeem failed");
 }
 
 export interface PointsMallRedemptionOrder {

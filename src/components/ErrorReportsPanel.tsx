@@ -18,6 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { notify } from "@/lib/notifyHub";
 import { classifyError, getSeverityColor } from "@/lib/errorClassifier";
 import { formatBeijingTime } from "@/lib/beijingTime";
+import { useFieldPermissions } from "@/hooks/useFieldPermissions";
 
 function headlineFromErrorMessage(msg: string, maxLen = 220): string {
   const trimmed = (msg || "").trim();
@@ -29,6 +30,12 @@ function headlineFromErrorMessage(msg: string, maxLen = 220): string {
 
 export default function ErrorReportsPanel() {
   const { t, language } = useLanguage();
+  const { checkPermission } = useFieldPermissions();
+  const canDeleteReports = useMemo(() => {
+    const single = checkPermission("error_reports", "delete_report");
+    const batch = checkPermission("error_reports", "batch_clear");
+    return single.canDelete || batch.canDelete;
+  }, [checkPermission]);
   const [reports, setReports] = useState<ErrorReportRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -149,7 +156,7 @@ export default function ErrorReportsPanel() {
             <RefreshCw className="h-4 w-4 mr-1" />
             {t("刷新", "Refresh")}
           </Button>
-          {reports.length > 0 && (
+          {reports.length > 0 && canDeleteReports && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm">
@@ -265,9 +272,11 @@ export default function ErrorReportsPanel() {
                       <p className="text-xs text-muted-foreground truncate">{truncateUA(report.user_agent)}</p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Delete" onClick={(e) => { e.stopPropagation(); setDeleteReportId(report.id); }}>
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      </Button>
+                      {canDeleteReports ? (
+                        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Delete" onClick={(e) => { e.stopPropagation(); setDeleteReportId(report.id); }}>
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      ) : null}
                       <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Expand">
                           <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`} />

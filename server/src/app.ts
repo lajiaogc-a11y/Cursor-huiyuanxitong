@@ -311,6 +311,7 @@ if (
 }
 
 import { runAllMigrations } from './startup/runAllMigrations.js';
+import { syncPermissionDefinitionsFromRegistry } from './permissions/syncPermissionDefinitions.js';
 
 /**
  * 方案 A：生产默认不在应用内跑迁移（多实例重复、失败半可用）；部署前执行 `npm run migrate:all`。
@@ -341,6 +342,12 @@ void (async () => {
       'API',
       'Skipping DB migrations on start (production default). Before first deploy or schema change, run: cd server && npm run migrate:all',
     );
+  }
+
+  try {
+    await syncPermissionDefinitionsFromRegistry();
+  } catch (e) {
+    logger.warn('API', 'syncPermissionDefinitionsFromRegistry failed (non-fatal):', e);
   }
 
   server = app.listen(config.port, () => {

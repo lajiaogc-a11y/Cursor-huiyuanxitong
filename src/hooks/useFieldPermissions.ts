@@ -54,6 +54,8 @@ const FIELD_NAME_MAP: Record<string, Record<string, string>> = {
     sales_person: 'sales_person',
     cancel_button: 'cancel_button',
     delete_button: 'delete_button',
+    batch_delete: 'batch_delete',
+    batch_process: 'batch_process',
   },
   activity: {
     currency: 'currency',
@@ -73,6 +75,7 @@ const FIELD_NAME_MAP: Record<string, Record<string, string>> = {
     import_data: 'import_data',
     export_data: 'export_data',
     batch_delete: 'batch_delete',
+    batch_action: 'batch_action',
   },
   merchant_settlement: {
     view_card_settlement: 'view_card_settlement',
@@ -99,6 +102,10 @@ const FIELD_NAME_MAP: Record<string, Record<string, string>> = {
     delete_articles: 'delete_articles',
     manage_categories: 'manage_categories',
     create_public_categories: 'create_public_categories',
+  },
+  error_reports: {
+    delete_report: 'delete_report',
+    batch_clear: 'batch_clear',
   },
 };
 
@@ -138,6 +145,11 @@ export function useFieldPermissions() {
       (p) => p.role === permRole && p.module_name === moduleName && p.field_name === fieldName,
     );
 
+    const isIsolatedBatchField =
+      (moduleName === 'orders' && (fieldName === 'batch_delete' || fieldName === 'batch_process')) ||
+      (moduleName === 'data_management' && (fieldName === 'batch_delete' || fieldName === 'batch_action')) ||
+      (moduleName === 'error_reports' && fieldName === 'batch_clear');
+
     let result: FieldPermission;
     if (permission) {
       result = {
@@ -145,6 +157,9 @@ export function useFieldPermissions() {
         canEdit: permission.can_edit,
         canDelete: permission.can_delete,
       };
+    } else if (isIsolatedBatchField) {
+      /** 批量类权限：无库行时默认全关，不沿用管理员「全开」回退 */
+      result = { canView: false, canEdit: false, canDelete: false };
     } else {
       if (permRole === 'admin' || permRole === 'super_admin') {
         result = { canView: true, canEdit: true, canDelete: true };

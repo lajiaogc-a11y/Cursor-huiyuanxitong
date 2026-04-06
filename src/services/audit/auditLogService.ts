@@ -22,7 +22,10 @@ export type OperationType =
   | 'shared_data_upsert_delegated';
 
 export type ModuleType = 
-  | 'order_management' 
+  | 'order_management'
+  /** 与权限 registry「orders」一致的服务端统一模块名 */
+  | 'orders'
+  | 'data_management'
   | 'member_management' 
   | 'activity_gift' 
   | 'employee_management' 
@@ -42,6 +45,8 @@ export type ModuleType =
 
 export const MODULE_NAMES: Record<ModuleType, { zh: string; en: string }> = {
   order_management: { zh: '订单管理', en: 'Order Management' },
+  orders: { zh: '订单', en: 'Orders' },
+  data_management: { zh: '数据管理', en: 'Data Management' },
   member_management: { zh: '会员管理', en: 'Member Management' },
   activity_gift: { zh: '活动赠送', en: 'Activity Gift' },
   employee_management: { zh: '员工管理', en: 'Employee Management' },
@@ -126,6 +131,10 @@ export interface AuditLogEntry {
   operationType: OperationType;
   beforeData: any;
   afterData: any;
+  /** 结构化请求/上下文（与后端 operation_logs.request_data 一致） */
+  requestData?: unknown;
+  /** 批量目标 id（与后端 target_ids 一致） */
+  targetIds?: unknown;
   ipAddress: string;
   isRestored?: boolean;
   restoredBy?: string;
@@ -152,6 +161,8 @@ function mapOperationLogRows(data: unknown): AuditLogEntry[] {
     operationType: repairUtf8MisdecodedAsLatin1(String(r.operation_type ?? '')) as OperationType,
     beforeData: parseOperationLogDataField(r.before_data) ?? r.before_data,
     afterData: parseOperationLogDataField(r.after_data) ?? r.after_data,
+    requestData: parseOperationLogDataField(r.request_data) ?? r.request_data,
+    targetIds: parseOperationLogDataField(r.target_ids) ?? r.target_ids,
     ipAddress: r.ip_address || 'local',
     isRestored: r.is_restored || false,
     restoredBy: r.restored_by || undefined,
@@ -252,6 +263,8 @@ export async function fetchAuditLogsPage(
           operationType: (row.operationType ?? row.operation_type) as OperationType || 'update',
           beforeData: parseOperationLogDataField(row.beforeData ?? row.before_data) ?? (row.beforeData ?? row.before_data),
           afterData: parseOperationLogDataField(row.afterData ?? row.after_data) ?? (row.afterData ?? row.after_data),
+          requestData: parseOperationLogDataField(row.requestData ?? row.request_data) ?? (row.requestData ?? row.request_data),
+          targetIds: parseOperationLogDataField(row.targetIds ?? row.target_ids) ?? (row.targetIds ?? row.target_ids),
           ipAddress: (row.ipAddress ?? row.ip_address) as string || 'local',
           isRestored: !!(row.isRestored ?? row.is_restored ?? false),
           restoredBy: (row.restoredBy ?? row.restored_by) as string | undefined,

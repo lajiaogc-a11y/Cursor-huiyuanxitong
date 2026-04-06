@@ -1,8 +1,16 @@
 /**
- * 后台「数据级」权限：查看/编辑/删除（在审核中心 → 审核设置 → 数据编辑权限，仅总管理员；写入 role_permissions）
- * 左侧菜单可见性在系统设置 → 权限设置（与本文无关）
+ * 后台「数据级」权限：模块 module + 操作 field（写入 role_permissions，与导航权限无关）
+ * - permissionColumns：细粒度操作单独成项，不共用「单条删除」开关（如批量删除 / 批量处理）
+ * - 修改模块/字段后请重新生成 server/src/permissions/permissionSyncKeys.json（与 getAllPermissionModuleFields() 一致）
  */
-export type FieldMeta = { label_zh: string; label_en: string; readonly?: boolean; isAction?: boolean };
+export type FieldMeta = {
+  label_zh: string;
+  label_en: string;
+  readonly?: boolean;
+  isAction?: boolean;
+  /** 默认 full；delete_only=仅「删除」列（存 can_delete）；edit_only=仅「编辑」列（存 can_edit） */
+  permissionColumns?: 'full' | 'delete_only' | 'edit_only';
+};
 
 export const DATA_FIELD_MODULES: Record<
   string,
@@ -27,6 +35,9 @@ export const DATA_FIELD_MODULES: Record<
       sales_person: { label_zh: '销售员', label_en: 'Sales Person', readonly: true },
       cancel_button: { label_zh: '取消订单', label_en: 'Cancel Order', isAction: true },
       delete_button: { label_zh: '删除订单', label_en: 'Delete Order', isAction: true },
+      /** 与单条删除独立；默认关闭，需在数据权限中显式开启 */
+      batch_delete: { label_zh: '批量删除订单', label_en: 'Batch delete orders', isAction: true, permissionColumns: 'delete_only' },
+      batch_process: { label_zh: '批量处理订单', label_en: 'Batch process orders', isAction: true, permissionColumns: 'edit_only' },
     },
   },
   members: {
@@ -78,6 +89,20 @@ export const DATA_FIELD_MODULES: Record<
       export_logs: { label_zh: '导出日志', label_en: 'Export Logs' },
     },
   },
+  /** 操作日志页「前端异常报告」列表删除；与表代理 DELETE error_reports 一致 */
+  error_reports: {
+    label_zh: '前端异常报告',
+    label_en: 'Frontend Error Reports',
+    fields: {
+      delete_report: { label_zh: '删除单条报告', label_en: 'Delete single report', isAction: true },
+      batch_clear: {
+        label_zh: '批量清除',
+        label_en: 'Clear all / multi-delete',
+        isAction: true,
+        permissionColumns: 'delete_only',
+      },
+    },
+  },
   activity_reports: {
     label_zh: '活动报表',
     label_en: 'Activity Reports',
@@ -114,7 +139,8 @@ export const DATA_FIELD_MODULES: Record<
     fields: {
       import_data: { label_zh: '导入数据', label_en: 'Import Data' },
       export_data: { label_zh: '导出数据', label_en: 'Export Data' },
-      batch_delete: { label_zh: '批量删除', label_en: 'Batch Delete', isAction: true },
+      batch_delete: { label_zh: '批量删除', label_en: 'Batch Delete', isAction: true, permissionColumns: 'delete_only' },
+      batch_action: { label_zh: '批量处理', label_en: 'Batch action', isAction: true, permissionColumns: 'edit_only' },
     },
   },
   merchant_settlement: {
@@ -156,3 +182,10 @@ export const DATA_FIELD_MODULES: Record<
     },
   },
 };
+
+/** 扁平列表：供服务端启动时同步 role_permissions（去重插入） */
+export function getAllPermissionModuleFields(): { module_name: string; field_name: string }[] {
+  return Object.entries(DATA_FIELD_MODULES).flatMap(([module_name, cfg]) =>
+    Object.keys(cfg.fields).map((field_name) => ({ module_name, field_name })),
+  );
+}

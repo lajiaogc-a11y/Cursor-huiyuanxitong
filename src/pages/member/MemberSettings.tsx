@@ -30,7 +30,6 @@ import { MemberPointsValueSkeleton } from "@/components/member/MemberPageLoading
 import { useMemberPointsBreakdown } from "@/hooks/useMemberPointsBreakdown";
 import { useMemberAnimatedCount } from "@/hooks/useMemberAnimatedCount";
 import { useMemberSkeletonGate } from "@/hooks/useMemberSkeletonGate";
-import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
 import { MemberSettingsAccountSection } from "@/pages/member/settings/MemberSettingsAccountSection";
 import { MemberSettingsPointsLedgerSection } from "@/pages/member/settings/MemberSettingsPointsLedgerSection";
 import { MemberSettingsOrdersSection } from "@/pages/member/settings/MemberSettingsOrdersSection";
@@ -150,20 +149,15 @@ export default function MemberSettings() {
   });
 
   const LEDGER_PAGE = 50;
-  const [ledgerAllRows, setLedgerAllRows] = useState<MemberPointsLedgerRow[]>([]);
-  const [ledgerTotalCount, setLedgerTotalCount] = useState(0);
+  /** 「加载更多」追加行；首屏数据必须以 React Query 的 data 为准，避免切回已缓存分类时不跑 queryFn、setState 未同步导致死数据 */
+  const [ledgerExtraRows, setLedgerExtraRows] = useState<MemberPointsLedgerRow[]>([]);
   const [ledgerLoadingMore, setLedgerLoadingMore] = useState(false);
 
   const { isLoading: ledgerLoading, isFetching: ledgerFetching, data: ledgerPack } = useQuery({
     queryKey: memberId ? memberQueryKeys.pointsLedger(memberId, ledgerCategory) : ["member", "pointsLedger", "__none"],
     queryFn: async () => {
       if (!memberId) return { success: false as const, rows: [] as MemberPointsLedgerRow[], total: 0 };
-      const r = await getMemberPointsLedgerRpc(memberId, ledgerCategory, LEDGER_PAGE, 0);
-      if (r.success) {
-        setLedgerAllRows(r.rows);
-        setLedgerTotalCount(r.total);
-      }
-      return r;
+      return getMemberPointsLedgerRpc(memberId, ledgerCategory, LEDGER_PAGE, 0);
     },
     enabled: !!memberId && expandedPointsLedger,
     staleTime: 20_000,
@@ -172,23 +166,27 @@ export default function MemberSettings() {
     refetchOnWindowFocus: true,
   });
 
+  useEffect(() => {
+    setLedgerExtraRows([]);
+  }, [ledgerCategory]);
+
+  const ledgerBaseRows = ledgerPack?.success ? ledgerPack.rows : [];
+  const ledgerTotal = ledgerPack?.success ? ledgerPack.total : 0;
+  const ledgerRows = [...ledgerBaseRows, ...ledgerExtraRows];
+  const hasMoreLedger = ledgerRows.length < ledgerTotal;
+
   const loadMoreLedger = useCallback(async () => {
-    if (!memberId || ledgerLoadingMore || ledgerAllRows.length >= ledgerTotalCount) return;
+    if (!memberId || ledgerLoadingMore || ledgerRows.length >= ledgerTotal) return;
     setLedgerLoadingMore(true);
     try {
-      const r = await getMemberPointsLedgerRpc(memberId, ledgerCategory, LEDGER_PAGE, ledgerAllRows.length);
+      const r = await getMemberPointsLedgerRpc(memberId, ledgerCategory, LEDGER_PAGE, ledgerRows.length);
       if (r.success) {
-        setLedgerAllRows((prev) => [...prev, ...r.rows]);
-        setLedgerTotalCount(r.total);
+        setLedgerExtraRows((prev) => [...prev, ...r.rows]);
       }
     } finally {
       setLedgerLoadingMore(false);
     }
-  }, [memberId, ledgerLoadingMore, ledgerAllRows.length, ledgerTotalCount, ledgerCategory]);
-
-  const ledgerRows = ledgerAllRows;
-  const ledgerTotal = ledgerTotalCount;
-  const hasMoreLedger = ledgerAllRows.length < ledgerTotalCount;
+  }, [memberId, ledgerLoadingMore, ledgerRows.length, ledgerTotal, ledgerCategory]);
 
   const {
     breakdown: settingsPtsBreakdown,
@@ -220,14 +218,6 @@ export default function MemberSettings() {
   const showOrdersSkeleton = useMemberSkeletonGate(ordersLoading);
 
   const queryClient = useQueryClient();
-  useMemberPullRefreshSignal(() => {
-    if (!member?.id) return;
-    const mid = member.id;
-    void queryClient.invalidateQueries({ queryKey: memberQueryKeys.orders(mid) });
-    void queryClient.invalidateQueries({ queryKey: ["member", "pointsLedger", mid] });
-    void queryClient.invalidateQueries({ queryKey: memberQueryKeys.pointsBreakdown(mid) });
-    void refreshMember();
-  });
 
   const handleSaveNickname = async () => {
     if (!member) return;

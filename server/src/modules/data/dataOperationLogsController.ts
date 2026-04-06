@@ -115,6 +115,11 @@ export async function postOperationLogController(req: AuthenticatedRequest, res:
     const objectDescription = (body.objectDescription as string) ?? null;
     const beforeData = body.beforeData;
     const afterData = body.afterData;
+    const requestData = body.requestData ?? body.request_data;
+    const targetIdsRaw = body.targetIds ?? body.target_ids;
+    const targetIds = Array.isArray(targetIdsRaw)
+      ? (targetIdsRaw as unknown[]).map((x) => String(x))
+      : null;
     const forwardedIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
       || (req.headers['x-real-ip'] as string)
       || req.socket?.remoteAddress
@@ -136,6 +141,8 @@ export async function postOperationLogController(req: AuthenticatedRequest, res:
       object_description: objectDescription,
       before_data: beforeData,
       after_data: afterData,
+      request_data: requestData,
+      target_ids: targetIds,
       ip_address: ipAddress,
     });
     res.json({ success: true, data: { ok: true } });

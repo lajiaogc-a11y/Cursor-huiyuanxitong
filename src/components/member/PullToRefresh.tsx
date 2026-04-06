@@ -13,6 +13,7 @@ import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
 import { memberQueryKeys } from "@/lib/memberQueryKeys";
+import { MEMBER_PULL_REFRESH_EVENT } from "@/lib/memberPullRefreshEvent";
 import { isMemberBottomTabPath } from "@/lib/memberBottomTabPaths";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -64,7 +65,7 @@ function touchTargetDefersPull(target: EventTarget | null): boolean {
   );
 }
 
-export const MEMBER_PULL_REFRESH_EVENT = "member:pull-refresh";
+export { MEMBER_PULL_REFRESH_EVENT };
 
 interface Props {
   children: ReactNode;
@@ -130,9 +131,8 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
 
     const handleNativeRefresh = () => {
       queryClient
-        .invalidateQueries({
+        .refetchQueries({
           queryKey: memberQueryKeys.all,
-          refetchType: "active",
           type: "active",
         })
         .then(() => {
@@ -177,14 +177,15 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
     };
 
     queryClient
-      .invalidateQueries({
+      .refetchQueries({
         queryKey: memberQueryKeys.all,
-        refetchType: "active",
         type: "active",
       })
       .then(() => {
         window.dispatchEvent(new CustomEvent(MEMBER_PULL_REFRESH_EVENT));
-        setTimeout(() => { if (!unmountedRef.current) settle(); }, 300);
+        setTimeout(() => {
+          if (!unmountedRef.current) settle();
+        }, 300);
       })
       .catch(() => {
         settle();
