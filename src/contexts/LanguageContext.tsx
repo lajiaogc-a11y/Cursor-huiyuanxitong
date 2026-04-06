@@ -6,12 +6,17 @@
  * - NEVER use `t('key')` for a key that doesn't exist in TRANSLATIONS — it will display the raw key.
  * - For new strings: prefer `t("中文", "English")` unless the string appears in 3+ places,
  *   in which case add it to TRANSLATIONS and use `t('key')`.
+ *
+ * Language strategy:
+ * - Default language is English for all routes (member-facing and staff).
+ * - Chinese is a hidden internal mode activated only via localStorage.appLanguage = "zh"
+ *   or by visiting any page with ?lang=zh in the URL.
+ * - No automatic browser language detection.
  */
 import { createContext, useContext, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
 import { translations } from '@/locales/translations';
 import { repairUtf8MisdecodedAsLatin1 } from '@/lib/utf8MojibakeRepair';
-import { APP_LANGUAGE_STORAGE_KEY, readStoredAppLocale, isMemberFacingPathname } from '@/lib/appLocale';
+import { APP_LANGUAGE_STORAGE_KEY, readStoredAppLocale } from '@/lib/appLocale';
 
 /** 统一修复源码/API 中偶发的 UTF-8 被按 Latin-1 存储导致的乱码 */
 function fixMojibakeUi(s: string): string {
@@ -21,23 +26,10 @@ function fixMojibakeUi(s: string): string {
 
 export type Language = 'zh' | 'en';
 
-/** 会员端界面根据浏览器语言自动显示中/英文；员工端与其它公共页使用用户偏好语言 */
-function isMemberFacingPath(pathname: string): boolean {
-  return isMemberFacingPathname(pathname);
-}
-
-function detectBrowserLang(): Language {
-  try {
-    const lang = navigator.language || "";
-    if (lang.startsWith("zh")) return "zh";
-  } catch { /* SSR / non-browser */ }
-  return "en";
-}
-
 interface LanguageContextType {
-  /** 当前实际用于文案的语言（会员端恒为 en） */
+  /** 当前实际用于文案的语言 */
   language: Language;
-  /** 用户保存的偏好（员工端生效） */
+  /** 用户保存的偏好 */
   preferredLanguage: Language;
   setLanguage: (lang: Language) => void;
   toggleLanguage: () => void;
@@ -71,11 +63,9 @@ function resolveByKey(key: string, lang: Language): string {
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const { pathname } = useLocation();
   const [preferredLanguage, setPreferredLanguageState] = useState<Language>(readStoredAppLocale);
 
-  const memberFacing = isMemberFacingPath(pathname);
-  const effectiveLanguage: Language = memberFacing ? detectBrowserLang() : preferredLanguage;
+  const effectiveLanguage: Language = preferredLanguage;
 
   useEffect(() => {
     document.documentElement.lang = effectiveLanguage === "zh" ? "zh-CN" : "en";

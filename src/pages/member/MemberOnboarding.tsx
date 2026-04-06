@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, ChevronRight } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ROUTES } from "@/routes/constants";
+import { markMemberPostLoginShellTransition } from "@/lib/memberPostLoginTransition";
 import { cn } from "@/lib/utils";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
 import "@/styles/member-portal.css";
@@ -64,7 +65,10 @@ export default function MemberOnboarding() {
     if (dx > 0 && current > 0) setCurrent((c) => c - 1);
   };
 
-  const goDash = () => navigate(ROUTES.MEMBER.DASHBOARD);
+  const goDash = () => {
+    markMemberPostLoginShellTransition();
+    navigate(ROUTES.MEMBER.DASHBOARD);
+  };
 
   return (
     <div

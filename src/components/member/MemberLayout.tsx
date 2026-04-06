@@ -20,7 +20,13 @@ import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
 import { PullToRefresh } from "@/components/member/PullToRefresh";
 import PageTransition from "@/components/member/PageTransition";
 import SplashScreen from "@/components/member/SplashScreen";
-import { DashboardSkeleton, MemberPageSkeleton } from "@/components/member/MemberSkeleton";
+import { MemberGlobalLoader } from "@/components/member/GlobalLoader";
+import { MemberRouteSuspenseFallback } from "@/components/member/MemberRouteSuspenseFallback";
+import {
+  MEMBER_POST_LOGIN_VEIL_MS,
+  peekMemberPostLoginShellTransition,
+  clearMemberPostLoginShellTransition,
+} from "@/lib/memberPostLoginTransition";
 import { memberPortalGoldCssVarsFromHex } from "@/utils/memberPortalGoldCssVars";
 import { cn } from "@/lib/utils";
 import { isMemberBottomTabPath } from "@/lib/memberBottomTabPaths";
@@ -113,8 +119,8 @@ export function MemberLayout({ children }: { children: ReactNode }) {
     }
   }, [isBottomTab, pathname]);
 
-  const suspenseFallback =
-    pathname === ROUTES.MEMBER.DASHBOARD ? <DashboardSkeleton /> : <MemberPageSkeleton />;
+  const suspenseFallback = <MemberRouteSuspenseFallback />;
+  const [postLoginVeil, setPostLoginVeil] = useState(false);
   const [splashDone, setSplashDone] = useState(() => {
     try { return sessionStorage.getItem("member_splash_shown") === "1"; } catch { return false; }
   });
@@ -178,8 +184,20 @@ export function MemberLayout({ children }: { children: ReactNode }) {
     !member?.id ||
     (!portalLoading && entryChunkReady && (!tenantLogoRaw || entryLogoDecoded));
 
+  useEffect(() => {
+    if (!member?.id || !splashDone) return;
+    if (!peekMemberPostLoginShellTransition()) return;
+    setPostLoginVeil(true);
+    const timer = window.setTimeout(() => {
+      clearMemberPostLoginShellTransition();
+      setPostLoginVeil(false);
+    }, MEMBER_POST_LOGIN_VEIL_MS);
+    return () => window.clearTimeout(timer);
+  }, [member?.id, splashDone]);
+
   return (
     <ErrorBoundary surface="member">
+      {postLoginVeil ? <MemberGlobalLoader accentColor={themeColor} /> : null}
       {!splashDone && (
         <SplashScreen
           minDurationMs={MEMBER_ENTRY_SPLASH_MIN_MS}
@@ -230,7 +248,7 @@ export function MemberLayout({ children }: { children: ReactNode }) {
                 </div>
               ) : null}
               {!isBottomTab ? (
-                <AnimatePresence mode="sync">
+                <AnimatePresence mode="wait">
                   <PageTransition key={pathname}>
                     <Suspense fallback={suspenseFallback}>{children}</Suspense>
                   </PageTransition>

@@ -10,11 +10,11 @@ interface PageTransitionProps {
   className?: string;
 }
 
-/** 与 premium-ui-boost-main `PageTransition` 一致（y: ±8） */
+/** 轻微上浮 + 淡入淡出，接近原生转场 */
 const variants = {
-  initial: { opacity: 0, y: 8 },
+  initial: { opacity: 0, y: 10 },
   animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -8 },
+  exit: { opacity: 0, y: -6 },
 };
 
 export default function PageTransition({ children, className = "" }: PageTransitionProps) {
@@ -25,7 +25,11 @@ export default function PageTransition({ children, className = "" }: PageTransit
       initial="initial"
       animate="animate"
       exit="exit"
-      transition={reduceMotion ? { duration: 0 } : { duration: 0.25, ease: "easeOut" }}
+      transition={
+        reduceMotion
+          ? { duration: 0 }
+          : { duration: 0.28, ease: [0.22, 1, 0.36, 1] }
+      }
       className={className}
     >
       {children}

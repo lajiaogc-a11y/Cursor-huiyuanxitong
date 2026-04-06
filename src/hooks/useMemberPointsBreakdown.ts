@@ -51,6 +51,7 @@ export function useMemberPointsBreakdown(memberId: string | undefined) {
     },
     enabled: !!memberId,
     retry: 2,
+    staleTime: 60_000,
   });
 
   return {

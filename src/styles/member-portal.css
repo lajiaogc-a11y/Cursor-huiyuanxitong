@@ -3133,7 +3133,7 @@ html.member-html .member-points-account-settings--inline .member-points-account-
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, hsl(216 50% 4% / 0.55) 0%, transparent 38%);
+  background: linear-gradient(180deg, hsl(216 50% 4% / 0.6) 0%, transparent 36%, transparent 48%, hsl(216 50% 4% / 0.55) 100%);
   pointer-events: none;
   z-index: 1;
 }
@@ -3153,15 +3153,15 @@ html.member-html .member-points-account-settings--inline .member-points-account-
   bottom: 0;
   z-index: 2;
   padding: 11px 12px 12px;
-  background: linear-gradient(to top, hsl(216 50% 4% / 0.94) 0%, hsl(216 50% 8% / 0.55) 52%, transparent 100%);
+  background: linear-gradient(to top, hsl(216 50% 4% / 0.97) 0%, hsl(216 50% 6% / 0.82) 55%, hsl(216 50% 8% / 0.3) 85%, transparent 100%);
   pointer-events: none;
 }
 .member-pu-product-card__points-value {
   font-size: 16px;
   font-weight: 800;
   letter-spacing: -0.04em;
-  color: hsl(var(--pu-foreground));
-  text-shadow: 0 1px 14px hsl(var(--pu-gold) / 0.28);
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6), 0 0 14px hsl(var(--pu-gold) / 0.3);
   line-height: 1.1;
 }
 .member-pu-product-card__points-value--muted {
@@ -3174,6 +3174,7 @@ html.member-html .member-points-account-settings--inline .member-points-account-
   color: hsl(var(--pu-gold-soft));
   margin-left: 3px;
   letter-spacing: 0.02em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 .member-pu-product-card__badge {
   position: absolute;
@@ -3186,6 +3187,7 @@ html.member-html .member-points-account-settings--inline .member-points-account-
   border-radius: 999px;
   pointer-events: none;
   line-height: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 .member-pu-product-card__badge--tl {
   top: 8px;
@@ -3331,7 +3333,7 @@ html.member-html .member-points-account-settings--inline .member-points-account-
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, hsl(216 50% 4% / 0.48) 0%, transparent 40%);
+  background: linear-gradient(180deg, hsl(216 50% 4% / 0.55) 0%, transparent 36%, transparent 48%, hsl(216 50% 4% / 0.5) 100%);
   pointer-events: none;
   z-index: 1;
 }
@@ -3364,16 +3366,16 @@ html.member-html .member-points-account-settings--inline .member-points-account-
   align-items: center;
   gap: 3px;
   padding: 5px 6px 6px;
-  background: linear-gradient(to top, hsl(216 50% 4% / 0.94) 0%, hsl(216 50% 8% / 0.45) 65%, transparent 100%);
+  background: linear-gradient(to top, hsl(216 50% 4% / 0.97) 0%, hsl(216 50% 6% / 0.78) 65%, transparent 100%);
   pointer-events: none;
 }
 .member-pu-product-list-row__points {
   font-size: 12px;
   font-weight: 800;
   letter-spacing: -0.03em;
-  color: hsl(var(--pu-foreground));
+  color: #fff;
   line-height: 1;
-  text-shadow: 0 1px 10px hsl(var(--pu-gold) / 0.22);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 10px hsl(var(--pu-gold) / 0.25);
 }
 .member-pu-product-list-row__points--muted {
   color: hsl(var(--pu-m-text-dim));
@@ -3384,6 +3386,7 @@ html.member-html .member-points-account-settings--inline .member-points-account-
   font-weight: 700;
   color: hsl(var(--pu-gold-soft));
   margin-left: 2px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 .member-pu-product-list-row__body {
   flex: 1;
@@ -6191,19 +6194,26 @@ html.member-html:not(.dark) .member-portal-wrap .member-pu-product-card {
   }
 }
 html.member-html:not(.dark) .member-portal-wrap .member-pu-product-card__media-wrap::after {
-  background: linear-gradient(180deg, hsl(0 0% 100% / 0.38) 0%, transparent 38%);
+  background: linear-gradient(180deg, hsl(220 20% 12% / 0.35) 0%, transparent 36%, transparent 50%, hsl(220 20% 12% / 0.3) 100%);
 }
 html.member-html:not(.dark) .member-portal-wrap .member-pu-product-card__points-strip {
   background: linear-gradient(
     to top,
-    hsl(0 0% 100% / 0.95) 0%,
-    hsl(214 54% 99% / 0.58) 52%,
+    hsl(220 20% 10% / 0.78) 0%,
+    hsl(220 20% 12% / 0.55) 55%,
+    hsl(220 20% 14% / 0.15) 85%,
     transparent 100%
   );
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 html.member-html:not(.dark) .member-portal-wrap .member-pu-product-card__points-value {
-  color: hsl(var(--pu-m-text));
-  text-shadow: 0 1px 1px hsl(0 0% 100% / 0.85);
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-pu-product-card__points-unit {
+  color: hsl(var(--pu-gold-soft));
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 html.member-html:not(.dark) .member-portal-wrap .member-pu-product-card__badge--soldout {
   background: hsl(215 14% 42% / 0.9);
@@ -6229,19 +6239,24 @@ html.member-html:not(.dark) .member-portal-wrap .member-pu-product-list-row {
   }
 }
 html.member-html:not(.dark) .member-portal-wrap .member-pu-product-list-row__thumb::after {
-  background: linear-gradient(180deg, hsl(0 0% 100% / 0.42) 0%, transparent 40%);
+  background: linear-gradient(180deg, hsl(220 20% 12% / 0.32) 0%, transparent 38%, transparent 50%, hsl(220 20% 12% / 0.28) 100%);
 }
 html.member-html:not(.dark) .member-portal-wrap .member-pu-product-list-row__points-strip {
   background: linear-gradient(
     to top,
-    hsl(0 0% 100% / 0.96) 0%,
-    hsl(214 55% 99% / 0.52) 65%,
+    hsl(220 20% 10% / 0.78) 0%,
+    hsl(220 20% 12% / 0.5) 65%,
     transparent 100%
   );
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 html.member-html:not(.dark) .member-portal-wrap .member-pu-product-list-row__points {
-  color: hsl(var(--pu-m-text));
-  text-shadow: 0 1px 1px hsl(0 0% 100% / 0.85);
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+html.member-html:not(.dark) .member-portal-wrap .member-pu-product-list-row__pts {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 /* 礼遇商城旧式方图卡 — 顶部渐变遮罩 */

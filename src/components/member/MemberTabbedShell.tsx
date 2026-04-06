@@ -9,7 +9,7 @@ import {
   MemberSettings,
   MemberSpin,
 } from "@/routes/lazyPages";
-import { DashboardSkeleton, MemberPageSkeleton } from "@/components/member/MemberSkeleton";
+import { MemberRouteSuspenseFallback } from "@/components/member/MemberRouteSuspenseFallback";
 import { cn } from "@/lib/utils";
 
 function TabPanel({
@@ -66,8 +66,7 @@ export function MemberTabbedShell({ activePath }: { activePath: string }) {
     <>
       {MEMBER_BOTTOM_TAB_PATHS.map((path) => {
         if (!visited.has(path)) return null;
-        const fallback =
-          path === ROUTES.MEMBER.DASHBOARD ? <DashboardSkeleton /> : <MemberPageSkeleton />;
+        const fallback = <MemberRouteSuspenseFallback />;
         return (
           <TabPanel key={path} path={path} activePath={activePath}>
             <Suspense fallback={fallback}>

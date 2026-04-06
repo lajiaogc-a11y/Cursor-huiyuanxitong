@@ -25,6 +25,7 @@ import {
 } from "@/services/members/memberPortalSettingsService";
 import { warmupApiHealth } from "@/services/system/apiWarmup";
 import { ROUTES } from "@/routes/constants";
+import { markMemberPostLoginShellTransition } from "@/lib/memberPostLoginTransition";
 import { useMemberLogin } from "@/hooks/useMemberLogin";
 import { cn } from "@/lib/utils";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
@@ -89,6 +90,7 @@ export default function MemberLogin() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
+    markMemberPostLoginShellTransition();
     navigate(
       member?.must_change_password ? ROUTES.MEMBER.FIRST_PASSWORD : ROUTES.MEMBER.DASHBOARD,
       { replace: true },

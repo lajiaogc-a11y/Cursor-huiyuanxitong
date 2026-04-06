@@ -5,6 +5,7 @@ import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { memberPortalNetworkToastMessage } from "@/lib/memberPortalUx";
 import { ROUTES } from "@/routes/constants";
+import { markMemberPostLoginShellTransition } from "@/lib/memberPostLoginTransition";
 
 const SAVED_ACCOUNT_KEY = "member_saved_account";
 
@@ -77,6 +78,7 @@ export function useMemberLogin(options?: UseMemberLoginOptions) {
           else clearSavedAccount();
           notify.success(t("登录成功", "Signed in successfully"));
           onSignedInRef.current?.();
+          markMemberPostLoginShellTransition();
           navigate(
             result.mustChangePassword ? ROUTES.MEMBER.FIRST_PASSWORD : ROUTES.MEMBER.DASHBOARD,
             { replace: true },

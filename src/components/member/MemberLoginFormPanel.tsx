@@ -229,9 +229,14 @@ export function MemberLoginFormPanel({
                   boxShadow: "0 8px 28px -8px hsl(var(--pu-gold) / 0.5)",
                 }}
               >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden /> : null}
                 {t("登录", "Sign In")}
-                {!loading ? <ArrowRight className="h-4 w-4" aria-hidden /> : null}
+                <span className="inline-flex w-4 shrink-0 items-center justify-center" aria-hidden>
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+                  ) : (
+                    <ArrowRight className="h-4 w-4" />
+                  )}
+                </span>
               </button>
             </form>
           </div>

@@ -17,6 +17,8 @@ export default function MemberTradeContact() {
   const [tipLoaded, setTipLoaded] = useState(false);
   const prevMemberId = useRef(member?.id);
 
+  const showTip = tipLoaded && orderSpinTipAmount != null;
+
   useEffect(() => {
     let cancelled = false;
     const mid = member?.id?.trim();
@@ -64,14 +66,28 @@ export default function MemberTradeContact() {
     <div className="m-page-bg relative min-h-screen pb-24">
       <BackHeader title={t("联系客服交易", "Contact support to trade")} />
 
-      {tipLoaded && orderSpinTipAmount != null && (
-        <div className="relative z-[2] mx-5 mt-2 animate-in fade-in duration-300 rounded-xl border border-[hsl(var(--pu-m-accent)/0.35)] bg-[hsl(var(--pu-m-accent)/0.12)] px-4 py-3 text-[12px] leading-relaxed text-[hsl(var(--pu-m-text))]">
-          {t(
-            `每完成一笔交易可获得 ${orderSpinTipAmount} 次抽奖机会。`,
-            `Earn ${orderSpinTipAmount} lottery spin(s) for each completed transaction.`,
-          )}
-        </div>
-      )}
+      <div
+        className="relative z-[2] mx-5 mt-2 overflow-hidden rounded-xl border border-[hsl(var(--pu-m-accent)/0.35)] bg-[hsl(var(--pu-m-accent)/0.12)] px-4 text-[12px] leading-relaxed text-[hsl(var(--pu-m-text))] will-change-[opacity,max-height]"
+        style={{
+          opacity: showTip ? 1 : 0,
+          maxHeight: showTip ? "6rem" : "0px",
+          paddingTop: showTip ? "0.75rem" : "0px",
+          paddingBottom: showTip ? "0.75rem" : "0px",
+          borderWidth: showTip ? undefined : 0,
+          marginTop: showTip ? undefined : 0,
+          transitionProperty: "opacity, max-height, padding, border-width, margin",
+          transitionDuration: "280ms",
+          transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+        }}
+        aria-hidden={!showTip}
+      >
+        {orderSpinTipAmount != null
+          ? t(
+              `每完成一笔交易可获得 ${orderSpinTipAmount} 次抽奖机会。`,
+              `Earn ${orderSpinTipAmount} lottery spin(s) for each completed transaction.`,
+            )
+          : "\u00A0"}
+      </div>
 
       <div className="relative overflow-hidden">
         <MemberPageAmbientOrbs />

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ROUTES } from "@/routes/constants";
+import { markMemberPostLoginShellTransition } from "@/lib/memberPostLoginTransition";
 import { notify } from "@/lib/notifyHub";
 import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
 import { cn } from "@/lib/utils";
@@ -79,6 +80,7 @@ export default function MemberFirstPassword() {
       const r = await setPassword(oldPwd, newPwd);
       if (r.success) {
         notify.success(t("密码已更新，欢迎使用", "Password updated. Welcome!"));
+        markMemberPostLoginShellTransition();
         navigate(ROUTES.MEMBER.DASHBOARD, { replace: true });
       } else {
         notify.error(r.message || t("密码更新失败", "Could not update password"));

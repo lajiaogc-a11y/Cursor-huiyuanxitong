@@ -558,8 +558,19 @@ export default function MemberSpin() {
         </div>
 
         {/* ── Winner feed marquee ── */}
-        {simFeedDisplayItems.length > 0 && (
-          <div className="mb-4 px-5">
+        <div
+          className="mb-4 px-5 will-change-[opacity]"
+          style={{
+            opacity: simFeedDisplayItems.length > 0 ? 1 : 0,
+            maxHeight: simFeedDisplayItems.length > 0 ? "4rem" : "0px",
+            overflow: "hidden",
+            transitionProperty: "opacity, max-height",
+            transitionDuration: "280ms",
+            transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+          }}
+          aria-hidden={simFeedDisplayItems.length === 0}
+        >
+          {simFeedDisplayItems.length > 0 && (
             <div
               className={cn(
                 "member-spin-sim-feed relative cursor-pointer overflow-hidden rounded-xl bg-[hsl(var(--pu-m-surface)/0.3)] py-2 select-none touch-manipulation",
@@ -594,8 +605,8 @@ export default function MemberSpin() {
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* ── Main content area ── */}
         <main className="relative mx-auto w-full max-w-md flex-1 space-y-5 px-5 lg:max-w-lg">

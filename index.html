@@ -16,7 +16,7 @@
     <!-- 阻塞：在首帧前同步 html.dark 与 theme-color（CSP 禁止内联 script） -->
     <script src="/theme-init.js?v=20260330"></script>
     <link rel="apple-touch-icon" href="/pwa-192x192.png" />
-    <!-- Content-Language is set dynamically by LanguageContext based on browser language -->
+    <meta http-equiv="Content-Language" content="en" />
     <!-- CSP：必须单行。多行 content 在部分移动浏览器（尤其 iOS Safari）解析失败会导致脚本/接口被拦、整站白屏。 -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://crm.fastgc.cc https://www.crm.fastgc.cc https://admin.crm.fastgc.cc; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://crm.fastgc.cc https://www.crm.fastgc.cc https://admin.crm.fastgc.cc https://open.er-api.com https://api.exchangerate-api.com https://latest.currency-api.pages.dev https://api.frankfurter.app https://api.coingecko.com https://api.binance.com https://api.coincap.io; frame-src 'none'; object-src 'none'; base-uri 'self';">
     <title>FastGC Member System</title>
@@ -29,8 +29,8 @@
     <meta property="og:url" content="https://crm.fastgc.cc" />
 
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="FastGC会员系统" />
-    <meta name="twitter:description" content="FastGC会员管理系统 - 专业的会员管理解决方案" />
+    <meta name="twitter:title" content="FastGC Member System" />
+    <meta name="twitter:description" content="FastGC member management — gift cards, orders, and loyalty in one place." />
 
     <link rel="canonical" href="https://crm.fastgc.cc" />
 
