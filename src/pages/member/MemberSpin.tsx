@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
 import { formatMemberLocalTime } from "@/lib/memberLocalTime";
-import { Gift, History, Trophy, Star, ChevronDown, Info } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { History, Trophy, Star, ChevronDown, Info } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -57,7 +56,7 @@ import { runMemberSpinHighlightAnimation } from "./spin/memberSpinHighlightAnima
 import { queryClient } from "@/lib/queryClient";
 import { memberQueryKeys } from "@/lib/memberQueryKeys";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
-import { SpinWheel } from "@/components/member/SpinWheel";
+import { Lottery } from "@/components/member/MemberSpinLottery";
 import { SpinResultDrawer } from "@/components/member/SpinResultDrawer";
 import {
   formatPrizeListDisplayProbability,
@@ -136,8 +135,6 @@ export default function MemberSpin() {
   const lastDrawResponseAtRef = useRef(0);
 
   const [simFeedItems, setSimFeedItems] = useState<SpinSimFeedItem[]>([]);
-  /** 每次 feed 数据真正变化时递增，用作滚动轨道 key 触发动画平滑重启 */
-  const [feedVersion, setFeedVersion] = useState(0);
   const simFeedLastKnownRef = useRef<SpinSimFeedItem[]>([]);
   /** 点击中奖滚动条后暂停 3 秒再继续 */
   const [simFeedClickPaused, setSimFeedClickPaused] = useState(false);
@@ -154,17 +151,8 @@ export default function MemberSpin() {
     return sorted;
   }, [simFeedItems]);
 
-  /** Update feed state; bump feedVersion only when content actually changed */
   const applyFeedItems = useCallback((incoming: SpinSimFeedItem[]) => {
-    setSimFeedItems((prev) => {
-      const next = mergeFeedItems(prev, incoming);
-      const prevIds = prev.map((x) => x.id).join(',');
-      const nextIds = next.map((x) => x.id).join(',');
-      if (prevIds !== nextIds) {
-        setFeedVersion((v) => v + 1);
-      }
-      return next;
-    });
+    setSimFeedItems((prev) => mergeFeedItems(prev, incoming));
   }, []);
 
   /** 与首页公告一致：`Math.max(14, n * 5)`，n 为当前展示的条数（最多 10） */
@@ -454,68 +442,10 @@ export default function MemberSpin() {
 
   const visibleLogs = historyOpen ? lotteryLogsOnly : lotteryLogsOnly.slice(0, 3);
 
+  /** 与原先「整页占位」一致：非加载且（活动关闭或无奖品配置）时由 Lottery 内部垂直居中占位 */
+  const blocking = !quotaLoading && (!lotteryEnabled || prizes.length === 0);
+
   if (!member) return null;
-
-  if (!lotteryEnabled && !quotaLoading) {
-    return (
-      <div className="member-page-enter relative m-page-bg flex min-h-full flex-col items-center justify-center px-4 pb-24 pt-8 lg:px-8">
-        <MemberPageAmbientOrbs />
-        <div className="relative z-[1] mx-auto w-full max-w-md space-y-4 lg:max-w-lg">
-          <div className="relative overflow-hidden rounded-2xl border border-dashed border-pu-gold/22 bg-gradient-to-b from-pu-gold/[0.08] via-[hsl(var(--pu-m-surface)/0.22)] to-[hsl(var(--pu-m-surface)/0.28)] px-5 py-12 text-center">
-            <div className="relative">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-pu-gold/20 bg-pu-gold/10 text-pu-gold-soft opacity-60">
-                <Gift className="h-7 w-7" strokeWidth={1.75} aria-hidden />
-              </div>
-              <p className="m-0 text-sm font-semibold text-[hsl(var(--pu-m-text))]">
-                {t("抽奖活动暂未开启", "Lottery is not open")}
-              </p>
-              <p className="mt-1.5 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.65)]">
-                {t("活动开启后即可参与抽奖，请稍后再来。", "The lottery will be available once the event starts. Please check back later.")}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (prizes.length === 0 && !quotaLoading) {
-    return (
-      <div className="member-page-enter relative m-page-bg flex min-h-full flex-col items-center justify-center px-4 pb-24 pt-8 lg:px-8">
-        <MemberPageAmbientOrbs />
-        <div className="relative z-[1] mx-auto w-full max-w-md space-y-4 lg:max-w-lg">
-          <div className="relative overflow-hidden rounded-2xl border border-dashed border-pu-gold/22 bg-gradient-to-b from-pu-gold/[0.08] via-[hsl(var(--pu-m-surface)/0.22)] to-[hsl(var(--pu-m-surface)/0.28)] px-5 py-12 text-center">
-            <div className="relative">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-pu-gold/20 bg-pu-gold/10 text-pu-gold-soft">
-              <Gift className="h-7 w-7" strokeWidth={1.75} aria-hidden />
-            </div>
-            <p className="m-0 text-sm font-semibold text-[hsl(var(--pu-m-text))]">
-              {loadError
-                ? t("抽奖加载失败", "Failed to load lottery")
-                : t("尚未配置抽奖活动", "Lottery is not configured yet")}
-            </p>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.65)]">
-              {loadError
-                ? t("点击重试或稍后再打开本页。", "Tap retry or open this page again later.")
-                : t("开启活动并配置奖品后即可抽奖。", "Enable the activity and add prizes to spin.")}
-            </p>
-            {loadError ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="mt-4 rounded-xl border-[hsl(var(--pu-m-surface-border)/0.35)] bg-[hsl(var(--pu-m-surface)/0.45)] text-[hsl(var(--pu-m-text))] hover:bg-[hsl(var(--pu-m-surface)/0.6)]"
-                onClick={() => window.location.reload()}
-              >
-                {t("重试", "Retry")}
-              </Button>
-            ) : null}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   const spinLogEmoji = (prizeType: string) => {
     if (prizeType === "points") return "🎁";
@@ -530,12 +460,17 @@ export default function MemberSpin() {
   };
 
   return (
-      <div className="member-page-enter m-page-bg relative flex min-h-full flex-col pb-24 lg:mx-auto lg:w-full lg:max-w-[960px] lg:px-6 lg:py-6">
+      <div
+        className={cn(
+          "member-page-enter m-page-bg relative flex min-h-full flex-col pb-24 lg:mx-auto lg:w-full lg:max-w-[960px] lg:px-6 lg:py-6",
+          blocking && "justify-center",
+        )}
+      >
         <MemberPageAmbientOrbs />
-        <div className="relative z-[1] flex min-h-full flex-col">
+        <div className={cn("relative z-[1] flex min-h-full flex-col", blocking && "min-h-0 flex-1 justify-center")}>
 
         {/* ── Header: title + inline quota ── */}
-        <div className="relative flex items-center justify-between px-5 pb-3 pt-7">
+        <div className={cn("relative flex items-center justify-between px-5 pb-3 pt-7", blocking && "hidden")}>
           <div className="min-w-0">
             <h1 className="flex items-center gap-2 text-lg font-extrabold text-[hsl(var(--pu-m-text))]">
               <Star className="h-5 w-5 text-pu-rose-soft" aria-hidden />
@@ -557,9 +492,9 @@ export default function MemberSpin() {
           </div>
         </div>
 
-        {/* ── Winner feed marquee ── */}
+        {/* ── Winner feed marquee（结构常驻，无数据时 opacity / maxHeight 收起，避免插入 DOM 时闪现）── */}
         <div
-          className="mb-4 px-5 will-change-[opacity]"
+          className={cn("mb-4 px-5 will-change-[opacity]", blocking && "hidden")}
           style={{
             opacity: simFeedDisplayItems.length > 0 ? 1 : 0,
             maxHeight: simFeedDisplayItems.length > 0 ? "4rem" : "0px",
@@ -570,24 +505,24 @@ export default function MemberSpin() {
           }}
           aria-hidden={simFeedDisplayItems.length === 0}
         >
-          {simFeedDisplayItems.length > 0 && (
-            <div
-              className={cn(
-                "member-spin-sim-feed relative cursor-pointer overflow-hidden rounded-xl bg-[hsl(var(--pu-m-surface)/0.3)] py-2 select-none touch-manipulation",
-                simFeedClickPaused && "member-spin-sim-feed--click-paused",
-              )}
-              role="status"
-              aria-live="polite"
-              title={t("点击暂停三秒", "Tap to pause for 3 seconds")}
-              onClick={onSimFeedStripClick}
-            >
-              <div className="relative min-w-0 w-full overflow-hidden px-1">
-                <div
-                  key={feedVersion}
-                  className="member-spin-sim-feed__track inline-flex w-max max-w-none items-center animate-[marquee_18s_linear_infinite]"
-                  style={{ animationDuration: `${simFeedMarqueeDurationSec}s` }}
-                >
-                  {[0, 1].map((copyIdx) => (
+          <div
+            className={cn(
+              "member-spin-sim-feed relative cursor-pointer overflow-hidden rounded-xl bg-[hsl(var(--pu-m-surface)/0.3)] py-2 select-none touch-manipulation",
+              simFeedClickPaused && "member-spin-sim-feed--click-paused",
+              simFeedDisplayItems.length === 0 && "pointer-events-none",
+            )}
+            role="status"
+            aria-live="polite"
+            title={t("点击暂停三秒", "Tap to pause for 3 seconds")}
+            onClick={onSimFeedStripClick}
+          >
+            <div className="relative min-w-0 w-full overflow-hidden px-1">
+              <div
+                className="member-spin-sim-feed__track inline-flex w-max max-w-none items-center animate-[marquee_18s_linear_infinite]"
+                style={{ animationDuration: `${simFeedMarqueeDurationSec}s` }}
+              >
+                {simFeedDisplayItems.length > 0 ? (
+                  [0, 1].map((copyIdx) => (
                     <span key={copyIdx} className="inline-flex shrink-0 items-center">
                       {simFeedDisplayItems.map((it, i) => (
                         <span key={`${it.id}-${i}`} className="inline-flex shrink-0 items-center">
@@ -601,17 +536,29 @@ export default function MemberSpin() {
                       ))}
                       <span className="mx-2.5 inline-block h-3 w-px shrink-0 rounded-full bg-[hsl(var(--pu-m-text)/0.2)]" aria-hidden />
                     </span>
-                  ))}
-                </div>
+                  ))
+                ) : (
+                  <span className="inline-flex shrink-0 items-center whitespace-nowrap px-1.5 py-0.5 text-[11px] font-medium text-transparent" aria-hidden>
+                    —
+                  </span>
+                )}
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* ── Main content area ── */}
-        <main className="relative mx-auto w-full max-w-md flex-1 space-y-5 px-5 lg:max-w-lg">
-
-          <SpinWheel
+        <main
+          className={cn(
+            "relative mx-auto w-full max-w-md flex-1 space-y-5 px-5 lg:max-w-lg",
+            blocking && "flex min-h-0 flex-col justify-center space-y-5",
+          )}
+        >
+          <Lottery
+            loading={quotaLoading}
+            blocking={blocking}
+            lotteryEnabled={lotteryEnabled}
+            loadError={loadError}
             prizes={prizes}
             activeIndex={activeIndex}
             spinning={spinning}
@@ -623,7 +570,7 @@ export default function MemberSpin() {
           />
 
           {/* ── Prizes list (collapsible) ── */}
-          <Collapsible open={prizesPanelOpen} onOpenChange={setPrizesPanelOpen}>
+          <Collapsible open={prizesPanelOpen} onOpenChange={setPrizesPanelOpen} className={cn(blocking && "hidden")}>
             <CollapsibleTrigger
               type="button"
               className="flex w-full items-center justify-between rounded-lg px-1 py-1.5 text-left text-xs font-bold text-[hsl(var(--pu-m-text-dim)/0.8)] outline-none transition-colors hover:text-[hsl(var(--pu-m-text)/0.92)] focus-visible:ring-2 focus-visible:ring-pu-gold/40"
@@ -676,7 +623,7 @@ export default function MemberSpin() {
           </Collapsible>
 
           {/* ── Spin history ── */}
-          <section aria-labelledby="member-spin-history-heading">
+          <section aria-labelledby="member-spin-history-heading" className={cn(blocking && "hidden")}>
             <div className="mb-2 flex items-center gap-2 px-1">
               <History className="h-3.5 w-3.5 text-[hsl(var(--pu-m-text-dim)/0.7)]" strokeWidth={2} aria-hidden />
               <h2 id="member-spin-history-heading" className="m-0 text-sm font-extrabold text-[hsl(var(--pu-m-text))]">

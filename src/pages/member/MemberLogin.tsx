@@ -21,6 +21,7 @@ import {
   getDefaultMemberPortalSettings,
   getMemberPortalSettingsByAccount,
   getMemberPortalSettingsByInviteCode,
+  normalizeLoginBadgesField,
   type MemberPortalSettings,
 } from "@/services/members/memberPortalSettingsService";
 import { warmupApiHealth } from "@/services/system/apiWarmup";
@@ -201,11 +202,14 @@ export default function MemberLogin() {
 
   /** 须在任意 early return 之前调用，避免 React #310（hooks 数量不一致） */
   const loginBadgeSlots = useMemo(() => {
-    const lines = (displaySettings.login_badges || [])
-      .map((s) => String(s).trim())
-      .filter(Boolean)
-      .slice(0, MEMBER_LOGIN_BADGE_SLOT_COUNT);
-    return Array.from({ length: MEMBER_LOGIN_BADGE_SLOT_COUNT }, (_, i) => parseMemberLoginBadge(lines[i] ?? ""));
+    const lines = normalizeLoginBadgesField(displaySettings.login_badges).slice(0, MEMBER_LOGIN_BADGE_SLOT_COUNT);
+    return Array.from({ length: MEMBER_LOGIN_BADGE_SLOT_COUNT }, (_, i) => {
+      try {
+        return parseMemberLoginBadge(lines[i] ?? "");
+      } catch {
+        return { icon: "", label: String(lines[i] ?? "").trim() };
+      }
+    });
   }, [displaySettings.login_badges]);
 
   if (!settingsReady) {

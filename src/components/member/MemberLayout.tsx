@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { isMemberBottomTabPath } from "@/lib/memberBottomTabPaths";
 import { preloadMemberRouteChunk } from "@/lib/memberRouteChunkPreload";
 import { MemberTabbedShell } from "@/components/member/MemberTabbedShell";
+import { MemberAppShellPageSlot, MemberAppShellTabbarSlot } from "@/components/member/MemberAppShell";
 import "@/styles/member-portal.css";
 import { applyMemberPortalFaviconFromLogoRaw } from "@/lib/memberPortalFavicon";
 import { preloadMemberPortalLogo } from "@/lib/memberPortalLogoPreload";
@@ -87,15 +88,13 @@ export function MemberLayout({ children }: { children: ReactNode }) {
   );
   const { pathname } = useLocation();
   const isBottomTab = isMemberBottomTabPath(pathname);
-  /** 进入过任一底部 Tab 后保持挂载 Tab 壳层，避免 Wallet 等子页返回时丢 keep-alive */
-  const [tabShellMounted, setTabShellMounted] = useState(() => isBottomTab);
+  /** 底部五 Tab 子树始终挂载（keep-alive）；非 Tab 路由时整层 hidden，子页返回不重建 */
   const [shellActivePath, setShellActivePath] = useState<string>(() =>
     isBottomTab ? pathname : ROUTES.MEMBER.DASHBOARD,
   );
 
   useEffect(() => {
     if (isBottomTab) {
-      setTabShellMounted(true);
       setShellActivePath(pathname);
     }
   }, [isBottomTab, pathname]);
@@ -237,33 +236,43 @@ export function MemberLayout({ children }: { children: ReactNode }) {
         </a>
         <PullToRefresh themeColor={themeColor} scrollContainer>
           <div className="member-layout-scroll-inner member-premium-canvas pu-boost-skin">
-            <main id="member-main" className="member-content-rail" tabIndex={-1}>
-              {tabShellMounted ? (
+            <MemberAppShellPageSlot>
+              <main id="member-main" className="member-content-rail" tabIndex={-1}>
                 <div
                   ref={tabShellWrapperRef}
                   className={cn(!isBottomTab && "hidden")}
                   inert={!isBottomTab ? true : undefined}
+                  data-member-tab-stack="1"
                 >
                   <MemberTabbedShell activePath={shellActivePath} />
                 </div>
-              ) : null}
-              {!isBottomTab ? (
-                <AnimatePresence mode="wait">
-                  <PageTransition key={pathname}>
-                    <Suspense fallback={suspenseFallback}>{children}</Suspense>
-                  </PageTransition>
-                </AnimatePresence>
-              ) : null}
-            </main>
+                <div
+                  className={cn(isBottomTab && "hidden")}
+                  inert={isBottomTab ? true : undefined}
+                  data-member-sub-route-outlet="1"
+                >
+                  <AnimatePresence mode="wait">
+                    <PageTransition key={pathname}>
+                      <Suspense fallback={suspenseFallback}>{children}</Suspense>
+                    </PageTransition>
+                  </AnimatePresence>
+                </div>
+              </main>
+            </MemberAppShellPageSlot>
           </div>
         </PullToRefresh>
-        {pathname !== ROUTES.MEMBER.FIRST_PASSWORD ? <MemberBottomNav /> : null}
-        {pathname === ROUTES.MEMBER.DASHBOARD && (
+        <MemberAppShellTabbarSlot hidden={pathname === ROUTES.MEMBER.FIRST_PASSWORD}>
+          <MemberBottomNav />
+        </MemberAppShellTabbarSlot>
+        <div
+          className={cn(pathname !== ROUTES.MEMBER.DASHBOARD && "hidden")}
+          aria-hidden={pathname !== ROUTES.MEMBER.DASHBOARD}
+        >
           <CustomerServiceWidget
             agents={settings.customer_service_agents || []}
             label={settings.customer_service_label}
           />
-        )}
+        </div>
       </div>
     </ErrorBoundary>
   );

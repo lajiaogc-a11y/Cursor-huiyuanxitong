@@ -13,7 +13,7 @@ export type ContentRevealProps = {
 /**
  * 内容渐显：轻微 blur + opacity，避免大块骨架撤掉时的「硬切」。
  */
-export function ContentReveal({ children, show, className, durationMs = 280 }: ContentRevealProps) {
+export function ContentReveal({ children, show, className, durationMs = 300 }: ContentRevealProps) {
   const [visible, setVisible] = useState(show);
 
   useEffect(() => {

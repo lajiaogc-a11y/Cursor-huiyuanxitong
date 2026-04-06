@@ -37,6 +37,8 @@ import {
   setMemberInboxUnreadCount,
   subscribeMemberInboxUnreadCount,
 } from "@/lib/memberInboxUnreadStore";
+import { ContentReveal } from "@/components/member/ContentReveal";
+import { cn } from "@/lib/utils";
 
 function localCalendarDateKey(): string {
   const d = new Date();
@@ -59,7 +61,7 @@ export default function MemberDashboard() {
   const { member, signOut, refreshMember } = useMemberAuth();
   const { breakdown, loading, error: pointsError, refresh: refreshPoints } = useMemberPointsBreakdown(member?.id);
   const { remaining: spinRemaining, error: spinError, refresh: refreshSpinQuota } = useMemberSpinQuota(member?.id);
-  const { settings: ps } = useMemberPortalSettings(member?.id);
+  const { settings: ps, loading: portalLoading } = useMemberPortalSettings(member?.id);
   const showMemberInbox = !!ps.enable_member_inbox;
   const [popupOpen, setPopupOpen] = useState(false);
   const [signOutLoading, setSignOutLoading] = useState(false);
@@ -233,6 +235,9 @@ export default function MemberDashboard() {
   const showPointsSkeleton = useMemberSkeletonGate(loading);
   const showTodayEarnedSkeleton = useMemberSkeletonGate(todayEarnedLoading);
   const showCheckInSublineSkeleton = useMemberSkeletonGate(!checkInSummary);
+
+  /** 积分与门户设置就绪后渐显主内容区（与骨架门控解耦，避免「整块突然出现」） */
+  const dashboardMainReveal = Boolean(member) && !loading && !portalLoading;
 
   const announcementItems = useMemo((): AnnouncementItem[] => {
     const fromList = Array.isArray(ps.announcements)
@@ -415,33 +420,35 @@ export default function MemberDashboard() {
             t={t}
           />
 
-          <MemberDashboardBannerSection
-            homeBanners={ps.home_banners}
-            homeBannersCarouselIntervalSec={ps.home_banners_carousel_interval_sec}
-            themeColor={themeColor}
-            theme={theme}
-            t={t}
-            spinRemaining={spinRemaining}
-            spinError={spinError}
-            checkInSummary={checkInSummary}
-            showPointsSkeleton={showPointsSkeleton}
-            showCheckInSublineSkeleton={showCheckInSublineSkeleton}
-            announcementItems={announcementItems}
-            onSelectAnnouncement={setSelectedAnn}
-          />
+          <ContentReveal show={dashboardMainReveal} durationMs={300}>
+            <MemberDashboardBannerSection
+              homeBanners={ps.home_banners}
+              homeBannersCarouselIntervalSec={ps.home_banners_carousel_interval_sec}
+              themeColor={themeColor}
+              theme={theme}
+              t={t}
+              spinRemaining={spinRemaining}
+              spinError={spinError}
+              checkInSummary={checkInSummary}
+              showPointsSkeleton={showPointsSkeleton}
+              showCheckInSublineSkeleton={showCheckInSublineSkeleton}
+              announcementItems={announcementItems}
+              onSelectAnnouncement={setSelectedAnn}
+            />
 
-          <MemberDashboardPointsStatGrid
-            t={t}
-            fmtPts={fmtPts}
-            showPointsSkeleton={showPointsSkeleton}
-            showTodayEarnedSkeleton={showTodayEarnedSkeleton}
-            pointsError={pointsError}
-            animDashTotal={animDashTotal}
-            animDashAvail={animDashAvail}
-            animDashFrozen={animDashFrozen}
-            animDashToday={animDashToday}
-            onOpenPointsInfo={() => setPointsInfoOpen(true)}
-          />
+            <MemberDashboardPointsStatGrid
+              t={t}
+              fmtPts={fmtPts}
+              showPointsSkeleton={showPointsSkeleton}
+              showTodayEarnedSkeleton={showTodayEarnedSkeleton}
+              pointsError={pointsError}
+              animDashTotal={animDashTotal}
+              animDashAvail={animDashAvail}
+              animDashFrozen={animDashFrozen}
+              animDashToday={animDashToday}
+              onOpenPointsInfo={() => setPointsInfoOpen(true)}
+            />
+          </ContentReveal>
         </div>
       </div>
 
@@ -481,56 +488,61 @@ export default function MemberDashboard() {
         />
       </div>
 
-      {announcementItems.length > 0 ? (
+      <ContentReveal show={dashboardMainReveal} durationMs={300}>
         <div className="mb-6 px-5">
           <div className="mb-3 flex items-center gap-2">
             <Megaphone className="h-4 w-4 text-pu-rose" aria-hidden />
             <h3 className="text-base font-extrabold text-[hsl(var(--pu-m-text))]">{t("系统公告", "Announcements")}</h3>
           </div>
-          <div className="space-y-2.5">
-            {announcementItems.slice(0, 8).map((item) => {
-              const annDate = formatAnnouncementPublishedAt(item.published_at, language);
-              return (
-              <button
-                key={`${item.sort_order}-${item.title}-${item.content?.slice(0, 12)}`}
-                type="button"
-                onClick={() => setSelectedAnn(item)}
-                className="w-full rounded-[1.25rem] p-4 text-left m-glass"
-              >
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-bold text-[hsl(var(--pu-m-text))]">
-                    {(item.title && item.title.trim()) || t("公告", "Notice")}
-                  </span>
-                  {annDate ? (
-                    <span className="shrink-0 text-[10px] font-medium tabular-nums text-[hsl(var(--pu-m-text-dim)/0.6)]">
-                      {annDate}
-                    </span>
-                  ) : null}
-                </div>
-                <p className="line-clamp-3 text-xs leading-relaxed text-[hsl(var(--pu-m-text-dim))]">
-                  {(item.content && item.content.trim()) || ""}
-                </p>
-              </button>
-            );
-            })}
-          </div>
+          {announcementItems.length === 0 ? (
+            <p className="rounded-[1.25rem] border border-dashed border-[hsl(var(--pu-m-surface-border)/0.35)] bg-[hsl(var(--pu-m-surface)/0.12)] px-4 py-6 text-center text-xs text-[hsl(var(--pu-m-text-dim))]">
+              {t("暂无公告", "No announcements yet")}
+            </p>
+          ) : (
+            <div className="space-y-2.5">
+              {announcementItems.slice(0, 8).map((item) => {
+                const annDate = formatAnnouncementPublishedAt(item.published_at, language);
+                return (
+                  <button
+                    key={`${item.sort_order}-${item.title}-${item.content?.slice(0, 12)}`}
+                    type="button"
+                    onClick={() => setSelectedAnn(item)}
+                    className="w-full rounded-[1.25rem] p-4 text-left m-glass"
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-bold text-[hsl(var(--pu-m-text))]">
+                        {(item.title && item.title.trim()) || t("公告", "Notice")}
+                      </span>
+                      {annDate ? (
+                        <span className="shrink-0 text-[10px] font-medium tabular-nums text-[hsl(var(--pu-m-text-dim)/0.6)]">
+                          {annDate}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="line-clamp-3 text-xs leading-relaxed text-[hsl(var(--pu-m-text-dim))]">
+                      {(item.content && item.content.trim()) || ""}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
-      ) : null}
+      </ContentReveal>
 
-      {showInvite ? (
-        <div className="mb-6 px-5">
-          <div
-            className="relative overflow-hidden rounded-[1.25rem] border border-[hsl(var(--pu-emerald)/0.15)] p-6 text-center m-glass"
-          >
+      <div className={cn("mb-6 px-5", !showInvite && "hidden")} aria-hidden={!showInvite}>
+        <ContentReveal show={showInvite && dashboardMainReveal} durationMs={300}>
+          <div className="relative overflow-hidden rounded-[1.25rem] border border-[hsl(var(--pu-emerald)/0.15)] p-6 text-center m-glass">
             <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-pu-emerald/[0.04] to-pu-gold/[0.03]" />
             <div className="relative">
               <Share2 className="mx-auto mb-3 h-8 w-8 text-pu-emerald" aria-hidden />
               <h3 className="mb-1 text-lg font-extrabold text-[hsl(var(--pu-m-text))]">{t("邀请好友赚转盘", "Invite friends for spins")}</h3>
-              {(member?.invite_success_lifetime_count ?? 0) > 0 && (
+              {(member?.invite_success_lifetime_count ?? 0) > 0 ? (
                 <p className="mb-2 text-xs font-semibold text-pu-emerald">
-                  {t("已成功邀请", "Successfully invited")} <span className="text-sm">+{member!.invite_success_lifetime_count}</span> {t("位好友", "friends")}
+                  {t("已成功邀请", "Successfully invited")}{" "}
+                  <span className="text-sm">+{member.invite_success_lifetime_count}</span> {t("位好友", "friends")}
                 </p>
-              )}
+              ) : null}
               <p className="mb-5 text-xs text-[hsl(var(--pu-m-text-dim))]">
                 {ps.daily_invite_reward_limit > 0
                   ? t(
@@ -556,8 +568,8 @@ export default function MemberDashboard() {
               </Button>
             </div>
           </div>
-        </div>
-      ) : null}
+        </ContentReveal>
+      </div>
 
       <div className="flex flex-col items-center px-5 pb-24">{securitySection}</div>
 

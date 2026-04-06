@@ -2,9 +2,9 @@
  * 首次进入会员门户须改密，或管理员下发/重置初始密码后：须先修改密码才能进入业务页。
  * 布局与 InviteLanding / premium-ui-boost 注册页一致。
  */
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
-import { Lock, Loader2, ShieldAlert, LogOut, KeyRound, Shield, Sparkles, ArrowRight } from "lucide-react";
+import { Lock, Loader2, LogOut, KeyRound, ArrowRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -12,10 +12,14 @@ import { ROUTES } from "@/routes/constants";
 import { markMemberPostLoginShellTransition } from "@/lib/memberPostLoginTransition";
 import { notify } from "@/lib/notifyHub";
 import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
+import { normalizeLoginBadgesField } from "@/services/members/memberPortalSettingsService";
 import { cn } from "@/lib/utils";
 import { memberPortalGoldCssVarsFromHex } from "@/utils/memberPortalGoldCssVars";
 import "@/styles/member-portal.css";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
+import { LoginIdleHeaderLogo } from "@/components/member/LoginIdleHeaderLogo";
+import { MEMBER_LOGIN_BADGE_SLOT_COUNT, parseMemberLoginBadge } from "@/lib/memberLoginBadge";
+import { applyMemberPortalFaviconFromLogoRaw } from "@/lib/memberPortalFavicon";
 
 export default function MemberFirstPassword() {
   const { t } = useLanguage();
@@ -41,21 +45,34 @@ export default function MemberFirstPassword() {
     [themeColor],
   );
 
-  if (!member) return null;
+  const brandName = useMemo(
+    () => String(portalSettings.company_name || "").trim() || "FastGC",
+    [portalSettings.company_name],
+  );
 
-  const brandSlug = String(member.member_code || "MEMBER")
-    .trim()
-    .slice(0, 24)
-    .toUpperCase();
+  const loginBadgeSlots = useMemo(() => {
+    const lines = normalizeLoginBadgesField(portalSettings.login_badges).slice(0, MEMBER_LOGIN_BADGE_SLOT_COUNT);
+    return Array.from({ length: MEMBER_LOGIN_BADGE_SLOT_COUNT }, (_, i) => {
+      try {
+        return parseMemberLoginBadge(lines[i] ?? "");
+      } catch {
+        return { icon: "", label: String(lines[i] ?? "").trim() };
+      }
+    });
+  }, [portalSettings.login_badges]);
+
+  useEffect(() => {
+    try {
+      applyMemberPortalFaviconFromLogoRaw(portalSettings.logo_url);
+    } catch {
+      /* favicon 失败不阻塞改密页 */
+    }
+  }, [portalSettings.logo_url]);
+
+  if (!member) return null;
 
   const inputBase =
     "h-12 w-full rounded-xl border border-[hsl(var(--pu-m-surface-border)/0.25)] bg-[hsl(var(--pu-m-surface)/0.45)] text-sm font-medium text-[hsl(var(--pu-m-text))] outline-none transition-all placeholder:text-[hsl(var(--pu-m-text-dim)/0.4)] focus-visible:ring-2 focus-visible:ring-pu-gold/25";
-
-  const perks = [
-    { emoji: "🔐", text: t("至少 6 位", "Min 6 characters") },
-    { emoji: "✓", text: t("新密码需与当前不同", "Must differ from current") },
-    { emoji: "🛡️", text: t("保护账户安全", "Secure your account") },
-  ];
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,19 +116,14 @@ export default function MemberFirstPassword() {
         color: "hsl(var(--pu-m-text))",
       }}
     >
-      <div className="relative flex flex-col items-center overflow-hidden pb-8 pt-14">
+      <div className="relative overflow-hidden pb-6">
         <MemberPageAmbientOrbs />
-        <div
-          className="relative z-[1] mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-[hsl(var(--pu-m-surface-border)/0.25)] shadow-[0_8px_28px_hsl(var(--pu-gold)/0.28)]"
-          style={{
-            background: "linear-gradient(135deg, hsl(var(--pu-gold)), hsl(var(--pu-gold-soft)))",
-          }}
-        >
-          <ShieldAlert className="h-7 w-7 text-[hsl(var(--pu-primary-foreground))]" aria-hidden />
+        <div className="relative z-[1] mx-auto w-full max-w-[min(100%,36rem)] px-5 pt-[max(20px,env(safe-area-inset-top))]">
+          <div className="flex items-center gap-2.5">
+            <LoginIdleHeaderLogo logoUrl={portalSettings.logo_url} />
+            <span className="text-base font-extrabold tracking-tight text-[hsl(var(--pu-m-text))]">{brandName}</span>
+          </div>
         </div>
-        <span className="relative z-[1] text-[10px] font-bold uppercase tracking-[0.25em] text-[hsl(var(--pu-m-text-dim))]">
-          {brandSlug}
-        </span>
       </div>
 
       <div className="flex flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
@@ -138,16 +150,33 @@ export default function MemberFirstPassword() {
           </p>
         </div>
 
-        <div className="mb-6 flex flex-wrap justify-center gap-2">
-          {perks.map((p) => (
-            <span
-              key={p.text}
-              className="flex items-center gap-1.5 rounded-full border border-[hsl(var(--pu-m-surface-border)/0.2)] bg-[hsl(var(--pu-m-surface)/0.5)] px-3 py-1.5 text-[11px] font-bold text-[hsl(var(--pu-m-text))]"
-            >
-              <span aria-hidden>{p.emoji}</span>
-              {p.text}
-            </span>
-          ))}
+        <div className="mb-6 grid grid-cols-3 gap-2.5 [grid-auto-rows:1fr]">
+          {loginBadgeSlots.map((slot, idx) => {
+            const { icon, label } = slot;
+            const isEmpty = !icon && !label;
+            return (
+              <div
+                key={idx}
+                className={cn(
+                  "flex h-full min-h-[5.75rem] flex-col items-stretch rounded-2xl p-3 text-center",
+                  isEmpty
+                    ? "border border-dashed border-[hsl(var(--pu-m-surface-border)/0.38)] bg-[hsl(var(--pu-m-surface)/0.12)]"
+                    : "border border-[hsl(var(--pu-m-surface-border)/0.2)] bg-[hsl(var(--pu-m-surface)/0.35)]",
+                )}
+              >
+                <div className="flex min-h-[2.25rem] flex-shrink-0 items-center justify-center text-[1.35rem] leading-none">
+                  {icon ? (
+                    <span className="select-none" aria-hidden>
+                      {icon}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex min-h-0 flex-1 items-start justify-center break-words text-[10px] font-medium leading-snug text-[hsl(var(--pu-m-text-dim))]">
+                  {label}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <form className="flex flex-1 flex-col" onSubmit={(e) => void onSubmit(e)}>
@@ -240,22 +269,6 @@ export default function MemberFirstPassword() {
             <LogOut className="h-4 w-4" aria-hidden />
             {t("退出并换账号登录", "Sign out and use another account")}
           </button>
-
-          <div className="mb-2 flex items-center justify-center gap-4 border-t border-[hsl(var(--pu-m-surface-border)/0.15)] pt-4">
-            {[
-              { icon: Shield, label: t("SSL", "SSL") },
-              { icon: Lock, label: t("加密", "Secure") },
-              { icon: Sparkles, label: t("验证", "Verified") },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center gap-1">
-                <item.icon className="h-3 w-3 text-[hsl(var(--pu-m-text-dim)/0.35)]" aria-hidden />
-                <span className="text-[10px] font-medium text-[hsl(var(--pu-m-text-dim)/0.35)]">{item.label}</span>
-              </div>
-            ))}
-          </div>
-          <p className="text-center text-[10px] text-[hsl(var(--pu-m-text-dim)/0.45)]">
-            {t("您的数据受保护并已加密。", "Your data is protected and encrypted.")}
-          </p>
         </form>
       </div>
     </div>

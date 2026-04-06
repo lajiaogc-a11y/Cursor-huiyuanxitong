@@ -1,6 +1,5 @@
-import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Suspense, useLayoutEffect, useRef } from "react";
 import { ROUTES } from "@/routes/constants";
-import { MEMBER_BOTTOM_TAB_PATHS } from "@/lib/memberBottomTabPaths";
 import { MemberFeatureGuard } from "@/components/member/MemberFeatureGuard";
 import {
   MemberDashboard,
@@ -40,53 +39,55 @@ function TabPanel({
       hidden={!show}
       className={cn(!show && "hidden")}
       inert={!show ? true : undefined}
+      data-member-tab-panel={path}
     >
       {children}
     </div>
   );
 }
 
+const suspenseFallback = <MemberRouteSuspenseFallback />;
+
 /**
- * 底部 Tab 页 keep-alive：已访问过的路由对应页面保持挂载，切换时不销毁、不丢本地 state。
- * 数据层：组件不卸载则 React Query 等订阅保持；配合 PullToRefresh 的 Tab 间 scroll 记忆。
+ * 底部 Tab 区：五个面板**始终挂载**（keep-alive），切换仅切换 visibility，不销毁子树。
+ * 单面板内不再使用 `{path===x ? <Page/> : null}`，避免延迟插入子组件。
  */
 export function MemberTabbedShell({ activePath }: { activePath: string }) {
-  const [visited, setVisited] = useState(() => new Set<string>([activePath]));
-
-  useEffect(() => {
-    setVisited((prev) => {
-      if (prev.has(activePath)) return prev;
-      const next = new Set(prev);
-      next.add(activePath);
-      return next;
-    });
-  }, [activePath]);
-
   return (
     <>
-      {MEMBER_BOTTOM_TAB_PATHS.map((path) => {
-        if (!visited.has(path)) return null;
-        const fallback = <MemberRouteSuspenseFallback />;
-        return (
-          <TabPanel key={path} path={path} activePath={activePath}>
-            <Suspense fallback={fallback}>
-              {path === ROUTES.MEMBER.DASHBOARD ? <MemberDashboard /> : null}
-              {path === ROUTES.MEMBER.POINTS ? <MemberPoints /> : null}
-              {path === ROUTES.MEMBER.SPIN ? (
-                <MemberFeatureGuard featureKey="enable_spin">
-                  <MemberSpin />
-                </MemberFeatureGuard>
-              ) : null}
-              {path === ROUTES.MEMBER.INVITE ? (
-                <MemberFeatureGuard featureKey="enable_invite">
-                  <MemberInvite />
-                </MemberFeatureGuard>
-              ) : null}
-              {path === ROUTES.MEMBER.SETTINGS ? <MemberSettings /> : null}
-            </Suspense>
-          </TabPanel>
-        );
-      })}
+      <TabPanel path={ROUTES.MEMBER.DASHBOARD} activePath={activePath}>
+        <Suspense fallback={suspenseFallback}>
+          <MemberDashboard />
+        </Suspense>
+      </TabPanel>
+
+      <TabPanel path={ROUTES.MEMBER.POINTS} activePath={activePath}>
+        <Suspense fallback={suspenseFallback}>
+          <MemberPoints />
+        </Suspense>
+      </TabPanel>
+
+      <TabPanel path={ROUTES.MEMBER.SPIN} activePath={activePath}>
+        <Suspense fallback={suspenseFallback}>
+          <MemberFeatureGuard featureKey="enable_spin">
+            <MemberSpin />
+          </MemberFeatureGuard>
+        </Suspense>
+      </TabPanel>
+
+      <TabPanel path={ROUTES.MEMBER.INVITE} activePath={activePath}>
+        <Suspense fallback={suspenseFallback}>
+          <MemberFeatureGuard featureKey="enable_invite">
+            <MemberInvite />
+          </MemberFeatureGuard>
+        </Suspense>
+      </TabPanel>
+
+      <TabPanel path={ROUTES.MEMBER.SETTINGS} activePath={activePath}>
+        <Suspense fallback={suspenseFallback}>
+          <MemberSettings />
+        </Suspense>
+      </TabPanel>
     </>
   );
 }

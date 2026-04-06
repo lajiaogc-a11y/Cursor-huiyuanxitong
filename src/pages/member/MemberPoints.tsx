@@ -38,6 +38,7 @@ import {
   MemberPointsMallCatalogSection,
 } from "@/pages/member/MemberPointsMallCatalogSection";
 import { MemberPointsRedeemDrawerBody } from "@/pages/member/MemberPointsRedeemDrawerBody";
+import { ContentReveal } from "@/components/member/ContentReveal";
 
 type PointsMainTab = "mall" | "history";
 
@@ -188,11 +189,15 @@ export default function MemberPoints() {
   const [catalogRetryKey, setCatalogRetryKey] = useState(0);
   const [mallFilterKey, setMallFilterKey] = useState<string>(MALL_TAB_ALL);
   const [pointsTab, setPointsTab] = useState<PointsMainTab>("mall");
+  /** 首次进入「兑换历史」后再挂载列表，避免默认商城 Tab 时多打一条历史 API */
+  const [historyPanelActivated, setHistoryPanelActivated] = useState(false);
   const [todayEarned, setTodayEarned] = useState(0);
   const [todayEarnedLoading, setTodayEarnedLoading] = useState(true);
   const [pullNonce, setPullNonce] = useState(0);
   const lastSeenPullForMall = useRef(0);
   const showMallSkeleton = useMemberSkeletonGate(loading || itemsLoading);
+  const pointsHeroReveal = !loading && !todayEarnedLoading;
+  const mallCatalogReveal = !showMallSkeleton;
 
   useMemberPullRefreshSignal(() => {
     setPullNonce((n) => n + 1);
@@ -203,7 +208,12 @@ export default function MemberPoints() {
     setPullNonce(0);
     lastSeenPullForMall.current = 0;
     setPointsTab("mall");
+    setHistoryPanelActivated(false);
   }, [member?.id]);
+
+  useEffect(() => {
+    if (pointsTab === "history") setHistoryPanelActivated(true);
+  }, [pointsTab]);
 
   useEffect(() => {
     const h = location.hash.replace(/^#/, "").trim();
@@ -393,14 +403,16 @@ export default function MemberPoints() {
           </p>
         </div>
 
-        <MemberPortalPointsHero
-          points={points}
-          frozenPoints={frozenPoints}
-          loading={loading}
-          todayEarned={todayEarned}
-          todayEarnedLoading={todayEarnedLoading}
-          t={t}
-        />
+        <ContentReveal show={pointsHeroReveal} durationMs={300}>
+          <MemberPortalPointsHero
+            points={points}
+            frozenPoints={frozenPoints}
+            loading={loading}
+            todayEarned={todayEarned}
+            todayEarnedLoading={todayEarnedLoading}
+            t={t}
+          />
+        </ContentReveal>
 
         <div className="mb-6 px-5">
           <div
@@ -442,52 +454,73 @@ export default function MemberPoints() {
         </div>
 
         <div className="member-page-body flex flex-1 flex-col">
-          {pointsTab === "mall" ? (
-            <MemberPointsMallCatalogSection
-              t={t}
-              language={language}
-              itemsLoading={itemsLoading}
-              items={items}
-              filteredItems={filteredItems}
-              mallFilterKey={mallFilterKey}
-              onMallFilterKeyChange={setMallFilterKey}
-              mallCategories={mallCategories}
-              showMallSkeleton={showMallSkeleton}
-              catalogError={catalogError}
-              onCatalogRetry={() => {
-                setCatalogError(false);
-                setCatalogRetryKey((k) => k + 1);
-              }}
-              itemsLoadingForRetry={itemsLoading}
-              points={points}
-              hasFrozen={hasFrozen}
-              redeeming={redeeming}
-              redeemTargetId={redeemTarget?.id}
-              themeColor={themeColor}
-              onRequestRedeem={requestRedeemProduct}
-            />
-          ) : (
-            <div className="px-5 pb-10" role="tabpanel">
-              <div className="mb-3 flex items-center gap-2">
-                <div className="h-5 w-1 rounded-full bg-pu-gold" aria-hidden />
-                <h2 className="m-0 text-base font-extrabold text-[hsl(var(--pu-m-text))]">
-                  {t("兑换历史", "Record")}
-                </h2>
-              </div>
-              <p className="mb-4 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.78)]">
-                {t(
-                  `最近 ${REDEMPTION_HISTORY_LIMIT} 条积分商城兑换记录（含待审核、已完成、已驳回）`,
-                  `Latest ${REDEMPTION_HISTORY_LIMIT} points mall redemptions (pending, completed, or rejected).`,
-                )}
-              </p>
-              <MemberRedemptionHistoryFeed
-                memberId={member.id}
-                refreshKey={redemptionsKey}
-                pullRefreshSignal={pullNonce}
+          <div
+            className={cn(pointsTab !== "mall" && "hidden")}
+            role="tabpanel"
+            aria-hidden={pointsTab !== "mall"}
+            id="member-points-tab-mall"
+          >
+            <ContentReveal show={mallCatalogReveal} durationMs={300}>
+              <MemberPointsMallCatalogSection
                 t={t}
+                language={language}
+                itemsLoading={itemsLoading}
+                items={items}
+                filteredItems={filteredItems}
+                mallFilterKey={mallFilterKey}
+                onMallFilterKeyChange={setMallFilterKey}
+                mallCategories={mallCategories}
+                showMallSkeleton={showMallSkeleton}
+                catalogError={catalogError}
+                onCatalogRetry={() => {
+                  setCatalogError(false);
+                  setCatalogRetryKey((k) => k + 1);
+                }}
+                itemsLoadingForRetry={itemsLoading}
+                points={points}
+                hasFrozen={hasFrozen}
+                redeeming={redeeming}
+                redeemTargetId={redeemTarget?.id}
+                themeColor={themeColor}
+                onRequestRedeem={requestRedeemProduct}
               />
+            </ContentReveal>
+          </div>
+
+          <div
+            className={cn("px-5 pb-10", pointsTab !== "history" && "hidden")}
+            role="tabpanel"
+            aria-hidden={pointsTab !== "history"}
+            id="member-points-tab-history"
+          >
+            <div className="mb-3 flex items-center gap-2">
+              <div className="h-5 w-1 rounded-full bg-pu-gold" aria-hidden />
+              <h2 className="m-0 text-base font-extrabold text-[hsl(var(--pu-m-text))]">
+                {t("兑换历史", "Record")}
+              </h2>
             </div>
-          )}
+            <p className="mb-4 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.78)]">
+              {t(
+                `最近 ${REDEMPTION_HISTORY_LIMIT} 条积分商城兑换记录（含待审核、已完成、已驳回）`,
+                `Latest ${REDEMPTION_HISTORY_LIMIT} points mall redemptions (pending, completed, or rejected).`,
+              )}
+            </p>
+            {historyPanelActivated ? (
+              <ContentReveal show={pointsTab === "history"} durationMs={300}>
+                <MemberRedemptionHistoryFeed
+                  memberId={member.id}
+                  refreshKey={redemptionsKey}
+                  pullRefreshSignal={pullNonce}
+                  t={t}
+                />
+              </ContentReveal>
+            ) : (
+              <div
+                className="min-h-[12rem] rounded-2xl border border-dashed border-[hsl(var(--pu-m-surface-border)/0.22)] bg-[hsl(var(--pu-m-surface)/0.06)]"
+                aria-hidden
+              />
+            )}
+          </div>
         </div>
 
         <DrawerDetail
