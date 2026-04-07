@@ -241,7 +241,7 @@ export default function MemberActivityDataContent() {
   trackRender('MemberActivityDataContent');
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { employee, isAdmin } = useAuth();
   const { viewingTenantId } = useTenantView() || {};
   const effectiveTenantId = viewingTenantId || employee?.tenant_id || null;
@@ -827,6 +827,7 @@ export default function MemberActivityDataContent() {
         p_payment_agent: selectedPaymentProvider,
         p_creator_id: currentEmployeeId,
         p_creator_name: employee?.real_name || null,
+        p_remark_locale: language === 'zh' ? 'zh' : 'en',
       });
       
       if (!result.success) {

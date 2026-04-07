@@ -23,6 +23,8 @@ export interface StaffRedeemParams {
   giftValue: number;
   paymentAgent: string;
   creatorId: string | null;
+  /** 员工端界面语言，写入 activity_gifts / 积分流水备注，避免中英文错乱 */
+  remarkLocale?: 'zh' | 'en';
 }
 
 export interface StaffRedeemAuth {
@@ -75,7 +77,8 @@ export async function executeStaffPointsRedemption(
     p.activityType === 'activity_1' ? 'redeem_activity_1' : 'redeem_activity_2';
 
   const tenantIdForLedger = memberRow.tenant_id ?? null;
-  const remark = buildStaffPointsRedemptionRemark(p.pointsToRedeem, p.giftAmount, p.giftCurrency);
+  const remarkLocale = p.remarkLocale === 'zh' ? 'zh' : 'en';
+  const remark = buildStaffPointsRedemptionRemark(p.pointsToRedeem, p.giftAmount, p.giftCurrency, remarkLocale);
 
   let ledgerIdOut = '';
   let giftIdOut = '';

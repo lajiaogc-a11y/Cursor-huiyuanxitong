@@ -17,6 +17,8 @@ export type RedeemPointsAndRecordParams = {
   p_payment_agent: string | null;
   p_creator_id: string | null;
   p_creator_name: string | null;
+  /** 与 LanguageContext 一致：zh / en，用于服务端写入备注文案 */
+  p_remark_locale?: "zh" | "en";
 };
 
 export type RedeemPointsAndRecordResult = {

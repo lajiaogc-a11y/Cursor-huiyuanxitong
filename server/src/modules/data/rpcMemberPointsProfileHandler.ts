@@ -209,6 +209,8 @@ export async function handleRpcMemberPointsProfileGroup(ctx: RpcCtx): Promise<Rp
         break;
       }
       const { executeStaffPointsRedemption } = await import('../points/staffRedemptionService.js');
+      const remarkLocaleRaw = String(params.p_remark_locale ?? params.p_ui_locale ?? '').trim().toLowerCase();
+      const remarkLocale = remarkLocaleRaw === 'zh' || remarkLocaleRaw === 'zh-cn' ? 'zh' : 'en';
       result = await executeStaffPointsRedemption(
         {
           memberCode: String(params.p_member_code || '').trim(),
@@ -226,6 +228,7 @@ export async function handleRpcMemberPointsProfileGroup(ctx: RpcCtx): Promise<Rp
               ? String(params.p_payment_agent).trim()
               : '-',
           creatorId: params.p_creator_id ? String(params.p_creator_id) : null,
+          remarkLocale,
         },
         {
           callerTenantId: tenantId,

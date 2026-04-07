@@ -21,6 +21,7 @@ import {
   shouldHardRedirectToStaffPortal,
 } from '@/lib/crossPortalNavigation';
 import { notify } from "@/lib/notifyHub";
+import { pickBilingual } from "@/lib/appLocale";
 
 /** 401 时派发事件，供 AuthContext 同步清除状态 */
 export const AUTH_UNAUTHORIZED_EVENT = 'auth:unauthorized';
@@ -64,10 +65,16 @@ export function initApiClient(): void {
       /* ignore */
     }
 
-    notify.error('Your account signed in on another device', {
-      description: 'If this was not you, change your password as soon as possible.',
-      duration: 6500,
-    });
+    notify.error(
+      pickBilingual("您的账号已在其他设备登录", "Your account signed in on another device"),
+      {
+        description: pickBilingual(
+          "若非本人操作，请尽快修改密码。",
+          "If this was not you, change your password as soon as possible.",
+        ),
+        duration: 6500,
+      },
+    );
 
     if (isMemberRealm) {
       setTimeout(() => {
@@ -105,7 +112,10 @@ export function initApiClient(): void {
       } catch {
         /* ignore */
       }
-      notify.error('登录已过期，请重新登录', { duration: 3000 });
+      notify.error(
+        pickBilingual("登录已过期，请重新登录", "Session expired. Please sign in again."),
+        { duration: 3000 },
+      );
       setTimeout(() => {
         if (shouldHardRedirectToMemberPortal()) {
           hardRedirectToMember('/');
@@ -126,11 +136,14 @@ export function initApiClient(): void {
   });
 
   setOnForbidden(() => {
-    notify.error('权限不足');
+    notify.error(pickBilingual("权限不足", "Insufficient permission"));
   });
 
   setOnServerError((message) => {
     // 500 错误不跳转，只提示
-    notify.error(message || '服务器错误，请稍后重试');
+    notify.error(
+      message ||
+        pickBilingual("服务器错误，请稍后重试", "Server error. Please try again later."),
+    );
   });
 }

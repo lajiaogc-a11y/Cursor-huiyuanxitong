@@ -34,7 +34,7 @@ import {
   type InviteLeaderboardFakeRow,
   type InviteLeaderboardGrowthSettings,
 } from "@/services/staff/inviteLeaderboardAdminService";
-import { formatBeijingDate } from "@/lib/beijingTime";
+import { formatBeijingTime, parseBackendStoredDatetimeToDate } from "@/lib/beijingTime";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   MobileCardList,
@@ -45,15 +45,12 @@ import {
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/api/client";
 
-function computeCycleEnd(settings: InviteLeaderboardGrowthSettings): string | null {
+/** 周期结束时刻（用于展示），与后端 DATE_ADD(start, INTERVAL h HOUR) 语义一致 */
+function computeCycleEndDate(settings: InviteLeaderboardGrowthSettings): Date | null {
   if (!settings.growth_segment_started_at) return null;
-  const startMs = Date.parse(
-    settings.growth_segment_started_at.replace(" ", "T") +
-      (settings.growth_segment_started_at.includes("Z") ? "" : "Z"),
-  );
-  if (!Number.isFinite(startMs)) return null;
-  const endMs = startMs + settings.growth_segment_hours * 3600 * 1000;
-  return new Date(endMs).toISOString().slice(0, 23).replace("T", " ");
+  const start = parseBackendStoredDatetimeToDate(settings.growth_segment_started_at);
+  if (!start) return null;
+  return new Date(start.getTime() + settings.growth_segment_hours * 3600 * 1000);
 }
 
 export function InviteLeaderboardSettingsTab({
@@ -279,7 +276,7 @@ export function InviteLeaderboardSettingsTab({
   const processedCount = rows.filter(
     (r) => r.is_active && !r.next_growth_at && r.growth_cycles > 0,
   ).length;
-  const cycleEnd = growthDraft ? computeCycleEnd(growthDraft) : null;
+  const cycleEndDate = growthDraft ? computeCycleEndDate(growthDraft) : null;
 
   return (
     <div className="space-y-6">
@@ -378,19 +375,21 @@ export function InviteLeaderboardSettingsTab({
               <div className="text-xs text-muted-foreground space-y-1 rounded-md border border-border/50 px-3 py-2">
                 <p>
                   {t("当前周期开始：", "Cycle started: ")}{" "}
-                  {growthDraft.growth_segment_started_at ? formatBeijingDate(growthDraft.growth_segment_started_at) : "—"}
+                  {growthDraft.growth_segment_started_at
+                    ? formatBeijingTime(growthDraft.growth_segment_started_at)
+                    : "—"}
                 </p>
                 <p>
                   {t("当前周期结束：", "Cycle ends: ")}{" "}
-                  {cycleEnd ? formatBeijingDate(cycleEnd) : "—"}
+                  {cycleEndDate ? formatBeijingTime(cycleEndDate) : "—"}
                 </p>
                 <p>
                   {t("上次增长：", "Last growth: ")}{" "}
-                  {growthDraft.last_fake_growth_at ? formatBeijingDate(growthDraft.last_fake_growth_at) : "—"}
+                  {growthDraft.last_fake_growth_at ? formatBeijingTime(growthDraft.last_fake_growth_at) : "—"}
                 </p>
                 <p>
                   {t("下一个用户增长：", "Next user growth: ")}{" "}
-                  {growthDraft.next_fake_growth_at ? formatBeijingDate(growthDraft.next_fake_growth_at) : "—"}
+                  {growthDraft.next_fake_growth_at ? formatBeijingTime(growthDraft.next_fake_growth_at) : "—"}
                 </p>
                 <p>
                   {t(`本周期：待增长 ${pendingCount} 人，已完成 ${processedCount} 人`,

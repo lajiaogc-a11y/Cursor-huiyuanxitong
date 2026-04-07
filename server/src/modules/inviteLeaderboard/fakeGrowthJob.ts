@@ -2,10 +2,10 @@
  * 邀请榜假用户自动增长 — 简化版
  *
  * 逻辑：
- * 1. 每个周期（默认 72h），为所有活跃假用户各分配一个随机时间 next_growth_at。
- * 2. 每小时检查：处理所有 next_growth_at <= NOW() 的用户，增量 = random(delta_min, delta_max)。
+ * 1. 每个周期（默认 72h），为所有活跃假用户各分配一个随机时间 next_growth_at（相对 NOW(3) 的随机秒偏移）。
+ * 2. 每 2 分钟检查：处理所有 next_growth_at <= NOW(3) 的用户，增量 = random(delta_min, delta_max)。
  * 3. 处理完的用户 next_growth_at = NULL，本周期不再增长。
- * 4. 周期结束后（NOW >= cycle_start + segment_hours）开始新周期，重新分配。
+ * 4. 周期结束条件在 MySQL 内判断：DATE_ADD(growth_segment_started_at, INTERVAL h HOUR) <= NOW(3)，避免 JS 解析 DATETIME 失败导致每轮误判「新周期」、同一用户被反复分配增长。
  * 5. 每个假用户在一个周期内只增长一次，且各自在不同随机时刻触发。
  */
 import { randomUUID } from 'node:crypto';
@@ -17,16 +17,7 @@ import {
   insertJobRunStart,
   INVITE_LEADERBOARD_DEFAULT_GROWTH,
   randomIntegerInclusive,
-  mysqlUtcFromMs,
 } from './repository.js';
-
-function parseMysqlDate(s: string | null | undefined): number | null {
-  if (!s) return null;
-  let iso = String(s).trim().replace(' ', 'T');
-  if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(iso)) iso += 'Z';
-  const t = Date.parse(iso);
-  return Number.isFinite(t) ? t : null;
-}
 
 type SchedRow = {
   growth_segment_hours: number;
@@ -35,6 +26,8 @@ type SchedRow = {
   auto_growth_enabled: number;
   growth_segment_started_at: string | null;
   last_fake_growth_at: string | null;
+  /** 由 SQL 计算：周期未开始或已到期，应执行 startNewCycle */
+  need_new_cycle: number;
 };
 
 function readSchedRow(r: RowDataPacket | undefined): SchedRow | null {
@@ -49,6 +42,7 @@ function readSchedRow(r: RowDataPacket | undefined): SchedRow | null {
       row.growth_segment_started_at != null ? String(row.growth_segment_started_at) : null,
     last_fake_growth_at:
       row.last_fake_growth_at != null ? String(row.last_fake_growth_at) : null,
+    need_new_cycle: Number(row.need_new_cycle ?? 0),
   };
 }
 
@@ -61,16 +55,14 @@ async function startNewCycle(
   tenantId: string,
   segmentHours: number,
 ): Promise<void> {
-  const nowMs = Date.now();
-  const cycleStartStr = mysqlUtcFromMs(nowMs);
-  const totalSeconds = segmentHours * 3600;
+  const totalSeconds = Math.max(1, Math.floor(segmentHours * 3600));
 
   await conn.query(
     `UPDATE invite_leaderboard_fake_users
-     SET next_growth_at = DATE_ADD(?, INTERVAL FLOOR(RAND() * ?) SECOND),
+     SET next_growth_at = DATE_ADD(NOW(3), INTERVAL FLOOR(RAND() * ?) SECOND),
          updated_at = NOW(3)
      WHERE tenant_id = ? AND is_active = 1 AND growth_cycles < max_growth_cycles`,
-    [cycleStartStr, totalSeconds, tenantId],
+    [totalSeconds, tenantId],
   );
 
   await conn.query(
@@ -90,11 +82,11 @@ async function startNewCycle(
 
   await conn.query(
     `UPDATE invite_leaderboard_tenant_growth_schedule
-     SET growth_segment_started_at = ?,
+     SET growth_segment_started_at = NOW(3),
          next_fake_growth_at = ?,
          updated_at = NOW(3)
      WHERE tenant_id = ?`,
-    [cycleStartStr, earliest, tenantId],
+    [earliest, tenantId],
   );
 }
 
@@ -113,12 +105,14 @@ async function runGrowthInTransaction(conn: PoolConnection): Promise<{
     `SELECT DISTINCT tenant_id AS tenant_id FROM invite_leaderboard_fake_users WHERE is_active = 1`,
   );
   const tenantIds = (tidRows as { tenant_id: string }[]).map((r) => String(r.tenant_id));
-  const nowMs = Date.now();
 
   for (const tenantId of tenantIds) {
     const [schedRows] = await conn.query<RowDataPacket[]>(
       `SELECT growth_segment_hours, growth_delta_min, growth_delta_max,
-              auto_growth_enabled, growth_segment_started_at, last_fake_growth_at
+              auto_growth_enabled, growth_segment_started_at, last_fake_growth_at,
+              (growth_segment_started_at IS NULL
+                OR DATE_ADD(growth_segment_started_at, INTERVAL growth_segment_hours HOUR) <= NOW(3)
+              ) AS need_new_cycle
        FROM invite_leaderboard_tenant_growth_schedule WHERE tenant_id = ? LIMIT 1`,
       [tenantId],
     );
@@ -142,15 +136,6 @@ async function runGrowthInTransaction(conn: PoolConnection): Promise<{
     if (!sched.auto_growth_enabled) continue;
 
     tenantsEligible++;
-
-    const cycleStartMs = parseMysqlDate(sched.growth_segment_started_at);
-    const cycleEndMs =
-      cycleStartMs != null ? cycleStartMs + sched.growth_segment_hours * 3600 * 1000 : null;
-    const needNewCycle = cycleStartMs == null || cycleEndMs == null || nowMs >= cycleEndMs;
-
-    if (needNewCycle) {
-      await startNewCycle(conn, tenantId, sched.growth_segment_hours);
-    }
 
     const dMin = Math.min(sched.growth_delta_min, sched.growth_delta_max);
     const dMax = Math.max(sched.growth_delta_min, sched.growth_delta_max);
@@ -178,6 +163,18 @@ async function runGrowthInTransaction(conn: PoolConnection): Promise<{
     }
 
     if (dueIds.length > 0) {
+      await conn.query(
+        `UPDATE invite_leaderboard_tenant_growth_schedule
+         SET last_fake_growth_at = NOW(3), updated_at = NOW(3)
+         WHERE tenant_id = ?`,
+        [tenantId],
+      );
+    }
+
+    // 周期将轮换时：先处理完本周期内仍到点的用户，再 startNewCycle，避免 next_growth_at 被覆盖导致漏增长
+    if (sched.need_new_cycle) {
+      await startNewCycle(conn, tenantId, sched.growth_segment_hours);
+    } else if (dueIds.length > 0) {
       const [nextRow] = await conn.query<RowDataPacket[]>(
         `SELECT MIN(next_growth_at) AS earliest
          FROM invite_leaderboard_fake_users
@@ -188,9 +185,7 @@ async function runGrowthInTransaction(conn: PoolConnection): Promise<{
 
       await conn.query(
         `UPDATE invite_leaderboard_tenant_growth_schedule
-         SET last_fake_growth_at = NOW(3),
-             next_fake_growth_at = ?,
-             updated_at = NOW(3)
+         SET next_fake_growth_at = ?, updated_at = NOW(3)
          WHERE tenant_id = ?`,
         [earliest, tenantId],
       );

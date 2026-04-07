@@ -49,7 +49,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getExchangePreview, getExchangeDisabledMessage } from "@/services/finance/exchangeService";
 
 import { CurrencyCode } from "@/config/currencies";
-import { patchActivityGiftRemark } from "@/services/staff/activityGiftTableService";
 import { redeemPointsAndRecordRpc } from "@/services/members/memberPointsRedeemRpcService";
 import { getMemberPointsSummary, MemberPointsSummary } from "@/services/points/pointsCalculationService";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
@@ -667,6 +666,7 @@ export default function RateCalculator({
           p_payment_agent: redeemPaymentProvider,
           p_creator_id: employee?.id || null,
           p_creator_name: employee?.real_name || t('未知', 'Unknown'),
+          p_remark_locale: language === 'zh' ? 'zh' : 'en',
         });
       } catch (rpcErr: any) {
         console.error('RPC error:', rpcErr);
@@ -685,20 +685,7 @@ export default function RateCalculator({
         return;
       }
       
-      // 自动填写活动赠送备注：积分兑换详情（await确保写入成功）
-      if (rpcResult.gift_id) {
-        const redeemRemark = t(`积分兑换: ${redeemPreviewData.points}积分 → ${exchangeAmount.toLocaleString()} ${exchangeCurrency}`, `Points redemption: ${redeemPreviewData.points} pts → ${exchangeAmount.toLocaleString()} ${exchangeCurrency}`);
-        try {
-          await patchActivityGiftRemark(rpcResult.gift_id, redeemRemark);
-        } catch (remarkErr) {
-          console.error('Failed to update gift remark, retrying:', remarkErr);
-          try {
-            await patchActivityGiftRemark(rpcResult.gift_id, redeemRemark);
-          } catch (retryErr) {
-            console.error('Retry failed:', retryErr);
-          }
-        }
-      }
+      // 备注文案已由服务端 redeem_points_and_record 按 p_remark_locale 写入，无需再 patch
 
       // 记录赠送余额变动到商家结算账本
       if (redeemPaymentProvider && giftValue > 0 && rpcResult.gift_id) {

@@ -24,6 +24,7 @@ import { formatDisplayGiftNumber } from "@/lib/giftNumber";
 import type { Dispatch, SetStateAction } from "react";
 import type { ActivityRecord } from "./activityGiftsData";
 import { PAGE_SIZE_OPTIONS } from "./activityGiftsData";
+import { formatStaffPointsRedemptionRemarkForUi } from "@/lib/staffActivityGiftRemarkDisplay";
 
 export interface ActivityGiftsTabContentProps {
   useCompactLayout: boolean;
@@ -95,7 +96,10 @@ export default function ActivityGiftsTabContent({
                             : "-"
                         }
                       />
-                      <MobileCardRow label={t("备注", "Remark")} value={record.remark || "-"} />
+                      <MobileCardRow
+                        label={t("备注", "Remark")}
+                        value={formatStaffPointsRedemptionRemarkForUi(record.remark, t) || "-"}
+                      />
                       <MobileCardRow label={t("录入人", "Recorder")} value={record.recorder} />
                     </MobileCardCollapsible>
                     <MobileCardActions>
@@ -182,7 +186,9 @@ export default function ActivityGiftsTabContent({
                       </TableCell>
                       <TableCell className="text-center px-1.5">{record.fee}</TableCell>
                       <TableCell className="text-center px-1.5">{record.giftValue.toFixed(2)}</TableCell>
-                      <TableCell className="text-muted-foreground max-w-[150px] truncate text-center px-1.5">{record.remark}</TableCell>
+                      <TableCell className="text-muted-foreground max-w-[150px] truncate text-center px-1.5">
+                        {formatStaffPointsRedemptionRemarkForUi(record.remark, t) || "—"}
+                      </TableCell>
                       <TableCell className="text-center px-1.5">{record.recorder}</TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
