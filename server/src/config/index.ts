@@ -215,8 +215,8 @@ export const config = {
     /** 长边上限（像素） */
     maxPixelSide: clampInt(parseInt(process.env.UPLOAD_WEBP_MAX_PIXEL_SIDE || '4096', 10), 256, 16384, 4096),
     /**
-     * GET /api/upload/image/:id：若库内非 WebP（或魔数不符），用 Sharp 转 WebP 再响应，会员端始终收到 image/webp。
-     * 设 UPLOAD_NORMALIZE_TO_WEBP_ON_READ=0 可关闭（仅返回库内原始字节）。
+     * GET /api/upload/image/:id：默认将历史非 WebP（或魔数不符）转 WebP 再输出，与 POST 入库策略一致。
+     * 仅当 UPLOAD_NORMALIZE_TO_WEBP_ON_READ=0 时关闭（排障/兼容极老客户端）。
      */
     normalizeToWebpOnRead: process.env.UPLOAD_NORMALIZE_TO_WEBP_ON_READ !== '0',
   },

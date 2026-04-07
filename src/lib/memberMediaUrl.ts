@@ -1,5 +1,5 @@
 /**
- * 会员端图片 URL：后台上传返回常为 `/api/upload/image/:id`。
+ * 会员端图片 URL：后台上传返回常为 `/api/upload/image/:id`（库内与 GET 响应均为 WebP）。
  * 静态页与 API 不同源时须配置 VITE_API_BASE，否则相对路径会打到无 /api 反代的静态站导致 404。
  */
 import { getApiBaseUrl } from "@/lib/apiBase";

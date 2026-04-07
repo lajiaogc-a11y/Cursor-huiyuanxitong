@@ -435,8 +435,15 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
         payment_provider_id: 'vendor_id',
         vendor: 'card_merchant_id',
         sales_person: 'sales_user_id',
+        /** 审核 diff 用 card_rate，库表为 exchange_rate（与 OrderManagement buildUpdates 一致） */
+        card_rate: 'exchange_rate',
+        demand_currency: 'currency',
         feeUsdt: 'fee',
+        /** 订单编辑 / USDT 审核变更里统一用 actual_paid，库表列为 actual_payment */
+        actual_paid: 'actual_payment',
         actualPaidUsdt: 'actual_payment',
+        /** USDT 汇率在库中为 foreign_rate（无 usdt_rate 列） */
+        usdt_rate: 'foreign_rate',
       };
       const newData: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(rawNewData)) {

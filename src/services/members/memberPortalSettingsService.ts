@@ -1,4 +1,5 @@
 import { apiGet, apiPost, apiPut, apiDelete } from "@/api/client";
+import { BANNER_MAX_DIMENSION, LOGO_MAX_DIMENSION } from "@/lib/imageClientCompress";
 import {
   normalizeHomeBannerImageFit,
   normalizeHomeBannerLayout,
@@ -12,6 +13,7 @@ import {
   DEFAULT_TERMS_EN,
   DEFAULT_TERMS_ZH,
 } from "@/lib/memberLegalDefaults";
+import { uploadImageFileAsWebp } from "@/services/uploadService";
 
 export interface CustomerServiceAgent {
   name: string;
@@ -682,29 +684,24 @@ export async function getDefaultMemberPortalSettings(): Promise<MemberPortalSett
   }
 }
 
-async function uploadImageToServer(tenantId: string, file: File): Promise<string> {
-  const base64 = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-  const resp = await apiPost<{ success: boolean; url?: string; error?: string }>('/api/upload/image', {
-    data: base64,
-    content_type: file.type || 'image/webp',
-    file_name: file.name,
+async function uploadImageToServer(tenantId: string, file: File, maxDimension: number): Promise<string> {
+  const base = file.name.replace(/\.[^.]+$/, "").replace(/[^\w-]/g, "").slice(0, 40) || "image";
+  const resp = await uploadImageFileAsWebp(file, {
+    maxDimension,
+    quality: 0.85,
+    outputName: base,
     tenant_id: tenantId,
   });
-  if (!resp?.success || !resp.url) throw new Error(resp?.error || 'Upload failed');
+  if (!resp?.success || !resp.url) throw new Error(resp?.error || "Upload failed");
   return resp.url;
 }
 
 export async function uploadMemberPortalLogo(tenantId: string, file: File): Promise<string> {
-  return uploadImageToServer(tenantId, file);
+  return uploadImageToServer(tenantId, file, LOGO_MAX_DIMENSION);
 }
 
 export async function uploadMemberPortalBannerImage(tenantId: string, file: File): Promise<string> {
-  return uploadImageToServer(tenantId, file);
+  return uploadImageToServer(tenantId, file, BANNER_MAX_DIMENSION);
 }
 
 export async function createMyMemberPortalSettingsVersion(

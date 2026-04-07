@@ -317,8 +317,15 @@ export default function RatePosterGenerator({
       ctx.textAlign = "center";
       ctx.fillText(textSettings.footer, 540, 1880);
 
-      // JPEG 0.92 quality — ~300-600KB vs PNG ~3-5MB, significantly faster upload
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      let dataUrl = "";
+      try {
+        dataUrl = canvas.toDataURL("image/webp", 0.92);
+      } catch {
+        /* ignore */
+      }
+      if (!dataUrl.startsWith("data:image/webp")) {
+        dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      }
       setPosterDataUrl(dataUrl);
       
       onGenerate?.();

@@ -6,7 +6,7 @@ import { useLayoutEffect, useMemo, type CSSProperties } from "react";
 import SplashScreen from "@/components/member/SplashScreen";
 import { memberPortalGoldCssVarsFromHex } from "@/utils/memberPortalGoldCssVars";
 import {
-  parseInviteFromWindowSearch,
+  parseInviteCodeFromWindowLocation,
   readMemberPortalSplashBootstrap,
 } from "@/lib/memberPortalSplashCache";
 import { preloadMemberPortalLogo } from "@/lib/memberPortalLogoPreload";
@@ -19,7 +19,7 @@ export function MemberLoginSuspenseFallback() {
   useLayoutEffect(() => {
     document.documentElement.classList.add("member-html");
     if (typeof window !== "undefined") {
-      const boot = readMemberPortalSplashBootstrap(parseInviteFromWindowSearch(window.location.search));
+      const boot = readMemberPortalSplashBootstrap(parseInviteCodeFromWindowLocation());
       const logo = boot?.logo_url;
       if (logo) void preloadMemberPortalLogo(logo);
       applyMemberPortalFaviconFromLogoRaw(logo);
@@ -38,7 +38,7 @@ export function MemberLoginSuspenseFallback() {
         pendingBrand: true,
       };
     }
-    const boot = readMemberPortalSplashBootstrap(parseInviteFromWindowSearch(window.location.search));
+    const boot = readMemberPortalSplashBootstrap(parseInviteCodeFromWindowLocation());
     const accentRaw = String(boot?.theme_primary_color ?? "").trim();
     const accentHex = /^#[0-9A-Fa-f]{6}$/i.test(accentRaw) ? accentRaw : DEFAULT_THEME;
     const brandName = String(boot?.company_name ?? "").trim() || "FastGC";

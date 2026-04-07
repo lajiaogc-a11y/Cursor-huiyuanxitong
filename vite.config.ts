@@ -98,10 +98,10 @@ export default defineConfig(({ mode }) => {
 
     enablePwa && VitePWA({
       registerType: "prompt", // 新版本时弹窗提示用户确认后刷新
-      includeAssets: ["favicon.ico", "pwa-192x192.png", "pwa-512x512.png"],
+      includeAssets: ["favicon.ico", "favicon.webp", "pwa-192x192.webp", "pwa-512x512.webp"],
       manifest: false, // use public/manifest.json
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        globPatterns: ["**/*.{js,css,html,ico,webp,png,svg,woff2}"],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

@@ -278,12 +278,14 @@ export function MemberLoginCarousel({ displaySettings, theme, t, paused }: Membe
                 alt={layer.alt}
                 width={1024}
                 height={512}
-                className="absolute inset-0 h-full w-full object-cover transition-[opacity,transform,filter] duration-700 ease-in-out"
+                className="absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-700 ease-in-out"
                 style={{
                   opacity: active ? 1 : 0,
                   transform: active ? "scale(1)" : "scale(1.05)",
                 }}
                 loading={i === 0 ? "eager" : "lazy"}
+                decoding="async"
+                fetchPriority={i === 0 ? "high" : "low"}
                 onError={(e) => onBannerImageError(layer.id, e)}
               />
             );

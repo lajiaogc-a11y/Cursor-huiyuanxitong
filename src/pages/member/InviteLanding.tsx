@@ -34,7 +34,11 @@ import { memberPortalLegalBody } from "@/lib/memberPortalLegalBody";
 import { MemberRegisterShell } from "@/components/member/MemberRegisterShell";
 import { MemberRegisterTrustFooter } from "@/components/member/MemberRegisterTrustFooter";
 import { cn } from "@/lib/utils";
-import { readMemberPortalSplashBootstrap } from "@/lib/memberPortalSplashCache";
+import {
+  readMemberPortalSplashBootstrap,
+  persistMemberPortalSplashCache,
+} from "@/lib/memberPortalSplashCache";
+import { preloadMemberPortalLogo } from "@/lib/memberPortalLogoPreload";
 import { MemberLoginBadgeGrid } from "@/components/member/MemberLoginBadgeGrid";
 import { MemberLoginCarousel } from "@/components/member/MemberLoginCarousel";
 
@@ -64,6 +68,8 @@ export default function InviteLanding() {
   const [registerExpiresIn, setRegisterExpiresIn] = useState<number | null>(null);
   const [registerInitLoading, setRegisterInitLoading] = useState(false);
   const [registerInitError, setRegisterInitError] = useState<string | null>(null);
+  /** 与 MemberLogin 一致：等门户设置就绪再渲染轮播/表单，避免先用 DEFAULT 内置轮播再换成后台图造成整段闪变与解码卡顿 */
+  const [portalSettingsReady, setPortalSettingsReady] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.add("member-html");
@@ -73,24 +79,53 @@ export default function InviteLanding() {
   }, []);
 
   useEffect(() => {
-    if (!code) return;
+    if (!code?.trim()) {
+      setPortalSettings(DEFAULT_SETTINGS);
+      setPortalSettingsReady(true);
+      return;
+    }
+    let cancelled = false;
+    setPortalSettingsReady(false);
     void (async () => {
       try {
         const data = await getMemberPortalSettingsByInviteCode(code);
-        if (!data) return;
         const defaultPayload = await getDefaultMemberPortalSettings();
         const platformLogo = String(defaultPayload?.settings?.logo_url ?? "").trim() || null;
         seedPlatformBrandLogoFromSettings(platformLogo);
+        if (!data?.settings) {
+          if (!cancelled) {
+            const fallback = mergePlatformBrandLogo(defaultPayload?.settings || DEFAULT_SETTINGS, platformLogo);
+            setPortalSettings(fallback);
+            setInviteReward(Number(fallback.invite_reward_spins || 3));
+            setInviteEnabled(!!fallback.enable_invite);
+            const tc = String(fallback.theme_primary_color || "").trim();
+            setThemeColor(/^#[0-9A-Fa-f]{6}$/i.test(tc) ? tc : "#4d8cff");
+          }
+          return;
+        }
         const merged = mergePlatformBrandLogo(data.settings, platformLogo);
+        if (cancelled) return;
         setPortalSettings(merged);
         setInviteReward(Number(merged.invite_reward_spins || 3));
         setInviteEnabled(!!merged.enable_invite);
         const tc = String(merged.theme_primary_color || "").trim();
         setThemeColor(/^#[0-9A-Fa-f]{6}$/i.test(tc) ? tc : "#4d8cff");
+        persistMemberPortalSplashCache(code.trim(), merged);
+        void preloadMemberPortalLogo(merged.logo_url);
       } catch {
         console.warn("[InviteLanding] Failed to load portal settings for code:", code);
+        if (!cancelled) {
+          setPortalSettings(DEFAULT_SETTINGS);
+          setInviteReward(Number(DEFAULT_SETTINGS.invite_reward_spins || 3));
+          setInviteEnabled(!!DEFAULT_SETTINGS.enable_invite);
+        }
+      } finally {
+        if (!cancelled) setPortalSettingsReady(true);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [code]);
 
   useEffect(() => {
@@ -231,14 +266,27 @@ export default function InviteLanding() {
           ← {t("返回", "Back")}
         </Link>
         {!submitted ? (
-          <MemberLoginCarousel
-            displaySettings={portalSettings ?? DEFAULT_SETTINGS}
-            theme={theme}
-            t={t}
-            paused={false}
-          />
+          portalSettingsReady && portalSettings ? (
+            <MemberLoginCarousel displaySettings={portalSettings} theme={theme} t={t} paused={false} />
+          ) : (
+            <div className="mb-8 px-5" aria-hidden>
+              <div
+                className="relative overflow-hidden rounded-2xl bg-[hsl(var(--pu-m-surface)/0.22)]"
+                style={{ aspectRatio: "2/1" }}
+              >
+                <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-[hsl(var(--pu-m-surface-border)/0.12)] via-[hsl(var(--pu-m-surface)/0.35)] to-[hsl(var(--pu-m-surface-border)/0.08)]" />
+              </div>
+            </div>
+          )
         ) : null}
-        {!inviteEnabled ? (
+        {!portalSettingsReady ? (
+          <div className="flex min-h-[min(50dvh,320px)] flex-1 flex-col items-center justify-center gap-3 py-10">
+            <Loader2 className="h-9 w-9 shrink-0 animate-spin text-pu-gold motion-reduce:animate-none" aria-hidden />
+            <p className="m-0 text-center text-sm text-[hsl(var(--pu-m-text-dim))]">
+              {t("正在加载页面…", "Loading page…")}
+            </p>
+          </div>
+        ) : !inviteEnabled ? (
           <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-pu-gold/22 bg-gradient-to-b from-pu-gold/[0.08] via-[hsl(var(--pu-m-surface)/0.22)] to-[hsl(var(--pu-m-surface)/0.28)] px-5 py-12 text-center">
             <p className="m-0 text-base font-semibold text-[hsl(var(--pu-m-text))]">
               {t("邀请已关闭", "Invite Disabled")}
@@ -314,7 +362,7 @@ export default function InviteLanding() {
               </p>
             </div>
 
-            <MemberLoginBadgeGrid loading={portalSettings === null} loginBadges={portalSettings?.login_badges} />
+            <MemberLoginBadgeGrid loading={!portalSettings} loginBadges={portalSettings?.login_badges} />
 
             <form
               className="flex flex-1 flex-col"

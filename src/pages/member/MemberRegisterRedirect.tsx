@@ -16,7 +16,10 @@ import {
 import { memberRegisterInit, validateInviteAndSubmit } from "@/services/memberPortal/memberActivityService";
 import { ApiError } from "@/lib/apiClient";
 import { seedPlatformBrandLogoFromSettings } from "@/lib/memberPortalPlatformBrandLogo";
-import { readMemberPortalSplashBootstrap } from "@/lib/memberPortalSplashCache";
+import {
+  getInviteCodeFromSearchParams,
+  readMemberPortalSplashBootstrap,
+} from "@/lib/memberPortalSplashCache";
 import { notify } from "@/lib/notifyHub";
 import {
   DEFAULT_SETTINGS,
@@ -38,14 +41,22 @@ import { MemberRegisterTrustFooter } from "@/components/member/MemberRegisterTru
 import { cn } from "@/lib/utils";
 
 /**
- * /member/register?ref= / ?code= → 跳转 /invite/CODE（与推广链接一致）
+ * /member/register?ref= / ?invite= / ?code= / … → 跳转 /invite/CODE（与 MemberLogin 查询键一致）
  * 无参数：与 InviteLanding 同构的注册页 — 先填手机与密码，邀请码在最后一步填写并完成校验
  */
 export default function MemberRegisterRedirect() {
   const { t, language } = useLanguage();
   const { theme } = useTheme();
   const [sp] = useSearchParams();
-  const ref = sp.get("ref")?.trim() || sp.get("code")?.trim();
+  /** useSearchParams 与 location 双读：避免部分 WebView/Safari 首帧 query 未同步导致未重定向 */
+  const ref = useMemo(() => {
+    const fromRouter = getInviteCodeFromSearchParams(sp);
+    if (fromRouter) return fromRouter;
+    if (typeof window !== "undefined") {
+      return getInviteCodeFromSearchParams(new URLSearchParams(window.location.search));
+    }
+    return "";
+  }, [sp]);
 
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");

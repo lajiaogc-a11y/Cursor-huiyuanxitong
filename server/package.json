@@ -18,7 +18,8 @@
     "start:verify-trust-proxy": "cross-env NODE_ENV=production TRUST_PROXY=1 tsx src/app.ts",
     "start:verify-trust-proxy-dev": "cross-env VERIFY_TRUST_PROXY=1 TRUST_PROXY=1 tsx src/app.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "assets:public-webp": "node scripts/convert-public-to-webp.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.758.0",

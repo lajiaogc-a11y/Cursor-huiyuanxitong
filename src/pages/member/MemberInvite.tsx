@@ -193,16 +193,21 @@ export default function MemberInvite() {
         qrSvgElement: svgEl,
         customBgImage,
       });
+      const finishPoster = (blob: Blob | null) => {
+        if (!blob) {
+          notify.error(t("无法生成图片", "Could not create image"));
+          return;
+        }
+        const name = blob.type === "image/png" ? "invite-poster.png" : "invite-poster.webp";
+        void saveInvitePosterPngBlob(blob, name, t);
+      };
       canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            notify.error(t("无法生成图片", "Could not create image"));
-            return;
-          }
-          void saveInvitePosterPngBlob(blob, "invite-poster.png", t);
+        (b) => {
+          if (b) finishPoster(b);
+          else canvas.toBlob((b2) => finishPoster(b2), "image/png", 0.95);
         },
-        "image/png",
-        0.95,
+        "image/webp",
+        0.92,
       );
     } catch {
       notify.error(t("无法生成图片", "Could not create image"));

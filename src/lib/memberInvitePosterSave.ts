@@ -76,6 +76,9 @@ export function openLongPressSaveOverlay(objectUrl: string, t: BilingualT): void
   document.body.appendChild(wrap);
 }
 
+/**
+ * 保存邀请海报（WebP 优先；文件名建议 `.webp`，分享/系统相册使用 blob.type）。
+ */
 export async function saveInvitePosterPngBlob(blob: Blob, filename: string, t: BilingualT): Promise<void> {
   const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
   const isWeChat = /MicroMessenger/i.test(ua);
@@ -102,7 +105,8 @@ export async function saveInvitePosterPngBlob(blob: Blob, filename: string, t: B
     }
   }
 
-  const file = new File([blob], filename, { type: "image/png" });
+  const mime = blob.type && blob.type.startsWith("image/") ? blob.type : "image/webp";
+  const file = new File([blob], filename, { type: mime });
   if (typeof navigator !== "undefined" && navigator.share && typeof navigator.canShare === "function") {
     try {
       if (navigator.canShare({ files: [file] })) {

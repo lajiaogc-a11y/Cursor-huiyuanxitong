@@ -68,8 +68,22 @@ export const memberPublicRoutes: Array<{ path: string; element: ReactNode }> = [
   },
   { path: ROUTES.MEMBER.LOGIN_LEGACY, element: <Navigate to={ROUTES.MEMBER.ROOT} replace /> },
   { path: ROUTES.MEMBER.HOME, element: <Navigate to={ROUTES.MEMBER.DASHBOARD} replace /> },
-  { path: ROUTES.MEMBER.INVITE_LANDING, element: <InviteLanding /> },
-  { path: ROUTES.MEMBER.REGISTER, element: <MemberRegisterRedirect /> },
+  {
+    path: ROUTES.MEMBER.INVITE_LANDING,
+    element: (
+      <Suspense fallback={<MemberLoginSuspenseFallback />}>
+        <InviteLanding />
+      </Suspense>
+    ),
+  },
+  {
+    path: ROUTES.MEMBER.REGISTER,
+    element: (
+      <Suspense fallback={<MemberLoginSuspenseFallback />}>
+        <MemberRegisterRedirect />
+      </Suspense>
+    ),
+  },
 ];
 
 export const staffPublicRoutes: Array<{ path: string; element: ReactNode }> = [

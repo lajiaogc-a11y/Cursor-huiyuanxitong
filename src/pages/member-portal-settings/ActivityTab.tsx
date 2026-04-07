@@ -9,7 +9,8 @@ import { Gift, Info, Link2, Share2, SlidersHorizontal, Users, Image as ImageIcon
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import type { MemberPortalSettings } from "@/services/members/memberPortalSettingsService";
-import { uploadImageDataUrlApi } from "@/services/uploadService";
+import { BANNER_MAX_DIMENSION } from "@/lib/imageClientCompress";
+import { uploadImageFileAsWebp } from "@/services/uploadService";
 import { POSTER_FRAMES, type PosterFrame } from "@/lib/invitePosterFrames";
 import { SectionTitle } from "./shared";
 import { notify } from "@/lib/notifyHub";
@@ -354,15 +355,10 @@ function PosterSettingsSection({
     }
     setUploading(true);
     try {
-      const dataUrl: string = await new Promise((res, rej) => {
-        const reader = new FileReader();
-        reader.onload = () => res(reader.result as string);
-        reader.onerror = () => rej(new Error("read failed"));
-        reader.readAsDataURL(file);
-      });
-      const resp = await uploadImageDataUrlApi({
-        data: dataUrl,
-        file_name: file.name,
+      const resp = await uploadImageFileAsWebp(file, {
+        maxDimension: BANNER_MAX_DIMENSION,
+        quality: 0.85,
+        outputName: "poster-bg",
       });
       if (resp?.success && resp.url) {
         onSettingsChange({ poster_custom_bg_url: resp.url });

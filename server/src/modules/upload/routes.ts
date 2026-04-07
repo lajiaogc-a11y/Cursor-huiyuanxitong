@@ -232,7 +232,15 @@ router.post('/image', authMiddleware, async (req: Request, res: Response) => {
   }
 
   const url = `/api/upload/image/${id}`;
-  res.json({ success: true, id, url, visibility, storage: config.s3.enabled ? 's3' : 'mysql' });
+  res.json({
+    success: true,
+    id,
+    url,
+    visibility,
+    storage: config.s3.enabled ? 's3' : 'mysql',
+    /** 入库与 S3 对象字节均为 WebP */
+    mime: 'image/webp',
+  });
 });
 
 router.get('/image/:id', async (req: Request, res: Response) => {

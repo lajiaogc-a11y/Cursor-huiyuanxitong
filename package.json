@@ -11,6 +11,7 @@
     "api:install": "cd server && npm install",
     "db:sync:pull": "node scripts/sync-mysql-remote-to-local.mjs",
     "db:lottery-mysql": "cd server && npm run migrate:lottery",
+    "assets:public-webp": "cd server && npm run assets:public-webp",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
@@ -147,7 +148,7 @@
       "target": [
         "dmg"
       ],
-      "icon": "public/pwa-512x512.png",
+      "icon": "public/pwa-512x512.webp",
       "category": "public.app-category.business"
     },
     "nsis": {

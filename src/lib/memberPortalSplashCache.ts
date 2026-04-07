@@ -33,9 +33,10 @@ function readKey(fullKey: string): Partial<MemberPortalSettings> | null {
   }
 }
 
-/** 与 MemberLogin 的 invite 参数解析一致（首屏同步读缓存时用） */
-export function parseInviteFromWindowSearch(search: string): string {
-  const q = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+/**
+ * 与 MemberLogin 一致：推广/注册链接上可能出现的邀请码 query 键（缺一会导致落在 /member/register 手工填码）。
+ */
+export function getInviteCodeFromSearchParams(q: URLSearchParams): string {
   const c =
     q.get("ref") ||
     q.get("invite") ||
@@ -44,6 +45,32 @@ export function parseInviteFromWindowSearch(search: string): string {
     q.get("referral") ||
     "";
   return String(c).trim();
+}
+
+/** 与 MemberLogin 的 invite 参数解析一致（首屏同步读缓存时用） */
+export function parseInviteFromWindowSearch(search: string): string {
+  const q = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  return getInviteCodeFromSearchParams(q);
+}
+
+/**
+ * 邀请码：先读 query（ref / invite / code …），再读路径 `/invite/:code`（分享直连落地页）。
+ * 供懒加载 Suspense 首帧读 splash 缓存，避免仅认 search 时 `/invite/xxx` 拿不到租户品牌。
+ */
+export function parseInviteCodeFromWindowLocation(): string {
+  if (typeof window === "undefined") return "";
+  const fromQuery = getInviteCodeFromSearchParams(new URLSearchParams(window.location.search));
+  if (fromQuery) return fromQuery;
+  const rawPath = (window.location.pathname || "").replace(/\/+$/, "");
+  const segs = rawPath.split("/").filter(Boolean);
+  if (segs.length >= 2 && segs[0].toLowerCase() === "invite") {
+    try {
+      return decodeURIComponent(segs[1]).trim();
+    } catch {
+      return segs[1].trim();
+    }
+  }
+  return "";
 }
 
 /**

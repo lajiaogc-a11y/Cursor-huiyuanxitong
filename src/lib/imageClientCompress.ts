@@ -1,6 +1,6 @@
 /**
  * 浏览器端图片压缩：限制长边、**优先输出 WebP**（`canvas.toBlob('image/webp')`，不支持时回退 JPEG）。
- * 员工端走 `/api/upload/image` 时，服务端会用 **Sharp 再统一转 WebP** 入库，保证全站上传素材格式一致。
+ * 员工端 `POST /api/upload/image` 由服务端 **Sharp 强制转 WebP** 入库（S3/MySQL 仅存 WebP）；GET 默认再规范为 WebP 输出。
  */
 
 export interface CompressImageOptions {
