@@ -45,9 +45,26 @@ function detectAndroidWebView(): boolean {
   return /FastGC-Android/i.test(navigator.userAgent);
 }
 
-const THRESHOLD = 80;
-const MAX_PULL = 130;
-const RESISTANCE = 0.42;
+function detectIos(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iP(hone|od|ad)/i.test(navigator.userAgent);
+}
+
+const DEFAULT_PULL_CONFIG = {
+  threshold: 80,
+  resistance: 0.42,
+  maxPull: 130,
+};
+const IOS_PULL_CONFIG = {
+  threshold: 70,
+  resistance: 0.38,
+  maxPull: 140,
+};
+const ANDROID_PULL_CONFIG = {
+  threshold: 90,
+  resistance: 0.46,
+  maxPull: 120,
+};
 const SETTLE_MS = 320;
 
 function touchTargetDefersPull(target: EventTarget | null): boolean {
@@ -78,6 +95,12 @@ interface Props {
 export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContainer = false, className, scrollElRef }: Props) {
   const { t } = useLanguage();
   const androidMode = useMemo(detectAndroidWebView, []);
+  const iosMode = useMemo(detectIos, []);
+  const pullConfig = useMemo(() => {
+    if (androidMode) return ANDROID_PULL_CONFIG;
+    if (iosMode) return IOS_PULL_CONFIG;
+    return DEFAULT_PULL_CONFIG;
+  }, [androidMode, iosMode]);
   const [pulling, setPulling] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -249,7 +272,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
         e.preventDefault();
       }
 
-      const distance = Math.min(dy * RESISTANCE, MAX_PULL);
+      const distance = Math.min(dy * pullConfig.resistance, pullConfig.maxPull);
       if (!stateRef.current.pulling) {
         setPulling(true);
         stateRef.current.pulling = true;
@@ -274,9 +297,9 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
       }
       const finalDistance = pendingDistanceRef.current || stateRef.current.pullDistance;
       stateRef.current.pullDistance = finalDistance;
-      if (stateRef.current.pullDistance >= THRESHOLD) {
-        setPullDistance(THRESHOLD);
-        stateRef.current.pullDistance = THRESHOLD;
+      if (stateRef.current.pullDistance >= pullConfig.threshold) {
+        setPullDistance(pullConfig.threshold);
+        stateRef.current.pullDistance = pullConfig.threshold;
         doRefresh();
       } else {
         setPulling(false);
@@ -353,7 +376,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   // ═══════════════════════════════════════════════════════════════════════
   //  Render
   // ═══════════════════════════════════════════════════════════════════════
-  const progress = Math.min(pullDistance / THRESHOLD, 1);
+  const progress = Math.min(pullDistance / pullConfig.threshold, 1);
   const rotation = prefersReducedMotion ? 0 : pullDistance * 3.6;
   const indicatorScale = prefersReducedMotion ? 1 : 0.5 + progress * 0.5;
 
