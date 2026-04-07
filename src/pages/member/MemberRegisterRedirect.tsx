@@ -25,11 +25,13 @@ import {
 } from "@/services/members/memberPortalSettingsService";
 import { ROUTES } from "@/routes/constants";
 import { MemberLoginBadgeGrid } from "@/components/member/MemberLoginBadgeGrid";
+import { MemberLoginCarousel } from "@/components/member/MemberLoginCarousel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MemberLegalDrawer } from "@/components/member/MemberLegalDrawer";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { memberPortalLegalBody } from "@/lib/memberPortalLegalBody";
 import { MemberRegisterShell } from "@/components/member/MemberRegisterShell";
 import { MemberRegisterTrustFooter } from "@/components/member/MemberRegisterTrustFooter";
@@ -41,6 +43,7 @@ import { cn } from "@/lib/utils";
  */
 export default function MemberRegisterRedirect() {
   const { t, language } = useLanguage();
+  const { theme } = useTheme();
   const [sp] = useSearchParams();
   const ref = sp.get("ref")?.trim() || sp.get("code")?.trim();
 
@@ -210,6 +213,9 @@ export default function MemberRegisterRedirect() {
             ← {t("返回", "Back")}
           </Link>
         </div>
+        {!submitted ? (
+          <MemberLoginCarousel displaySettings={portalSettings} theme={theme} t={t} paused={false} />
+        ) : null}
         {!inviteEnabled ? (
           <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-pu-gold/22 bg-gradient-to-b from-pu-gold/[0.08] via-[hsl(var(--pu-m-surface)/0.22)] to-[hsl(var(--pu-m-surface)/0.28)] px-5 py-12 text-center">
             <p className="m-0 text-base font-semibold text-[hsl(var(--pu-m-text))]">{t("邀请已关闭", "Invite Disabled")}</p>

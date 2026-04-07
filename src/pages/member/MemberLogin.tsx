@@ -21,6 +21,7 @@ import {
   getDefaultMemberPortalSettings,
   getMemberPortalSettingsByAccount,
   getMemberPortalSettingsByInviteCode,
+  mergeMemberPortalAccountPreview,
   type MemberPortalSettings,
 } from "@/services/members/memberPortalSettingsService";
 import { warmupApiHealth } from "@/services/system/apiWarmup";
@@ -168,7 +169,8 @@ export default function MemberLogin() {
         const data = await getMemberPortalSettingsByAccount(account);
         const raw = data?.settings || defaultPortalSettings;
         const pl = await getPlatformBrandLogoUrl();
-        setPreviewSettings(mergePlatformBrandLogo(raw, pl));
+        const merged = mergePlatformBrandLogo(raw, pl);
+        setPreviewSettings(mergeMemberPortalAccountPreview(merged, defaultPortalSettings));
       } catch {
         setPreviewSettings(defaultPortalSettings);
       }

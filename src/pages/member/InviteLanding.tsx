@@ -14,6 +14,7 @@ import { memberRegisterInit, validateInviteAndSubmit } from "@/services/memberPo
 import { ApiError } from "@/lib/apiClient";
 import { notify } from "@/lib/notifyHub";
 import {
+  DEFAULT_SETTINGS,
   getDefaultMemberPortalSettings,
   getMemberPortalSettingsByInviteCode,
   type MemberPortalSettings,
@@ -28,16 +29,19 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MemberLegalDrawer } from "@/components/member/MemberLegalDrawer";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { memberPortalLegalBody } from "@/lib/memberPortalLegalBody";
 import { MemberRegisterShell } from "@/components/member/MemberRegisterShell";
 import { MemberRegisterTrustFooter } from "@/components/member/MemberRegisterTrustFooter";
 import { cn } from "@/lib/utils";
 import { readMemberPortalSplashBootstrap } from "@/lib/memberPortalSplashCache";
 import { MemberLoginBadgeGrid } from "@/components/member/MemberLoginBadgeGrid";
+import { MemberLoginCarousel } from "@/components/member/MemberLoginCarousel";
 
 export default function InviteLanding() {
   const { code } = useParams<{ code: string }>();
   const { t, language } = useLanguage();
+  const { theme } = useTheme();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -229,6 +233,14 @@ export default function InviteLanding() {
       </div>
 
       <div className="relative z-[1] mx-auto flex w-full max-w-[480px] flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        {!submitted ? (
+          <MemberLoginCarousel
+            displaySettings={portalSettings ?? DEFAULT_SETTINGS}
+            theme={theme}
+            t={t}
+            paused={false}
+          />
+        ) : null}
         {!inviteEnabled ? (
           <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-pu-gold/22 bg-gradient-to-b from-pu-gold/[0.08] via-[hsl(var(--pu-m-surface)/0.22)] to-[hsl(var(--pu-m-surface)/0.28)] px-5 py-12 text-center">
             <p className="m-0 text-base font-semibold text-[hsl(var(--pu-m-text))]">

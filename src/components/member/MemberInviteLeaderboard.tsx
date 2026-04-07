@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2, Trophy, TrendingUp } from "lucide-react";
+import { Loader2, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchInviteRankingTop5, type InviteRankingEntry } from "@/services/memberPortal/inviteRankingService";
 import { useMemberSkeletonGate } from "@/hooks/useMemberSkeletonGate";
@@ -137,11 +137,6 @@ export function MemberInviteLeaderboard({
           )}
         </div>
       </div>
-
-      <p className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-[hsl(var(--pu-m-text-dim)/0.5)]">
-        <Trophy className="h-3 w-3 opacity-70" aria-hidden />
-        {t("榜单含真实邀请与示例数据，以服务端合并排序为准", "Rankings mix real invites with sample data.")}
-      </p>
     </section>
   );
 }

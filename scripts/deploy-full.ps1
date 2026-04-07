@@ -20,6 +20,19 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# Windows 控制台默认常为本地代码页，中文路径、Vite 路径、SSH 回传的 PM2 表格易乱码；本会话统一 UTF-8
+function Initialize-DeployConsoleUtf8 {
+    try { chcp 65001 | Out-Null } catch { }
+    try {
+        $utf8 = [System.Text.UTF8Encoding]::new($false)
+        [Console]::OutputEncoding = $utf8
+        [Console]::InputEncoding = $utf8
+        $OutputEncoding = $utf8
+    } catch { }
+}
+Initialize-DeployConsoleUtf8
+
 # npm 调用 `powershell -File ./scripts/...` 时，个别环境下 $PSScriptRoot 为空，Split-Path 会得到 $null
 if ($PSScriptRoot) {
     $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -336,11 +349,11 @@ try {
     # 必须重定向 stdout/stderr 到文件并读出，否则缓冲区满会死锁
     $remoteProc = Start-Process -FilePath "ssh" -ArgumentList $sshArgs.ToArray() -RedirectStandardInput $tmpSh -RedirectStandardOutput $tmpOut -RedirectStandardError $tmpErr -Wait -NoNewWindow -PassThru
     if (Test-Path -LiteralPath $tmpOut) {
-        $o = Get-Content -LiteralPath $tmpOut -Raw -ErrorAction SilentlyContinue
+        $o = Get-Content -LiteralPath $tmpOut -Raw -Encoding utf8 -ErrorAction SilentlyContinue
         if ($o) { Write-Host $o }
     }
     if (Test-Path -LiteralPath $tmpErr) {
-        $e = Get-Content -LiteralPath $tmpErr -Raw -ErrorAction SilentlyContinue
+        $e = Get-Content -LiteralPath $tmpErr -Raw -Encoding utf8 -ErrorAction SilentlyContinue
         if ($e) { Write-Host $e -ForegroundColor DarkGray }
     }
     if ($remoteProc.ExitCode -ne 0) {

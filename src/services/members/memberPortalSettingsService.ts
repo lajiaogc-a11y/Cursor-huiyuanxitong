@@ -364,6 +364,36 @@ export function normalizeLoginBadgesField(raw: unknown): string[] {
   return [];
 }
 
+/**
+ * 按账号解析租户时，/by-account 若未返回 login_badges、登录轮播等展示字段，normalize 后为空，
+ * 会导致六格徽章先变虚线空槽、返回落地页后又与默认接口不一致。此处用默认门户配置补齐「仅展示」字段。
+ */
+export function mergeMemberPortalAccountPreview(
+  account: MemberPortalSettings,
+  defaults: MemberPortalSettings,
+): MemberPortalSettings {
+  const accBadges = normalizeLoginBadgesField(account.login_badges);
+  const defBadges = normalizeLoginBadgesField(defaults.login_badges);
+  const login_badges =
+    accBadges.length > 0 ? accBadges : defBadges.length > 0 ? defBadges : accBadges;
+
+  const accSlides = Array.isArray(account.login_carousel_slides) ? account.login_carousel_slides : [];
+  const defSlides = Array.isArray(defaults.login_carousel_slides) ? defaults.login_carousel_slides : [];
+  const login_carousel_slides =
+    accSlides.length > 0 ? accSlides : defSlides.length > 0 ? defSlides : accSlides;
+
+  const accInt = Math.floor(Number(account.login_carousel_interval_sec) || 0);
+  const login_carousel_interval_sec =
+    accInt >= 3 && accInt <= 60 ? account.login_carousel_interval_sec : defaults.login_carousel_interval_sec;
+
+  return {
+    ...account,
+    login_badges,
+    login_carousel_slides,
+    login_carousel_interval_sec,
+  };
+}
+
 function normalizeSettings(raw: Record<string, unknown> = {}): MemberPortalSettings {
   const { home_background_preset: _legacyHeroBg, ...rawSansHeroBg } = raw || {};
   void _legacyHeroBg;
