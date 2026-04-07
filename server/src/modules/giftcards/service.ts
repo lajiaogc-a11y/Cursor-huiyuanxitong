@@ -1,5 +1,5 @@
 /**
- * Giftcards Service - 礼品卡/卡商/支付渠道业务逻辑
+ * Giftcards Service - 礼品卡/卡商/支付渠道业务逻辑（按租户）
  */
 import {
   listCardsRepository,
@@ -39,80 +39,90 @@ export async function listGiftCardsService(tenantId: string) {
 }
 
 // Cards
-export async function listCardsService(status?: string) {
-  return listCardsRepository(status);
+export async function listCardsService(tenantId: string, status?: string) {
+  return listCardsRepository(tenantId, status);
 }
 
-export async function getCardByIdService(id: string) {
-  return getCardByIdRepository(id);
+export async function getCardByIdService(tenantId: string, id: string) {
+  return getCardByIdRepository(tenantId, id);
 }
 
-export async function createCardService(body: CreateCardBody) {
-  return createCardRepository(body);
+export async function createCardService(tenantId: string, body: CreateCardBody) {
+  return createCardRepository(tenantId, body);
 }
 
-export async function updateCardService(id: string, body: UpdateCardBody) {
-  return updateCardRepository(id, body);
+export async function updateCardService(tenantId: string, id: string, body: UpdateCardBody) {
+  return updateCardRepository(tenantId, id, body);
 }
 
-export async function deleteCardService(id: string) {
-  return deleteCardRepository(id);
+export async function deleteCardService(tenantId: string, id: string) {
+  return deleteCardRepository(tenantId, id);
 }
 
 // Vendors
-export async function listVendorsService(status?: string) {
-  return listVendorsRepository(status);
+export async function listVendorsService(tenantId: string, status?: string) {
+  return listVendorsRepository(tenantId, status);
 }
 
-export async function getVendorByIdService(id: string) {
-  return getVendorByIdRepository(id);
+export async function getVendorByIdService(tenantId: string, id: string) {
+  return getVendorByIdRepository(tenantId, id);
 }
 
-export async function createVendorService(body: CreateVendorBody) {
-  return createVendorRepository(body);
+export async function createVendorService(tenantId: string, body: CreateVendorBody) {
+  return createVendorRepository(tenantId, body);
 }
 
-export async function updateVendorService(id: string, body: UpdateVendorBody, oldName?: string) {
-  const data = await updateVendorRepository(id, body);
+export async function updateVendorService(
+  tenantId: string,
+  id: string,
+  body: UpdateVendorBody,
+  oldName?: string,
+) {
+  const data = await updateVendorRepository(tenantId, id, body);
   if (body.name && oldName && body.name !== oldName) {
-    await updateCardsVendorNameRepository(oldName, body.name);
-    await updateLedgerAndBalanceForVendorRenameRepository(oldName, body.name);
+    await updateCardsVendorNameRepository(tenantId, oldName, body.name);
+    await updateLedgerAndBalanceForVendorRenameRepository(tenantId, oldName, body.name);
   }
   return data;
 }
 
-export async function deleteVendorService(id: string, vendorName?: string) {
+export async function deleteVendorService(tenantId: string, id: string, vendorName?: string) {
   if (vendorName) {
-    await removeVendorFromCardsRepository(vendorName);
+    await removeVendorFromCardsRepository(tenantId, vendorName);
   }
-  return deleteVendorRepository(id);
+  return deleteVendorRepository(tenantId, id);
 }
 
 // Payment Providers
-export async function listPaymentProvidersService(status?: string) {
-  return listPaymentProvidersRepository(status);
+export async function listPaymentProvidersService(tenantId: string, status?: string) {
+  return listPaymentProvidersRepository(tenantId, status);
 }
 
-export async function getPaymentProviderByIdService(id: string) {
-  return getPaymentProviderByIdRepository(id);
+export async function getPaymentProviderByIdService(tenantId: string, id: string) {
+  return getPaymentProviderByIdRepository(tenantId, id);
 }
 
-export async function createPaymentProviderService(body: CreateProviderBody) {
-  return createPaymentProviderRepository(body);
+export async function createPaymentProviderService(tenantId: string, body: CreateProviderBody) {
+  return createPaymentProviderRepository(tenantId, body);
 }
 
-export async function updatePaymentProviderService(id: string, body: UpdateProviderBody, oldName?: string) {
-  const data = await updatePaymentProviderRepository(id, body);
+export async function updatePaymentProviderService(
+  tenantId: string,
+  id: string,
+  body: UpdateProviderBody,
+  oldName?: string,
+) {
+  const data = await updatePaymentProviderRepository(tenantId, id, body);
   if (body.name && oldName && body.name !== oldName) {
-    await updateVendorsProviderNameRepository(oldName, body.name);
-    await updateLedgerAndBalanceForProviderRenameRepository(oldName, body.name);
+    await updateVendorsProviderNameRepository(tenantId, oldName, body.name);
+    await updateLedgerAndBalanceForProviderRenameRepository(tenantId, oldName, body.name);
   }
   return data;
 }
 
-export async function deletePaymentProviderService(id: string, providerName?: string) {
+export async function deletePaymentProviderService(tenantId: string, id: string, providerName?: string) {
   if (providerName) {
-    await removeProviderFromVendorsRepository(providerName);
+    await removeProviderFromVendorsRepository(tenantId, providerName);
   }
-  return deletePaymentProviderRepository(id);
+  return deletePaymentProviderRepository(tenantId, id);
 }

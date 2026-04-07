@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Home, Gift, Star, Users, Settings } from "lucide-react";
-import { startTransition, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -65,7 +65,7 @@ export function MemberBottomNav() {
       if (path === ROUTES.MEMBER.INVITE) {
         stashPointsHashBeforeInviteNavigation(location.pathname, location.hash);
       }
-      startTransition(() => navigate(path));
+      navigate(path);
     },
     [location.pathname, location.hash, navigate],
   );

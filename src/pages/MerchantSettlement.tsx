@@ -350,9 +350,9 @@ export default function MerchantSettlement() {
     );
 
     const results = await Promise.allSettled([
-      fetchMerchantCards(),
-      fetchMerchantVendors(),
-      fetchMerchantPaymentProviders(),
+      effectiveTenantId ? fetchMerchantCards(effectiveTenantId) : Promise.resolve([]),
+      effectiveTenantId ? fetchMerchantVendors(effectiveTenantId) : Promise.resolve([]),
+      effectiveTenantId ? fetchMerchantPaymentProviders(effectiveTenantId) : Promise.resolve([]),
       getActivityDataApi(effectiveTenantId ?? undefined),
       getCardMerchantSettlementsAsync(),
       getPaymentProviderSettlementsAsync(),

@@ -336,12 +336,18 @@ export default function OrderManagement() {
       setIsSuperAdmin(currentEmployee?.is_platform_super_admin === true);
     }
     
-    // 从数据库加载商家管理数据
+    // 从数据库加载商家管理数据（按当前生效租户）
     const loadMerchantData = async () => {
+      if (!effectiveTenantId) {
+        setCardsList([]);
+        setVendorsList([]);
+        setPaymentProvidersList([]);
+        return;
+      }
       const [cardsResult, vendorsResult, providersResult] = await Promise.all([
-        fetchMerchantCards(),
-        fetchMerchantVendors(),
-        fetchMerchantPaymentProviders(),
+        fetchMerchantCards(effectiveTenantId),
+        fetchMerchantVendors(effectiveTenantId),
+        fetchMerchantPaymentProviders(effectiveTenantId),
       ]);
 
       setCardsList(cardsResult.filter((row) => row.status === "active").map((row) => ({ id: row.id, name: row.name })));

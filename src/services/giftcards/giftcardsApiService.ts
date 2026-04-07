@@ -1,5 +1,5 @@
 /**
- * Giftcards API Service - 通过 Backend API 操作 cards / vendors / payment_providers
+ * Giftcards API Service - 通过 Backend API 操作 cards / vendors / payment_providers（须传 tenant_id）
  */
 import { apiGet, apiPost, apiPut, apiDelete, unwrapApiData } from '@/api/client';
 
@@ -47,102 +47,151 @@ function toDateOnly(value: string | null | undefined): string {
   return value.split('T')[0] || '';
 }
 
+/** 所有 giftcards 请求附加 tenant_id，与平台代管「查看租户」一致 */
+function withTenant(path: string, tenantId: string): string {
+  const sep = path.includes('?') ? '&' : '?';
+  return `${path}${sep}tenant_id=${encodeURIComponent(tenantId)}`;
+}
+
 // ============= Cards =============
-export async function listCardsApi(status?: string): Promise<ApiCard[]> {
-  const q = status ? `?status=${encodeURIComponent(status)}` : '';
-  const res = await apiGet<ApiCard[] | ApiResponse<ApiCard[]>>(`/api/giftcards/cards${q}`);
+export async function listCardsApi(tenantId: string, status?: string): Promise<ApiCard[]> {
+  let path = '/api/giftcards/cards';
+  if (status) path += `?status=${encodeURIComponent(status)}`;
+  const res = await apiGet<ApiCard[] | ApiResponse<ApiCard[]>>(withTenant(path, tenantId));
   const data = unwrapApiData<ApiCard[]>(res);
   return Array.isArray(data) ? data : [];
 }
 
-export async function getCardByIdApi(id: string): Promise<ApiCard | null> {
-  const res = await apiGet<ApiCard | ApiResponse<ApiCard>>(`/api/giftcards/cards/${encodeURIComponent(id)}`);
+export async function getCardByIdApi(tenantId: string, id: string): Promise<ApiCard | null> {
+  const res = await apiGet<ApiCard | ApiResponse<ApiCard>>(
+    withTenant(`/api/giftcards/cards/${encodeURIComponent(id)}`, tenantId),
+  );
   const data = unwrapApiData<ApiCard>(res);
   return data && typeof data === 'object' ? data : null;
 }
 
-export async function createCardApi(body: { name: string; type?: string; status?: string; remark?: string; card_vendors?: string[] }): Promise<ApiCard | null> {
-  const res = await apiPost<ApiCard | ApiResponse<ApiCard>>('/api/giftcards/cards', body);
+export async function createCardApi(
+  tenantId: string,
+  body: { name: string; type?: string; status?: string; remark?: string; card_vendors?: string[] },
+): Promise<ApiCard | null> {
+  const res = await apiPost<ApiCard | ApiResponse<ApiCard>>(withTenant('/api/giftcards/cards', tenantId), body);
   const data = unwrapApiData<ApiCard>(res);
   return data && typeof data === 'object' ? data : null;
 }
 
-export async function updateCardApi(id: string, body: Partial<ApiCard>): Promise<ApiCard | null> {
-  const res = await apiPut<ApiCard | ApiResponse<ApiCard>>(`/api/giftcards/cards/${encodeURIComponent(id)}`, body);
+export async function updateCardApi(tenantId: string, id: string, body: Partial<ApiCard>): Promise<ApiCard | null> {
+  const res = await apiPut<ApiCard | ApiResponse<ApiCard>>(
+    withTenant(`/api/giftcards/cards/${encodeURIComponent(id)}`, tenantId),
+    body,
+  );
   const data = unwrapApiData<ApiCard>(res);
   return data && typeof data === 'object' ? data : null;
 }
 
-export async function deleteCardApi(id: string): Promise<boolean> {
-  await apiDelete(`/api/giftcards/cards/${encodeURIComponent(id)}`);
+export async function deleteCardApi(tenantId: string, id: string): Promise<boolean> {
+  await apiDelete(withTenant(`/api/giftcards/cards/${encodeURIComponent(id)}`, tenantId));
   return true;
 }
 
 // ============= Vendors =============
-export async function listVendorsApi(status?: string): Promise<ApiVendor[]> {
-  const q = status ? `?status=${encodeURIComponent(status)}` : '';
-  const res = await apiGet<ApiVendor[] | ApiResponse<ApiVendor[]>>(`/api/giftcards/vendors${q}`);
+export async function listVendorsApi(tenantId: string, status?: string): Promise<ApiVendor[]> {
+  const base = status ? `/api/giftcards/vendors?status=${encodeURIComponent(status)}` : '/api/giftcards/vendors';
+  const res = await apiGet<ApiVendor[] | ApiResponse<ApiVendor[]>>(withTenant(base, tenantId));
   const data = unwrapApiData<ApiVendor[]>(res);
   return Array.isArray(data) ? data : [];
 }
 
-export async function getVendorByIdApi(id: string): Promise<ApiVendor | null> {
-  const res = await apiGet<ApiVendor | ApiResponse<ApiVendor>>(`/api/giftcards/vendors/${encodeURIComponent(id)}`);
+export async function getVendorByIdApi(tenantId: string, id: string): Promise<ApiVendor | null> {
+  const res = await apiGet<ApiVendor | ApiResponse<ApiVendor>>(
+    withTenant(`/api/giftcards/vendors/${encodeURIComponent(id)}`, tenantId),
+  );
   const data = unwrapApiData<ApiVendor>(res);
   return data && typeof data === 'object' ? data : null;
 }
 
-export async function createVendorApi(body: { name: string; status?: string; remark?: string; payment_providers?: string[] }): Promise<ApiVendor | null> {
-  const res = await apiPost<ApiVendor | ApiResponse<ApiVendor>>('/api/giftcards/vendors', body);
+export async function createVendorApi(
+  tenantId: string,
+  body: { name: string; status?: string; remark?: string; payment_providers?: string[] },
+): Promise<ApiVendor | null> {
+  const res = await apiPost<ApiVendor | ApiResponse<ApiVendor>>(withTenant('/api/giftcards/vendors', tenantId), body);
   const data = unwrapApiData<ApiVendor>(res);
   return data && typeof data === 'object' ? data : null;
 }
 
-export async function updateVendorApi(id: string, body: Partial<ApiVendor>): Promise<ApiVendor | null> {
-  const res = await apiPut<ApiVendor | ApiResponse<ApiVendor>>(`/api/giftcards/vendors/${encodeURIComponent(id)}`, body);
+export async function updateVendorApi(tenantId: string, id: string, body: Partial<ApiVendor>): Promise<ApiVendor | null> {
+  const res = await apiPut<ApiVendor | ApiResponse<ApiVendor>>(
+    withTenant(`/api/giftcards/vendors/${encodeURIComponent(id)}`, tenantId),
+    body,
+  );
   const data = unwrapApiData<ApiVendor>(res);
   return data && typeof data === 'object' ? data : null;
 }
 
-export async function deleteVendorApi(id: string): Promise<boolean> {
-  await apiDelete(`/api/giftcards/vendors/${encodeURIComponent(id)}`);
+export async function deleteVendorApi(tenantId: string, id: string): Promise<boolean> {
+  await apiDelete(withTenant(`/api/giftcards/vendors/${encodeURIComponent(id)}`, tenantId));
   return true;
 }
 
 // ============= Payment Providers =============
-export async function listPaymentProvidersApi(status?: string): Promise<ApiPaymentProvider[]> {
-  const q = status ? `?status=${encodeURIComponent(status)}` : '';
-  const res = await apiGet<ApiPaymentProvider[] | ApiResponse<ApiPaymentProvider[]>>(`/api/giftcards/providers${q}`);
+export async function listPaymentProvidersApi(tenantId: string, status?: string): Promise<ApiPaymentProvider[]> {
+  const base = status
+    ? `/api/giftcards/providers?status=${encodeURIComponent(status)}`
+    : '/api/giftcards/providers';
+  const res = await apiGet<ApiPaymentProvider[] | ApiResponse<ApiPaymentProvider[]>>(withTenant(base, tenantId));
   const data = unwrapApiData<ApiPaymentProvider[]>(res);
   return Array.isArray(data) ? data : [];
 }
 
-export async function getPaymentProviderByIdApi(id: string): Promise<ApiPaymentProvider | null> {
-  const res = await apiGet<ApiPaymentProvider | ApiResponse<ApiPaymentProvider>>(`/api/giftcards/providers/${encodeURIComponent(id)}`);
+export async function getPaymentProviderByIdApi(tenantId: string, id: string): Promise<ApiPaymentProvider | null> {
+  const res = await apiGet<ApiPaymentProvider | ApiResponse<ApiPaymentProvider>>(
+    withTenant(`/api/giftcards/providers/${encodeURIComponent(id)}`, tenantId),
+  );
   const data = unwrapApiData<ApiPaymentProvider>(res);
   return data && typeof data === 'object' ? data : null;
 }
 
-export async function createPaymentProviderApi(body: { name: string; status?: string; remark?: string }): Promise<ApiPaymentProvider | null> {
-  const res = await apiPost<ApiPaymentProvider | ApiResponse<ApiPaymentProvider>>('/api/giftcards/providers', body);
+export async function createPaymentProviderApi(
+  tenantId: string,
+  body: { name: string; status?: string; remark?: string },
+): Promise<ApiPaymentProvider | null> {
+  const res = await apiPost<ApiPaymentProvider | ApiResponse<ApiPaymentProvider>>(
+    withTenant('/api/giftcards/providers', tenantId),
+    body,
+  );
   const data = unwrapApiData<ApiPaymentProvider>(res);
   return data && typeof data === 'object' ? data : null;
 }
 
-export async function updatePaymentProviderApi(id: string, body: Partial<ApiPaymentProvider>): Promise<ApiPaymentProvider | null> {
-  const res = await apiPut<ApiPaymentProvider | ApiResponse<ApiPaymentProvider>>(`/api/giftcards/providers/${encodeURIComponent(id)}`, body);
+export async function updatePaymentProviderApi(
+  tenantId: string,
+  id: string,
+  body: Partial<ApiPaymentProvider>,
+): Promise<ApiPaymentProvider | null> {
+  const res = await apiPut<ApiPaymentProvider | ApiResponse<ApiPaymentProvider>>(
+    withTenant(`/api/giftcards/providers/${encodeURIComponent(id)}`, tenantId),
+    body,
+  );
   const data = unwrapApiData<ApiPaymentProvider>(res);
   return data && typeof data === 'object' ? data : null;
 }
 
-export async function deletePaymentProviderApi(id: string): Promise<boolean> {
-  await apiDelete(`/api/giftcards/providers/${encodeURIComponent(id)}`);
+export async function deletePaymentProviderApi(tenantId: string, id: string): Promise<boolean> {
+  await apiDelete(withTenant(`/api/giftcards/providers/${encodeURIComponent(id)}`, tenantId));
   return true;
 }
 
 // ============= Mapped helpers (for merchantConfigReadService compatibility) =============
-export async function fetchMerchantCardsApi(): Promise<{ id: string; name: string; type: string; status: string; remark: string; createdAt: string; cardVendors: string[]; sortOrder: number }[]> {
-  const data = await listCardsApi();
+export async function fetchMerchantCardsApi(tenantId: string): Promise<{
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  remark: string;
+  createdAt: string;
+  cardVendors: string[];
+  sortOrder: number;
+}[]> {
+  const data = await listCardsApi(tenantId);
   return data.map((c) => ({
     id: c.id,
     name: c.name,
@@ -155,8 +204,16 @@ export async function fetchMerchantCardsApi(): Promise<{ id: string; name: strin
   }));
 }
 
-export async function fetchMerchantVendorsApi(): Promise<{ id: string; name: string; status: string; remark: string; createdAt: string; paymentProviders: string[]; sortOrder: number }[]> {
-  const data = await listVendorsApi();
+export async function fetchMerchantVendorsApi(tenantId: string): Promise<{
+  id: string;
+  name: string;
+  status: string;
+  remark: string;
+  createdAt: string;
+  paymentProviders: string[];
+  sortOrder: number;
+}[]> {
+  const data = await listVendorsApi(tenantId);
   return data.map((v) => ({
     id: v.id,
     name: v.name,
@@ -168,8 +225,15 @@ export async function fetchMerchantVendorsApi(): Promise<{ id: string; name: str
   }));
 }
 
-export async function fetchMerchantPaymentProvidersApi(): Promise<{ id: string; name: string; status: string; remark: string; createdAt: string; sortOrder: number }[]> {
-  const data = await listPaymentProvidersApi();
+export async function fetchMerchantPaymentProvidersApi(tenantId: string): Promise<{
+  id: string;
+  name: string;
+  status: string;
+  remark: string;
+  createdAt: string;
+  sortOrder: number;
+}[]> {
+  const data = await listPaymentProvidersApi(tenantId);
   return data.map((p) => ({
     id: p.id,
     name: p.name,

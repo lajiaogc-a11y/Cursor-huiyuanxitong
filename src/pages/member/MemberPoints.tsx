@@ -400,7 +400,7 @@ export default function MemberPoints() {
   if (!member) return null;
 
   return (
-    <div className="member-page-enter m-page-bg relative flex min-h-full flex-col">
+    <div className="member-page-enter m-page-bg relative flex flex-col">
       <MemberPageAmbientOrbs />
       <div className="relative z-[1] flex min-h-full flex-col">
         <div className="relative px-5 pb-1 pt-7">
@@ -463,13 +463,11 @@ export default function MemberPoints() {
           </div>
         </div>
 
-        <div className="member-page-body relative flex flex-1 flex-col">
+        <div className="member-page-body relative flex flex-col">
           <div
             className={cn(
-              "member-points-tab-panel transition-[opacity,transform] member-motion-base motion-reduce:transition-none",
-              pointsTab === "mall"
-                ? "relative z-[1] translate-y-0 opacity-100"
-                : "pointer-events-none absolute inset-0 z-0 translate-y-1 overflow-hidden opacity-0",
+              "member-points-tab-panel",
+              pointsTab === "mall" ? "relative z-[1] block" : "hidden",
             )}
             role="tabpanel"
             aria-hidden={pointsTab !== "mall"}
@@ -504,10 +502,8 @@ export default function MemberPoints() {
 
           <div
             className={cn(
-              "member-points-tab-panel px-5 pb-10 transition-[opacity,transform] member-motion-base motion-reduce:transition-none",
-              pointsTab === "history"
-                ? "relative z-[1] translate-y-0 opacity-100"
-                : "pointer-events-none absolute inset-0 z-0 translate-y-1 overflow-hidden opacity-0",
+              "member-points-tab-panel px-5 pb-10",
+              pointsTab === "history" ? "relative z-[1] block" : "hidden",
             )}
             role="tabpanel"
             aria-hidden={pointsTab !== "history"}

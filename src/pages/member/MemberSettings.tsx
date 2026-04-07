@@ -430,7 +430,7 @@ export default function MemberSettings() {
       </div>
 
         {/* ── Content ── */}
-        <div className="member-page-body flex flex-1 flex-col">
+        <div className="member-page-body flex flex-col">
           <MemberSettingsAccountSection
             t={t}
             themeColor={themeColor}

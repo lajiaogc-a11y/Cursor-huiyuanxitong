@@ -39,12 +39,7 @@ function TabPanel({
       ref={panelRef}
       role="tabpanel"
       aria-hidden={!show}
-      className={cn(
-        "member-tab-panel transition-[opacity,transform] member-motion-base motion-reduce:transition-none",
-        show
-          ? "relative z-[1] translate-y-0 opacity-100"
-          : "pointer-events-none absolute inset-0 z-0 translate-y-1 opacity-0",
-      )}
+      className={cn("member-tab-panel", show ? "relative z-[1] block" : "hidden")}
       inert={!show ? true : undefined}
       data-member-tab-panel={path}
     >

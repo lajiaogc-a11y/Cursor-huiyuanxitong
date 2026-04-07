@@ -34,23 +34,23 @@ export interface MerchantPaymentProviderRecord {
   sortOrder: number;
 }
 
-export async function fetchMerchantCards(): Promise<MerchantCardRecord[]> {
-  return fetchMerchantCardsApi();
+export async function fetchMerchantCards(tenantId: string): Promise<MerchantCardRecord[]> {
+  return fetchMerchantCardsApi(tenantId);
 }
 
-export async function fetchMerchantVendors(): Promise<MerchantVendorRecord[]> {
-  return fetchMerchantVendorsApi();
+export async function fetchMerchantVendors(tenantId: string): Promise<MerchantVendorRecord[]> {
+  return fetchMerchantVendorsApi(tenantId);
 }
 
-export async function fetchMerchantPaymentProviders(): Promise<MerchantPaymentProviderRecord[]> {
-  return fetchMerchantPaymentProvidersApi();
+export async function fetchMerchantPaymentProviders(tenantId: string): Promise<MerchantPaymentProviderRecord[]> {
+  return fetchMerchantPaymentProvidersApi(tenantId);
 }
 
-export async function fetchMerchantConfigSnapshot() {
+export async function fetchMerchantConfigSnapshot(tenantId: string) {
   const [cards, vendors, providers] = await Promise.all([
-    fetchMerchantCards(),
-    fetchMerchantVendors(),
-    fetchMerchantPaymentProviders(),
+    fetchMerchantCards(tenantId),
+    fetchMerchantVendors(tenantId),
+    fetchMerchantPaymentProviders(tenantId),
   ]);
   return { cards, vendors, providers };
 }

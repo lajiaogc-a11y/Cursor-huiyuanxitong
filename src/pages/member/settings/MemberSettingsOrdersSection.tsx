@@ -77,6 +77,7 @@ export function MemberSettingsOrdersSection({
           )}
           aria-hidden={!expandedOrders}
         >
+          <div className="member-settings-collapse__inner">
             {showOrdersSkeleton ? (
               <MemberStackedRowSkeleton rows={4} />
             ) : memberOrders.length === 0 ? (
@@ -143,6 +144,7 @@ export function MemberSettingsOrdersSection({
                 })}
               </div>
             )}
+          </div>
           </div>
       </div>
     </div>

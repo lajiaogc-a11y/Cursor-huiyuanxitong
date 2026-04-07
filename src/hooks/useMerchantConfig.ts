@@ -1,10 +1,13 @@
 // ============= Merchant Config Hook - react-query Migration =============
-// react-query 缓存确保页面切换不重复请求
+// react-query 缓存确保页面切换不重复请求；卡商数据按当前生效租户隔离
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { notify } from "@/lib/notifyHub";
 import { logOperation } from '@/services/audit/auditLogService';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTenantView } from '@/contexts/TenantViewContext';
+import { getPlatformTenantId } from '@/services/auth/authApiService';
 import { fetchMerchantCards, fetchMerchantVendors, fetchMerchantPaymentProviders } from '@/services/finance/merchantConfigReadService';
 import {
   createCardApi,
@@ -18,6 +21,13 @@ import {
   deletePaymentProviderApi,
 } from '@/services/giftcards/giftcardsApiService';
 import { logger } from '@/lib/logger';
+
+/** 与 SharedDataTenantProvider 一致：平台「进入租户」后代管该租户卡商配置 */
+function useGiftcardsTenantId(): string | null {
+  const { viewingTenantId } = useTenantView() || {};
+  const { employee } = useAuth() || {};
+  return viewingTenantId || employee?.tenant_id || getPlatformTenantId() || null;
+}
 
 export interface CardItem {
   id: string;
@@ -50,8 +60,8 @@ export interface PaymentProvider {
 }
 
 // ============= Standalone fetch functions =============
-export async function fetchCardsFromDb(): Promise<CardItem[]> {
-  const rows = await fetchMerchantCards();
+export async function fetchCardsFromDb(tenantId: string): Promise<CardItem[]> {
+  const rows = await fetchMerchantCards(tenantId);
   return rows.map((c) => ({
     id: c.id,
     name: c.name,
@@ -64,8 +74,8 @@ export async function fetchCardsFromDb(): Promise<CardItem[]> {
   }));
 }
 
-export async function fetchVendorsFromDb(): Promise<Vendor[]> {
-  const rows = await fetchMerchantVendors();
+export async function fetchVendorsFromDb(tenantId: string): Promise<Vendor[]> {
+  const rows = await fetchMerchantVendors(tenantId);
   return rows.map((v) => ({
     id: v.id,
     name: v.name,
@@ -77,8 +87,8 @@ export async function fetchVendorsFromDb(): Promise<Vendor[]> {
   }));
 }
 
-export async function fetchPaymentProvidersFromDb(): Promise<PaymentProvider[]> {
-  const rows = await fetchMerchantPaymentProviders();
+export async function fetchPaymentProvidersFromDb(tenantId: string): Promise<PaymentProvider[]> {
+  const rows = await fetchMerchantPaymentProviders(tenantId);
   return rows.map((p) => ({
     id: p.id,
     name: p.name,
@@ -93,23 +103,26 @@ export async function fetchPaymentProvidersFromDb(): Promise<PaymentProvider[]> 
 export function useCards() {
   const queryClient = useQueryClient();
   const { t } = useLanguage();
+  const tenantId = useGiftcardsTenantId();
 
   const { data: cards = [], isLoading: loading } = useQuery({
-    queryKey: ['cards'],
-    queryFn: fetchCardsFromDb,
+    queryKey: ['cards', tenantId],
+    queryFn: () => fetchCardsFromDb(tenantId!),
+    enabled: !!tenantId,
   });
 
   // 轮询替代 Realtime 订阅：每 30 秒刷新
   useEffect(() => {
     const timer = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ['cards'] });
+      queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
     }, 30000);
     return () => { clearInterval(timer); };
-  }, [queryClient]);
+  }, [queryClient, tenantId]);
 
   const addCard = async (card: Omit<CardItem, 'id' | 'createdAt'>): Promise<CardItem | null> => {
+    if (!tenantId) return null;
     try {
-      const data = await createCardApi({
+      const data = await createCardApi(tenantId, {
         name: card.name,
         type: card.type,
         status: card.status,
@@ -127,7 +140,7 @@ export function useCards() {
         cardVendors: data.card_vendors || [],
       };
       logOperation('merchant_management', 'create', data.id, null, data, `新增卡片: ${card.name}`);
-      await queryClient.invalidateQueries({ queryKey: ['cards'] });
+      await queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
       return newCard;
     } catch (error) {
       logger.error('Failed to add card:', error);
@@ -137,6 +150,7 @@ export function useCards() {
   };
 
   const updateCard = async (id: string, updates: Partial<CardItem>): Promise<boolean> => {
+    if (!tenantId) return false;
     try {
       const oldCard = cards.find(c => c.id === id);
       const body: Record<string, unknown> = {};
@@ -145,12 +159,12 @@ export function useCards() {
       if (updates.status !== undefined) body.status = updates.status;
       if (updates.remark !== undefined) body.remark = updates.remark;
       if (updates.cardVendors !== undefined) body.card_vendors = updates.cardVendors;
-      const data = await updateCardApi(id, body);
+      const data = await updateCardApi(tenantId, id, body);
       if (!data) throw new Error('更新失败');
       if (oldCard) {
         logOperation('card_management', 'update', id, oldCard, updates, `更新卡片: ${oldCard.name}`);
       }
-      await queryClient.invalidateQueries({ queryKey: ['cards'] });
+      await queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
       return true;
     } catch (error) {
       logger.error('Failed to update card:', error);
@@ -159,14 +173,15 @@ export function useCards() {
   };
 
   const deleteCard = async (id: string): Promise<boolean> => {
+    if (!tenantId) return false;
     try {
       const cardToDelete = cards.find(c => c.id === id);
-      const ok = await deleteCardApi(id);
+      const ok = await deleteCardApi(tenantId, id);
       if (!ok) throw new Error('删除失败');
       if (cardToDelete) {
         logOperation('card_management', 'delete', id, cardToDelete, null, `删除卡片: ${cardToDelete.name}`);
       }
-      await queryClient.invalidateQueries({ queryKey: ['cards'] });
+      await queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
       return true;
     } catch (error) {
       logger.error('Failed to delete card:', error);
@@ -177,10 +192,11 @@ export function useCards() {
   const activeCards = cards.filter(c => c.status === 'active');
 
   const updateCardSortOrder = async (id: string, sortOrder: number): Promise<boolean> => {
+    if (!tenantId) return false;
     try {
-      const data = await updateCardApi(id, { sort_order: sortOrder });
+      const data = await updateCardApi(tenantId, id, { sort_order: sortOrder });
       if (!data) throw new Error('更新失败');
-      await queryClient.invalidateQueries({ queryKey: ['cards'] });
+      await queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
       return true;
     } catch (error) {
       logger.error('Failed to update card sort order:', error);
@@ -189,10 +205,13 @@ export function useCards() {
   };
 
   const updateCardSortOrders = async (items: { id: string; sortOrder: number }[]): Promise<boolean> => {
+    if (!tenantId) return false;
     try {
-      const results = await Promise.all(items.map(item => updateCardApi(item.id, { sort_order: item.sortOrder })));
+      const results = await Promise.all(
+        items.map((item) => updateCardApi(tenantId, item.id, { sort_order: item.sortOrder })),
+      );
       if (results.some(r => !r)) return false;
-      await queryClient.invalidateQueries({ queryKey: ['cards'] });
+      await queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
       return true;
     } catch (error) {
       logger.error('Failed to update card sort orders:', error);
@@ -204,7 +223,7 @@ export function useCards() {
     cards, activeCards, loading,
     addCard, updateCard, deleteCard,
     updateCardSortOrder, updateCardSortOrders,
-    refetch: () => queryClient.invalidateQueries({ queryKey: ['cards'] }),
+    refetch: () => queryClient.invalidateQueries({ queryKey: ['cards', tenantId] }),
   };
 }
 
@@ -212,23 +231,26 @@ export function useCards() {
 export function useVendors() {
   const queryClient = useQueryClient();
   const { t } = useLanguage();
+  const tenantId = useGiftcardsTenantId();
 
   const { data: vendors = [], isLoading: loading } = useQuery({
-    queryKey: ['vendors'],
-    queryFn: fetchVendorsFromDb,
+    queryKey: ['vendors', tenantId],
+    queryFn: () => fetchVendorsFromDb(tenantId!),
+    enabled: !!tenantId,
   });
 
   // 轮询替代 Realtime 订阅：每 30 秒刷新
   useEffect(() => {
     const timer = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ['vendors'] });
+      queryClient.invalidateQueries({ queryKey: ['vendors', tenantId] });
     }, 30000);
     return () => { clearInterval(timer); };
-  }, [queryClient]);
+  }, [queryClient, tenantId]);
 
   const addVendor = async (vendor: Omit<Vendor, 'id' | 'createdAt'>): Promise<Vendor | null> => {
+    if (!tenantId) return null;
     try {
-      const data = await createVendorApi({ name: vendor.name, status: vendor.status, remark: vendor.remark });
+      const data = await createVendorApi(tenantId, { name: vendor.name, status: vendor.status, remark: vendor.remark });
       if (!data) throw new Error('创建失败');
       const newVendor: Vendor = {
         id: data.id,
@@ -238,7 +260,7 @@ export function useVendors() {
         createdAt: data.created_at?.split('T')[0] || '',
       };
       logOperation('merchant_management', 'create', data.id, null, data, `新增卡商: ${vendor.name}`);
-      await queryClient.invalidateQueries({ queryKey: ['vendors'] });
+      await queryClient.invalidateQueries({ queryKey: ['vendors', tenantId] });
       return newVendor;
     } catch (error) {
       logger.error('Failed to add vendor:', error);
@@ -248,6 +270,7 @@ export function useVendors() {
   };
 
   const updateVendor = async (id: string, updates: Partial<Vendor & { sortOrder?: number }>): Promise<boolean> => {
+    if (!tenantId) return false;
     try {
       const oldVendor = vendors.find(v => v.id === id);
       const body: Record<string, unknown> = {};
@@ -257,7 +280,7 @@ export function useVendors() {
       if (updates.paymentProviders !== undefined) body.payment_providers = updates.paymentProviders;
       if (updates.sortOrder !== undefined) body.sort_order = updates.sortOrder;
 
-      const data = await updateVendorApi(id, body);
+      const data = await updateVendorApi(tenantId, id, body);
       if (!data) throw new Error('更新失败');
       
       if (oldVendor) {
@@ -269,7 +292,7 @@ export function useVendors() {
         await renameVendorSettlement(oldVendor.name, updates.name);
       }
       
-      await queryClient.invalidateQueries({ queryKey: ['vendors'] });
+      await queryClient.invalidateQueries({ queryKey: ['vendors', tenantId] });
       return true;
     } catch (error) {
       logger.error('Failed to update vendor:', error);
@@ -278,16 +301,17 @@ export function useVendors() {
   };
 
   const deleteVendor = async (id: string): Promise<boolean> => {
+    if (!tenantId) return false;
     try {
       const vendorToDelete = vendors.find(v => v.id === id);
-      const ok = await deleteVendorApi(id);
+      const ok = await deleteVendorApi(tenantId, id);
       if (!ok) throw new Error('删除失败');
       
       if (vendorToDelete) {
         logOperation('vendor_management', 'delete', id, vendorToDelete, null, `删除卡商: ${vendorToDelete.name}`);
       }
       
-      await queryClient.invalidateQueries({ queryKey: ['vendors'] });
+      await queryClient.invalidateQueries({ queryKey: ['vendors', tenantId] });
       return true;
     } catch (error) {
       logger.error('Failed to delete vendor:', error);
@@ -298,11 +322,12 @@ export function useVendors() {
   const activeVendors = vendors.filter(v => v.status === 'active');
 
   const updateVendorOrder = async (reorderedVendors: Vendor[]): Promise<boolean> => {
+    if (!tenantId) return false;
     try {
       for (let i = 0; i < reorderedVendors.length; i++) {
-        await updateVendorApi(reorderedVendors[i].id, { sort_order: i });
+        await updateVendorApi(tenantId, reorderedVendors[i].id, { sort_order: i });
       }
-      await queryClient.invalidateQueries({ queryKey: ['vendors'] });
+      await queryClient.invalidateQueries({ queryKey: ['vendors', tenantId] });
       return true;
     } catch (error) {
       logger.error('Failed to update vendor order:', error);
@@ -311,10 +336,13 @@ export function useVendors() {
   };
 
   const updateVendorSortOrders = async (items: { id: string; sortOrder: number }[]): Promise<boolean> => {
+    if (!tenantId) return false;
     try {
-      const results = await Promise.all(items.map(item => updateVendorApi(item.id, { sort_order: item.sortOrder })));
+      const results = await Promise.all(
+        items.map((item) => updateVendorApi(tenantId, item.id, { sort_order: item.sortOrder })),
+      );
       if (results.some(r => !r)) return false;
-      await queryClient.invalidateQueries({ queryKey: ['vendors'] });
+      await queryClient.invalidateQueries({ queryKey: ['vendors', tenantId] });
       return true;
     } catch (error) {
       logger.error('Failed to update vendor sort orders:', error);
@@ -326,7 +354,7 @@ export function useVendors() {
     vendors, activeVendors, loading,
     addVendor, updateVendor, deleteVendor,
     updateVendorOrder, updateVendorSortOrders,
-    refetch: () => queryClient.invalidateQueries({ queryKey: ['vendors'] }),
+    refetch: () => queryClient.invalidateQueries({ queryKey: ['vendors', tenantId] }),
   };
 }
 
@@ -334,23 +362,26 @@ export function useVendors() {
 export function usePaymentProviders() {
   const queryClient = useQueryClient();
   const { t } = useLanguage();
+  const tenantId = useGiftcardsTenantId();
 
   const { data: providers = [], isLoading: loading } = useQuery({
-    queryKey: ['payment-providers'],
-    queryFn: fetchPaymentProvidersFromDb,
+    queryKey: ['payment-providers', tenantId],
+    queryFn: () => fetchPaymentProvidersFromDb(tenantId!),
+    enabled: !!tenantId,
   });
 
   // 轮询替代 Realtime 订阅：每 30 秒刷新
   useEffect(() => {
     const timer = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ['payment-providers'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-providers', tenantId] });
     }, 30000);
     return () => { clearInterval(timer); };
-  }, [queryClient]);
+  }, [queryClient, tenantId]);
 
   const addProvider = async (provider: Omit<PaymentProvider, 'id' | 'createdAt'>): Promise<PaymentProvider | null> => {
+    if (!tenantId) return null;
     try {
-      const data = await createPaymentProviderApi({ name: provider.name, status: provider.status, remark: provider.remark });
+      const data = await createPaymentProviderApi(tenantId, { name: provider.name, status: provider.status, remark: provider.remark });
       if (!data) throw new Error('创建失败');
       const newProvider: PaymentProvider = {
         id: data.id,
@@ -360,7 +391,7 @@ export function usePaymentProviders() {
         createdAt: data.created_at?.split('T')[0] || '',
       };
       logOperation('merchant_management', 'create', data.id, null, data, `新增代付商家: ${provider.name}`);
-      await queryClient.invalidateQueries({ queryKey: ['payment-providers'] });
+      await queryClient.invalidateQueries({ queryKey: ['payment-providers', tenantId] });
       return newProvider;
     } catch (error) {
       logger.error('Failed to add payment provider:', error);
@@ -370,6 +401,7 @@ export function usePaymentProviders() {
   };
 
   const updateProvider = async (id: string, updates: Partial<PaymentProvider & { sortOrder?: number }>): Promise<boolean> => {
+    if (!tenantId) return false;
     try {
       const oldProvider = providers.find(p => p.id === id);
       const body: Record<string, unknown> = {};
@@ -378,7 +410,7 @@ export function usePaymentProviders() {
       if (updates.remark !== undefined) body.remark = updates.remark;
       if (updates.sortOrder !== undefined) body.sort_order = updates.sortOrder;
 
-      const data = await updatePaymentProviderApi(id, body);
+      const data = await updatePaymentProviderApi(tenantId, id, body);
       if (!data) throw new Error('更新失败');
       
       if (oldProvider) {
@@ -390,7 +422,7 @@ export function usePaymentProviders() {
         await renameProviderSettlement(oldProvider.name, updates.name);
       }
       
-      await queryClient.invalidateQueries({ queryKey: ['payment-providers'] });
+      await queryClient.invalidateQueries({ queryKey: ['payment-providers', tenantId] });
       return true;
     } catch (error) {
       logger.error('Failed to update payment provider:', error);
@@ -399,16 +431,17 @@ export function usePaymentProviders() {
   };
 
   const deleteProvider = async (id: string): Promise<boolean> => {
+    if (!tenantId) return false;
     try {
       const providerToDelete = providers.find(p => p.id === id);
-      const ok = await deletePaymentProviderApi(id);
+      const ok = await deletePaymentProviderApi(tenantId, id);
       if (!ok) throw new Error('删除失败');
       
       if (providerToDelete) {
         logOperation('provider_management', 'delete', id, providerToDelete, null, `删除代付商家: ${providerToDelete.name}`);
       }
       
-      await queryClient.invalidateQueries({ queryKey: ['payment-providers'] });
+      await queryClient.invalidateQueries({ queryKey: ['payment-providers', tenantId] });
       return true;
     } catch (error) {
       logger.error('Failed to delete payment provider:', error);
@@ -419,11 +452,12 @@ export function usePaymentProviders() {
   const activeProviders = providers.filter(p => p.status === 'active');
 
   const updateProviderOrder = async (reorderedProviders: PaymentProvider[]): Promise<boolean> => {
+    if (!tenantId) return false;
     try {
       for (let i = 0; i < reorderedProviders.length; i++) {
-        await updatePaymentProviderApi(reorderedProviders[i].id, { sort_order: i });
+        await updatePaymentProviderApi(tenantId, reorderedProviders[i].id, { sort_order: i });
       }
-      await queryClient.invalidateQueries({ queryKey: ['payment-providers'] });
+      await queryClient.invalidateQueries({ queryKey: ['payment-providers', tenantId] });
       return true;
     } catch (error) {
       logger.error('Failed to update provider order:', error);
@@ -432,10 +466,13 @@ export function usePaymentProviders() {
   };
 
   const updateProviderSortOrders = async (items: { id: string; sortOrder: number }[]): Promise<boolean> => {
+    if (!tenantId) return false;
     try {
-      const results = await Promise.all(items.map(item => updatePaymentProviderApi(item.id, { sort_order: item.sortOrder })));
+      const results = await Promise.all(
+        items.map((item) => updatePaymentProviderApi(tenantId, item.id, { sort_order: item.sortOrder })),
+      );
       if (results.some(r => !r)) return false;
-      await queryClient.invalidateQueries({ queryKey: ['payment-providers'] });
+      await queryClient.invalidateQueries({ queryKey: ['payment-providers', tenantId] });
       return true;
     } catch (error) {
       logger.error('Failed to update provider sort orders:', error);
@@ -447,6 +484,6 @@ export function usePaymentProviders() {
     providers, activeProviders, loading,
     addProvider, updateProvider, deleteProvider,
     updateProviderOrder, updateProviderSortOrders,
-    refetch: () => queryClient.invalidateQueries({ queryKey: ['payment-providers'] }),
+    refetch: () => queryClient.invalidateQueries({ queryKey: ['payment-providers', tenantId] }),
   };
 }

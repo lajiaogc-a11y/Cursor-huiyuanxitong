@@ -17,6 +17,7 @@
  */
 
 import { execute, query } from '../database/index.js';
+import { config } from '../config/index.js';
 import { repairKnowledgeFields } from '../modules/data/knowledgeRepair.js';
 
 async function colExists(table: string, col: string): Promise<boolean> {
@@ -201,6 +202,30 @@ export async function migrateSchemaPatches(): Promise<void> {
   await addCol('payment_providers', 'status', "VARCHAR(50) NOT NULL DEFAULT 'active'");
   await addCol('payment_providers', 'sort_order', 'INT NOT NULL DEFAULT 0');
   await addCol('payment_providers', 'remark', 'TEXT NULL');
+
+  /**
+   * 卡商配置表按租户隔离：仅新增 tenant_id + 将历史行归属 platform 租户（不删、不改 name/remark/json 等业务列）
+   */
+  await addCol('cards', 'tenant_id', 'CHAR(36) NULL');
+  await addCol('vendors', 'tenant_id', 'CHAR(36) NULL');
+  await addCol('payment_providers', 'tenant_id', 'CHAR(36) NULL');
+  try {
+    const rows = await query<{ id: string }>(
+      `SELECT id FROM tenants WHERE tenant_code = 'platform' LIMIT 1`,
+    );
+    const platformRowId = (rows[0]?.id ?? '').trim();
+    const tid = platformRowId || config.platformTenantId;
+    if (tid) {
+      await execute(`UPDATE cards SET tenant_id = ? WHERE tenant_id IS NULL`, [tid]);
+      await execute(`UPDATE vendors SET tenant_id = ? WHERE tenant_id IS NULL`, [tid]);
+      await execute(`UPDATE payment_providers SET tenant_id = ? WHERE tenant_id IS NULL`, [tid]);
+    }
+  } catch (e: unknown) {
+    console.warn('[schema-patch] giftcards tenant_id backfill:', ((e as Error).message || '').slice(0, 160));
+  }
+  await safeIndex('CREATE INDEX idx_cards_tenant_id ON cards (tenant_id)');
+  await safeIndex('CREATE INDEX idx_vendors_tenant_id ON vendors (tenant_id)');
+  await safeIndex('CREATE INDEX idx_payment_providers_tenant_id ON payment_providers (tenant_id)');
 
   // ── points_ledger ──
   await addCol('points_ledger', 'order_id', 'CHAR(36) NULL');

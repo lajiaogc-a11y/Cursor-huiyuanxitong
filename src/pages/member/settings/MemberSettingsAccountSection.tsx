@@ -101,6 +101,7 @@ export function MemberSettingsAccountSection({
             )}
             aria-hidden={expandedSection !== "avatar"}
           >
+            <div className="member-settings-collapse__inner">
               <MemberPointsAccountSettings
                 variant="inline"
                 avatarUrl={settingsAvatarUrl}
@@ -110,6 +111,7 @@ export function MemberSettingsAccountSection({
                 t={t}
               />
             </div>
+          </div>
         </div>
 
         <div className="member-settings-row">
@@ -150,6 +152,7 @@ export function MemberSettingsAccountSection({
             )}
             aria-hidden={expandedSection !== "nickname"}
           >
+            <div className="member-settings-collapse__inner">
               <div className="flex flex-wrap gap-2">
                 <div className="relative min-w-0 flex-[1_1_160px]">
                   <User
@@ -182,6 +185,7 @@ export function MemberSettingsAccountSection({
                 </Button>
               </div>
             </div>
+          </div>
         </div>
 
         <div className="member-settings-row">
@@ -248,6 +252,7 @@ export function MemberSettingsAccountSection({
             )}
             aria-hidden={expandedSection !== "password"}
           >
+            <div className="member-settings-collapse__inner">
               <form
                 className="flex flex-col gap-3"
                 onSubmit={(e) => {
@@ -349,6 +354,7 @@ export function MemberSettingsAccountSection({
                 </Button>
               </form>
             </div>
+          </div>
         </div>
       </div>
     </div>

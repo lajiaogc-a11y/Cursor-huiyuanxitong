@@ -230,19 +230,11 @@ html.member-html .font-mono,
   transition-property: color, background-color, border-color, opacity;
 }
 
-.member-tab-panel {
-  contain: layout paint;
-}
-
 .member-app-shell-tabbar {
   transform: translateZ(0);
 }
 
 .member-shell-layer {
-  contain: layout paint;
-}
-
-.member-points-tab-panel {
   contain: layout paint;
 }
 
@@ -682,8 +674,8 @@ html.member-html:not(.dark) .member-card {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  min-height: 48px;
-  padding: 10px 16px;
+  min-height: 44px;
+  padding: 8px 14px;
   margin: 0;
   background: none;
   border: none;
@@ -697,22 +689,27 @@ html.member-html:not(.dark) .member-card {
   background: hsl(var(--pu-m-surface) / 0.32);
 }
 
-.member-settings-expand {
-  padding: 6px 16px 14px;
+/* 展开区内边距仅在 is-open 时生效；折叠时 padding:0，避免「白框」占位不收起 */
+.member-settings-expand.member-settings-collapse {
+  padding: 0;
   border-bottom: none;
+}
+.member-settings-expand.member-settings-collapse.is-open {
+  padding: 4px 14px 10px;
 }
 
 .member-settings-collapse {
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translateY(-2px);
   transition:
-    grid-template-rows var(--m-motion-base, 280ms) var(--m-motion-ease, cubic-bezier(0.22, 0.61, 0.36, 1)),
-    opacity var(--m-motion-fast, 180ms) var(--m-motion-ease, cubic-bezier(0.22, 0.61, 0.36, 1)),
-    transform var(--m-motion-base, 280ms) var(--m-motion-ease, cubic-bezier(0.22, 0.61, 0.36, 1));
+    grid-template-rows var(--m-motion-fast, 180ms) var(--m-motion-ease, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    opacity var(--m-motion-fast, 150ms) var(--m-motion-ease, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    transform var(--m-motion-fast, 180ms) var(--m-motion-ease, cubic-bezier(0.22, 0.61, 0.36, 1));
   pointer-events: none;
   visibility: hidden;
+  overflow: hidden;
 }
 .member-settings-collapse__inner {
   min-height: 0;
@@ -724,6 +721,7 @@ html.member-html:not(.dark) .member-card {
   transform: translateY(0);
   pointer-events: auto;
   visibility: visible;
+  overflow: visible;
 }
 
 .member-notification-list {
