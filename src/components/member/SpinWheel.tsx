@@ -1,5 +1,5 @@
 import { Gift, Sparkles, Star } from "lucide-react";
-import { LoadingButton } from "@/components/ui/LoadingButton";
+import { LuckyDrawCenterButton } from "@/components/member/LuckyDrawCenterButton";
 import { cn } from "@/lib/utils";
 import type { DrawResult, LotteryPrize } from "@/services/memberPortal/memberLotteryPageService";
 import {
@@ -48,41 +48,22 @@ export function SpinWheel({
           {Array.from({ length: 9 }).map((_, cellIdx) => {
             if (cellIdx === 4) {
               return (
-                <LoadingButton
+                <LuckyDrawCenterButton
                   key="go-btn"
-                  type="button"
-                  variant="ghost"
-                  loading={spinning}
-                  disabled={spinning || remaining <= 0}
-                  className={cn(
-                    "btn-spin relative !flex !h-full !min-h-0 !w-full !min-w-0 flex-col touch-manipulation items-center justify-center gap-0.5 overflow-hidden rounded-xl border-0 bg-transparent px-1 py-0.5 text-inherit shadow-none outline-none transition-opacity member-motion-fast hover:bg-transparent focus-visible:ring-2 focus-visible:ring-[hsl(var(--pu-gold))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pu-m-surface))] [&_svg]:shrink-0 [&_svg]:text-white",
-                    spinning ? "cursor-wait opacity-80" : remaining <= 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer",
-                    "motion-reduce:transition-none",
-                  )}
+                  disabled={!spinning && remaining <= 0}
+                  isLoading={spinning}
+                  isSuccess={Boolean(showResult && !spinning && remaining > 0)}
+                  subtext={t(`剩余 ${remaining} 次`, `${remaining} left`)}
+                  t={t}
                   onClick={() => void onSpin()}
-                  aria-busy={spinning}
-                  aria-disabled={remaining <= 0}
-                  aria-label={
+                  ariaLabel={
                     spinning
                       ? t("抽奖进行中…", "Spinning…")
                       : remaining <= 0
                         ? t("次数不足", "No draws left")
                         : t("抽奖", "Draw")
                   }
-                >
-                  {!spinning && (
-                    <span className="pointer-events-none absolute inset-0 rounded-[inherit] spin-ring" />
-                  )}
-                  {!spinning && (
-                    <Sparkles size={20} className="shrink-0 text-white drop-shadow-[0_1px_2px_rgb(0_0_0_/_0.25)]" aria-hidden />
-                  )}
-                  <span className="w-full min-w-0 max-w-full text-center text-[10px] font-extrabold leading-tight text-white [text-shadow:0_1px_2px_rgb(0_0_0_/_0.2)] [overflow-wrap:anywhere] line-clamp-2 sm:text-xs">
-                    {spinning ? t("抽奖中", "Spinning") : t("抽奖", "Draw")}
-                  </span>
-                  <span className="w-full min-w-0 max-w-full text-center text-[9px] font-bold leading-tight text-[hsl(0_0%_100%_/_0.78)] [overflow-wrap:anywhere] line-clamp-2">
-                    {t(`剩余 ${remaining} 次`, `${remaining} left`)}
-                  </span>
-                </LoadingButton>
+                />
               );
             }
 

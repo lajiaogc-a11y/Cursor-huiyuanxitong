@@ -3,6 +3,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   type CSSProperties,
 } from "react";
 import { useNavigate, useSearchParams, useLocation, useNavigationType } from "react-router-dom";
@@ -80,9 +81,22 @@ export default function MemberLogin() {
     return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
 
+  /** 用于检测「从其它路由回到首页 /」；仅用 POP 会漏掉注册页 <Link to="/"> 的 PUSH 返回 */
+  const prevPathnameForLandingRef = useRef<string | null>(null);
+
   useLayoutEffect(() => {
+    const prev = prevPathnameForLandingRef.current;
+    prevPathnameForLandingRef.current = location.pathname;
+
     if (location.pathname !== ROUTES.MEMBER.ROOT) return;
-    if (navigationType === "POP") setPanel(null);
+
+    if (prev !== null && prev !== ROUTES.MEMBER.ROOT) {
+      setPanel(null);
+      return;
+    }
+    if (navigationType === "POP") {
+      setPanel(null);
+    }
   }, [location.pathname, navigationType]);
 
   const [previewSettings, setPreviewSettings] = useState<MemberPortalSettings | null>(null);

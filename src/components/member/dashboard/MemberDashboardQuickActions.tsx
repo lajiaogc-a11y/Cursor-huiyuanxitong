@@ -36,14 +36,14 @@ export function MemberDashboardQuickActions({
               <Gift className="h-[22px] w-[22px] text-[hsl(var(--pu-primary-foreground))]" strokeWidth={2} aria-hidden />
             </div>
             <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))] member-transition-color member-motion-fast group-hover:text-[hsl(var(--pu-m-text))]">
-              {t("积分商城", "Points mall")}
+              {t("奖励", "Rewards")}
             </span>
           </Link>
           {showSpin ? (
             <Link
               to={ROUTES.MEMBER.SPIN}
               className="group flex flex-col items-center gap-2 rounded-2xl p-3 no-underline member-transition-surface member-motion-base"
-              aria-label={t("进入幸运抽奖", "Go to lucky draw")}
+              aria-label={t("进入转盘", "Go to Spin")}
             >
               <div
                 className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-gradient-to-br from-pu-rose to-pu-rose-soft transition-transform member-motion-base group-hover:scale-105 motion-reduce:group-hover:scale-100"
@@ -52,7 +52,7 @@ export function MemberDashboardQuickActions({
                 <Star className="h-[22px] w-[22px] text-[hsl(var(--pu-m-bg-1))]" strokeWidth={2} aria-hidden />
               </div>
               <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))] member-transition-color member-motion-fast group-hover:text-[hsl(var(--pu-m-text))]">
-                {t("幸运抽奖", "Lucky spin")}
+                {t("转盘", "Spin")}
               </span>
             </Link>
           ) : (
@@ -60,7 +60,7 @@ export function MemberDashboardQuickActions({
               <div className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-gradient-to-br from-pu-rose/30 to-pu-rose-soft/20">
                 <Star className="h-[22px] w-[22px] text-[hsl(var(--pu-m-bg-1)/0.55)]" strokeWidth={2} aria-hidden />
               </div>
-              <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))]">{t("幸运抽奖", "Lucky spin")}</span>
+              <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))]">{t("转盘", "Spin")}</span>
             </div>
           )}
           {showInvite ? (
@@ -78,7 +78,7 @@ export function MemberDashboardQuickActions({
                 </div>
               </div>
               <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))] member-transition-color member-motion-fast group-hover:text-[hsl(var(--pu-m-text))]">
-                {t("邀请好友", "Invite")}
+                {t("推荐", "Refer")}
               </span>
             </Link>
           ) : (
@@ -86,7 +86,7 @@ export function MemberDashboardQuickActions({
               <div className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-gradient-to-br from-pu-emerald/30 to-pu-emerald-soft/20">
                 <Users className="h-[22px] w-[22px] text-[hsl(var(--pu-m-bg-1)/0.55)]" strokeWidth={2} aria-hidden />
               </div>
-              <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))]">{t("邀请好友", "Invite")}</span>
+              <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))]">{t("推荐", "Refer")}</span>
             </div>
           )}
           <button
@@ -102,7 +102,7 @@ export function MemberDashboardQuickActions({
               <Wallet className="h-[22px] w-[22px] text-[hsl(var(--pu-m-bg-1))]" strokeWidth={2} aria-hidden />
             </div>
             <span className="text-center text-[11px] font-bold text-[hsl(var(--pu-m-text-dim))] member-transition-color member-motion-fast group-hover:text-[hsl(var(--pu-m-text))]">
-              {t("我的钱包", "Wallet")}
+              {t("钱包", "Wallet")}
             </span>
           </button>
         </div>
@@ -113,7 +113,7 @@ export function MemberDashboardQuickActions({
           <button
             type="button"
             onClick={() => navigate(ROUTES.MEMBER.SPIN)}
-            aria-label={t("进入幸运抽奖", "Go to lucky draw")}
+            aria-label={t("进入转盘", "Go to Spin")}
             className="relative flex w-full items-center justify-between overflow-hidden rounded-[1.25rem] border border-[hsl(var(--pu-gold)/0.15)] p-4 text-left m-glass"
           >
             <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-r from-pu-gold/[0.05] to-pu-rose/[0.03]" />
@@ -122,7 +122,7 @@ export function MemberDashboardQuickActions({
                 <Sparkles className="h-5 w-5 text-[hsl(var(--pu-m-bg-1))]" aria-hidden />
               </div>
               <div>
-                <div className="font-bold text-pu-rose-soft">{t("幸运抽奖", "Lucky spin")}</div>
+                <div className="font-bold text-pu-rose-soft">{t("转盘", "Spin")}</div>
                 <div className="text-[11px] font-medium text-[hsl(var(--pu-m-text-dim))]">
                   {spinError ? "—" : t(`剩余 ${spinRemaining} 次抽奖机会`, `${spinRemaining} spins remaining`)}
                 </div>

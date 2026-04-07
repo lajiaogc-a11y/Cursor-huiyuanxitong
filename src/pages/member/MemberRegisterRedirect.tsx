@@ -207,6 +207,7 @@ export default function MemberRegisterRedirect() {
       <div className="relative z-[1] mx-auto flex w-full max-w-[480px] flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))]">
         <Link
           to={ROUTES.MEMBER.ROOT}
+          replace
           className="mb-10 inline-flex items-center self-start text-xs font-bold tracking-wide text-[hsl(var(--pu-m-text-dim))] transition hover:text-[hsl(var(--pu-m-text))]"
         >
           ← {t("返回", "Back")}
