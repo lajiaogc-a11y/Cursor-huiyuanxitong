@@ -8,6 +8,8 @@
     "migrate:all:dev": "tsx src/cli/migrateAll.ts",
     "verify:order-spin": "tsx src/cli/verifyOrderCompletedSpin.ts",
     "seed:invite-leaderboard": "tsx src/cli/seedInviteLeaderboardFifty.ts",
+    "check:invite-growth-jobs": "tsx src/cli/checkInviteLeaderboardJobRuns.ts",
+    "check:invite-growth-jobs:dist": "node dist/cli/checkInviteLeaderboardJobRuns.js",
     "migrate:lottery": "tsx src/modules/lottery/runLotteryMigrate.ts",
     "db:phone-pool-reserved-by": "node scripts/ensure-phone-pool-reserved-by-null.mjs",
     "build": "tsc && node scripts/copy-permission-sync.mjs",
