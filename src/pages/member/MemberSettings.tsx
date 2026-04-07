@@ -275,7 +275,7 @@ export default function MemberSettings() {
 
   return (
     <div
-      className="member-page-enter m-page-bg relative flex min-h-full flex-col pb-24 lg:mx-auto lg:w-full lg:max-w-[960px] lg:px-6 lg:py-6"
+      className="member-page-enter m-page-bg relative flex min-h-full flex-col lg:mx-auto lg:w-full lg:max-w-[960px] lg:px-6 lg:py-6"
       style={{ ["--pu-settings-theme" as string]: themeColor } as CSSProperties}
     >
       <div className="relative overflow-hidden">

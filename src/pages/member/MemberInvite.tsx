@@ -212,7 +212,7 @@ export default function MemberInvite() {
   if (!member) return null;
   if (!portalSettings.enable_invite) {
     return (
-      <div className="member-page-enter relative m-page-bg flex min-h-dvh flex-col items-center justify-center overflow-hidden p-5 pb-24 lg:px-8">
+      <div className="member-page-enter relative m-page-bg flex min-h-full flex-col items-center justify-center overflow-hidden p-5 lg:px-8">
         <MemberPageAmbientOrbs />
         <div className="relative z-[1] w-full max-w-md space-y-4 lg:max-w-lg">
           <div className="relative overflow-hidden rounded-2xl border border-pu-gold/28 bg-gradient-to-br from-pu-gold/[0.14] via-[hsl(var(--pu-m-surface)/0.38)] to-[hsl(var(--pu-m-surface)/0.2)] p-4 shadow-[0_8px_28px_-12px_hsl(var(--pu-gold)/0.22)]">
@@ -283,7 +283,7 @@ export default function MemberInvite() {
   ];
 
   return (
-    <div className="member-page-enter relative m-page-bg flex min-h-full flex-col pb-28 lg:mx-auto lg:w-full lg:max-w-[960px] lg:px-6 lg:py-6">
+    <div className="member-page-enter relative m-page-bg flex min-h-full flex-col pb-8 lg:mx-auto lg:w-full lg:max-w-[960px] lg:px-6 lg:py-6">
       {/* Hero — boost: soft orbs + title row */}
       <div className="relative overflow-hidden">
         <MemberPageAmbientOrbs />

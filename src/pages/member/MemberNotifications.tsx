@@ -260,9 +260,9 @@ export default function MemberNotifications() {
 
   if (member?.id && !inboxEnabled) {
     return (
-      <div className="m-page-bg relative min-h-screen pb-24">
+      <div className="m-page-bg relative min-h-full">
         <MemberPageAmbientOrbs />
-        <div className="relative z-[1] min-h-screen">
+        <div className="relative z-[1] min-h-full">
           <BackHeader title={t("消息通知", "Notifications")} />
           <div className="px-5 pt-6">
             <div className="rounded-2xl border border-dashed border-[hsl(var(--pu-m-surface-border)/0.45)] bg-[hsl(var(--pu-m-surface)/0.18)] px-4 py-14 text-center">
@@ -294,9 +294,9 @@ export default function MemberNotifications() {
   }
 
   return (
-    <div className="m-page-bg relative min-h-screen pb-24">
+    <div className="m-page-bg relative min-h-full">
       <MemberPageAmbientOrbs />
-      <div className="relative z-[1] min-h-screen">
+      <div className="relative z-[1] min-h-full">
       <BackHeader
         title={t("消息通知", "Notifications")}
         rightSlot={
@@ -464,7 +464,6 @@ export default function MemberNotifications() {
             )}
           </p>
 
-          <div className="h-8" />
         </div>
       </div>
       </div>

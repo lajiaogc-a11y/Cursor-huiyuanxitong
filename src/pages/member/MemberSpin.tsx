@@ -479,7 +479,7 @@ export default function MemberSpin() {
   return (
       <div
         className={cn(
-          "member-page-enter m-page-bg relative flex min-h-full flex-col pb-24 lg:mx-auto lg:w-full lg:max-w-[960px] lg:px-6 lg:py-6",
+          "member-page-enter m-page-bg relative flex min-h-full flex-col lg:mx-auto lg:w-full lg:max-w-[960px] lg:px-6 lg:py-6",
           blocking && "justify-center",
         )}
       >

@@ -1,4 +1,4 @@
-import { Suspense, useLayoutEffect, useRef } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ROUTES } from "@/routes/constants";
 import { MemberFeatureGuard } from "@/components/member/MemberFeatureGuard";
 import {
@@ -14,10 +14,12 @@ import { cn } from "@/lib/utils";
 function TabPanel({
   path,
   activePath,
+  mounted,
   children,
 }: {
   path: string;
   activePath: string;
+  mounted: boolean;
   children: React.ReactNode;
 }) {
   const show = path === activePath;
@@ -46,7 +48,7 @@ function TabPanel({
       inert={!show ? true : undefined}
       data-member-tab-panel={path}
     >
-      {children}
+      {mounted ? children : null}
     </div>
   );
 }
@@ -58,21 +60,44 @@ const suspenseFallback = <MemberDeferredRouteSuspenseFallback delayMs={120} />;
  * 单面板内不再使用 `{path===x ? <Page/> : null}`，避免延迟插入子组件。
  */
 export function MemberTabbedShell({ activePath }: { activePath: string }) {
+  const [mountedPaths, setMountedPaths] = useState<Set<string>>(() => new Set([activePath]));
+
+  useEffect(() => {
+    setMountedPaths((prev) => {
+      if (prev.has(activePath)) return prev;
+      const next = new Set(prev);
+      next.add(activePath);
+      return next;
+    });
+  }, [activePath]);
+
   return (
     <div className="relative min-h-[20vh]">
-      <TabPanel path={ROUTES.MEMBER.DASHBOARD} activePath={activePath}>
+      <TabPanel
+        path={ROUTES.MEMBER.DASHBOARD}
+        activePath={activePath}
+        mounted={mountedPaths.has(ROUTES.MEMBER.DASHBOARD)}
+      >
         <Suspense fallback={suspenseFallback}>
           <MemberDashboard />
         </Suspense>
       </TabPanel>
 
-      <TabPanel path={ROUTES.MEMBER.POINTS} activePath={activePath}>
+      <TabPanel
+        path={ROUTES.MEMBER.POINTS}
+        activePath={activePath}
+        mounted={mountedPaths.has(ROUTES.MEMBER.POINTS)}
+      >
         <Suspense fallback={suspenseFallback}>
           <MemberPoints />
         </Suspense>
       </TabPanel>
 
-      <TabPanel path={ROUTES.MEMBER.SPIN} activePath={activePath}>
+      <TabPanel
+        path={ROUTES.MEMBER.SPIN}
+        activePath={activePath}
+        mounted={mountedPaths.has(ROUTES.MEMBER.SPIN)}
+      >
         <Suspense fallback={suspenseFallback}>
           <MemberFeatureGuard featureKey="enable_spin">
             <MemberSpin />
@@ -80,7 +105,11 @@ export function MemberTabbedShell({ activePath }: { activePath: string }) {
         </Suspense>
       </TabPanel>
 
-      <TabPanel path={ROUTES.MEMBER.INVITE} activePath={activePath}>
+      <TabPanel
+        path={ROUTES.MEMBER.INVITE}
+        activePath={activePath}
+        mounted={mountedPaths.has(ROUTES.MEMBER.INVITE)}
+      >
         <Suspense fallback={suspenseFallback}>
           <MemberFeatureGuard featureKey="enable_invite">
             <MemberInvite />
@@ -88,7 +117,11 @@ export function MemberTabbedShell({ activePath }: { activePath: string }) {
         </Suspense>
       </TabPanel>
 
-      <TabPanel path={ROUTES.MEMBER.SETTINGS} activePath={activePath}>
+      <TabPanel
+        path={ROUTES.MEMBER.SETTINGS}
+        activePath={activePath}
+        mounted={mountedPaths.has(ROUTES.MEMBER.SETTINGS)}
+      >
         <Suspense fallback={suspenseFallback}>
           <MemberSettings />
         </Suspense>

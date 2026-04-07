@@ -92,6 +92,8 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
   const memberTabScrollMemoryRef = useRef<Record<string, number>>({});
   const memberScrollPrevPathRef = useRef<string | null>(null);
   const scrollRestoreFrameRef = useRef<number | null>(null);
+  const moveRafRef = useRef<number | null>(null);
+  const pendingDistanceRef = useRef(0);
 
   const [scrollNode, setScrollNode] = useState<HTMLDivElement | null>(null);
   const scrollRefCallback = useCallback((node: HTMLDivElement | null) => {
@@ -252,13 +254,26 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
         setPulling(true);
         stateRef.current.pulling = true;
       }
-      setPullDistance(distance);
-      stateRef.current.pullDistance = distance;
+      pendingDistanceRef.current = distance;
+      if (moveRafRef.current == null) {
+        moveRafRef.current = window.requestAnimationFrame(() => {
+          moveRafRef.current = null;
+          const next = pendingDistanceRef.current;
+          setPullDistance(next);
+          stateRef.current.pullDistance = next;
+        });
+      }
     };
 
     const handleTouchEnd = () => {
       if (!pullActiveRef.current) return;
       pullActiveRef.current = false;
+      if (moveRafRef.current != null) {
+        window.cancelAnimationFrame(moveRafRef.current);
+        moveRafRef.current = null;
+      }
+      const finalDistance = pendingDistanceRef.current || stateRef.current.pullDistance;
+      stateRef.current.pullDistance = finalDistance;
       if (stateRef.current.pullDistance >= THRESHOLD) {
         setPullDistance(THRESHOLD);
         stateRef.current.pullDistance = THRESHOLD;
@@ -281,6 +296,10 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
       target.removeEventListener("touchmove", handleTouchMove);
       target.removeEventListener("touchend", handleTouchEnd);
       target.removeEventListener("touchcancel", handleTouchEnd);
+      if (moveRafRef.current != null) {
+        window.cancelAnimationFrame(moveRafRef.current);
+        moveRafRef.current = null;
+      }
     };
   }, [androidMode, scrollContainer, scrollNode, doRefresh]);
 
@@ -316,10 +335,10 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
       }
       el.scrollLeft = 0;
     } else {
-      scrollRestoreFrameRef.current = window.requestAnimationFrame(() => {
-        el.scrollTo({ top: 0, left: 0, behavior: "auto" });
-        scrollRestoreFrameRef.current = null;
-      });
+      const enteredSubRouteFromTab = prev != null && isMemberBottomTabPath(prev);
+      if (enteredSubRouteFromTab && Math.abs(el.scrollTop) > 1) {
+        el.scrollTop = 0;
+      }
     }
     memberScrollPrevPathRef.current = pathname;
 

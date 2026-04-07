@@ -595,7 +595,7 @@ export default function MemberDashboard() {
         ) : null}
       </div>
 
-      <div className="flex flex-col items-center px-5 pb-24">{securitySection}</div>
+      <div className="flex flex-col items-center px-5 pb-6">{securitySection}</div>
 
       <MemberDashboardPortalOverlays
         t={t}

@@ -231,20 +231,19 @@ html.member-html .font-mono,
 }
 
 .member-tab-panel {
-  will-change: opacity, transform;
+  contain: layout paint;
 }
 
 .member-app-shell-tabbar {
-  will-change: opacity, transform;
   transform: translateZ(0);
 }
 
 .member-shell-layer {
-  will-change: opacity, transform;
+  contain: layout paint;
 }
 
 .member-points-tab-panel {
-  will-change: opacity, transform;
+  contain: layout paint;
 }
 
 .member-route-suspense-fade-in {

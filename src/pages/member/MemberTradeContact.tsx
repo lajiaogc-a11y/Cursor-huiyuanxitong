@@ -63,7 +63,7 @@ export default function MemberTradeContact() {
   const hasAgents = agents.some((a) => a.name?.trim() && a.link?.trim());
 
   return (
-    <div className="m-page-bg relative min-h-screen pb-24">
+    <div className="m-page-bg relative min-h-full">
       <BackHeader title={t("联系客服交易", "Contact support to trade")} />
 
       <div

@@ -14,7 +14,7 @@ export default function MemberWallet() {
   const navigate = useNavigate();
 
   return (
-    <div className="m-page-bg relative min-h-screen pb-24">
+    <div className="m-page-bg relative min-h-full">
       <BackHeader title={t("我的钱包", "My wallet")} />
 
       <div className="relative overflow-hidden">

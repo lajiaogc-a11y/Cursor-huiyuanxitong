@@ -400,7 +400,7 @@ export default function MemberPoints() {
   if (!member) return null;
 
   return (
-    <div className="member-page-enter m-page-bg relative flex min-h-full flex-col pb-24">
+    <div className="member-page-enter m-page-bg relative flex min-h-full flex-col">
       <MemberPageAmbientOrbs />
       <div className="relative z-[1] flex min-h-full flex-col">
         <div className="relative px-5 pb-1 pt-7">

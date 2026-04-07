@@ -104,7 +104,7 @@ export default function MemberOrders() {
   }
 
   return (
-    <div className="m-page-bg relative min-h-screen pb-24">
+    <div className="m-page-bg relative min-h-full">
       <BackHeader title={t("订单管理", "Orders")} />
 
       <div className="relative z-[2] mb-4 px-5 pt-2">
@@ -357,7 +357,6 @@ export default function MemberOrders() {
           </div>
         </div>
 
-        <div className="h-8" />
       </div>
     </div>
   );
