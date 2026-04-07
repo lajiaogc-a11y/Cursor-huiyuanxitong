@@ -326,8 +326,23 @@ export function effectiveMemberIdForRpc(req: AuthenticatedRequest, params: Recor
 
 // 列名映射：某些表的前端列名与 MySQL 实际列名不同
 export const COLUMN_ALIAS_MAP: Record<string, Record<string, string>> = {
-  /** 前端/创建订单使用 order_type（礼品卡 id）；MySQL 补丁列为 card_type */
-  orders: { order_type: 'card_type' },
+  /**
+   * 订单：UI / 审核 diff / 旧客户端可能使用别名；统一落到真实列，避免 UPDATE 报 Unknown column。
+   * 注意：不将 payment_provider 映射到 vendor_id — 库表另有 payment_provider 列，表代理需能直接写该列。
+   */
+  orders: {
+    order_type: 'card_type',
+    actual_paid: 'actual_payment',
+    actualPaidUsdt: 'actual_payment',
+    card_rate: 'exchange_rate',
+    demand_currency: 'currency',
+    usdt_rate: 'foreign_rate',
+    feeUsdt: 'fee',
+    sales_person: 'sales_user_id',
+    /** 卡商 UUID：与审核中心 ORDER_FIELD_MAP 一致 */
+    vendor: 'card_merchant_id',
+    payment_provider_id: 'vendor_id',
+  },
   /** 前端沿用 Supabase 的 current_points，MySQL 账务列为 balance */
   points_accounts: { current_points: 'balance' },
   user_data_store: { data_key: 'store_key', data_value: 'store_value' },
@@ -347,7 +362,8 @@ export function getReverseAliasMap(table: string): Record<string, string> | null
   if (!map) return null;
   const reverse: Record<string, string> = {};
   for (const [frontend, db] of Object.entries(map)) {
-    reverse[db] = frontend;
+    /** 多别名同目标列（如 actual_paid / actualPaidUsdt → actual_payment）时保留先出现的反向键，避免 SELECT * 抖动 */
+    if (!(db in reverse)) reverse[db] = frontend;
   }
   return reverse;
 }

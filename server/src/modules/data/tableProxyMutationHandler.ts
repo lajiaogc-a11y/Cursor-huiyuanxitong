@@ -72,7 +72,7 @@ export async function tableInsertController(req: AuthenticatedRequest, res: Resp
       // 自动生成 UUID 如果没有 id
       if (!row.id) row.id = randomUUID();
 
-      // 应用列名映射（前端列名 → 数据库实际列名）
+      // 应用列名映射（前端/审核别名 → 真实列；与 PATCH 共用 COLUMN_ALIAS_MAP）
       row = mapBodyColumns(table, row);
 
       if (table === 'audit_records') {
@@ -279,7 +279,7 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
   }
 
   try {
-    // 应用列名映射（前端列名 → 数据库实际列名）
+    // 应用列名映射（前端/审核别名 → 真实列；orders 见 tableConfig.COLUMN_ALIAS_MAP.orders）
     let mappedData = mapBodyColumns(table, updateData) as Record<string, unknown>;
 
     // ── C1: 敏感表列级写入保护 ──

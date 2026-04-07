@@ -280,6 +280,11 @@ describe('mapColumnName — 列名别名映射', () => {
     expect(mapColumnName('orders', 'status')).toBe('status');
     expect(mapColumnName('unknown_table', 'any_col')).toBe('any_col');
   });
+
+  it('maps orders filter aliases', () => {
+    expect(mapColumnName('orders', 'actual_paid')).toBe('actual_payment');
+    expect(mapColumnName('orders', 'card_rate')).toBe('exchange_rate');
+  });
 });
 
 describe('getReverseAliasMap — 反向列名映射', () => {
@@ -299,8 +304,17 @@ describe('getReverseAliasMap — 反向列名映射', () => {
     expect(getReverseAliasMap('members')).toBeNull();
   });
 
-  it('orders: reverse map card_type → order_type', () => {
-    expect(getReverseAliasMap('orders')).toEqual({ card_type: 'order_type' });
+  it('orders: reverse map includes card_type → order_type and stable dup targets', () => {
+    const map = getReverseAliasMap('orders')!;
+    expect(map.card_type).toBe('order_type');
+    expect(map.actual_payment).toBe('actual_paid');
+    expect(map.exchange_rate).toBe('card_rate');
+    expect(map.currency).toBe('demand_currency');
+    expect(map.foreign_rate).toBe('usdt_rate');
+    expect(map.fee).toBe('feeUsdt');
+    expect(map.sales_user_id).toBe('sales_person');
+    expect(map.card_merchant_id).toBe('vendor');
+    expect(map.vendor_id).toBe('payment_provider_id');
   });
 });
 
@@ -319,6 +333,14 @@ describe('mapBodyColumns — 请求体列名映射', () => {
     expect(
       mapBodyColumns('orders', { order_type: 'uuid-card', vendor_id: 'v1' }),
     ).toEqual({ card_type: 'uuid-card', vendor_id: 'v1' });
+  });
+
+  it('maps orders audit-style aliases to DB columns', () => {
+    expect(mapBodyColumns('orders', { actual_paid: 316000 })).toEqual({ actual_payment: 316000 });
+    expect(mapBodyColumns('orders', { card_rate: 1.2, demand_currency: 'NGN' })).toEqual({
+      exchange_rate: 1.2,
+      currency: 'NGN',
+    });
   });
 });
 
