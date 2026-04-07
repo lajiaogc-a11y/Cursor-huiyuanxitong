@@ -47,6 +47,17 @@ function isLotteryPrizeLogType(prizeType: string | undefined): boolean {
   const t = String(prizeType || "").toLowerCase();
   return t === "points" || t === "custom" || t === "none" || t === "miss";
 }
+
+/** 抽奖接口返回的 remaining 可能为数字或数字字符串 */
+function parseDrawRemaining(r: { remaining?: unknown }): number | null {
+  const raw = r.remaining;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string" && raw.trim() !== "") {
+    const n = Number(raw);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
 import {
   getMemberSpinAudioContext,
   playMemberSpinMiss,
@@ -362,10 +373,29 @@ export default function MemberSpin() {
           return;
         }
         const prize = r.prize!;
-        if (typeof r.remaining === "number") {
-          setRemaining(r.remaining);
-          setQuotaUsedToday((u) => u + 1);
+        const parsedRem = parseDrawRemaining(r);
+        if (parsedRem !== null) {
+          setRemaining(parsedRem);
+        } else {
+          // 接口未带 remaining 时先乐观减一，避免右上角要等转盘动画结束才变
+          setRemaining((prev) => Math.max(0, prev - 1));
         }
+        // 立刻拉配额（原逻辑仅在动画结束 onComplete 里拉，导致次数长时间不刷新）
+        void getLotteryQuota(member.id)
+          .then((q) => {
+            applyQuota(q);
+            const prev = _spinCache.get(member.id);
+            if (prev) {
+              _spinCache.set(member.id, {
+                ...prev,
+                remaining: q.remaining,
+                quotaUsedToday: q.used_today ?? 0,
+              });
+            }
+          })
+          .catch(() => {});
+        void queryClient.invalidateQueries({ queryKey: memberQueryKeys.spin(member.id) });
+
         setLastDrawRewardPoints(r.reward_points);
         setLastDrawRewardStatus(r.reward_status);
         setLastDrawMeta({ budget_warning: r.budget_warning, risk_downgraded: r.risk_downgraded });
@@ -386,9 +416,10 @@ export default function MemberSpin() {
           } else {
             playMemberSpinMiss();
           }
-          getLotteryQuota(member.id)
+          // 配额已在抽奖 API 返回后立即刷新；此处再拉一次作动画结束后的校准（服务端 eventual consistency）
+          void getLotteryQuota(member.id)
             .then(applyQuota)
-            .catch(() => { /* post-draw quota refresh is best-effort */ });
+            .catch(() => {});
           loadMemberSpinLogs(member.id, { limit: SPIN_LOG_LIMIT, offset: 0 })
             .then(({ logs: list, total }) => {
               setLogs(list);
@@ -396,7 +427,6 @@ export default function MemberSpin() {
             })
             .catch(() => { /* post-draw log refresh is best-effort */ });
           void refreshMember().catch(() => {});
-          void queryClient.invalidateQueries({ queryKey: memberQueryKeys.spin(member.id) });
           void queryClient.invalidateQueries({ queryKey: memberQueryKeys.points(member.id) });
           void queryClient.invalidateQueries({ queryKey: memberQueryKeys.pointsBreakdown(member.id) });
 

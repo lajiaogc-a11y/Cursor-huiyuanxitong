@@ -205,14 +205,12 @@ export default function MemberRegisterRedirect() {
   return (
     <MemberRegisterShell themeColor={themeColor}>
       <div className="relative z-[1] mx-auto flex w-full max-w-[480px] flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))]">
-        <div className="mb-10">
-          <Link
-            to={ROUTES.MEMBER.ROOT}
-            className="inline-flex items-center text-xs font-bold tracking-wide text-[hsl(var(--pu-m-text-dim))] transition hover:text-[hsl(var(--pu-m-text))]"
-          >
-            ← {t("返回", "Back")}
-          </Link>
-        </div>
+        <Link
+          to={ROUTES.MEMBER.ROOT}
+          className="mb-10 inline-flex items-center self-start text-xs font-bold tracking-wide text-[hsl(var(--pu-m-text-dim))] transition hover:text-[hsl(var(--pu-m-text))]"
+        >
+          ← {t("返回", "Back")}
+        </Link>
         {!submitted ? (
           <MemberLoginCarousel displaySettings={portalSettings} theme={theme} t={t} paused={false} />
         ) : null}

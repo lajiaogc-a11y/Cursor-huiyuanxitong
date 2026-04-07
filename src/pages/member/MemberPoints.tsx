@@ -366,6 +366,8 @@ export default function MemberPoints() {
         void queryClient.invalidateQueries({ queryKey: memberQueryKeys.mall(memberId) }).catch(() => {});
         void queryClient.invalidateQueries({ queryKey: memberQueryKeys.profile(memberId) }).catch(() => {});
         void queryClient.invalidateQueries({ queryKey: memberQueryKeys.pointsBreakdown(memberId) }).catch(() => {});
+        /** 若商城兑换会发放抽奖次数，与抽奖 Tab 本地缓存需一并失效 */
+        void queryClient.invalidateQueries({ queryKey: memberQueryKeys.spin(memberId) }).catch(() => {});
         loadMemberPointsMallCatalog(memberId)
           .then((raw) => {
             setItems(raw.map(normalizeMallItem));

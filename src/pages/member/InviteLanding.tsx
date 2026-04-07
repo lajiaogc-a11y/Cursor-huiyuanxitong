@@ -222,17 +222,14 @@ export default function InviteLanding() {
 
   return (
     <MemberRegisterShell themeColor={themeColor}>
-      {/* Hero — premium-ui-boost LoginPage register mode */}
-      <div className="relative flex shrink-0 flex-col overflow-x-hidden overflow-y-visible pb-4 pt-[max(1.25rem,env(safe-area-inset-top))]">
+      {/* 返回与轮播同列文档流，避免 absolute 导致父级高度塌陷、与下图紧贴 */}
+      <div className="relative z-[1] mx-auto flex w-full max-w-[480px] flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))]">
         <Link
           to={ROUTES.MEMBER.LOGIN_LEGACY}
-          className="absolute left-[max(1.25rem,env(safe-area-inset-left))] top-[max(1.25rem,env(safe-area-inset-top))] z-[2] text-xs font-bold text-[hsl(var(--pu-m-text-dim))] transition hover:text-[hsl(var(--pu-m-text))]"
+          className="mb-10 inline-flex items-center self-start text-xs font-bold text-[hsl(var(--pu-m-text-dim))] transition hover:text-[hsl(var(--pu-m-text))]"
         >
           ← {t("返回", "Back")}
         </Link>
-      </div>
-
-      <div className="relative z-[1] mx-auto flex w-full max-w-[480px] flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         {!submitted ? (
           <MemberLoginCarousel
             displaySettings={portalSettings ?? DEFAULT_SETTINGS}

@@ -5,7 +5,7 @@ import {
   useMemo,
   type CSSProperties,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation, useNavigationType } from "react-router-dom";
 import {
   ChevronRight,
   Sun,
@@ -57,6 +57,8 @@ const loginThemeSurfaceBtn =
 
 export default function MemberLogin() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const navigationType = useNavigationType();
   const [searchParams] = useSearchParams();
   const { t, language } = useLanguage();
   const { theme, toggleTheme } = useTheme();
@@ -65,6 +67,23 @@ export default function MemberLogin() {
 
   const [panel, setPanel] = useState<LandingPanel>(null);
   const [legalDoc, setLegalDoc] = useState<null | "terms" | "privacy">(null);
+
+  /**
+   * 从 /member/register 等返回首页时，部分浏览器会走 bfcache 恢复整页，React 本地 state 仍停留在「登录表单」，
+   * 与首次进入时的落地页不一致。persisted / POP 时强制回到落地页。
+   */
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setPanel(null);
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (location.pathname !== ROUTES.MEMBER.ROOT) return;
+    if (navigationType === "POP") setPanel(null);
+  }, [location.pathname, navigationType]);
 
   const [previewSettings, setPreviewSettings] = useState<MemberPortalSettings | null>(null);
   const [defaultPortalSettings, setDefaultPortalSettings] = useState<MemberPortalSettings>(() => {
