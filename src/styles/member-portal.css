@@ -682,8 +682,8 @@ html.member-html:not(.dark) .member-card {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  min-height: 56px;
-  padding: 14px 20px;
+  min-height: 48px;
+  padding: 10px 16px;
   margin: 0;
   background: none;
   border: none;
@@ -698,7 +698,7 @@ html.member-html:not(.dark) .member-card {
 }
 
 .member-settings-expand {
-  padding: 8px 20px 18px;
+  padding: 6px 16px 14px;
   border-bottom: none;
 }
 
@@ -714,7 +714,7 @@ html.member-html:not(.dark) .member-card {
   pointer-events: none;
   visibility: hidden;
 }
-.member-settings-collapse > * {
+.member-settings-collapse__inner {
   min-height: 0;
   overflow: hidden;
 }

@@ -150,6 +150,7 @@ export function MemberSettingsPointsLedgerSection({
           )}
           aria-hidden={!expandedPointsLedger}
         >
+          <div className="member-settings-collapse__inner">
             <div className="mb-3 flex flex-wrap gap-2">
               {(
                 [
@@ -236,6 +237,7 @@ export function MemberSettingsPointsLedgerSection({
                 ) : null}
               </>
             )}
+          </div>
           </div>
       </div>
     </div>

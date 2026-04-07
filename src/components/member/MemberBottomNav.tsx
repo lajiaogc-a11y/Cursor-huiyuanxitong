@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Home, Gift, Star, Users, Settings } from "lucide-react";
-import { useCallback } from "react";
+import { startTransition, useCallback, useEffect, useState } from "react";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -43,6 +43,11 @@ export function MemberBottomNav() {
   const { member } = useMemberAuth();
   const { settings } = useMemberPortalSettings(member?.id);
   const { t } = useLanguage();
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (pendingPath) setPendingPath(null);
+  }, [location.pathname]);
 
   const filteredItems = navItems.filter((item) => {
     if (item.path === ROUTES.MEMBER.SPIN) return settings.enable_spin;
@@ -55,11 +60,12 @@ export function MemberBottomNav() {
       e.preventDefault();
       hapticNavTap();
       if (location.pathname === path) return;
+      setPendingPath(path);
       prefetchMemberNavPath(path);
       if (path === ROUTES.MEMBER.INVITE) {
         stashPointsHashBeforeInviteNavigation(location.pathname, location.hash);
       }
-      navigate(path);
+      startTransition(() => navigate(path));
     },
     [location.pathname, location.hash, navigate],
   );
@@ -71,7 +77,7 @@ export function MemberBottomNav() {
     >
       <div className="mx-auto flex h-16 max-w-lg items-center justify-around px-2">
         {filteredItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          const isActive = (pendingPath ?? location.pathname) === item.path;
           const Icon = item.icon;
           const label = t(item.zh, item.en);
           return (
