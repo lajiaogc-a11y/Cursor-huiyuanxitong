@@ -3,6 +3,7 @@
  */
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
+import { queryOne } from '../../database/index.js';
 import { draw, getQuota } from './service.js';
 import {
   listPrizes,
@@ -417,6 +418,12 @@ export async function adminRetryFailedRewardsController(req: AuthenticatedReques
 export async function adminConfirmRewardController(req: AuthenticatedRequest, res: Response) {
   const logId = typeof req.body?.log_id === 'string' ? req.body.log_id.trim() : '';
   if (!logId) { res.status(400).json({ success: false, error: 'MISSING_LOG_ID' }); return; }
+  const callerTenant = req.user?.tenant_id ?? null;
+  if (callerTenant && !req.user?.is_platform_super_admin) {
+    const logRow = await queryOne<{ tenant_id: string | null }>('SELECT tenant_id FROM lottery_logs WHERE id = ?', [logId]);
+    if (!logRow) { res.status(404).json({ success: false, error: 'LOG_NOT_FOUND' }); return; }
+    if (logRow.tenant_id !== callerTenant) { res.status(403).json({ success: false, error: 'FORBIDDEN' }); return; }
+  }
   const action = req.body?.action === 'failed' ? 'failed' as const : 'done' as const;
   const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : undefined;
   const result = await confirmManualReward(logId, action, reason);
@@ -428,6 +435,12 @@ export async function adminConfirmRewardController(req: AuthenticatedRequest, re
 export async function adminManualRetryRewardController(req: AuthenticatedRequest, res: Response) {
   const logId = typeof req.body?.log_id === 'string' ? req.body.log_id.trim() : '';
   if (!logId) { res.status(400).json({ success: false, error: 'MISSING_LOG_ID' }); return; }
+  const callerTenant = req.user?.tenant_id ?? null;
+  if (callerTenant && !req.user?.is_platform_super_admin) {
+    const logRow = await queryOne<{ tenant_id: string | null }>('SELECT tenant_id FROM lottery_logs WHERE id = ?', [logId]);
+    if (!logRow) { res.status(404).json({ success: false, error: 'LOG_NOT_FOUND' }); return; }
+    if (logRow.tenant_id !== callerTenant) { res.status(403).json({ success: false, error: 'FORBIDDEN' }); return; }
+  }
   const result = await manualRetryReward(logId);
   if (!result.ok) { res.status(400).json({ success: false, error: result.error }); return; }
   res.json({ success: true, new_status: result.newStatus });

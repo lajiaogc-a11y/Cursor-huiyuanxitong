@@ -194,7 +194,7 @@ export default function LedgerTransactionContent({
       await loadTransactions();
       const result = await reconcileAccount(accountType, accountName, realTimeBalance);
       setReconcileResult(result);
-      if (result && result.discrepancy < 0.01) {
+      if (result && Math.abs(result.discrepancy) < 0.01) {
         notify.success(t('对账结果: 余额一致 ✓', 'Reconciliation: Balance matches ✓'));
       } else if (result) {
         notify.error(t(`对账结果: 发现差异 — 差异金额: ¥${result.discrepancy.toFixed(2)}`, `Reconciliation: Discrepancy found — ¥${result.discrepancy.toFixed(2)}`));
@@ -208,7 +208,7 @@ export default function LedgerTransactionContent({
   };
 
   const handleFixDiscrepancy = async () => {
-    if (!reconcileResult || reconcileResult.discrepancy < 0.01) return;
+    if (!reconcileResult || Math.abs(reconcileResult.discrepancy) < 0.01) return;
     const correction = reconcileResult.computedBalance - reconcileResult.storedBalance;
     await createCorrectionEntry({
       accountType,
@@ -301,9 +301,9 @@ export default function LedgerTransactionContent({
 
       {/* Reconciliation result */}
       {reconcileResult && (
-        <div className={`px-4 py-3 border rounded-lg text-sm flex items-center justify-between ${reconcileResult.discrepancy < 0.01 ? 'bg-primary/5 border-primary/20' : 'bg-destructive/5 border-destructive/20'}`}>
+        <div className={`px-4 py-3 border rounded-lg text-sm flex items-center justify-between ${Math.abs(reconcileResult.discrepancy) < 0.01 ? 'bg-primary/5 border-primary/20' : 'bg-destructive/5 border-destructive/20'}`}>
           <div className="flex items-center gap-2">
-            {reconcileResult.discrepancy < 0.01 ? (
+            {Math.abs(reconcileResult.discrepancy) < 0.01 ? (
               <CheckCircle className="h-4 w-4 text-primary" />
             ) : (
               <AlertTriangle className="h-4 w-4 text-destructive" />
@@ -312,12 +312,12 @@ export default function LedgerTransactionContent({
               {t("计算余额", "Computed")}: <strong>¥{reconcileResult.computedBalance.toFixed(2)}</strong>
               {' | '}
               {t("存储余额", "Stored")}: <strong>¥{reconcileResult.storedBalance.toFixed(2)}</strong>
-              {reconcileResult.discrepancy >= 0.01 && (
+              {Math.abs(reconcileResult.discrepancy) >= 0.01 && (
                 <> {' | '} {t("差异", "Diff")}: <strong className="text-destructive">¥{reconcileResult.discrepancy.toFixed(2)}</strong></>
               )}
             </span>
           </div>
-          {reconcileResult.discrepancy >= 0.01 && (
+          {Math.abs(reconcileResult.discrepancy) >= 0.01 && (
             <Button variant="destructive" size="sm" onClick={handleFixDiscrepancy}>
               {t("创建修正", "Fix")}
             </Button>

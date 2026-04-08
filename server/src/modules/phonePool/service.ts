@@ -109,8 +109,8 @@ export async function returnPhonesByEmployee(
     const now = toMySqlDatetime(new Date());
     await execute(
       `UPDATE phone_pool SET status = 'available', reserved_by = NULL, reserved_at = NULL
-       WHERE id IN (${placeholders}) AND reserved_by = ?`,
-      [...phoneIds, employeeId]
+       WHERE id IN (${placeholders}) AND reserved_by = ? AND tenant_id = ?`,
+      [...phoneIds, employeeId, tenantId]
     );
     for (const pid of phoneIds) {
       await execute(
@@ -137,8 +137,8 @@ export async function consumePhonesByEmployee(
     const now = toMySqlDatetime(new Date());
     await execute(
       `UPDATE phone_pool SET status = 'consumed', reserved_by = NULL, reserved_at = NULL
-       WHERE id IN (${placeholders}) AND reserved_by = ?`,
-      [...phoneIds, employeeId]
+       WHERE id IN (${placeholders}) AND reserved_by = ? AND tenant_id = ?`,
+      [...phoneIds, employeeId, tenantId]
     );
     for (const pid of phoneIds) {
       await execute(

@@ -182,8 +182,14 @@ export async function postReverseAll(req: AuthenticatedRequest, res: Response) {
 
   const exactSourceId = `${source_prefix}${order_id}`;
   const adjPattern = `${adj_prefix}${order_id}%`;
-  // 也匹配 restore 前缀：wdrestore_ / rcrestore_
-  const restorePrefix = source_prefix === 'wd_' ? 'wdrestore_' : source_prefix === 'rc_' ? 'rcrestore_' : '';
+  const restorePrefixMap: Record<string, string> = {
+    'wd_': 'wdrestore_',
+    'rc_': 'rcrestore_',
+    'order_v_': 'restore_v_',
+    'order_p_': 'restore_p_',
+    'gift_': 'grestore_',
+  };
+  const restorePrefix = restorePrefixMap[source_prefix] ?? '';
   const restorePattern = restorePrefix ? `${restorePrefix}${order_id}%` : '';
 
   let matchClause = '(source_id = ? OR source_id LIKE ?)';
@@ -238,6 +244,6 @@ export async function deleteLedgerAccount(req: AuthenticatedRequest, res: Respon
     res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'account_type and account_id required' } });
     return;
   }
-  await ledger.deleteLedgerForAccount(account_type, account_id);
+  await ledger.deleteLedgerForAccount(account_type, account_id, req.user?.tenant_id ?? null);
   res.json({ success: true, data: true });
 }

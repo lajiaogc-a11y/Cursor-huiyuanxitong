@@ -94,6 +94,7 @@ export async function createOrderController(req: AuthenticatedRequest, res: Resp
 export async function updateOrderPointsController(req: AuthenticatedRequest, res: Response): Promise<void> {
   const { id } = req.params;
   const body: { points_status?: string; order_points?: number } = req.body;
-  const data = await updateOrderPointsService(id, body);
+  const tenantId = resolveTenantId(req);
+  const data = await updateOrderPointsService(id, body, tenantId);
   res.json({ success: true, data });
 }

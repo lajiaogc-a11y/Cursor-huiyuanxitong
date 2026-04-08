@@ -101,8 +101,8 @@ export async function createOrderService(record: Record<string, unknown>) {
   return data;
 }
 
-export async function updateOrderPointsService(orderId: string, updates: { points_status?: string; order_points?: number }) {
-  return updateOrderPointsRepository(orderId, updates);
+export async function updateOrderPointsService(orderId: string, updates: { points_status?: string; order_points?: number }, tenantId?: string | null) {
+  return updateOrderPointsRepository(orderId, updates, tenantId);
 }
 
 /**

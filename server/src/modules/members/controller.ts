@@ -346,7 +346,7 @@ export async function adminResetMemberPasswordController(req: AuthenticatedReque
   const password = new_password.trim();
   try {
     const hash = await bcrypt.hash(password, 10);
-    const affected = await updateMemberPasswordHashByMemberId(memberId, hash);
+    const affected = await updateMemberPasswordHashByMemberId(memberId, hash, req.user?.tenant_id ?? null);
     if (affected === 0) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Member not found' } });
       return;

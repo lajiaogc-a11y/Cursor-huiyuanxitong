@@ -38,8 +38,8 @@ export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok
       return { ok: true };
     }
 
-    const orderData = await queryOne<OrderRow>(
-      `SELECT actual_payment, currency, profit_ngn, profit_usdt, member_id, phone_number FROM orders WHERE id = ?`,
+    const orderData = await queryOne<OrderRow & { tenant_id?: string | null }>(
+      `SELECT actual_payment, currency, profit_ngn, profit_usdt, member_id, phone_number, tenant_id FROM orders WHERE id = ?`,
       [orderId]
     );
 
@@ -48,6 +48,9 @@ export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok
     }
 
     const order = { ...orderData, id: orderId };
+    const orderTenant = (orderData as { tenant_id?: string | null }).tenant_id ?? null;
+    const memberTenantSql = orderTenant ? ' AND tenant_id = ?' : '';
+    const memberTenantArgs = orderTenant ? [orderTenant] : [];
 
     // 1. 回滚 member_activity 累积字段
     let existingActivity: { id: string; total_accumulated_ngn?: number; total_accumulated_ghs?: number; total_accumulated_usdt?: number; accumulated_profit?: number; order_count?: number } | null = null;
@@ -124,15 +127,15 @@ export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok
       const entCode = String((entry as { member_code?: string }).member_code || '').trim();
       if (!memberId && entPhone) {
         const m = await queryOne<{ id: string }>(
-          'SELECT id FROM members WHERE phone_number = ? LIMIT 1',
-          [entPhone]
+          `SELECT id FROM members WHERE phone_number = ?${memberTenantSql} LIMIT 1`,
+          [entPhone, ...memberTenantArgs]
         );
         if (m) memberId = m.id;
       }
       if (!memberId && entCode) {
         const m = await queryOne<{ id: string }>(
-          'SELECT id FROM members WHERE member_code = ? LIMIT 1',
-          [entCode]
+          `SELECT id FROM members WHERE member_code = ?${memberTenantSql} LIMIT 1`,
+          [entCode, ...memberTenantArgs]
         );
         if (m) memberId = m.id;
       }
@@ -191,7 +194,7 @@ export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok
         if (resolvedMemberIds.has(entPhone)) {
           memberId = resolvedMemberIds.get(entPhone);
         } else {
-          const m = await queryOne<{ id: string }>('SELECT id FROM members WHERE phone_number = ? LIMIT 1', [entPhone]);
+          const m = await queryOne<{ id: string }>(`SELECT id FROM members WHERE phone_number = ?${memberTenantSql} LIMIT 1`, [entPhone, ...memberTenantArgs]);
           if (m) { memberId = m.id; resolvedMemberIds.set(entPhone, m.id); }
         }
       }
@@ -199,7 +202,7 @@ export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok
         if (resolvedMemberIds.has(entCode)) {
           memberId = resolvedMemberIds.get(entCode);
         } else {
-          const m = await queryOne<{ id: string }>('SELECT id FROM members WHERE member_code = ? LIMIT 1', [entCode]);
+          const m = await queryOne<{ id: string }>(`SELECT id FROM members WHERE member_code = ?${memberTenantSql} LIMIT 1`, [entCode, ...memberTenantArgs]);
           if (m) { memberId = m.id; resolvedMemberIds.set(entCode, m.id); }
         }
       }
@@ -222,7 +225,7 @@ export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok
         if (resolvedMemberIds.has(e.phone_number)) {
           mid = resolvedMemberIds.get(e.phone_number);
         } else {
-          const m = await queryOne<{ id: string }>('SELECT id FROM members WHERE phone_number = ? LIMIT 1', [e.phone_number]);
+          const m = await queryOne<{ id: string }>(`SELECT id FROM members WHERE phone_number = ?${memberTenantSql} LIMIT 1`, [e.phone_number, ...memberTenantArgs]);
           if (m) { mid = m.id; resolvedMemberIds.set(e.phone_number, m.id); }
         }
       }

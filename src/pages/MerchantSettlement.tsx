@@ -80,6 +80,7 @@ import {
   VendorBalanceResult,
   ProviderBalanceResult,
 } from "@/services/finance/settlementCalculationService";
+import { getLedgerBalance } from "@/services/finance/ledgerTransactionService";
 import { useSortableData } from "@/components/ui/sortable-table-head";
 import {
   ensureUserPreferencesLoaded,
@@ -192,6 +193,10 @@ export default function MerchantSettlement() {
   
   // 赠送数据
   const [activityGifts, setActivityGifts] = useState<any[]>(() => getMsCache()?.activityGifts || []);
+
+  // Ledger 权威余额
+  const [vendorLedgerBalances, setVendorLedgerBalances] = useState<Record<string, number>>({});
+  const [providerLedgerBalances, setProviderLedgerBalances] = useState<Record<string, number>>({});
 
   // 加载状态
   const [isLoading, setIsLoading] = useState(!msCacheValid());
@@ -423,6 +428,20 @@ export default function MerchantSettlement() {
       cardSettlements: nextCardSettlements, providerSettlements: nextProviderSettlements,
       employees: getMsCache()?.employees || [], loadedAt: Date.now(),
     });
+
+    // 后台加载 ledger 权威余额（不阻塞主渲染）
+    (async () => {
+      try {
+        const vNames = vendorsData.map((v: { name: string }) => v.name);
+        const pNames = providersData.map((p: { name: string }) => p.name);
+        const [vBals, pBals] = await Promise.all([
+          Promise.all(vNames.map(async (n: string) => [n, await getLedgerBalance('card_vendor', n)] as const)),
+          Promise.all(pNames.map(async (n: string) => [n, await getLedgerBalance('payment_provider', n)] as const)),
+        ]);
+        setVendorLedgerBalances(Object.fromEntries(vBals));
+        setProviderLedgerBalances(Object.fromEntries(pBals));
+      } catch (e) { console.warn('[MerchantSettlement] ledger balance fetch failed', e); }
+    })();
   };
 
   // Keep loadDataRef always pointing to the latest loadData
@@ -450,7 +469,8 @@ export default function MerchantSettlement() {
   // 卡商结算逻辑：实时余额 = 初始余额 + 订单总金额 - 提款总金额
   // 排序按照商家管理中的 sort_order 排序
   const vendorSettlementData = useMemo<VendorSettlementData[]>(() => {
-    const results = calculateAllVendorBalances(vendors, dbOrders, cardSettlements);
+    const hasVendorLedger = Object.keys(vendorLedgerBalances).length > 0;
+    const results = calculateAllVendorBalances(vendors, dbOrders, cardSettlements, hasVendorLedger ? vendorLedgerBalances : undefined);
     
     // 创建 vendorName -> sort_order 的映射
     const vendorSortMap = new Map<string, number>();
@@ -474,7 +494,7 @@ export default function MerchantSettlement() {
       lastResetTime: r.lastResetTime,
       settlement: cardSettlements.find(s => s.vendorName === r.vendorName) || null,
     }));
-  }, [vendors, cardSettlements, dbOrders]);
+  }, [vendors, cardSettlements, dbOrders, vendorLedgerBalances]);
 
   // 使用共享计算服务计算代付商家余额
   // 代付结算逻辑：实时余额 = 初始余额 - 订单总金额 - 赠送总金额 + 充值总额
@@ -487,7 +507,8 @@ export default function MerchantSettlement() {
       created_at: g.created_at,  // 传递创建时间用于过滤
     }));
     
-    const results = calculateAllProviderBalances(providers, dbOrders, providerSettlements, giftsForCalc);
+    const hasProviderLedger = Object.keys(providerLedgerBalances).length > 0;
+    const results = calculateAllProviderBalances(providers, dbOrders, providerSettlements, giftsForCalc, hasProviderLedger ? providerLedgerBalances : undefined);
     
     // 创建 providerName -> sort_order 的映射
     const providerSortMap = new Map<string, number>();
@@ -512,7 +533,7 @@ export default function MerchantSettlement() {
       lastResetTime: r.lastResetTime,
       settlement: providerSettlements.find(s => s.providerName === r.providerName) || null,
     }));
-  }, [providers, providerSettlements, dbOrders, activityGifts]);
+  }, [providers, providerSettlements, dbOrders, activityGifts, providerLedgerBalances]);
 
   // 过滤后的基础数据（统一使用 searchTerm）
   const baseFilteredVendorData = useMemo(() => vendorSettlementData

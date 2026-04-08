@@ -7,32 +7,22 @@ import { mapMemberRowBankCard } from './membersRepositoryHelpers.js';
 
 export async function listMembersRepository(tenantId: string | undefined, q: ListMembersQuery) {
   const effectiveTenantId = q.tenant_id ?? tenantId;
+  if (!effectiveTenantId) return [];
   const page = q.page ?? 1;
   const limit = Math.min(q.limit ?? 50, 10000);
   const offset = (page - 1) * limit;
 
-  let rows: Record<string, unknown>[];
-  if (effectiveTenantId) {
-    rows = await query(
-      `SELECT * FROM members WHERE tenant_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-      [effectiveTenantId, limit, offset]
-    );
-  } else {
-    rows = await query(
-      `SELECT * FROM members ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-      [limit, offset]
-    );
-  }
+  const rows = await query(
+    `SELECT * FROM members WHERE tenant_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    [effectiveTenantId, limit, offset]
+  );
   return rows.map((r) => mapMemberRowBankCard(r) as (typeof rows)[number]);
 }
 
 export async function getMemberByIdRepository(id: string, tenantId: string | undefined) {
-  let row;
-  if (tenantId) {
-    row = await queryOne(`SELECT * FROM members WHERE id = ? AND tenant_id = ?`, [id, tenantId]);
-  } else {
-    row = await queryOne(`SELECT * FROM members WHERE id = ?`, [id]);
-  }
+  const row = tenantId
+    ? await queryOne(`SELECT * FROM members WHERE id = ? AND tenant_id = ?`, [id, tenantId])
+    : await queryOne(`SELECT * FROM members WHERE id = ?`, [id]);
   if (!row) throw Object.assign(new Error('Not found'), { code: 'PGRST116' });
   return mapMemberRowBankCard(row as Record<string, unknown>) as typeof row;
 }

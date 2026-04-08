@@ -382,11 +382,12 @@ export async function deleteMemberRepository(id: string, tenantId: string): Prom
 }
 
 /** 管理端重置会员登录密码 */
-export async function updateMemberPasswordHashByMemberId(memberId: string, passwordHash: string): Promise<number> {
-  const result = await execute(
-    'UPDATE members SET password_hash = ?, must_change_password = 1, updated_at = NOW() WHERE id = ?',
-    [passwordHash, memberId],
-  );
+export async function updateMemberPasswordHashByMemberId(memberId: string, passwordHash: string, tenantId?: string | null): Promise<number> {
+  const sql = tenantId
+    ? 'UPDATE members SET password_hash = ?, must_change_password = 1, updated_at = NOW() WHERE id = ? AND tenant_id = ?'
+    : 'UPDATE members SET password_hash = ?, must_change_password = 1, updated_at = NOW() WHERE id = ?';
+  const params: unknown[] = tenantId ? [passwordHash, memberId, tenantId] : [passwordHash, memberId];
+  const result = await execute(sql, params);
   return result.affectedRows ?? 0;
 }
 

@@ -3,6 +3,7 @@
  */
 import type { Request, Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
+import { queryOne } from '../../database/index.js';
 import {
   getMemberPointsService,
   getMemberPointsBreakdownService,
@@ -15,20 +16,31 @@ import {
   postReverseOnOrderCancelService,
 } from './writeService.js';
 
-export async function getMemberPointsController(req: Request, res: Response): Promise<void> {
+async function assertMemberAccess(req: AuthenticatedRequest, memberId: string): Promise<boolean> {
+  if (req.user?.type === 'member') return req.user.id === memberId;
+  if (req.user?.is_platform_super_admin) return true;
+  if (!req.user?.tenant_id) return false;
+  const row = await queryOne<{ tenant_id: string | null }>('SELECT tenant_id FROM members WHERE id = ? LIMIT 1', [memberId]);
+  return row?.tenant_id === req.user.tenant_id;
+}
+
+export async function getMemberPointsController(req: AuthenticatedRequest, res: Response): Promise<void> {
   const { memberId } = req.params;
+  if (!(await assertMemberAccess(req, memberId))) { res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'No access to this member' } }); return; }
   const result = await getMemberPointsService(memberId);
   res.json({ success: true, data: result });
 }
 
-export async function getMemberPointsBreakdownController(req: Request, res: Response): Promise<void> {
+export async function getMemberPointsBreakdownController(req: AuthenticatedRequest, res: Response): Promise<void> {
   const { memberId } = req.params;
+  if (!(await assertMemberAccess(req, memberId))) { res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'No access to this member' } }); return; }
   const result = await getMemberPointsBreakdownService(memberId);
   res.json({ success: true, data: result });
 }
 
-export async function getMemberSpinQuotaController(req: Request, res: Response): Promise<void> {
+export async function getMemberSpinQuotaController(req: AuthenticatedRequest, res: Response): Promise<void> {
   const { memberId } = req.params;
+  if (!(await assertMemberAccess(req, memberId))) { res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'No access to this member' } }); return; }
   const result = await getMemberSpinQuotaService(memberId);
   res.json({ success: true, data: result });
 }

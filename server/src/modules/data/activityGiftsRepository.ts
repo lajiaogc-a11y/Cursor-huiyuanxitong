@@ -97,7 +97,13 @@ export async function deleteActivityGiftRepository(
     return { gift: null, restored_points: 0 };
   }
 
-  const deleteResult = await execute(`DELETE FROM activity_gifts WHERE id = ?`, [giftId]);
+  const delConditions = ['id = ?'];
+  const delArgs: unknown[] = [giftId];
+  if (tenantId) {
+    delConditions.push(buildActivityGiftTenantCondition());
+    delArgs.push(tenantId, tenantId);
+  }
+  const deleteResult = await execute(`DELETE FROM activity_gifts WHERE ${delConditions.join(' AND ')}`, delArgs);
   if (deleteResult.affectedRows === 0) {
     return { gift: null, restored_points: 0 };
   }

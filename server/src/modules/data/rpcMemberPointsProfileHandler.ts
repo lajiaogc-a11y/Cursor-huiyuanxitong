@@ -20,7 +20,12 @@ export async function handleRpcMemberPointsProfileGroup(ctx: RpcCtx): Promise<Rp
         result = { success: false, error: 'INVALID_PARAMS' };
         break;
       }
-      await execute('UPDATE members SET nickname = ? WHERE id = ?', [params.p_nickname, memberId]);
+      const tid1 = req.user?.tenant_id ?? null;
+      if (tid1) {
+        await execute('UPDATE members SET nickname = ? WHERE id = ? AND tenant_id = ?', [params.p_nickname, memberId, tid1]);
+      } else {
+        await execute('UPDATE members SET nickname = ? WHERE id = ?', [params.p_nickname, memberId]);
+      }
       result = { success: true };
       break;
     }
@@ -32,12 +37,16 @@ export async function handleRpcMemberPointsProfileGroup(ctx: RpcCtx): Promise<Rp
         break;
       }
       const avatarUrl = params.p_avatar_url != null ? String(params.p_avatar_url).trim() : null;
-      // 限制 data URL 大小 ≤ 200KB（压缩后 WebP / JPEG）
       if (avatarUrl && avatarUrl.length > 200_000) {
         result = { success: false, error: 'AVATAR_TOO_LARGE' };
         break;
       }
-      await execute('UPDATE members SET avatar_url = ? WHERE id = ?', [avatarUrl || null, memberId]);
+      const tid2 = req.user?.tenant_id ?? null;
+      if (tid2) {
+        await execute('UPDATE members SET avatar_url = ? WHERE id = ? AND tenant_id = ?', [avatarUrl || null, memberId, tid2]);
+      } else {
+        await execute('UPDATE members SET avatar_url = ? WHERE id = ?', [avatarUrl || null, memberId]);
+      }
       result = { success: true };
       break;
     }

@@ -3,6 +3,7 @@
  */
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
+import { queryOne } from '../../database/index.js';
 import { logger } from '../../lib/logger.js';
 import {
   createPointOrder,
@@ -47,6 +48,11 @@ export async function createPointOrderController(req: AuthenticatedRequest, res:
       points_cost: number;
       client_request_id?: string;
     };
+
+    if (req.user?.type === 'member' && req.user.id !== body.member_id) {
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Cannot create order for another member' } });
+      return;
+    }
 
     const order = await createPointOrder({
       memberId: body.member_id,
@@ -185,6 +191,16 @@ export async function getPointOrderController(req: AuthenticatedRequest, res: Re
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found' } });
       return;
     }
+    if (req.user?.type === 'member' && order.member_id !== req.user.id) {
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'No access to this order' } });
+      return;
+    }
+    if (req.user?.type !== 'member' && req.user?.tenant_id && !req.user?.is_platform_super_admin) {
+      if (order.tenant_id !== req.user.tenant_id) {
+        res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'No access to this order' } });
+        return;
+      }
+    }
     res.json({ success: true, data: order });
   } catch (e: unknown) {
     logger.error('point-order', 'get', e);
@@ -197,6 +213,12 @@ export async function getPointOrderController(req: AuthenticatedRequest, res: Re
 export async function getMemberFrozenPointsController(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const { memberId } = req.params;
+    if (req.user?.type === 'member') {
+      if (req.user.id !== memberId) { res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'No access to this member' } }); return; }
+    } else if (!req.user?.is_platform_super_admin && req.user?.tenant_id) {
+      const row = await queryOne<{ tenant_id: string | null }>('SELECT tenant_id FROM members WHERE id = ? LIMIT 1', [memberId]);
+      if (row?.tenant_id !== req.user.tenant_id) { res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'No access to this member' } }); return; }
+    }
     const frozen = await getMemberFrozenPoints(memberId);
     res.json({ success: true, data: { frozen_points: frozen } });
   } catch (e: unknown) {

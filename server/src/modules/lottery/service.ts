@@ -180,8 +180,8 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
         conn,
         `SELECT id, prize_id, prize_name, prize_type, prize_value, reward_status,
                 COALESCE(reward_points, 0) AS reward_points, fail_reason
-         FROM lottery_logs WHERE request_id = ? LIMIT 1`,
-        [requestId],
+         FROM lottery_logs WHERE request_id = ? AND member_id = ? LIMIT 1`,
+        [requestId, memberId],
       );
       if (dup) {
         const quotaRow = await queryOneConn<{ remaining: number }>(

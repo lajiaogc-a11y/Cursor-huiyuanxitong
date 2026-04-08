@@ -342,10 +342,12 @@ export async function softDeleteLedgerEntry(input: {
   operator_name?: string | null;
   tenant_id?: string | null;
 }): Promise<unknown | null> {
+  const tenantFilter = input.tenant_id ? 'AND (tenant_id IS NULL OR tenant_id = ?)' : '';
+  const tenantArgs = input.tenant_id ? [input.tenant_id] : [];
   const rows = await query<Record<string, unknown>>(
     `SELECT * FROM ledger_transactions WHERE source_type = ? AND source_id = ? AND account_type = ? AND account_id = ?
-     AND (is_active = 1 OR is_active IS NULL) ORDER BY created_at DESC`,
-    [input.source_type, input.source_id, input.account_type, input.account_id]
+     AND (is_active = 1 OR is_active IS NULL) ${tenantFilter} ORDER BY created_at DESC`,
+    [input.source_type, input.source_id, input.account_type, input.account_id, ...tenantArgs]
   );
   const target = rows[0];
   if (!target) return null;
@@ -495,8 +497,12 @@ export async function reverseInitialBalanceEntry(input: {
   });
 }
 
-export async function deleteLedgerForAccount(accountType: string, accountId: string): Promise<void> {
-  await execute(`DELETE FROM ledger_transactions WHERE account_type = ? AND account_id = ?`, [accountType, accountId]);
+export async function deleteLedgerForAccount(accountType: string, accountId: string, tenantId?: string | null): Promise<void> {
+  if (tenantId) {
+    await execute(`DELETE FROM ledger_transactions WHERE account_type = ? AND account_id = ? AND (tenant_id IS NULL OR tenant_id = ?)`, [accountType, accountId, tenantId]);
+  } else {
+    await execute(`DELETE FROM ledger_transactions WHERE account_type = ? AND account_id = ?`, [accountType, accountId]);
+  }
 }
 
 /** 获取 ledger 权威余额（对外 API） */

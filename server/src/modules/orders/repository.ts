@@ -130,7 +130,7 @@ export async function createOrderRepository(record: Record<string, unknown>) {
 }
 
 /** 更新订单 points_status, order_points */
-export async function updateOrderPointsRepository(orderId: string, updates: { points_status?: string; order_points?: number }) {
+export async function updateOrderPointsRepository(orderId: string, updates: { points_status?: string; order_points?: number }, tenantId?: string | null) {
   const setClauses: string[] = [];
   const params: any[] = [];
 
@@ -145,12 +145,19 @@ export async function updateOrderPointsRepository(orderId: string, updates: { po
 
   if (setClauses.length === 0) return null;
 
-  params.push(orderId);
-  await execute(
-    `UPDATE orders SET ${setClauses.join(', ')} WHERE id = ?`,
-    params
-  );
+  if (tenantId) {
+    params.push(orderId, tenantId);
+    await execute(
+      `UPDATE orders SET ${setClauses.join(', ')} WHERE id = ? AND tenant_id = ?`,
+      params
+    );
+  } else {
+    params.push(orderId);
+    await execute(
+      `UPDATE orders SET ${setClauses.join(', ')} WHERE id = ?`,
+      params
+    );
+  }
 
-  // 更新后查询返回完整记录，与原接口兼容
   return queryOne(`SELECT * FROM orders WHERE id = ?`, [orderId]);
 }

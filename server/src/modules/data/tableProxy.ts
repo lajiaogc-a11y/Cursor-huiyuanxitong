@@ -28,10 +28,8 @@ export async function rpcProxyController(req: AuthenticatedRequest, res: Respons
   const fn = String(fnName || '').trim().toLowerCase().replace(/-/g, '_');
   const params = req.body || {};
   const userId = req.user?.id;
-  // 支持管理员 / 平台超管通过 p_tenant_id 指定租户（查看其他租户数据）
   const isAdmin = req.user?.role === 'admin' || req.user?.is_super_admin;
-  const canSelectTenantByParam =
-    req.user?.role === 'admin' || req.user?.is_super_admin || req.user?.is_platform_super_admin;
+  const canSelectTenantByParam = !!req.user?.is_platform_super_admin;
   const tenantId =
     canSelectTenantByParam && params.p_tenant_id ? String(params.p_tenant_id) : req.user?.tenant_id;
 

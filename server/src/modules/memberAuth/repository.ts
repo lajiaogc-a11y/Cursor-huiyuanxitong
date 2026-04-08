@@ -41,7 +41,7 @@ export async function verifyMemberPasswordRepository(
   phone: string,
   password: string
 ): Promise<{ success: boolean; error?: string; member?: MemberInfo }> {
-  const row = await queryOne<{
+  const rows = await query<{
     id: string; member_code: string; phone_number: string;
     nickname: string | null; member_level: string | null;
     current_level_id: string | null;
@@ -61,17 +61,20 @@ export async function verifyMemberPasswordRepository(
             COALESCE((SELECT SUM(sc.amount) FROM spin_credits sc WHERE sc.member_id = members.id AND sc.source IN ('referral','invite_welcome')), 0) AS invite_lifetime_reward_spins,
             COALESCE(lifetime_reward_points_earned, 0) AS lifetime_reward_points_earned,
             COALESCE(total_points, 0) AS total_points
-     FROM members WHERE phone_number = ? OR member_code = ? LIMIT 1`,
+     FROM members WHERE phone_number = ? OR member_code = ? ORDER BY created_at DESC LIMIT 10`,
     [phone.trim(), phone.trim()]
   );
-  if (!row) {
+  if (!rows || rows.length === 0) {
     return { success: false, error: 'MEMBER_NOT_FOUND' };
   }
-  if (!row.password_hash) {
-    return { success: false, error: 'NO_PASSWORD_SET' };
+  let row: typeof rows[0] | null = null;
+  for (const candidate of rows) {
+    if (!candidate.password_hash) continue;
+    if (await bcrypt.compare(password, candidate.password_hash)) { row = candidate; break; }
   }
-  const match = await bcrypt.compare(password, row.password_hash);
-  if (!match) {
+  if (!row) {
+    const hasAnyPassword = rows.some(r => !!r.password_hash);
+    if (!hasAnyPassword) return { success: false, error: 'NO_PASSWORD_SET' };
     return { success: false, error: 'WRONG_PASSWORD' };
   }
   const member_level_zh = await resolveLevelNameZhForMember(row.tenant_id, row.current_level_id, row.member_level);

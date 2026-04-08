@@ -203,10 +203,12 @@ function buildOrderPatch(b: Record<string, unknown>): Record<string, unknown> {
   return patch;
 }
 
-async function resolveMemberIdByPhone(phone: string): Promise<string | null> {
+async function resolveMemberIdByPhone(phone: string, tenantId?: string | null): Promise<string | null> {
   const p = String(phone || '').trim();
   if (!p) return null;
-  const row = await queryOne<{ id: string }>(`SELECT id FROM members WHERE phone_number = ? LIMIT 1`, [p]);
+  const tenantSql = tenantId ? ' AND tenant_id = ?' : '';
+  const args: unknown[] = tenantId ? [p, tenantId] : [p];
+  const row = await queryOne<{ id: string }>(`SELECT id FROM members WHERE phone_number = ?${tenantSql} LIMIT 1`, args);
   return row?.id ?? null;
 }
 
@@ -581,8 +583,9 @@ export async function restoreReferralFromAuditController(req: AuthenticatedReque
   const n = normalizeKeys(before);
   const refPhone = String(n.referrer_phone ?? '').trim();
   const refePhone = String(n.referee_phone ?? '').trim();
-  const referrerId = await resolveMemberIdByPhone(refPhone);
-  const refereeId = await resolveMemberIdByPhone(refePhone);
+  const callerTenant = req.user?.tenant_id ?? null;
+  const referrerId = await resolveMemberIdByPhone(refPhone, callerTenant);
+  const refereeId = await resolveMemberIdByPhone(refePhone, callerTenant);
   if (!referrerId || !refereeId) {
     res.status(400).json({
       success: false,

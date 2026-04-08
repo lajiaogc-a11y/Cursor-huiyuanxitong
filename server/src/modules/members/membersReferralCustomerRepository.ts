@@ -7,19 +7,7 @@ import { lookupMemberForReferralRepository } from './membersQueryRepository.js';
 import { resolveLevelNameZhForMember } from '../memberLevels/repository.js';
 
 export async function listReferralsRepository(tenantId?: string | null) {
-  if (tenantId) {
-    return query(
-      `SELECT
-         COALESCE(rr.referrer_phone, ref_m.phone_number) AS referrer_phone,
-         COALESCE(rr.referrer_member_code, ref_m.member_code) AS referrer_member_code,
-         COALESCE(rr.referee_phone, ree_m.phone_number) AS referee_phone
-       FROM referral_relations rr
-       LEFT JOIN members ree_m ON ree_m.id = rr.referee_id
-       LEFT JOIN members ref_m ON ref_m.id = rr.referrer_id
-       WHERE ree_m.tenant_id = ?`,
-      [tenantId]
-    );
-  }
+  if (!tenantId) return [];
   return query(
     `SELECT
        COALESCE(rr.referrer_phone, ref_m.phone_number) AS referrer_phone,
@@ -27,7 +15,9 @@ export async function listReferralsRepository(tenantId?: string | null) {
        COALESCE(rr.referee_phone, ree_m.phone_number) AS referee_phone
      FROM referral_relations rr
      LEFT JOIN members ree_m ON ree_m.id = rr.referee_id
-     LEFT JOIN members ref_m ON ref_m.id = rr.referrer_id`
+     LEFT JOIN members ref_m ON ref_m.id = rr.referrer_id
+     WHERE ree_m.tenant_id = ?`,
+    [tenantId]
   );
 }
 
@@ -45,12 +35,8 @@ export async function getReferrerByRefereePhoneRepository(
        WHERE (rr.referee_phone = ? OR rr.referee_phone = ?)
          AND ree_m.tenant_id = ?
        LIMIT 1`
-    : `SELECT COALESCE(rr.referrer_phone, ref_m.phone_number) AS referrer_phone,
-              COALESCE(rr.referrer_member_code, ref_m.member_code) AS referrer_member_code
-       FROM referral_relations rr
-       LEFT JOIN members ref_m ON ref_m.id = rr.referrer_id
-       WHERE (rr.referee_phone = ? OR rr.referee_phone = ?)
-       LIMIT 1`;
+    : null;
+  if (!sql) return null;
   const params = tenantId
     ? [refereePhone, normalized, tenantId]
     : [refereePhone, normalized];

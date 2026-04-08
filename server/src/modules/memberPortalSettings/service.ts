@@ -911,7 +911,7 @@ export async function getDefaultPortalSettingsPublic(): Promise<GetSettingsResul
 
 export async function getPortalSettingsByAccount(account: string): Promise<GetSettingsResult> {
   const member = await queryOne<{ tenant_id: string }>(
-    `SELECT tenant_id FROM members WHERE phone_number = ? OR member_code = ? LIMIT 1`,
+    `SELECT tenant_id FROM members WHERE (phone_number = ? OR member_code = ?) AND tenant_id IS NOT NULL ORDER BY created_at DESC LIMIT 1`,
     [account, account]
   );
   if (!member?.tenant_id) {
@@ -1015,12 +1015,8 @@ export async function listSpinWheelPrizesForMember(memberId: string) {
   const member = await queryOne<{ tenant_id: string }>('SELECT tenant_id FROM members WHERE id = ? LIMIT 1', [memberId]);
   const tenantId = member?.tenant_id;
 
-  let items: Record<string, unknown>[];
-  if (tenantId) {
-    items = await query('SELECT * FROM member_spin_wheel_prizes WHERE tenant_id = ? ORDER BY sort_order ASC', [tenantId]);
-  } else {
-    items = await query('SELECT * FROM member_spin_wheel_prizes ORDER BY sort_order ASC LIMIT 10');
-  }
+  if (!tenantId) return { success: true, items: [] };
+  const items = await query('SELECT * FROM member_spin_wheel_prizes WHERE tenant_id = ? ORDER BY sort_order ASC', [tenantId]);
   return { success: true, items };
 }
 
