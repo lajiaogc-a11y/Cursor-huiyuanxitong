@@ -192,7 +192,7 @@ export default function LedgerTransactionContent({
     try {
       await recalculateLedgerRunningBalances({ accountType, accountId: accountName });
       await loadTransactions();
-      const result = await reconcileAccount(accountType, accountName);
+      const result = await reconcileAccount(accountType, accountName, realTimeBalance);
       setReconcileResult(result);
       if (result && result.discrepancy < 0.01) {
         notify.success(t('对账结果: 余额一致 ✓', 'Reconciliation: Balance matches ✓'));
