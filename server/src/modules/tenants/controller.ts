@@ -98,7 +98,7 @@ export async function deleteTenantController(req: AuthenticatedRequest, res: Res
     password: body.password ?? '',
   });
   if (!result.success) {
-    const status = result.errorCode === 'FORBIDDEN' ? 403 : result.errorCode === 'INVALID_PASSWORD' ? 401 : 400;
+    const status = result.errorCode === 'FORBIDDEN' ? 403 : 400;
     res.status(status).json({ success: false, error: { code: result.errorCode ?? 'UNKNOWN', message: result.message ?? 'Delete tenant failed' } });
     return;
   }

@@ -401,13 +401,10 @@ export async function deleteTenantRepository(input: {
     );
     await conn.query(
       `DELETE FROM points_ledger
-       WHERE order_id IN (
-         SELECT o.id
-         FROM orders o
-         WHERE o.creator_id IN (SELECT id FROM employees WHERE tenant_id = ?)
-            OR o.sales_user_id IN (SELECT id FROM employees WHERE tenant_id = ?)
-       )`,
-      [input.tenantId, input.tenantId]
+       WHERE order_id IN (SELECT id FROM orders WHERE tenant_id = ?)
+          OR member_id IN (SELECT id FROM members WHERE tenant_id = ?)
+          OR creator_id IN (SELECT id FROM employees WHERE tenant_id = ?)`,
+      [input.tenantId, input.tenantId, input.tenantId]
     );
     try {
       await conn.query(
@@ -416,53 +413,27 @@ export async function deleteTenantRepository(input: {
       );
     } catch { /* table may not exist yet */ }
     await conn.query(
-      `DELETE FROM orders
-       WHERE creator_id IN (SELECT id FROM employees WHERE tenant_id = ?)
-          OR sales_user_id IN (SELECT id FROM employees WHERE tenant_id = ?)`,
-      [input.tenantId, input.tenantId]
-    );
-    // member_activity for doomed members
-    await conn.query(
       `DELETE ma FROM member_activity ma
        INNER JOIN members m ON m.id = ma.member_id
-       WHERE m.creator_id IN (SELECT id FROM employees WHERE tenant_id = ?)
-          OR m.recorder_id IN (SELECT id FROM employees WHERE tenant_id = ?)`,
-      [input.tenantId, input.tenantId]
+       WHERE m.tenant_id = ?`,
+      [input.tenantId]
     );
-    // activity_gifts for doomed members
     await conn.query(
       `DELETE ag FROM activity_gifts ag
        INNER JOIN members m ON m.id = ag.member_id
-       WHERE m.creator_id IN (SELECT id FROM employees WHERE tenant_id = ?)
-          OR m.recorder_id IN (SELECT id FROM employees WHERE tenant_id = ?)`,
-      [input.tenantId, input.tenantId]
-    );
-    // points_ledger for doomed members
-    await conn.query(
-      `DELETE pl FROM points_ledger pl
-       INNER JOIN members m ON m.id = pl.member_id
-       WHERE m.creator_id IN (SELECT id FROM employees WHERE tenant_id = ?)
-          OR m.recorder_id IN (SELECT id FROM employees WHERE tenant_id = ?)`,
-      [input.tenantId, input.tenantId]
-    );
-    // unlink orders from doomed members
-    await conn.query(
-      `UPDATE orders o
-       INNER JOIN members m ON m.id = o.member_id
-       SET o.member_id = null
-       WHERE m.creator_id IN (SELECT id FROM employees WHERE tenant_id = ?)
-          OR m.recorder_id IN (SELECT id FROM employees WHERE tenant_id = ?)`,
-      [input.tenantId, input.tenantId]
+       WHERE m.tenant_id = ?`,
+      [input.tenantId]
     );
     await conn.query(
-      `DELETE FROM members
-       WHERE creator_id IN (SELECT id FROM employees WHERE tenant_id = ?)
-          OR recorder_id IN (SELECT id FROM employees WHERE tenant_id = ?)`,
-      [input.tenantId, input.tenantId]
+      `UPDATE orders SET member_id = null WHERE tenant_id = ? AND member_id IS NOT NULL`,
+      [input.tenantId]
     );
     await conn.query(
-      `DELETE FROM points_ledger
-       WHERE creator_id IN (SELECT id FROM employees WHERE tenant_id = ?)`,
+      `DELETE FROM orders WHERE tenant_id = ?`,
+      [input.tenantId]
+    );
+    await conn.query(
+      `DELETE FROM members WHERE tenant_id = ?`,
       [input.tenantId]
     );
 

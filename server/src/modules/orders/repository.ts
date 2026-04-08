@@ -9,21 +9,17 @@ import { ensureOrderNumberForInsert } from './orderNumber.js';
 export type MeikaZoneKind = 'fiat' | 'usdt';
 
 export async function listOrdersRepository(tenantId?: string | null, limit = 50) {
-  if (tenantId) {
-    return query(
-      `SELECT * FROM orders WHERE tenant_id = ? ORDER BY created_at DESC LIMIT ?`,
-      [tenantId, limit]
-    );
-  }
+  if (!tenantId) return [];
   return query(
-    `SELECT * FROM orders ORDER BY created_at DESC LIMIT ?`,
-    [limit]
+    `SELECT * FROM orders WHERE tenant_id = ? ORDER BY created_at DESC LIMIT ?`,
+    [tenantId, limit]
   );
 }
 
-/** 直接查询订单（JWT 认证时使用）。tenantId 有值时按租户过滤，无值时返回全部。
+/** 直接查询订单（JWT 认证时使用）。tenantId 必须有值；无值时返回空数组防止跨租户泄漏。
  *  LEFT JOIN members 表补全缺失的 phone_number / member_code */
 async function getOrdersFullByTenantRepository(tenantId: string | undefined, excludeUsdt: boolean): Promise<any[]> {
+  if (!tenantId) return [];
   const conditions: string[] = ['(o.is_deleted IS NULL OR o.is_deleted = false)'];
   const params: any[] = [];
 
@@ -33,10 +29,8 @@ async function getOrdersFullByTenantRepository(tenantId: string | undefined, exc
     conditions.push(`o.currency = 'USDT'`);
   }
 
-  if (tenantId) {
-    conditions.push(`o.tenant_id = ?`);
-    params.push(tenantId);
-  }
+  conditions.push(`o.tenant_id = ?`);
+  params.push(tenantId);
 
   const sql = `SELECT o.*,
     COALESCE(o.phone_number, m.phone_number) AS phone_number,
@@ -60,16 +54,14 @@ export async function getUsdtOrdersFullRepository(_token: string, tenantId?: str
 
 /** 美卡专区 · 赛地/奈拉：仅含 meika_zone_order_links.kind=fiat 的订单（与 full 同结构） */
 export async function getMeikaFiatOrdersFullRepository(_token: string, tenantId?: string): Promise<any[]> {
+  if (!tenantId) return [];
   const conditions: string[] = [
     '(o.is_deleted IS NULL OR o.is_deleted = false)',
     `(o.currency IS NULL OR o.currency != 'USDT')`,
     `mz.kind = 'fiat'`,
+    `o.tenant_id = ?`,
   ];
-  const params: any[] = [];
-  if (tenantId) {
-    conditions.push(`o.tenant_id = ?`);
-    params.push(tenantId);
-  }
+  const params: any[] = [tenantId];
   const sql = `SELECT o.*,
     COALESCE(o.phone_number, m.phone_number) AS phone_number,
     COALESCE(o.member_code_snapshot, m.member_code) AS member_code_snapshot
@@ -83,16 +75,14 @@ export async function getMeikaFiatOrdersFullRepository(_token: string, tenantId?
 
 /** 美卡专区 · USDT：仅含 meika_zone_order_links.kind=usdt 的订单 */
 export async function getMeikaUsdtOrdersFullRepository(_token: string, tenantId?: string): Promise<any[]> {
+  if (!tenantId) return [];
   const conditions: string[] = [
     '(o.is_deleted IS NULL OR o.is_deleted = false)',
     `o.currency = 'USDT'`,
     `mz.kind = 'usdt'`,
+    `o.tenant_id = ?`,
   ];
-  const params: any[] = [];
-  if (tenantId) {
-    conditions.push(`o.tenant_id = ?`);
-    params.push(tenantId);
-  }
+  const params: any[] = [tenantId];
   const sql = `SELECT o.*,
     COALESCE(o.phone_number, m.phone_number) AS phone_number,
     COALESCE(o.member_code_snapshot, m.member_code) AS member_code_snapshot

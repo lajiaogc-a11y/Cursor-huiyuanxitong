@@ -1,4 +1,4 @@
-import { apiPost } from "@/api/client";
+import { apiPost, ApiError } from "@/api/client";
 import { fail, getErrorMessage, ok, ServiceResult } from "@/services/serviceResult";
 import { listMembersApi } from "@/services/members/membersApiService";
 import { listEmployeesApi } from "@/api/employees";
@@ -479,7 +479,20 @@ export async function setTenantSuperAdmin(employeeId: string): Promise<{ success
   return { success: true };
 }
 
+const API_CODE_TO_SERVICE_CODE: Record<string, Parameters<typeof fail>[0]> = {
+  TENANT_HAS_DATA: "TENANT_HAS_DATA",
+  INVALID_PASSWORD: "INVALID_PASSWORD",
+  CANNOT_DELETE_PLATFORM: "CANNOT_DELETE_PLATFORM",
+  TENANT_NOT_FOUND: "TENANT_NOT_FOUND",
+  ADMIN_NOT_FOUND: "ADMIN_NOT_FOUND",
+  FORBIDDEN: "NO_PERMISSION",
+};
+
 function mapTenantError(error: unknown) {
+  if (error instanceof ApiError) {
+    const mapped = API_CODE_TO_SERVICE_CODE[error.code];
+    if (mapped) return fail(mapped, error.message, "TENANT", error);
+  }
   const message = getErrorMessage(error);
   if (message.includes("MULTI_TENANT_NOT_READY")) {
     return fail("MULTI_TENANT_NOT_READY", "Multi-tenant module not ready", "TENANT", error);

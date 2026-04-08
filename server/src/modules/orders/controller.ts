@@ -13,10 +13,10 @@ import {
   updateOrderPointsService,
 } from './service.js';
 
-function resolveTenantId(req: AuthenticatedRequest, requestedTenantId?: string | null, allowPlatformAll = false) {
+function resolveTenantId(req: AuthenticatedRequest, requestedTenantId?: string | null, _allowPlatformAll = false) {
   if (req.user?.is_platform_super_admin) {
     if (requestedTenantId) return requestedTenantId;
-    return allowPlatformAll ? undefined : undefined;
+    return req.user.tenant_id ?? undefined;
   }
   return req.user?.tenant_id ?? undefined;
 }
