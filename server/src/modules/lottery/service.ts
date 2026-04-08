@@ -24,6 +24,11 @@ import { pickLotteryPrizeByConfiguredProbability, budgetAwarePrizePick, type Bud
 import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
 import { ensureMemberActivityRowForLotteryConn, addSpinConn } from './spinBalanceAccount.js';
 import { evaluateDrawRisk, loadRiskThresholds, recordDrawBurst, checkHardBehavioralLimit, type RiskResult } from './riskControl.js';
+import {
+  resolvePrizeBudgetCost,
+  SQL_LOTTERY_LOG_EFFECTIVE_BUDGET_COST,
+  SQL_LOTTERY_LOG_POINTS_ISSUED_COST,
+} from './budgetCost.js';
 
 // ── 内存防抖（热路径快速拦截，DB 行为幂等是真正保障）──
 const recentDraws = new Map<string, number>();
@@ -112,7 +117,7 @@ async function execConn(conn: PoolConnection, sql: string, params?: any[]): Prom
  *  8. 扣减配额
  *  9. 写抽奖日志 reward_status='pending'
  * 10. 积分类奖品发放 → 更新 reward_status
- * 11. 事务内更新 daily_reward_used
+ * 11. 事务内更新 daily_reward_used（与 prize_cost 落库一致；无预算上限时亦累计，供展示与对账）
  * 12. 提交事务
  */
 export async function draw(memberId: string, requestIdOrOpts?: string | DrawOptions): Promise<DrawResult> {
@@ -250,9 +255,9 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
     }
 
     const today = getShanghaiDateString();
+    const dayStart = `${today} 00:00:00`;
 
-    // ── 3. 每日预算自动重置 ──
-    let budgetUsed = Number(settingsRow?.daily_reward_used ?? 0);
+    // ── 3. 每日预算自动重置 + 当日已用以 lottery_logs 汇总为准（避免 settings 列漏计导致「已发奖已用仍为 0」）──
     const rawBudgetCap = Number(settingsRow?.daily_reward_budget ?? 0);
     const targetRtp = Number(settingsRow?.target_rtp ?? 0);
     const policy = parseBudgetPolicy(settingsRow?.budget_policy);
@@ -263,8 +268,18 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
         'UPDATE lottery_settings SET daily_reward_used = 0, daily_reward_reset_date = ? WHERE tenant_id <=> ?',
         [today, tenantId],
       );
-      budgetUsed = 0;
     }
+
+    const usedRow = await queryOneConn<{ t: number }>(
+      conn,
+      `SELECT COALESCE(SUM(${SQL_LOTTERY_LOG_POINTS_ISSUED_COST}), 0) AS t
+       FROM lottery_logs
+       WHERE tenant_id <=> ?
+         AND created_at >= ?
+         AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
+      [tenantId, dayStart, dayStart],
+    );
+    let budgetUsed = Number(usedRow?.t ?? 0);
 
     // ── RTP 有效预算：基于今日订单产生的积分 × RTP% ──
     // target_rtp 表示"从今日订单产生的积分中，拿出百分之多少作为抽奖发放额度"
@@ -419,7 +434,7 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
 
     // ── 9. 写抽奖日志（Phase 5: draw_status 状态机 + 审计日志）──
     const logId = randomUUID();
-    const finalCost = Number(hit.prize_cost ?? 0);
+    const budgetCost = resolvePrizeBudgetCost(hit);
     const rewardType = classifyRewardType(hit);
     await execConn(conn,
       `INSERT INTO lottery_logs
@@ -427,13 +442,13 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
          request_id, reward_status, reward_type, prize_cost, client_ip, device_fingerprint, draw_status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, 'completed')`,
       [logId, memberId, tenantId, hit.id, hit.name, hit.type, hit.value,
-       requestId ?? null, rewardType, finalCost, clientIp ?? null, deviceFingerprint ?? null]
+       requestId ?? null, rewardType, budgetCost, clientIp ?? null, deviceFingerprint ?? null]
     );
 
     // 审计：draw_complete
     await writeAuditTrail(conn, {
       logId, memberId, action: 'draw_complete', fromStatus: null, toStatus: 'completed',
-      detail: { prizeId: hit.id, prizeName: hit.name, prizeType: hit.type, prizeValue: hit.value, cost: finalCost, requestId: requestId ?? null, riskDowngrade: riskDowngrade || false },
+      detail: { prizeId: hit.id, prizeName: hit.name, prizeType: hit.type, prizeValue: hit.value, cost: budgetCost, requestId: requestId ?? null, riskDowngrade: riskDowngrade || false },
       clientIp: clientIp ?? null,
     });
 
@@ -465,12 +480,15 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
       });
     }
 
-    // ── 12. 事务内更新每日预算消耗 ──
-    if (budgetEnabled && finalCost > 0 && reward.status === 'done') {
-      await execConn(conn,
-        'UPDATE lottery_settings SET daily_reward_used = COALESCE(daily_reward_used, 0) + ? WHERE tenant_id <=> ?',
-        [finalCost, tenantId],
-      );
+    // ── 12. 事务内同步 lottery_settings.daily_reward_used：仅累计「积分类实际发放」与业务/仪表盘「积分成本」一致（custom/none 不计入）──
+    if (hit.type === 'points' && reward.status === 'done') {
+      const ptsInc = Math.max(0, Number(reward.awardedPoints) || 0) || Math.max(0, resolvePrizeBudgetCost(hit));
+      if (ptsInc > 0) {
+        await execConn(conn,
+          'UPDATE lottery_settings SET daily_reward_used = COALESCE(daily_reward_used, 0) + ? WHERE tenant_id <=> ?',
+          [ptsInc, tenantId],
+        );
+      }
     }
 
     return {

@@ -20,6 +20,8 @@ import {
   getLotteryOperationalTodayStats,
   getLotteryOperationalRiskStats,
   countLotteryRiskBlockedToday,
+  getTodayEffectiveBudgetUsedFromLogs,
+  listOperationalCostBreakdown,
 } from './repository.js';
 import { resolveTenantIdForActivityDataList } from '../memberPortalSettings/activityDataTenant.js';
 import {
@@ -295,7 +297,13 @@ export async function adminListLogsController(req: AuthenticatedRequest, res: Re
 
 export async function adminGetSettingsController(req: AuthenticatedRequest, res: Response) {
   const tenantId = req.user?.tenant_id ?? null;
-  const settings = await getLotterySettings(tenantId);
+  const { getShanghaiDateString: getToday } = await import('../../lib/shanghaiTime.js');
+  const today = getToday();
+  const dayStart = `${today} 00:00:00`;
+  const [settings, dailyRewardUsedFromLogs] = await Promise.all([
+    getLotterySettings(tenantId),
+    getTodayEffectiveBudgetUsedFromLogs(tenantId, dayStart),
+  ]);
   res.json({
     success: true,
     daily_free_spins: settings?.daily_free_spins ?? 0,
@@ -304,7 +312,7 @@ export async function adminGetSettingsController(req: AuthenticatedRequest, res:
     order_completed_spin_enabled: Number(settings?.order_completed_spin_enabled) === 1,
     order_completed_spin_amount: Math.max(0, Math.floor(Number(settings?.order_completed_spin_amount) || 0)),
     daily_reward_budget: Number(settings?.daily_reward_budget ?? 0),
-    daily_reward_used: Number(settings?.daily_reward_used ?? 0),
+    daily_reward_used: dailyRewardUsedFromLogs,
     target_rtp: Number(settings?.target_rtp ?? 0),
     budget_policy: settings?.budget_policy ?? 'downgrade',
     risk_control_enabled: Number(settings?.risk_control_enabled) === 1,
@@ -545,16 +553,16 @@ export async function adminOperationalStatsController(req: AuthenticatedRequest,
 
   const { query: dbQuery } = await import('../../database/index.js');
 
-  const [settings, prizes, todayStats, riskStats, riskBlockedCount] = await Promise.all([
+  const [settings, prizes, todayStats, riskStats, riskBlockedCount, costBreakdown] = await Promise.all([
     getLotterySettings(tenantId),
     listEnabledPrizes(tenantId),
     getLotteryOperationalTodayStats(tenantId, dayStart),
     getLotteryOperationalRiskStats(tenantId, dayStart),
     countLotteryRiskBlockedToday(tenantId, dayStart),
+    listOperationalCostBreakdown(tenantId, dayStart, 120),
   ]);
 
   const budgetCap = Number(settings?.daily_reward_budget ?? 0);
-  const budgetUsed = Number(settings?.daily_reward_used ?? 0);
   const targetRtp = Number(settings?.target_rtp ?? 0);
   let todayOrderPoints = 0;
 
@@ -577,9 +585,12 @@ export async function adminOperationalStatsController(req: AuthenticatedRequest,
     effectiveCap = budgetCap > 0 ? Math.min(budgetCap, rtpBudget) : rtpBudget;
   }
 
-  const costToday = Number(todayStats?.cost_today ?? 0);
+  const pointsCostToday = Number(todayStats?.points_cost_today ?? 0);
+  const compositeCostToday = Number(todayStats?.composite_cost_today ?? 0);
+  /** 每日预算「已用」= 积分发放成本（与 LuckySpin 设置页 daily_reward_used 读数一致） */
+  const budgetUsed = pointsCostToday;
   const drawsToday = Number(todayStats?.draws_today ?? 0);
-  const actualRtp = todayOrderPoints > 0 ? Math.round((costToday / todayOrderPoints) * 10000) / 100 : 0;
+  const actualRtp = todayOrderPoints > 0 ? Math.round((pointsCostToday / todayOrderPoints) * 10000) / 100 : 0;
 
   const stockInfo = prizes.slice(0, 8).map((p) => ({
     id: p.id,
@@ -608,11 +619,22 @@ export async function adminOperationalStatsController(req: AuthenticatedRequest,
     },
     today: {
       draws: drawsToday,
-      cost: costToday,
-      winners: Number(todayStats?.winners_today ?? 0),
+      /** 今日成本=积分成本（与 points_cost 相同）；不得混入 composite_prize_cost */
+      cost: pointsCostToday,
+      points_cost: pointsCostToday,
+      composite_prize_cost: compositeCostToday,
       points_awarded: Number(todayStats?.points_awarded_today ?? 0),
-      avg_cost_per_draw: drawsToday > 0 ? Math.round((costToday / drawsToday) * 100) / 100 : 0,
+      winners: Number(todayStats?.winners_today ?? 0),
+      avg_points_cost_per_draw:
+        drawsToday > 0 ? Math.round((pointsCostToday / drawsToday) * 100) / 100 : 0,
+      avg_composite_cost_per_draw:
+        drawsToday > 0 ? Math.round((compositeCostToday / drawsToday) * 100) / 100 : 0,
+      /** @deprecated 使用 avg_points_cost_per_draw */
+      avg_cost_per_draw:
+        drawsToday > 0 ? Math.round((pointsCostToday / drawsToday) * 100) / 100 : 0,
     },
+    /** 当日最多 120 条：line_composite_cost=综合成本口径，line_points_cost=积分发放口径 */
+    cost_breakdown: costBreakdown,
     stock: stockInfo,
     risk: {
       enabled: Number(settings?.risk_control_enabled) === 1,

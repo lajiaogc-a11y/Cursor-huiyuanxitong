@@ -833,6 +833,19 @@ export interface OperationalStatsStockItem {
   stock_remaining: number;
 }
 
+export interface OperationalCostBreakdownRow {
+  id: string;
+  prize_name: string;
+  prize_type: string;
+  reward_status: string;
+  reward_points: number | null;
+  prize_value: number;
+  prize_cost: number;
+  line_composite_cost: number;
+  line_points_cost: number;
+  created_at: string;
+}
+
 export interface OperationalStats {
   date: string;
   budget: {
@@ -847,11 +860,19 @@ export interface OperationalStats {
   };
   today: {
     draws: number;
+    /** 今日成本（积分口径）= points_cost，不含 composite_prize_cost */
     cost: number;
+    points_cost: number;
+    composite_prize_cost: number;
     winners: number;
     points_awarded: number;
+    avg_points_cost_per_draw: number;
+    avg_composite_cost_per_draw: number;
+    /** @deprecated 使用 avg_points_cost_per_draw */
     avg_cost_per_draw: number;
   };
+  /** 当日最多 120 条：核对综合成本构成 */
+  cost_breakdown: OperationalCostBreakdownRow[];
   stock: OperationalStatsStockItem[];
   risk: {
     enabled: boolean;

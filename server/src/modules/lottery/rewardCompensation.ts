@@ -14,6 +14,7 @@
 import { withTransaction, query, queryOne, execute } from '../../database/index.js';
 import { fulfillRewardOnConn, writeAuditTrail, type RewardType } from './service.js';
 import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
+import { resolvePrizeBudgetCost } from './budgetCost.js';
 
 const MAX_AUTO_RETRY = 3;
 
@@ -155,12 +156,19 @@ export async function retryFailedRewards(tenantId: string | null, batchSize = 20
           detail: { retryCount: row.retry_count + 1, awardedPoints: result.awardedPoints, failReason: result.failReason },
         });
 
-        if (result.status === 'done' && Number(row.prize_cost) > 0) {
+        if (result.status === 'done' && row.prize_type === 'points') {
+          const ptsInc =
+            Math.max(0, Number(result.awardedPoints) || 0) ||
+            resolvePrizeBudgetCost({
+              type: row.prize_type,
+              value: row.prize_value,
+              prize_cost: row.prize_cost,
+            });
           const logDate = String(row.created_at ?? '').slice(0, 10);
-          if (logDate === getShanghaiDateString()) {
+          if (ptsInc > 0 && logDate === getShanghaiDateString()) {
             await conn.query(
               'UPDATE lottery_settings SET daily_reward_used = COALESCE(daily_reward_used, 0) + ? WHERE tenant_id <=> ?',
-              [Number(row.prize_cost), row.tenant_id],
+              [ptsInc, row.tenant_id],
             );
           }
         }
@@ -219,20 +227,7 @@ export async function confirmManualReward(
       detail: { reason: reason ?? null },
     });
 
-    if (action === 'done') {
-      const [costRows] = await conn.query(
-        'SELECT COALESCE(prize_cost, 0) AS prize_cost, tenant_id, created_at FROM lottery_logs WHERE id = ?',
-        [logId],
-      );
-      const costRow = (costRows as { prize_cost: number; tenant_id: string | null; created_at: string }[])[0];
-      const logDate = String(costRow?.created_at ?? '').slice(0, 10);
-      if (costRow && Number(costRow.prize_cost) > 0 && logDate === getShanghaiDateString()) {
-        await conn.execute(
-          'UPDATE lottery_settings SET daily_reward_used = COALESCE(daily_reward_used, 0) + ? WHERE tenant_id <=> ?',
-          [Number(costRow.prize_cost), costRow.tenant_id],
-        );
-      }
-    }
+    // custom 人工确认不累计「积分预算已用」（业务口径仅积分类发放）
   });
   return { ok: true };
 }
@@ -275,18 +270,21 @@ export async function manualRetryReward(logId: string): Promise<{ ok: boolean; e
       detail: { awardedPoints: res.awardedPoints, failReason: res.failReason },
     });
 
-    if (res.status === 'done') {
-      const [costRows] = await conn.query(
-        'SELECT COALESCE(prize_cost, 0) AS prize_cost, created_at FROM lottery_logs WHERE id = ?',
-        [logId],
-      );
-      const costRowData = (costRows as { prize_cost?: number; created_at?: string }[])[0];
-      const cost = Number(costRowData?.prize_cost ?? 0);
+    if (res.status === 'done' && row.prize_type === 'points') {
+      const ptsInc =
+        Math.max(0, Number(res.awardedPoints) || 0) ||
+        resolvePrizeBudgetCost({
+          type: row.prize_type,
+          value: row.prize_value,
+          prize_cost: row.prize_cost,
+        });
+      const [costRows] = await conn.query('SELECT created_at FROM lottery_logs WHERE id = ?', [logId]);
+      const costRowData = (costRows as { created_at?: string }[])[0];
       const logDate = String(costRowData?.created_at ?? '').slice(0, 10);
-      if (cost > 0 && logDate === getShanghaiDateString()) {
+      if (ptsInc > 0 && logDate === getShanghaiDateString()) {
         await conn.execute(
           'UPDATE lottery_settings SET daily_reward_used = COALESCE(daily_reward_used, 0) + ? WHERE tenant_id <=> ?',
-          [cost, row.tenant_id],
+          [ptsInc, row.tenant_id],
         );
       }
     }

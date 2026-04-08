@@ -10,6 +10,7 @@
 import { query, queryOne, execute } from '../../database/index.js';
 import { randomUUID } from 'crypto';
 import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
+import { SQL_LOTTERY_LOG_POINTS_ISSUED_COST } from './budgetCost.js';
 
 /* ================================================================
  *  1. 库存校正任务
@@ -154,7 +155,7 @@ export async function reconcileBudget(
     [tenantId],
   );
 
-  if (!settingsRow || settingsRow.daily_reward_budget <= 0) {
+  if (!settingsRow) {
     return { tenant_id: tenantId, date: today, drift: null, ok: true };
   }
 
@@ -164,11 +165,9 @@ export async function reconcileBudget(
     : 0;
 
   const costRow = await queryOne<{ total: number }>(
-    `SELECT COALESCE(SUM(COALESCE(prize_cost, 0)), 0) AS total
+    `SELECT COALESCE(SUM(${SQL_LOTTERY_LOG_POINTS_ISSUED_COST}), 0) AS total
      FROM lottery_logs
      WHERE tenant_id <=> ?
-       AND reward_status = 'done'
-       AND prize_type <> 'none'
        AND created_at >= ?
        AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
     [tenantId, dayStart, dayStart],

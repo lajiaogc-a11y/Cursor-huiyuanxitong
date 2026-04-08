@@ -6,6 +6,7 @@ import { query, queryOne, execute, withTransaction } from '../../database/index.
 import { randomUUID } from 'crypto';
 import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
 import { addSpinConn } from './spinBalanceAccount.js';
+import { SQL_LOTTERY_LOG_EFFECTIVE_BUDGET_COST, SQL_LOTTERY_LOG_POINTS_ISSUED_COST } from './budgetCost.js';
 
 async function queryOneConn<T = unknown>(
   conn: PoolConnection,
@@ -610,7 +611,10 @@ export async function updateMemberPortalDailyFreeSpinsPerDay(tenantId: string, d
 
 export type LotteryOperationalTodayStatsRow = {
   draws_today: number;
-  cost_today: number;
+  /** 综合奖品成本（含 custom 标价、prize_cost 等），非「纯积分」口径 */
+  composite_cost_today: number;
+  /** 积分类奖品实际发放积分累计 = 业务「积分成本」 */
+  points_cost_today: number;
   winners_today: number;
   points_awarded_today: number;
 };
@@ -622,15 +626,73 @@ export async function getLotteryOperationalTodayStats(
   return queryOne<LotteryOperationalTodayStatsRow>(
     `SELECT
          COUNT(*) AS draws_today,
-         COALESCE(SUM(CASE WHEN prize_type <> 'none' AND reward_status = 'done' THEN COALESCE(prize_cost, 0) ELSE 0 END), 0) AS cost_today,
+         COALESCE(SUM(${SQL_LOTTERY_LOG_EFFECTIVE_BUDGET_COST}), 0) AS composite_cost_today,
+         COALESCE(SUM(${SQL_LOTTERY_LOG_POINTS_ISSUED_COST}), 0) AS points_cost_today,
          SUM(CASE WHEN prize_type <> 'none' THEN 1 ELSE 0 END) AS winners_today,
-         COALESCE(SUM(CASE WHEN prize_type = 'points' AND reward_status = 'done' THEN prize_value ELSE 0 END), 0) AS points_awarded_today
+         COALESCE(SUM(${SQL_LOTTERY_LOG_POINTS_ISSUED_COST}), 0) AS points_awarded_today
        FROM lottery_logs
        WHERE tenant_id <=> ?
          AND created_at >= ?
          AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
     [tenantId, dayStart, dayStart],
   );
+}
+
+/** 当日已从 lottery_logs 汇总的「积分发放」成本（仅 points+done，与每日预算/积分口径一致） */
+export async function getTodayEffectiveBudgetUsedFromLogs(
+  tenantId: string | null,
+  dayStart: string,
+): Promise<number> {
+  const row = await queryOne<{ t: number }>(
+    `SELECT COALESCE(SUM(${SQL_LOTTERY_LOG_POINTS_ISSUED_COST}), 0) AS t
+     FROM lottery_logs
+     WHERE tenant_id <=> ?
+       AND created_at >= ?
+       AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
+    [tenantId, dayStart, dayStart],
+  );
+  return Number(row?.t ?? 0);
+}
+
+export type OperationalCostBreakdownRow = {
+  id: string;
+  prize_name: string;
+  prize_type: string;
+  reward_status: string;
+  reward_points: number | null;
+  prize_value: number;
+  prize_cost: number;
+  line_composite_cost: number;
+  line_points_cost: number;
+  created_at: string;
+};
+
+/** 当日抽奖日志逐条成本拆解（便于核对「综合成本」与「积分成本」差异） */
+export async function listOperationalCostBreakdown(
+  tenantId: string | null,
+  dayStart: string,
+  limit = 200,
+): Promise<OperationalCostBreakdownRow[]> {
+  const rows = await query<OperationalCostBreakdownRow>(
+    `SELECT id,
+            prize_name,
+            prize_type,
+            reward_status,
+            reward_points,
+            COALESCE(prize_value, 0) AS prize_value,
+            COALESCE(prize_cost, 0) AS prize_cost,
+            (${SQL_LOTTERY_LOG_EFFECTIVE_BUDGET_COST}) AS line_composite_cost,
+            (${SQL_LOTTERY_LOG_POINTS_ISSUED_COST}) AS line_points_cost,
+            created_at
+     FROM lottery_logs
+     WHERE tenant_id <=> ?
+       AND created_at >= ?
+       AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
+     ORDER BY created_at DESC
+     LIMIT ?`,
+    [tenantId, dayStart, dayStart, Math.min(500, Math.max(1, limit))],
+  );
+  return rows ?? [];
 }
 
 export type LotteryOperationalRiskStatsRow = {
