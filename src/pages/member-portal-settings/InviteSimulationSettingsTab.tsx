@@ -23,6 +23,7 @@ import {
   adminListSimulationFeed,
   adminListSimulationHourRuns,
   adminStartSimulationCron,
+  ADMIN_SIM_CRON_FAKE_DRAWS_PER_FAKE_MAX,
   type AdminSimulationFeedRow,
   type AdminSimulationHourRunRow,
   type AdminSimulationSettings,
@@ -94,7 +95,7 @@ export function InviteSimulationSettingsTab({ tenantId, canManage }: InviteSimul
 
   const [simPolicy, setSimPolicy] = useState<AdminSimulationSettings>({
     retention_days: 3,
-    cron_fake_draws_per_hour: 20,
+    cron_fake_draws_per_hour: 3,
     sim_feed_rank_min: 1,
     sim_feed_rank_max: 8,
     enable_cron_fake_feed: false,
@@ -261,8 +262,8 @@ export function InviteSimulationSettingsTab({ tenantId, canManage }: InviteSimul
                   <SectionTitle className="!mt-0">{t("模拟滚动", "Simulation ticker")}</SectionTitle>
                   <p className="text-xs text-muted-foreground">
                     {t(
-                      "滚动喜讯文案保存在独立数据表，默认保留 3 天（可改）。开启「每小时自动生成」后，由假用户按您设定的次数与名次范围产生滚动内容（不写真实抽奖记录）。",
-                      "Ticker text is stored separately (default 3-day retention). When hourly auto-generation is on, fake users generate ticker lines per your draw count and rank range (not written to real lottery logs).",
+                      "滚动喜讯文案保存在独立数据表，默认保留 3 天（可改）。开启「每小时自动生成」后，每个假用户按您设定的「每人每小时次数」在整点小时内随机时刻模拟抽奖；总次数 = 假人数 × 次数（如 100 人 × 3 = 300 次/小时），时刻互不重叠（不写真实抽奖记录）。",
+                      "Ticker text is stored separately (default 3-day retention). With hourly auto-generation, each fake user runs N simulated draws per hour at random staggered times; total ≈ pool size × N (e.g. 100×3=300/h). No two draws share the same scheduled instant. Not written to real lottery logs.",
                     )}
                   </p>
                   {simPolicyLoading ? (
@@ -287,23 +288,34 @@ export function InviteSimulationSettingsTab({ tenantId, canManage }: InviteSimul
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="sim-cron-draws">{t("每小时假抽奖次数", "Fake draws per hour")}</Label>
+                        <Label htmlFor="sim-cron-draws">
+                          {t("每个假用户每小时抽奖次数", "Draws per fake user per hour")}
+                        </Label>
                         <Input
                           id="sim-cron-draws"
                           type="number"
                           min={0}
-                          max={100}
+                          max={ADMIN_SIM_CRON_FAKE_DRAWS_PER_FAKE_MAX}
                           disabled={!canConfigureSimFake}
                           value={simPolicy.cron_fake_draws_per_hour}
                           onChange={(e) =>
                             setSimPolicy((p) => ({
                               ...p,
-                              cron_fake_draws_per_hour: Math.max(0, Math.min(100, Number(e.target.value) || 0)),
+                              cron_fake_draws_per_hour: Math.max(
+                                0,
+                                Math.min(
+                                  ADMIN_SIM_CRON_FAKE_DRAWS_PER_FAKE_MAX,
+                                  Number(e.target.value) || 0,
+                                ),
+                              ),
                             }))
                           }
                         />
                         <p className="text-[11px] text-muted-foreground">
-                          {t("0 表示本小时不调度假抽奖；最多 100（与假用户池上限一致）。", "0 skips fake draws for that hour; max 100.")}
+                          {t(
+                            `0 表示本小时不调度假抽奖；每人最多 ${ADMIN_SIM_CRON_FAKE_DRAWS_PER_FAKE_MAX} 次。本小时总调度 ≈ 假人数 × 本值（默认池 100 人）。`,
+                            `0 skips fake draws. Max ${ADMIN_SIM_CRON_FAKE_DRAWS_PER_FAKE_MAX} per fake user. Total scheduled events per hour ≈ pool size × this value (default pool 100).`,
+                          )}
                         </p>
                       </div>
                     </div>

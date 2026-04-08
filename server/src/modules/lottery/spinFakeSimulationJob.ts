@@ -1,6 +1,7 @@
 /**
- * 抽奖假人：可选每小时一轮（enable_cron_fake_feed），在 1 小时内按秒分散若干次模拟抽奖；
- * 次数与进入滚动的名次区间见 lottery_simulation_settings；展示间隔 10~30s；避免同一假人连续上屏。
+ * 抽奖假人：可选每小时一轮（enable_cron_fake_feed），在 1 小时内为每个假人调度 N 次模拟抽奖（N=cron_fake_draws_per_hour，按人计）；
+ * 本小时总调度次数 = 假人池人数 × N（如 100 人 × 3 = 300），时刻在 1h 内随机且不重复（秒级；超过 3600 次则用毫秒槽）。
+ * 进入滚动的名次区间见 lottery_simulation_settings；展示间隔 10~30s；避免同一假人连续上屏。
  * 展示数据写入 lottery_simulation_feed（非 lottery_logs）。
  */
 import { randomInt } from 'node:crypto';
@@ -16,6 +17,7 @@ import {
   insertSimulationFeedRow,
   purgeSimulationFeedOlderThan,
   setCronFakeAnchorAt,
+  MAX_CRON_FAKE_DRAWS_PER_FAKE_PER_HOUR,
   type SimulationSettingsResolved,
 } from './simulationFeedRepository.js';
 import { maskSpinSimDisplayName } from './spinFakeNicknameParse.js';
@@ -53,6 +55,38 @@ function pickUniqueOffsets(count: number, maxExclusive: number): number[] {
     [arr[i], arr[j]] = [arr[j]!, arr[i]!];
   }
   return arr.slice(0, count).sort((a, b) => a - b);
+}
+
+const HOUR_MS = 3_600_000;
+
+/** 本小时内不重复的触发时刻（毫秒，相对当前小时起点由调用方通过 setTimeout 使用） */
+function pickUniqueSortedOffsetsMsWithinHour(total: number): number[] {
+  if (total <= 0) return [];
+  if (total > HOUR_MS) {
+    logger.warn('spin_fake', `pickUniqueSortedOffsetsMsWithinHour: clamp ${total} -> ${HOUR_MS}`);
+  }
+  const n = Math.min(total, HOUR_MS);
+  if (n <= 3600) {
+    const secs = pickUniqueOffsets(n, 3600);
+    return secs.map((s) => s * 1000);
+  }
+  const picked = new Set<number>();
+  let guard = 0;
+  const maxGuard = n * 64;
+  while (picked.size < n && guard < maxGuard) {
+    picked.add(randomInt(0, HOUR_MS));
+    guard++;
+  }
+  while (picked.size < n) {
+    let x = randomInt(0, HOUR_MS);
+    let step = 0;
+    while (picked.has(x) && step < HOUR_MS) {
+      x = (x + 1) % HOUR_MS;
+      step++;
+    }
+    picked.add(x);
+  }
+  return Array.from(picked).sort((a, b) => a - b);
 }
 
 function shuffleUsers(users: SpinFakeUser[]): SpinFakeUser[] {
@@ -142,25 +176,39 @@ async function runOneFakeUserDraw(
   }
 }
 
-/** 按后台配置的次数与名次区间，在 3600 秒内分散调度假人抽奖 */
+/**
+ * 按配置：每个假人每小时 drawsPerUser 次；总调度 = users.length × drawsPerUser。
+ * 触发时刻在本小时内均匀随机且不撞同一时刻（秒或毫秒槽）。
+ */
 export function scheduleCronFakeDrawsForTenant(
   tenantId: string,
   users: SpinFakeUser[],
   sim: Pick<SimulationSettingsResolved, 'cron_fake_draws_per_hour' | 'sim_feed_rank_min' | 'sim_feed_rank_max'>,
 ): void {
-  const cap = Math.max(0, Math.min(100, Math.floor(Number(sim.cron_fake_draws_per_hour) || 0)));
-  if (cap <= 0 || users.length === 0) return;
-  const n = Math.min(cap, users.length);
+  const drawsPerUser = Math.max(
+    0,
+    Math.min(
+      MAX_CRON_FAKE_DRAWS_PER_FAKE_PER_HOUR,
+      Math.floor(Number(sim.cron_fake_draws_per_hour) || 0),
+    ),
+  );
+  if (drawsPerUser <= 0 || users.length === 0) return;
+
   const rMin = sim.sim_feed_rank_min;
   const rMax = sim.sim_feed_rank_max;
-  const offsets = pickUniqueOffsets(n, 3600);
-  const shuffled = shuffleUsers(users.slice(0, n));
-  const pairs = offsets.map((sec, i) => ({ sec, user: shuffled[i]! }));
-  pairs.sort((a, b) => a.sec - b.sec);
-  for (const { sec, user } of pairs) {
+
+  const jobs: SpinFakeUser[] = [];
+  for (const u of users) {
+    for (let k = 0; k < drawsPerUser; k++) jobs.push(u);
+  }
+  const shuffledJobs = shuffleUsers(jobs);
+  const offsetsMs = pickUniqueSortedOffsetsMsWithinHour(shuffledJobs.length);
+  const pairs = shuffledJobs.map((user, i) => ({ ms: offsetsMs[i]!, user }));
+  pairs.sort((a, b) => a.ms - b.ms);
+  for (const { ms, user } of pairs) {
     setTimeout(() => {
       void runOneFakeUserDraw(tenantId, user, rMin, rMax);
-    }, sec * 1000);
+    }, ms);
   }
 }
 

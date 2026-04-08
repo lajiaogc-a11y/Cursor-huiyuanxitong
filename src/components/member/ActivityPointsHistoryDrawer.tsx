@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { pointsLedgerTransactionLabel } from "@/lib/pointsLedgerTypeLabel";
+import { translatePointsLedgerDescription } from "@/lib/pointsLedgerDescriptionI18n";
 import type { PointsLedgerEntry } from "@/hooks/usePointsLedger";
 
 export interface ActivityPointsHistoryMember {
@@ -28,14 +29,15 @@ export interface ActivityPointsHistoryOrder {
 function formatPointsLedgerRemark(
   entry: { description?: string | null; currency?: string | null },
   opts: { isMallRedemption: boolean; isRedemptionType: boolean },
+  t: (zh: string, en: string) => string,
 ): string {
   const desc = String(entry.description ?? "").trim();
   if (opts.isMallRedemption && desc) {
     const m = desc.match(/前端兑换[（(](.+?)[）)]/);
     if (m) return m[1].trim();
-    return desc;
+    return translatePointsLedgerDescription(desc, t);
   }
-  if (desc) return desc;
+  if (desc) return translatePointsLedgerDescription(desc, t);
   if (!opts.isRedemptionType && entry.currency) return String(entry.currency);
   return "-";
 }
@@ -154,6 +156,7 @@ export function ActivityPointsHistoryDrawer({
                         const remarkDisplay = formatPointsLedgerRemark(
                           entry as { description?: string | null; currency?: string | null },
                           { isMallRedemption, isRedemptionType },
+                          t,
                         );
 
                         return (

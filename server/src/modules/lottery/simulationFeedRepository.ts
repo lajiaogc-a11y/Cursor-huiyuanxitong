@@ -8,7 +8,7 @@ export type SimulationFeedSource = 'cron_fake' | 'member_sim';
 
 export type SimulationSettingsResolved = {
   retention_days: number;
-  /** 每小时假用户模拟抽奖次数（写入滚动 feed 的抽奖尝试次数上限，≤100） */
+  /** 每个假用户每小时模拟抽奖次数（该租户本小时总调度 = 假人数 × 本值；≤20） */
   cron_fake_draws_per_hour: number;
   /** 进入滚动展示的奖品排序名次区间（与后台奖品 sort_order 排名一致，1=最高） */
   sim_feed_rank_min: number;
@@ -24,8 +24,11 @@ function rowToAnchorIso(v: Date | string | null | undefined): string | null {
   return Number.isFinite(t) ? new Date(t).toISOString() : null;
 }
 
-function clampDrawsPerHour(n: number): number {
-  return Math.max(0, Math.min(100, Math.floor(Number(n) || 0)));
+/** 每个假人每小时最多调度次数（总次数 = 池人数 × 本值） */
+export const MAX_CRON_FAKE_DRAWS_PER_FAKE_PER_HOUR = 20;
+
+function clampDrawsPerFakePerHour(n: number): number {
+  return Math.max(0, Math.min(MAX_CRON_FAKE_DRAWS_PER_FAKE_PER_HOUR, Math.floor(Number(n) || 0)));
 }
 
 function clampFeedRank(n: number): number {
@@ -56,7 +59,7 @@ export async function getSimulationSettingsRow(tenantId: string): Promise<Simula
   if (!row) {
     return {
       retention_days: 3,
-      cron_fake_draws_per_hour: 20,
+      cron_fake_draws_per_hour: 3,
       sim_feed_rank_min: 1,
       sim_feed_rank_max: 8,
       enable_cron_fake_feed: false,
@@ -64,7 +67,7 @@ export async function getSimulationSettingsRow(tenantId: string): Promise<Simula
     };
   }
   const retention = Math.max(1, Math.min(365, Math.floor(Number(row.retention_days ?? 3))));
-  const draws = clampDrawsPerHour(Number(row.cron_fake_draws_per_hour ?? 20));
+  const draws = clampDrawsPerFakePerHour(Number(row.cron_fake_draws_per_hour ?? 3));
   const ranks = normalizeRankPair(
     Number(row.sim_feed_rank_min ?? 1),
     Number(row.sim_feed_rank_max ?? 8),
@@ -99,7 +102,7 @@ export async function upsertSimulationSettings(
       : cur.retention_days;
   const cron_fake_draws_per_hour =
     patch.cron_fake_draws_per_hour != null
-      ? clampDrawsPerHour(patch.cron_fake_draws_per_hour)
+      ? clampDrawsPerFakePerHour(patch.cron_fake_draws_per_hour)
       : cur.cron_fake_draws_per_hour;
   const rankPair =
     patch.sim_feed_rank_min != null || patch.sim_feed_rank_max != null

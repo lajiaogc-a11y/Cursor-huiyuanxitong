@@ -376,9 +376,12 @@ export async function adminSaveSimFakeSettings(
   };
 }
 
+/** 与后端 MAX_CRON_FAKE_DRAWS_PER_FAKE_PER_HOUR 一致：每个假人每小时次数上限 */
+export const ADMIN_SIM_CRON_FAKE_DRAWS_PER_FAKE_MAX = 20;
+
 export interface AdminSimulationSettings {
   retention_days: number;
-  /** 每小时假用户模拟抽奖次数（≤100，0 表示本小时不跑假抽奖） */
+  /** 每个假用户每小时模拟抽奖次数（总调度 = 假人数 × 本值；0 表示本小时不跑） */
   cron_fake_draws_per_hour: number;
   /** 进入会员端滚动喜讯的名次区间（按奖品排序 1=最高） */
   sim_feed_rank_min: number;
@@ -397,7 +400,10 @@ export async function adminGetSimulationSettings(tenantId: string): Promise<Admi
       );
       return {
         retention_days: Math.max(1, Number(r?.retention_days ?? 3)),
-        cron_fake_draws_per_hour: Math.max(0, Math.min(100, Number(r?.cron_fake_draws_per_hour ?? 20))),
+        cron_fake_draws_per_hour: Math.max(
+          0,
+          Math.min(ADMIN_SIM_CRON_FAKE_DRAWS_PER_FAKE_MAX, Number(r?.cron_fake_draws_per_hour ?? 3)),
+        ),
         sim_feed_rank_min: Math.max(1, Math.min(8, Number(r?.sim_feed_rank_min ?? 1))),
         sim_feed_rank_max: Math.max(1, Math.min(8, Number(r?.sim_feed_rank_max ?? 8))),
         enable_cron_fake_feed: !!r?.enable_cron_fake_feed,
@@ -406,7 +412,7 @@ export async function adminGetSimulationSettings(tenantId: string): Promise<Admi
     },
     {
       retention_days: 3,
-      cron_fake_draws_per_hour: 20,
+      cron_fake_draws_per_hour: 3,
       sim_feed_rank_min: 1,
       sim_feed_rank_max: 8,
       enable_cron_fake_feed: false,
@@ -427,7 +433,10 @@ export async function adminSaveSimulationSettings(
   );
   return {
     retention_days: Math.max(1, Number(r?.retention_days ?? 3)),
-    cron_fake_draws_per_hour: Math.max(0, Math.min(100, Number(r?.cron_fake_draws_per_hour ?? 20))),
+    cron_fake_draws_per_hour: Math.max(
+      0,
+      Math.min(ADMIN_SIM_CRON_FAKE_DRAWS_PER_FAKE_MAX, Number(r?.cron_fake_draws_per_hour ?? 3)),
+    ),
     sim_feed_rank_min: Math.max(1, Math.min(8, Number(r?.sim_feed_rank_min ?? 1))),
     sim_feed_rank_max: Math.max(1, Math.min(8, Number(r?.sim_feed_rank_max ?? 8))),
     enable_cron_fake_feed: !!r?.enable_cron_fake_feed,

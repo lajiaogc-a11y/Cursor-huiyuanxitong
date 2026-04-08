@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   Gift,
@@ -71,7 +71,7 @@ export default function InviteLanding() {
   /** 与 MemberLogin 一致：等门户设置就绪再渲染轮播/表单，避免先用 DEFAULT 内置轮播再换成后台图造成整段闪变与解码卡顿 */
   const [portalSettingsReady, setPortalSettingsReady] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.classList.add("member-html");
     return () => {
       document.documentElement.classList.remove("member-html");
@@ -258,10 +258,10 @@ export default function InviteLanding() {
   return (
     <MemberRegisterShell themeColor={themeColor}>
       {/* 返回与轮播同列文档流，避免 absolute 导致父级高度塌陷、与下图紧贴 */}
-      <div className="relative z-[1] mx-auto flex w-full max-w-[480px] flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))]">
+      <div className="relative z-[1] mx-auto flex w-full max-w-[min(100%,36rem)] flex-1 flex-col px-1 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] sm:max-w-[480px] sm:px-0">
         <Link
           to={ROUTES.MEMBER.LOGIN_LEGACY}
-          className="mb-10 inline-flex items-center self-start text-xs font-bold text-[hsl(var(--pu-m-text-dim))] transition hover:text-[hsl(var(--pu-m-text))]"
+          className="mb-8 inline-flex items-center self-start px-5 text-xs font-bold text-[hsl(var(--pu-m-text-dim))] transition hover:text-[hsl(var(--pu-m-text))]"
         >
           ← {t("返回", "Back")}
         </Link>
@@ -339,7 +339,7 @@ export default function InviteLanding() {
           </div>
         ) : (
           <>
-            <div className="mb-5">
+            <div className="mb-5 px-5">
               <div className="mb-1 flex items-center gap-2">
                 <div
                   className="flex h-9 w-9 items-center justify-center rounded-xl"
@@ -362,10 +362,14 @@ export default function InviteLanding() {
               </p>
             </div>
 
-            <MemberLoginBadgeGrid loading={!portalSettings} loginBadges={portalSettings?.login_badges} />
+            <MemberLoginBadgeGrid
+              loading={!portalSettings}
+              loginBadges={portalSettings?.login_badges}
+              className="px-5"
+            />
 
             <form
-              className="flex flex-1 flex-col"
+              className="flex flex-1 flex-col px-5"
               onSubmit={(e) => {
                 e.preventDefault();
                 void handleSubmit();

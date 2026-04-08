@@ -8,7 +8,7 @@ import { getRewardAmountByPointsAndCurrency } from "@/services/activity/activity
 import { determineExchangeCurrency } from "@/services/finance/exchangeService";
 import { getActivitySettings } from "@/services/activity/activitySettingsService";
 import { getMemberPointsSummary } from "@/services/points/pointsCalculationService";
-import { getMemberByPhoneForMyTenant } from "@/services/members/memberLookupService";
+import { getMemberByPhoneForMyTenant, isMemberInTenant } from "@/services/members/memberLookupService";
 import { generateMemberId } from "@/services/system/systemSettingsService";
 import { saveExchangeRateFormData } from "@/services/finance/exchangeRateFormService";
 import type { FeeSettings } from "@/services/system/systemSettingsService";
@@ -186,8 +186,18 @@ export function useOrderSubmit(p: UseOrderSubmitParams) {
 
       let dbMember = await getMemberByPhoneForMyTenant(p.phoneNumber, p.effectiveMemberTenantId);
 
+      if (dbMember && p.effectiveMemberTenantId && !isMemberInTenant(dbMember, p.effectiveMemberTenantId)) {
+        notify.error(
+          p.t(
+            "该手机号不属于当前租户，无法在此工作台下单；请在对应租户录入或让会员归属当前租户后再操作。",
+            "This phone number is not a member of the current tenant. Switch tenant or register the member here first.",
+          ),
+        );
+        return;
+      }
+
       if (!dbMember) {
-        const cachedMember = p.findMemberByPhone(p.phoneNumber);
+        const cachedMember = p.effectiveMemberTenantId ? undefined : p.findMemberByPhone(p.phoneNumber);
         if (cachedMember) {
           console.warn('[executeOrderSubmit] Server lookup returned null but member exists in cache, using cache fallback');
           dbMember = {

@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Send, Lock, Copy, ArrowDown, HelpCircle } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
-import { getMemberByPhoneForMyTenant } from "@/services/members/memberLookupService";
+import { getMemberByPhoneForMyTenant, isMemberInTenant } from "@/services/members/memberLookupService";
 import { showSubmissionError } from "@/services/submissionErrorService";
 import { CURRENCIES } from "@/config/currencies";
 import { useCalculatorForm, CalculatorId } from "@/hooks/useCalculatorStore";
@@ -398,7 +398,30 @@ export default function RateCalculator({
       phoneSearchTimeoutRef.current = setTimeout(async () => {
         try {
           const dbMember = await getMemberByPhoneForMyTenant(cleanedValue, memberLookupTenantId);
-          
+
+          if (dbMember && memberLookupTenantId && !isMemberInTenant(dbMember, memberLookupTenantId)) {
+            setMemberLevelZhHint(null);
+            setMatchedMemberId(null);
+            const newMemberCode = generateMemberId();
+            updateFields({
+              memberCode: newMemberCode,
+              memberLevel: "",
+              selectedCommonCards: [],
+              customerFeature: "",
+              bankCard: "",
+              remarkMember: "",
+              currencyPreferenceList: [],
+              customerSource: "",
+            });
+            notify.error(
+              t(
+                "该手机号不属于当前租户，无法自动匹配；请在当前租户新建会员或使用归属本租户的号码。",
+                "This phone is not in the current tenant. Create a member here or use a number registered in this tenant.",
+              ),
+            );
+            return;
+          }
+
         if (dbMember) {
             const z = dbMember.member_level_zh?.trim();
             setMemberLevelZhHint(z || null);
@@ -635,7 +658,7 @@ export default function RateCalculator({
     if (!existingMember?.id) {
       try {
         const dbMember = await getMemberByPhoneForMyTenant(formData.phoneNumber, memberLookupTenantId);
-        if (dbMember) {
+        if (dbMember && (!memberLookupTenantId || isMemberInTenant(dbMember, memberLookupTenantId))) {
           existingMember = { id: dbMember.id, phoneNumber: dbMember.phone_number, memberCode: dbMember.member_code } as any;
           setMatchedMemberId(dbMember.id);
         }

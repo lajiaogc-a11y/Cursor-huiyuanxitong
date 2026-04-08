@@ -7,6 +7,8 @@
  * 避免大图经业务 Node 中转；业务后端只保存最终 URL 与鉴权。
  */
 /** 原图大小上限（压缩写入 localStorage 前校验） */
+import { compressImageToDataUrl } from "@/lib/imageClientCompress";
+
 export const MEMBER_LOCAL_AVATAR_MAX_FILE_BYTES = 8 * 1024 * 1024;
 export const MEMBER_LOCAL_AVATAR_KEY_PREFIX = "member_portal_local_avatar_v1:";
 
@@ -57,31 +59,46 @@ export async function compressImageFileToAvatarDataUrl(file: File): Promise<stri
     throw new Error("FILE_TOO_LARGE");
   }
 
-  const bitmap = await createImageBitmap(file);
-  try {
-    const w = bitmap.width;
-    const h = bitmap.height;
-    const scale = Math.min(1, MAX_EDGE / Math.max(w, h, 1));
-    const cw = Math.max(1, Math.round(w * scale));
-    const ch = Math.max(1, Math.round(h * scale));
+  // iOS / some WebViews may throw "找不到对象" (Object not found) for createImageBitmap
+  // or fail to decode certain formats. Fall back to the FileReader+Image pipeline.
+  if (typeof (globalThis as any).createImageBitmap === "function") {
+    try {
+      const bitmap = await (globalThis as any).createImageBitmap(file);
+      try {
+        const w = bitmap.width;
+        const h = bitmap.height;
+        const scale = Math.min(1, MAX_EDGE / Math.max(w, h, 1));
+        const cw = Math.max(1, Math.round(w * scale));
+        const ch = Math.max(1, Math.round(h * scale));
 
-    const canvas = document.createElement("canvas");
-    canvas.width = cw;
-    canvas.height = ch;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("NO_CONTEXT");
+        const canvas = document.createElement("canvas");
+        canvas.width = cw;
+        canvas.height = ch;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("NO_CONTEXT");
 
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(bitmap, 0, 0, cw, ch);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(bitmap, 0, 0, cw, ch);
 
-    let dataUrl = canvas.toDataURL("image/webp", WEBP_QUALITY);
-    if (!dataUrl.startsWith("data:image/webp")) {
-      dataUrl = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+        let dataUrl = canvas.toDataURL("image/webp", WEBP_QUALITY);
+        if (!dataUrl.startsWith("data:image/webp")) {
+          dataUrl = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+        }
+        if (!dataUrl || dataUrl.length < 32) throw new Error("ENCODE_FAILED");
+        return dataUrl;
+      } finally {
+        try { bitmap.close?.(); } catch { /* ignore */ }
+      }
+    } catch (e) {
+      console.warn("[memberPortalLocalAvatar] createImageBitmap failed, falling back:", e);
     }
-    if (!dataUrl || dataUrl.length < 32) throw new Error("ENCODE_FAILED");
-    return dataUrl;
-  } finally {
-    bitmap.close();
   }
+
+  // Fallback path: decode via FileReader+Image (more compatible on mobile Safari/WebViews).
+  const dataUrl = await compressImageToDataUrl(file, MAX_EDGE, WEBP_QUALITY);
+  if (!dataUrl || typeof dataUrl !== "string" || dataUrl.length < 32 || !dataUrl.startsWith("data:image/")) {
+    throw new Error("ENCODE_FAILED");
+  }
+  return dataUrl;
 }

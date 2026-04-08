@@ -954,6 +954,24 @@ export async function migrateSchemaPatches(): Promise<void> {
   // 每个假用户独立调度：next_growth_at 记录该用户在本周期内的随机增长时间
   if (await tableExists('invite_leaderboard_fake_users')) {
     await addCol('invite_leaderboard_fake_users', 'next_growth_at', 'DATETIME(3) NULL');
+    await addCol('invite_leaderboard_fake_users', 'last_auto_growth_at', 'DATETIME(3) NULL');
+  }
+
+  // 非法 growth_segment_hours（如 0）会导致「周期已结束」恒为真、每 2 分钟重开周期
+  if (await tableExists('invite_leaderboard_tenant_growth_schedule')) {
+    try {
+      await execute(
+        `UPDATE invite_leaderboard_tenant_growth_schedule
+         SET growth_segment_hours = CASE
+           WHEN growth_segment_hours IS NULL OR growth_segment_hours < 1 THEN 72
+           WHEN growth_segment_hours > 720 THEN 720
+           ELSE growth_segment_hours
+         END
+         WHERE growth_segment_hours IS NULL OR growth_segment_hours < 1 OR growth_segment_hours > 720`,
+      );
+    } catch (e: unknown) {
+      console.warn('[schema-patch] normalize growth_segment_hours:', ((e as Error).message || '').slice(0, 120));
+    }
   }
 
   await createTbl(

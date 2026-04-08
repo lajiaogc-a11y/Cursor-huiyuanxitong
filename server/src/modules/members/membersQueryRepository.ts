@@ -42,14 +42,25 @@ export function stripPhoneFormatting(raw: string): string {
   return raw.replace(/[^0-9]/g, '');
 }
 
+export type LookupMemberForReferralOptions = {
+  /**
+   * 为 true 时，租户内未命中会按手机号/编号全库兜底（易把 A 租户会员匹配到 B 租户操作上下文）。
+   * 默认 false：严格租户隔离（汇率页 / 客户详情 / 推荐录入均应按当前租户）。
+   */
+  allowCrossTenantFallback?: boolean;
+};
+
 /**
  * 推荐录入：按租户内「会员编号」或「手机号」精确查找。
  * 对所有输入同时尝试 member_code 和 phone_number，避免纯数字会员编号被误判为电话。
  */
 export async function lookupMemberForReferralRepository(
   tenantId: string,
-  raw: string
+  raw: string,
+  options?: LookupMemberForReferralOptions,
 ): Promise<Record<string, unknown> | null> {
+  void options;
+  const allowCrossTenantFallback = false;
   const q = raw.trim();
   if (!q) return null;
 
@@ -105,7 +116,14 @@ export async function lookupMemberForReferralRepository(
     }
   }
 
-  // 6) 不限租户兜底：同一系统内电话号码全局唯一，租户可能不匹配
+  if (!allowCrossTenantFallback) {
+    console.warn(
+      `[lookupMember] no match for q="${q}" (digits="${digits}", code="${codeCleaned}") in tenant="${tenantId}" (strict, no cross-tenant fallback)`,
+    );
+    return null;
+  }
+
+  // 6) 不限租户兜底（仅 allowCrossTenantFallback：历史兼容，多租户下易导致错绑会员）
   row = await queryOne(
     `SELECT * FROM members WHERE phone_number = ? LIMIT 1`,
     [q]
@@ -162,4 +180,3 @@ export async function lookupMemberForReferralRepository(
   console.warn(`[lookupMember] no match for q="${q}" (digits="${digits}", code="${codeCleaned}") in tenant="${tenantId}"`);
   return null;
 }
-

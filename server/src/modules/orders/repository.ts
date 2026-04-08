@@ -11,7 +11,7 @@ export type MeikaZoneKind = 'fiat' | 'usdt';
 export async function listOrdersRepository(tenantId?: string | null, limit = 50) {
   if (tenantId) {
     return query(
-      `SELECT * FROM orders WHERE (tenant_id = ? OR tenant_id IS NULL) ORDER BY created_at DESC LIMIT ?`,
+      `SELECT * FROM orders WHERE tenant_id = ? ORDER BY created_at DESC LIMIT ?`,
       [tenantId, limit]
     );
   }
@@ -34,7 +34,7 @@ async function getOrdersFullByTenantRepository(tenantId: string | undefined, exc
   }
 
   if (tenantId) {
-    conditions.push(`(o.tenant_id = ? OR o.tenant_id IS NULL)`);
+    conditions.push(`o.tenant_id = ?`);
     params.push(tenantId);
   }
 
@@ -67,7 +67,7 @@ export async function getMeikaFiatOrdersFullRepository(_token: string, tenantId?
   ];
   const params: any[] = [];
   if (tenantId) {
-    conditions.push(`(o.tenant_id = ? OR o.tenant_id IS NULL)`);
+    conditions.push(`o.tenant_id = ?`);
     params.push(tenantId);
   }
   const sql = `SELECT o.*,
@@ -90,7 +90,7 @@ export async function getMeikaUsdtOrdersFullRepository(_token: string, tenantId?
   ];
   const params: any[] = [];
   if (tenantId) {
-    conditions.push(`(o.tenant_id = ? OR o.tenant_id IS NULL)`);
+    conditions.push(`o.tenant_id = ?`);
     params.push(tenantId);
   }
   const sql = `SELECT o.*,

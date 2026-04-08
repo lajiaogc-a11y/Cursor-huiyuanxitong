@@ -71,7 +71,7 @@ export async function countMembers(tenantId: string): Promise<number> {
 export async function countDailyOrders(tenantId: string): Promise<number> {
   const row = await queryOne<{ cnt: number }>(
     `SELECT COUNT(*) as cnt FROM orders
-     WHERE (tenant_id = ? OR tenant_id IS NULL)
+     WHERE tenant_id = ?
        AND created_at >= CURDATE()
        AND created_at < DATE_ADD(CURDATE(), INTERVAL 1 DAY)
        AND (is_deleted = false OR is_deleted IS NULL)`,

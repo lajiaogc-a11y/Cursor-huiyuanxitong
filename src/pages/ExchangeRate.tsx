@@ -66,7 +66,7 @@ import { getActiveCustomerSources, initializeCustomerSourceCache } from "@/hooks
 // pointsLedgerStore is deprecated — usePointsLedger hook is the single source of truth
 import { getPointsSettings } from "@/services/points/pointsSettingsService";
 import { getMemberLastResetTime } from "@/services/points/pointsAccountService";
-import { getMemberByPhoneForMyTenant } from "@/services/members/memberLookupService";
+import { getMemberByPhoneForMyTenant, isMemberInTenant } from "@/services/members/memberLookupService";
 import { getExchangeRateFormDataAsync, saveExchangeRateFormData, ExchangeRateFormData } from "@/services/finance/exchangeRateFormService";
 import RateCalculator from "@/components/RateCalculator";
 import { getCalculatorFormData, CalculatorId, subscribeCalculatorChange } from "@/hooks/useCalculatorStore";
@@ -773,8 +773,24 @@ export default function ExchangeRate() {
     if (cleanedValue.length >= 8) {
       try {
         const dbMember = await getMemberByPhoneForMyTenant(cleanedValue, effectiveMemberTenantId);
-        
-        if (dbMember) {
+
+        if (dbMember && effectiveMemberTenantId && !isMemberInTenant(dbMember, effectiveMemberTenantId)) {
+          const newMemberCode = generateMemberId();
+          setMemberCode(newMemberCode);
+          setMemberLevel("");
+          setSelectedCommonCards([]);
+          setCustomerFeature("");
+          setBankCard("");
+          setRemarkMember("");
+          setCurrencyPreferenceList([]);
+          setCustomerSource("");
+          notify.error(
+            t(
+              "该手机号不属于当前租户，无法自动匹配；请在当前租户新建会员或使用归属本租户的号码。",
+              "This phone is not in the current tenant. Create a member here or use a number registered in this tenant.",
+            ),
+          );
+        } else if (dbMember) {
           // 会员存在 - 填充只读和可编辑字段
           setMemberCode(dbMember.member_code);
           setMemberLevel(dbMember.member_level || '');

@@ -11,6 +11,7 @@
     "check:invite-growth-jobs": "tsx src/cli/checkInviteLeaderboardJobRuns.ts",
     "check:invite-growth-jobs:dist": "node dist/cli/checkInviteLeaderboardJobRuns.js",
     "migrate:lottery": "tsx src/modules/lottery/runLotteryMigrate.ts",
+    "diagnose:lottery": "tsx src/cli/diagnoseLotteryDraw.ts",
     "db:phone-pool-reserved-by": "node scripts/ensure-phone-pool-reserved-by-null.mjs",
     "build": "tsc && node scripts/copy-permission-sync.mjs",
     "start": "node dist/app.js",

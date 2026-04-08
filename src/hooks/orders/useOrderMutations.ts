@@ -40,7 +40,9 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
   const { orders, setOrders, fetchOrders, viewingTenantId, queryClient } = params;
   const { employee } = useAuth() || {};
   const { isViewingTenant } = useTenantView() || {};
-  const tenantIdForNewOrder = viewingTenantId || employee?.tenant_id || null;
+  const tenantIdForNewOrder = employee?.is_platform_super_admin
+    ? (viewingTenantId || null)
+    : (viewingTenantId || employee?.tenant_id || null);
   const { t } = useLanguage();
   const isPlatformAdminReadonlyView = !canMutateOrderInCurrentView({
     isPlatformSuperAdmin: employee?.is_platform_super_admin,
@@ -62,6 +64,10 @@ export function useOrderMutations(params: UseOrderMutationsParams) {
         return { order: null, earnedPoints: 0 };
       }
       try {
+        if (!tenantIdForNewOrder) {
+          notify.error(t('请先选择目标租户后再下单', 'Please select a target tenant before creating an order'));
+          return { order: null, earnedPoints: 0 };
+        }
         const quotaResult = await checkMyTenantQuotaResult("daily_orders");
         if (!quotaResult.ok) {
           const quotaText = getQuotaExceededText(quotaResult.error.message);

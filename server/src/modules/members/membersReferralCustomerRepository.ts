@@ -43,7 +43,7 @@ export async function getReferrerByRefereePhoneRepository(
        LEFT JOIN members ref_m ON ref_m.id = rr.referrer_id
        LEFT JOIN members ree_m ON ree_m.id = rr.referee_id
        WHERE (rr.referee_phone = ? OR rr.referee_phone = ?)
-         AND (ree_m.tenant_id = ? OR ree_m.tenant_id IS NULL)
+         AND ree_m.tenant_id = ?
        LIMIT 1`
     : `SELECT COALESCE(rr.referrer_phone, ref_m.phone_number) AS referrer_phone,
               COALESCE(rr.referrer_member_code, ref_m.member_code) AS referrer_member_code
@@ -148,35 +148,79 @@ export async function getCustomerDetailByPhoneRepository(phone: string, tenantId
     recorderRow,
     memberLevelZhResolved,
   ] = await Promise.all([
-    queryOne(
-      `SELECT referrer_phone, referrer_member_code FROM referral_relations 
-       WHERE referee_phone = ? OR referee_phone = ? LIMIT 1`,
-      [canonicalPhone, normalized]
-    ),
-    queryOne(
-      `SELECT order_count, remaining_points, accumulated_profit, accumulated_profit_usdt, total_accumulated_ngn, total_accumulated_ghs, total_accumulated_usdt, referral_count
-       FROM member_activity WHERE phone_number = ?`,
-      [canonicalPhone]
-    ),
-    canonicalPhone === normalized
-      ? Promise.resolve(null)
+    tenantId
+      ? queryOne(
+          `SELECT rr.referrer_phone, rr.referrer_member_code
+           FROM referral_relations rr
+           LEFT JOIN members ree_m ON ree_m.id = rr.referee_id
+           WHERE (rr.referee_phone = ? OR rr.referee_phone = ?)
+             AND ree_m.tenant_id = ?
+           LIMIT 1`,
+          [canonicalPhone, normalized, tenantId],
+        )
+      : queryOne(
+          `SELECT referrer_phone, referrer_member_code FROM referral_relations
+           WHERE referee_phone = ? OR referee_phone = ? LIMIT 1`,
+          [canonicalPhone, normalized],
+        ),
+    tenantId
+      ? queryOne(
+          `SELECT order_count, remaining_points, accumulated_profit, accumulated_profit_usdt, total_accumulated_ngn, total_accumulated_ghs, total_accumulated_usdt, referral_count
+           FROM member_activity WHERE phone_number = ? AND tenant_id = ?`,
+          [canonicalPhone, tenantId],
+        )
       : queryOne(
           `SELECT order_count, remaining_points, accumulated_profit, accumulated_profit_usdt, total_accumulated_ngn, total_accumulated_ghs, total_accumulated_usdt, referral_count
            FROM member_activity WHERE phone_number = ?`,
-          [normalized]
+          [canonicalPhone],
         ),
-    queryOne(
-      `SELECT order_count, remaining_points, accumulated_profit, accumulated_profit_usdt, total_accumulated_ngn, total_accumulated_ghs, total_accumulated_usdt, referral_count
-       FROM member_activity WHERE member_id = ?`,
-      [member.id]
-    ),
-    query(
-      `SELECT referee_phone FROM referral_relations WHERE referrer_phone = ?`,
-      [canonicalPhone]
-    ),
+    canonicalPhone === normalized
+      ? Promise.resolve(null)
+      : tenantId
+        ? queryOne(
+            `SELECT order_count, remaining_points, accumulated_profit, accumulated_profit_usdt, total_accumulated_ngn, total_accumulated_ghs, total_accumulated_usdt, referral_count
+             FROM member_activity WHERE phone_number = ? AND tenant_id = ?`,
+            [normalized, tenantId],
+          )
+        : queryOne(
+            `SELECT order_count, remaining_points, accumulated_profit, accumulated_profit_usdt, total_accumulated_ngn, total_accumulated_ghs, total_accumulated_usdt, referral_count
+             FROM member_activity WHERE phone_number = ?`,
+            [normalized],
+          ),
+    tenantId
+      ? queryOne(
+          `SELECT order_count, remaining_points, accumulated_profit, accumulated_profit_usdt, total_accumulated_ngn, total_accumulated_ghs, total_accumulated_usdt, referral_count
+           FROM member_activity WHERE member_id = ? AND tenant_id = ?`,
+          [member.id, tenantId],
+        )
+      : queryOne(
+          `SELECT order_count, remaining_points, accumulated_profit, accumulated_profit_usdt, total_accumulated_ngn, total_accumulated_ghs, total_accumulated_usdt, referral_count
+           FROM member_activity WHERE member_id = ?`,
+          [member.id],
+        ),
+    tenantId
+      ? query(
+          `SELECT rr.referee_phone
+           FROM referral_relations rr
+           LEFT JOIN members ref_m ON ref_m.id = rr.referrer_id
+           WHERE rr.referrer_phone = ? AND ref_m.tenant_id = ?`,
+          [canonicalPhone, tenantId],
+        )
+      : query(
+          `SELECT referee_phone FROM referral_relations WHERE referrer_phone = ?`,
+          [canonicalPhone],
+        ),
     canonicalPhone === normalized
       ? Promise.resolve([])
-      : query(`SELECT referee_phone FROM referral_relations WHERE referrer_phone = ?`, [normalized]),
+      : tenantId
+        ? query(
+            `SELECT rr.referee_phone
+             FROM referral_relations rr
+             LEFT JOIN members ref_m ON ref_m.id = rr.referrer_id
+             WHERE rr.referrer_phone = ? AND ref_m.tenant_id = ?`,
+            [normalized, tenantId],
+          )
+        : query(`SELECT referee_phone FROM referral_relations WHERE referrer_phone = ?`, [normalized]),
     member.source_id
       ? queryOne(`SELECT name FROM customer_sources WHERE id = ?`, [member.source_id])
       : Promise.resolve(null),
@@ -267,4 +311,3 @@ export async function getCustomerDetailByPhoneRepository(phone: string, tenantId
         },
   };
 }
-

@@ -5,10 +5,12 @@
  * 1. 每个周期（默认 72h），为所有活跃假用户各分配一个随机时间 next_growth_at（相对 NOW(3) 的随机秒偏移）。
  * 2. 每 2 分钟检查：处理所有 next_growth_at <= NOW(3) 的用户，增量 = random(delta_min, delta_max)。
  * 3. 处理完的用户 next_growth_at = NULL，本周期不再增长。
- * 4. 周期结束条件在 MySQL 内判断：DATE_ADD(growth_segment_started_at, INTERVAL h HOUR) <= NOW(3)，避免 JS 解析 DATETIME 失败导致每轮误判「新周期」、同一用户被反复分配增长。
+ * 4. 周期结束条件在 MySQL 内判断：对 growth_segment_hours 做 1–720 钳制后再 DATE_ADD，避免库中为 0 时「周期已结束」恒为真、每轮重开周期。
  * 5. 每个假用户在一个周期内只增长一次，且各自在不同随机时刻触发。
+ * 6. last_auto_growth_at：距上次自动增长未满 growth_segment_hours 小时则跳过（与后台「每账号 N 小时只跑一次」一致，防止调度异常时重复跑）。
  */
 import { randomUUID } from 'node:crypto';
+import type { ResultSetHeader } from 'mysql2';
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { withTransaction } from '../../database/index.js';
 import { withSchedulerLock } from '../../lib/schedulerLock.js';
@@ -111,7 +113,13 @@ async function runGrowthInTransaction(conn: PoolConnection): Promise<{
       `SELECT growth_segment_hours, growth_delta_min, growth_delta_max,
               auto_growth_enabled, growth_segment_started_at, last_fake_growth_at,
               (growth_segment_started_at IS NULL
-                OR DATE_ADD(growth_segment_started_at, INTERVAL growth_segment_hours HOUR) <= NOW(3)
+                OR DATE_ADD(
+                     growth_segment_started_at,
+                     INTERVAL GREATEST(
+                       1,
+                       LEAST(720, COALESCE(NULLIF(growth_segment_hours, 0), 72))
+                     ) HOUR
+                   ) <= NOW(3)
               ) AS need_new_cycle
        FROM invite_leaderboard_tenant_growth_schedule WHERE tenant_id = ? LIMIT 1`,
       [tenantId],
@@ -139,30 +147,46 @@ async function runGrowthInTransaction(conn: PoolConnection): Promise<{
 
     const dMin = Math.min(sched.growth_delta_min, sched.growth_delta_max);
     const dMax = Math.max(sched.growth_delta_min, sched.growth_delta_max);
+    const segHours = sched.growth_segment_hours;
 
     const [dueRows] = await conn.query<RowDataPacket[]>(
       `SELECT id FROM invite_leaderboard_fake_users
        WHERE tenant_id = ? AND is_active = 1 AND growth_cycles < max_growth_cycles
-         AND next_growth_at IS NOT NULL AND next_growth_at <= NOW(3)`,
-      [tenantId],
+         AND next_growth_at IS NOT NULL AND next_growth_at <= NOW(3)
+         AND (
+           last_auto_growth_at IS NULL
+           OR last_auto_growth_at <= DATE_SUB(NOW(3), INTERVAL ? HOUR)
+         )`,
+      [tenantId, segHours],
     );
     const dueIds = (dueRows as { id: string }[]).map((r) => String(r.id));
 
+    let tickFakeUpdates = 0;
     for (const id of dueIds) {
       const delta = dMax <= 0 ? 0 : randomIntegerInclusive(dMin, dMax);
-      await conn.query(
+      const [upd] = await conn.query<ResultSetHeader>(
         `UPDATE invite_leaderboard_fake_users
          SET auto_increment_count = auto_increment_count + ?,
              growth_cycles = growth_cycles + 1,
              next_growth_at = NULL,
+             last_auto_growth_at = NOW(3),
              updated_at = NOW(3)
-         WHERE tenant_id = ? AND id = ? AND is_active = 1 AND growth_cycles < max_growth_cycles`,
-        [delta, tenantId, id],
+         WHERE tenant_id = ? AND id = ? AND is_active = 1 AND growth_cycles < max_growth_cycles
+           AND next_growth_at IS NOT NULL AND next_growth_at <= NOW(3)
+           AND (
+             last_auto_growth_at IS NULL
+             OR last_auto_growth_at <= DATE_SUB(NOW(3), INTERVAL ? HOUR)
+           )`,
+        [delta, tenantId, id, segHours],
       );
-      rowsUpdated++;
+      const n = Number(upd.affectedRows ?? 0);
+      if (n > 0) {
+        rowsUpdated += n;
+        tickFakeUpdates += n;
+      }
     }
 
-    if (dueIds.length > 0) {
+    if (tickFakeUpdates > 0) {
       await conn.query(
         `UPDATE invite_leaderboard_tenant_growth_schedule
          SET last_fake_growth_at = NOW(3), updated_at = NOW(3)

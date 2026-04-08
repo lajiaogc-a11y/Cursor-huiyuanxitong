@@ -6,6 +6,7 @@ import { MemberEmptyStateCta } from "@/components/member/MemberEmptyStateCta";
 import { formatMemberLocalTime } from "@/lib/memberLocalTime";
 import { formatMemberLedgerRowOrderDisplay } from "@/lib/memberLedgerIdDisplay";
 import { ledgerActivityTypeLabel } from "@/lib/memberLedgerTypeLabel";
+import { translatePointsLedgerDescription } from "@/lib/pointsLedgerDescriptionI18n";
 import { useMemberAnimatedCount } from "@/hooks/useMemberAnimatedCount";
 import type { MemberLedgerCategory, MemberPointsLedgerRow } from "@/services/points/memberPointsRpcService";
 
@@ -42,7 +43,7 @@ function MemberSettingsLedgerCard({
       : t("订单号", "Order ID");
   const idDisplay =
     isAll && !row.order_id && !row.reference_id && row.description
-      ? row.description
+      ? translatePointsLedgerDescription(String(row.description), t)
       : orderDisplay;
   const typeLabel = ledgerActivityTypeLabel(row.type, t);
 

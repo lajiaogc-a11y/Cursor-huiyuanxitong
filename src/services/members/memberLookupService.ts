@@ -4,6 +4,19 @@
  */
 import { apiGet } from '@/api/client';
 
+/** 校验会员是否属于当前操作租户（多租户下防止错绑其它租户会员） */
+export function isMemberInTenant(
+  member: { tenant_id?: string | null } | null | undefined,
+  expectedTenantId: string | null | undefined,
+): boolean {
+  const exp = String(expectedTenantId ?? "").trim();
+  if (!exp) return true;
+  if (!member) return false;
+  const mt = member.tenant_id != null ? String(member.tenant_id).trim() : "";
+  if (!mt) return false;
+  return mt === exp;
+}
+
 export interface MemberByPhone {
   id: string;
   tenant_id?: string | null;

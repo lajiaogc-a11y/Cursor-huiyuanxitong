@@ -1,45 +1,28 @@
 // ============= Pending Audit Count Hook =============
-// Provides real-time count of pending audit items for sidebar badge
+// 与 useAuditRecords 共用 React Query key，审核通过/驳回 invalidate 后侧栏角标立即更新
 
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
 import { getPendingAuditCountApi } from '@/services/staff/dataApi';
+import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
 
 export function usePendingAuditCount() {
-  const [pendingCount, setPendingCount] = useState(0);
-  const [loading, setLoading] = useState(true);
   const { employee } = useAuth();
   const { viewingTenantId, viewingTenantName } = useTenantView() || {};
 
-  const tenantId = employee?.is_platform_super_admin
+  /** 与 useAuditRecords 完全一致，避免侧栏与审核中心计数口径不一致 */
+  const effectiveTenantId = employee?.is_platform_super_admin
     ? (viewingTenantName?.trim() ? viewingTenantId : null)
-    : (employee?.tenant_id ?? null);
+    : (viewingTenantId || employee?.tenant_id || null);
 
-  const fetchPendingCount = useCallback(async () => {
-    try {
-      const count = await getPendingAuditCountApi(tenantId);
-      setPendingCount(count || 0);
-    } catch (err) {
-      console.error('Error in fetchPendingCount:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [tenantId]);
+  const { data: pendingCount = 0, isLoading: loading, refetch } = useQuery({
+    queryKey: ['audit-pending-count', effectiveTenantId ?? ''],
+    queryFn: () => getPendingAuditCountApi(effectiveTenantId),
+    enabled: !!employee,
+    staleTime: STALE_TIME_LIST_MS,
+    refetchInterval: 30_000,
+  });
 
-  useEffect(() => {
-    if (!employee) return;
-
-    fetchPendingCount();
-
-    const timer = setInterval(() => {
-      fetchPendingCount();
-    }, 30000);
-
-    return () => {
-      clearInterval(timer);
-    };
-  }, [employee, fetchPendingCount]);
-
-  return { pendingCount, loading, refetch: fetchPendingCount };
+  return { pendingCount, loading, refetch };
 }

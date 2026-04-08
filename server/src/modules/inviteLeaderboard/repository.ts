@@ -142,7 +142,7 @@ export async function setFakeUserActive(tenantId: string, id: string, isActive: 
 export async function resetFakeUserGrowth(tenantId: string, id: string): Promise<boolean> {
   const res = await execute(
     `UPDATE invite_leaderboard_fake_users
-     SET growth_cycles = 0, auto_increment_count = 0, next_growth_at = NULL, updated_at = NOW(3)
+     SET growth_cycles = 0, auto_increment_count = 0, next_growth_at = NULL, last_auto_growth_at = NULL, updated_at = NOW(3)
      WHERE tenant_id = ? AND id = ?`,
     [tenantId, id],
   );
@@ -341,7 +341,7 @@ export async function resetGrowthCycleForTenant(tenantId: string): Promise<Invit
     [tenantId],
   );
   await execute(
-    `UPDATE invite_leaderboard_fake_users SET next_growth_at = NULL WHERE tenant_id = ?`,
+    `UPDATE invite_leaderboard_fake_users SET next_growth_at = NULL, last_auto_growth_at = NULL WHERE tenant_id = ?`,
     [tenantId],
   );
   const after = await getTenantGrowthScheduleFull(tenantId);

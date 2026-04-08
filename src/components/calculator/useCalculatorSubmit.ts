@@ -1,7 +1,7 @@
 import { useState, useCallback, type Dispatch, type SetStateAction } from "react";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { notify } from "@/lib/notifyHub";
-import { getMemberByPhoneForMyTenant } from "@/services/members/memberLookupService";
+import { getMemberByPhoneForMyTenant, isMemberInTenant } from "@/services/members/memberLookupService";
 import { showSubmissionError } from "@/services/submissionErrorService";
 import { getFeeSettings } from "@/services/system/systemSettingsService";
 import { getMemberPointsSummary } from "@/services/points/pointsCalculationService";
@@ -248,13 +248,13 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
       let finalMemberCode = formData.memberCode;
 
       try {
-        let existingMember = findMemberByPhone(formData.phoneNumber);
+        let existingMember = memberLookupTenantId ? undefined : findMemberByPhone(formData.phoneNumber);
         if (!existingMember?.id) {
           const dbMember = await getMemberByPhoneForMyTenant(
             formData.phoneNumber,
             memberLookupTenantId,
           );
-          if (dbMember) {
+          if (dbMember && (!memberLookupTenantId || isMemberInTenant(dbMember, memberLookupTenantId))) {
             existingMember = {
               id: dbMember.id,
               phoneNumber: dbMember.phone_number,

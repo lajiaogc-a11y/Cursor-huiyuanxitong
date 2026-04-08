@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Navigate, useSearchParams, Link } from "react-router-dom";
 import {
   Gift,
@@ -72,6 +72,8 @@ export default function MemberRegisterRedirect() {
     /** 徽章仅以后端 default 接口为准，避免 splash 缓存与后台不一致导致闪跳 */
     return { ...base, login_badges: [] };
   });
+  /** 避免“先渲染 -> 后端设置回来再跳变”导致顶部轮播与信任 6 宫格闪现 */
+  const [portalSettingsReady, setPortalSettingsReady] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(() => {
     const cached = readMemberPortalSplashBootstrap("");
     return Boolean(cached?.logo_url);
@@ -86,7 +88,7 @@ export default function MemberRegisterRedirect() {
     return /^#[0-9A-Fa-f]{6}$/i.test(tc) ? tc : "#4d8cff";
   }, [portalSettings.theme_primary_color]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.classList.add("member-html");
     return () => {
       document.documentElement.classList.remove("member-html");
@@ -96,6 +98,7 @@ export default function MemberRegisterRedirect() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
+      setPortalSettingsReady(false);
       try {
         const data = await getDefaultMemberPortalSettings();
         if (cancelled) return;
@@ -106,7 +109,10 @@ export default function MemberRegisterRedirect() {
       } catch {
         /* keep cached or DEFAULT_SETTINGS */
       } finally {
-        if (!cancelled) setSettingsLoaded(true);
+        if (!cancelled) {
+          setSettingsLoaded(true);
+          setPortalSettingsReady(true);
+        }
       }
     })();
     return () => {
@@ -215,16 +221,27 @@ export default function MemberRegisterRedirect() {
 
   return (
     <MemberRegisterShell themeColor={themeColor}>
-      <div className="relative z-[1] mx-auto flex w-full max-w-[480px] flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))]">
+      <div className="relative z-[1] mx-auto flex w-full max-w-[min(100%,36rem)] flex-1 flex-col px-1 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] sm:max-w-[480px] sm:px-0">
         <Link
           to={ROUTES.MEMBER.ROOT}
           replace
-          className="mb-10 inline-flex items-center self-start text-xs font-bold tracking-wide text-[hsl(var(--pu-m-text-dim))] transition hover:text-[hsl(var(--pu-m-text))]"
+          className="mb-8 inline-flex items-center self-start px-5 text-xs font-bold tracking-wide text-[hsl(var(--pu-m-text-dim))] transition hover:text-[hsl(var(--pu-m-text))]"
         >
           ← {t("返回", "Back")}
         </Link>
         {!submitted ? (
-          <MemberLoginCarousel displaySettings={portalSettings} theme={theme} t={t} paused={false} />
+          portalSettingsReady ? (
+            <MemberLoginCarousel displaySettings={portalSettings} theme={theme} t={t} paused={false} />
+          ) : (
+            <div className="mb-8 px-5" aria-hidden>
+              <div
+                className="relative overflow-hidden rounded-2xl bg-[hsl(var(--pu-m-surface)/0.22)]"
+                style={{ aspectRatio: "2/1" }}
+              >
+                <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-[hsl(var(--pu-m-surface-border)/0.12)] via-[hsl(var(--pu-m-surface)/0.35)] to-[hsl(var(--pu-m-surface-border)/0.08)]" />
+              </div>
+            </div>
+          )
         ) : null}
         {!inviteEnabled ? (
           <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-pu-gold/22 bg-gradient-to-b from-pu-gold/[0.08] via-[hsl(var(--pu-m-surface)/0.22)] to-[hsl(var(--pu-m-surface)/0.28)] px-5 py-12 text-center">
@@ -275,7 +292,7 @@ export default function MemberRegisterRedirect() {
           </div>
         ) : (
           <>
-            <div className="mb-6">
+            <div className="mb-6 px-5">
               <div className="mb-2 flex items-center gap-3">
                 <div
                   className="flex h-9 w-9 items-center justify-center rounded-xl"
@@ -299,11 +316,15 @@ export default function MemberRegisterRedirect() {
             </div>
 
             {inviteEnabled ? (
-              <MemberLoginBadgeGrid loginBadges={portalSettings.login_badges} />
+              <MemberLoginBadgeGrid
+                loading={!portalSettingsReady}
+                loginBadges={portalSettings.login_badges}
+                className="px-5"
+              />
             ) : null}
 
             <form
-              className="flex flex-1 flex-col"
+              className="flex flex-1 flex-col px-5"
               onSubmit={(e) => {
                 e.preventDefault();
                 void handleSubmit();

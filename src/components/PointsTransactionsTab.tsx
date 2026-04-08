@@ -41,14 +41,11 @@ import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
 import { useExportConfirm } from "@/hooks/useExportConfirm";
 import { exportToCSV, formatNumberForExport, formatDateTimeForExport } from "@/lib/exportUtils";
 import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
-import { repairUtf8MisdecodedAsLatin1 } from "@/lib/utf8MojibakeRepair";
 import type { TimeRange } from "@/components/member/MemberActivityFilters";
-
-/** 备注：库内可能为 UTF-8 字节被按 Latin-1 存入的乱码，展示前统一修复 */
-function formatPointsLedgerDescription(d: string | null | undefined): string {
-  if (d == null || d === "") return "";
-  return repairUtf8MisdecodedAsLatin1(String(d));
-}
+import {
+  pointsLedgerDescriptionSearchHaystack,
+  translatePointsLedgerDescription,
+} from "@/lib/pointsLedgerDescriptionI18n";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 const STAFF_ORDERS_PATH = "/staff/orders";
@@ -97,7 +94,7 @@ export default function PointsTransactionsTab({
   searchTerm: externalSearchTerm,
   onSearchChange 
 }: PointsTransactionsTabProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const { entries, loading, getPointsStatistics, refetch } = usePointsLedger();
@@ -232,7 +229,7 @@ export default function PointsTransactionsTab({
         String(entry.phone_number ?? '').includes(searchTerm.trim()) ||
         String(entry.order_id ?? '').toLowerCase().includes(q) ||
         String(entry.reference_id ?? '').toLowerCase().includes(q) ||
-        formatPointsLedgerDescription(entry.description).toLowerCase().includes(q);
+        pointsLedgerDescriptionSearchHaystack(entry.description, t).includes(q);
       
       const matchesCurrency = filterCurrency === "all" || entry.currency === filterCurrency;
       
@@ -256,7 +253,7 @@ export default function PointsTransactionsTab({
       
       return matchesSearch && matchesCurrency && matchesType && matchesStatus;
     });
-  }, [ledgerWithBalance, searchTerm, filterCurrency, filterType, filterStatus, timeRangeDates]);
+  }, [ledgerWithBalance, searchTerm, filterCurrency, filterType, filterStatus, timeRangeDates, t]);
 
   // Paginated ledger
   const paginatedLedger = useMemo(() => {
@@ -320,7 +317,12 @@ export default function PointsTransactionsTab({
       { key: 'member_code', label: '会员编号', labelEn: 'Member Code' },
       { key: 'phone_number', label: '电话号码', labelEn: 'Phone' },
       { key: 'order_id', label: '订单/关联', labelEn: 'Order / Ref' },
-      { key: 'description', label: '备注', labelEn: 'Note', formatter: (v) => formatPointsLedgerDescription(v != null ? String(v) : '') },
+      {
+        key: 'description',
+        label: '备注',
+        labelEn: 'Note',
+        formatter: (v) => translatePointsLedgerDescription(v != null ? String(v) : '', t),
+      },
       { key: 'actual_payment', label: '实付外币', labelEn: 'Paid Amount', formatter: (v) => v ? formatNumberForExport(v) : '' },
       { key: 'currency', label: '币种', labelEn: 'Currency' },
       { key: 'exchange_rate', label: '当时汇率', labelEn: 'FX Rate' },
@@ -334,9 +336,9 @@ export default function PointsTransactionsTab({
         formatter: (v, row) => getTypeConfig(v, row?.reference_type).label,
       },
       { key: 'status', label: '状态', labelEn: 'Status', formatter: (v) => v === 'issued' ? '已发放' : v === 'reversed' ? '已回收' : v },
-    ], '积分流水明细', false);
+    ], '积分流水明细', language === 'en');
     notify.success(t("导出成功", "Export successful"));
-  }, [filteredLedger, t, getTypeConfig]);
+  }, [filteredLedger, t, getTypeConfig, language]);
 
   useEffect(() => {
     const onRefresh = () => handleRefresh();
@@ -573,7 +575,7 @@ export default function PointsTransactionsTab({
                   paginatedLedger.map((entry) => {
                     const typeConfig = getTypeConfig(entry.transaction_type, entry.reference_type);
                     const showFx = showOrderFxColumns(entry.transaction_type);
-                    const noteText = formatPointsLedgerDescription(entry.description);
+                    const noteText = translatePointsLedgerDescription(entry.description, t);
                     return (
                       <MobileCard key={entry.id} accent="default" className={entry.status === 'reversed' ? 'opacity-60' : ''}>
                         <MobileCardHeader>
@@ -673,7 +675,7 @@ export default function PointsTransactionsTab({
                   paginatedLedger.map((entry) => {
                     const typeConfig = getTypeConfig(entry.transaction_type, entry.reference_type);
                     const showFx = showOrderFxColumns(entry.transaction_type);
-                    const noteText = formatPointsLedgerDescription(entry.description);
+                    const noteText = translatePointsLedgerDescription(entry.description, t);
                     return (
                       <TableRow 
                         key={entry.id}

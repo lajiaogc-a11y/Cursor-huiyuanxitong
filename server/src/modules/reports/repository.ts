@@ -23,7 +23,7 @@ export async function getDashboardStatsRepository(
 
   const ordersParams: any[] = tenantId ? [todayStr, tenantId] : [todayStr];
   const ordersSql = tenantId
-    ? "SELECT COUNT(*) as count FROM orders WHERE created_at >= ? AND (tenant_id = ? OR tenant_id IS NULL) AND (is_deleted = false OR is_deleted IS NULL) AND (status IS NULL OR status <> 'cancelled')"
+    ? "SELECT COUNT(*) as count FROM orders WHERE created_at >= ? AND tenant_id = ? AND (is_deleted = false OR is_deleted IS NULL) AND (status IS NULL OR status <> 'cancelled')"
     : "SELECT COUNT(*) as count FROM orders WHERE created_at >= ? AND (is_deleted = false OR is_deleted IS NULL) AND (status IS NULL OR status <> 'cancelled')";
 
   const auditParams: any[] = tenantId ? [tenantId] : [];
@@ -253,7 +253,7 @@ export async function getOrdersReportRepository(params: {
     values.push(params.creatorId, params.creatorId);
   }
   if (params.tenantId) {
-    conditions.push(`(o.tenant_id = ? OR o.tenant_id IS NULL)`);
+    conditions.push(`o.tenant_id = ?`);
     values.push(params.tenantId);
   }
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
