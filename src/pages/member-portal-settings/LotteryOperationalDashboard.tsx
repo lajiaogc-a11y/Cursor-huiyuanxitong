@@ -69,6 +69,22 @@ export default function LotteryOperationalDashboard() {
     return t('降级', 'Downgrade');
   };
 
+  const prizeTypeLabel = (raw: string) => {
+    const v = String(raw ?? '').trim().toLowerCase();
+    if (v === 'none') return t('无', 'None');
+    if (v === 'points') return t('积分', 'Points');
+    if (v === 'custom') return t('自定义', 'Custom');
+    return raw;
+  };
+
+  const rewardStatusLabel = (raw: string) => {
+    const v = String(raw ?? '').trim().toLowerCase();
+    if (v === 'done') return t('已完成', 'Done');
+    if (v === 'pending') return t('待发放', 'Pending');
+    if (v === 'failed') return t('失败', 'Failed');
+    return raw;
+  };
+
   return (
     <Card>
       <CardContent className="pt-5 space-y-5">
@@ -146,28 +162,28 @@ export default function LotteryOperationalDashboard() {
             {stats.cost_breakdown && stats.cost_breakdown.length > 0 ? (
               <div className="rounded-xl border p-3 space-y-2 bg-muted/5">
                 <p className="text-xs font-semibold text-muted-foreground">
-                  {t('今日发奖明细（综合行 vs 积分行）', 'Prize lines today (composite vs points)')}
+                  {t('今日发奖明细（综合行 vs 积分行）', "Today's prize lines (composite vs points)")}
                 </p>
                 <div className="overflow-x-auto max-h-56 text-[10px]">
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="text-left border-b text-muted-foreground">
                         <th className="py-1 pr-2">{t('奖品', 'Prize')}</th>
-                        <th className="py-1 pr-2">type</th>
-                        <th className="py-1 pr-2">status</th>
-                        <th className="py-1 pr-2 tabular-nums">reward_pts</th>
-                        <th className="py-1 pr-2 tabular-nums">value</th>
-                        <th className="py-1 pr-2 tabular-nums">prize_cost</th>
-                        <th className="py-1 pr-2 tabular-nums">{t('综合行', 'Σ comp')}</th>
-                        <th className="py-1 pr-2 tabular-nums">{t('积分行', 'Σ pts')}</th>
+                        <th className="py-1 pr-2">{t('类型', 'Type')}</th>
+                        <th className="py-1 pr-2">{t('状态', 'Status')}</th>
+                        <th className="py-1 pr-2 tabular-nums">{t('奖励积分', 'Reward pts')}</th>
+                        <th className="py-1 pr-2 tabular-nums">{t('展示值', 'Display value')}</th>
+                        <th className="py-1 pr-2 tabular-nums">{t('发奖成本', 'Prize cost')}</th>
+                        <th className="py-1 pr-2 tabular-nums">{t('综合行', 'Composite row')}</th>
+                        <th className="py-1 pr-2 tabular-nums">{t('积分行', 'Points row')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {stats.cost_breakdown.map((r) => (
                         <tr key={r.id} className="border-b border-border/40">
                           <td className="py-0.5 pr-2 max-w-[140px] truncate">{r.prize_name}</td>
-                          <td className="py-0.5 pr-2">{r.prize_type}</td>
-                          <td className="py-0.5 pr-2">{r.reward_status}</td>
+                          <td className="py-0.5 pr-2">{prizeTypeLabel(r.prize_type)}</td>
+                          <td className="py-0.5 pr-2">{rewardStatusLabel(r.reward_status)}</td>
                           <td className="py-0.5 pr-2 tabular-nums">{r.reward_points ?? '—'}</td>
                           <td className="py-0.5 pr-2 tabular-nums">{r.prize_value}</td>
                           <td className="py-0.5 pr-2 tabular-nums">{r.prize_cost}</td>
