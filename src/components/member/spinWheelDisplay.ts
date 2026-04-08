@@ -30,7 +30,10 @@ export function spinWheelPrizeMainText(t: (z: string, e: string) => string, priz
 
 export function prizeDisplayTier(p: LotteryPrize): "legendary" | "epic" | "rare" | "common" | "miss" {
   if (p.type === "none") return "miss";
-  const raw = Number(p.probability);
+  const raw =
+    p.display_probability != null && Number.isFinite(Number(p.display_probability))
+      ? Number(p.display_probability)
+      : Number(p.probability);
   if (!Number.isFinite(raw)) return "common";
   if (raw <= 0) return "common";
   if (raw < 0.05) return "legendary";
@@ -69,7 +72,7 @@ export function formatPrizeListDisplayProbability(p: LotteryPrize): string | nul
   const pick =
     p.display_probability != null && Number.isFinite(Number(p.display_probability))
       ? Number(p.display_probability)
-      : Number(p.probability);
+      : null;
   if (!Number.isFinite(pick)) return null;
   return `${pick.toFixed(4)}%`;
 }

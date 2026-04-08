@@ -582,6 +582,9 @@ export default function LuckySpinTab({
                       />
                     </div>
                     <p className="text-[10px] text-muted-foreground/60 px-0.5">{t("中奖权重", "Win weight")}</p>
+                    <p className="text-[10px] text-muted-foreground/45 px-0.5">
+                      {t("不是直接百分比，系统会按全部启用奖品权重自动归一化", "Not a literal percentage. Runtime normalizes all enabled prize weights.")}
+                    </p>
                   </div>
 
                   {/* 展示概率 */}
@@ -627,6 +630,9 @@ export default function LuckySpinTab({
                       <span className="text-xs text-muted-foreground">%</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground/60 px-0.5">{t("展示概率（公示）", "Display % (public)")}</p>
+                    <p className="text-[10px] text-muted-foreground/45 px-0.5">
+                      {t("不填写则会员端不显示百分比，避免把内部权重误当成公示概率", "Leave empty to hide public odds and avoid exposing internal weights as public percentages.")}
+                    </p>
                   </div>
 
                   {/* 发奖成本 */}

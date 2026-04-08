@@ -190,9 +190,17 @@ export async function adminSavePrizesController(req: AuthenticatedRequest, res: 
     return;
   }
 
-  const hasNone = prizes.some((p: any) => p.type === 'none');
-  if (!hasNone) {
+  const hasEnabledNone = prizes.some((p: any) => p.type === 'none' && p?.enabled !== false && p?.enabled !== 0);
+  if (!hasEnabledNone) {
     res.status(400).json({ success: false, error: 'MUST_HAVE_THANKS_PRIZE' });
+    return;
+  }
+
+  const enabledWeightTotal = prizes
+    .filter((p: any) => p?.enabled !== false && p?.enabled !== 0)
+    .reduce((sum: number, p: any) => sum + Math.max(0, Number(p?.probability ?? 0) || 0), 0);
+  if (enabledWeightTotal <= 0) {
+    res.status(400).json({ success: false, error: 'PROBABILITY_SUM_ZERO' });
     return;
   }
 
@@ -548,10 +556,10 @@ export async function adminOperationalStatsController(req: AuthenticatedRequest,
   const budgetCap = Number(settings?.daily_reward_budget ?? 0);
   const budgetUsed = Number(settings?.daily_reward_used ?? 0);
   const targetRtp = Number(settings?.target_rtp ?? 0);
+  let todayOrderPoints = 0;
 
   let effectiveCap = budgetCap;
   if (targetRtp > 0) {
-    let todayOrderPoints = 0;
     try {
       const rows = await dbQuery(
         `SELECT COALESCE(SUM(amount), 0) AS total
@@ -571,7 +579,7 @@ export async function adminOperationalStatsController(req: AuthenticatedRequest,
 
   const costToday = Number(todayStats?.cost_today ?? 0);
   const drawsToday = Number(todayStats?.draws_today ?? 0);
-  const actualRtp = budgetCap > 0 ? Math.round((costToday / budgetCap) * 10000) / 100 : 0;
+  const actualRtp = todayOrderPoints > 0 ? Math.round((costToday / todayOrderPoints) * 10000) / 100 : 0;
 
   const stockInfo = prizes.slice(0, 8).map((p) => ({
     id: p.id,
@@ -594,6 +602,7 @@ export async function adminOperationalStatsController(req: AuthenticatedRequest,
       daily_remaining: effectiveCap > 0 ? Math.max(0, effectiveCap - budgetUsed) : -1,
       effective_cap: effectiveCap,
       target_rtp: targetRtp,
+      today_order_points: todayOrderPoints,
       actual_rtp: actualRtp,
       budget_policy: settings?.budget_policy ?? 'downgrade',
     },

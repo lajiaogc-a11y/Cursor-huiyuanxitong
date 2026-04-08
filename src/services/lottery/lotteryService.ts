@@ -841,6 +841,7 @@ export interface OperationalStats {
     daily_remaining: number;
     effective_cap: number;
     target_rtp: number;
+    today_order_points?: number;
     actual_rtp: number;
     budget_policy: BudgetPolicy;
   };

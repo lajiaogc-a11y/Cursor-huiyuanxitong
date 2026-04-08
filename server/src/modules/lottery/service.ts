@@ -327,6 +327,7 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
     const nonePrize = prizes.find((p) => p.type === 'none');
     let hit: LotteryPrize;
     let budgetWarning: DrawResult['budget_warning'];
+    let reservedStockPrizeId: string | null = null;
 
     // 只有当奖品池中至少有一个 prize_cost > 0 时，预算机制才有意义。
     // 若所有奖品 prize_cost = 0（默认），跳过 budgetAwarePrizePick，避免因管理员
@@ -374,6 +375,8 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
         );
         if (Number((stockRes as ResultSetHeader).affectedRows) !== 1) {
           if (nonePrize) hit = nonePrize;
+        } else {
+          reservedStockPrizeId = hit.id;
         }
       }
     }
@@ -391,6 +394,13 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
           [hit.id, dayStart, dayStart],
         );
         if (Number(dailyRow?.cnt ?? 0) >= dailyLimit) {
+          if (reservedStockPrizeId === hit.id) {
+            await conn.query(
+              'UPDATE lottery_prizes SET stock_used = GREATEST(stock_used - 1, 0) WHERE id = ?',
+              [reservedStockPrizeId],
+            );
+            reservedStockPrizeId = null;
+          }
           if (nonePrize) hit = nonePrize;
         }
       } finally {

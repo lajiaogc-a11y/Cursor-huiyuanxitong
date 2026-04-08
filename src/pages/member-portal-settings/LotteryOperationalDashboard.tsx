@@ -160,6 +160,11 @@ export default function LotteryOperationalDashboard() {
                       {b.actual_rtp.toFixed(1)}%
                     </span>
                   </span>
+                  {(b.today_order_points ?? 0) > 0 ? (
+                    <span className="tabular-nums text-muted-foreground/80">
+                      {t('今日订单积分', 'Today order pts')}: {(b.today_order_points ?? 0).toFixed(0)}
+                    </span>
+                  ) : null}
                   {b.actual_rtp > 100 && (
                     <span className="inline-flex items-center gap-1 text-destructive font-medium">
                       <AlertTriangle className="h-3 w-3" />

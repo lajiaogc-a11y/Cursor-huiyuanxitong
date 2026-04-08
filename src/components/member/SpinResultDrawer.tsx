@@ -78,12 +78,15 @@ function SpinResultBody({
       <p className="m-0 mb-1 text-lg font-bold text-[hsl(var(--pu-m-text))]">
         {t("感谢参与！", "Thanks for playing!")}
       </p>
-      <p className="m-0 text-[13px] text-[hsl(var(--pu-m-text-dim)/0.8)]">
+      <p className="m-0 text-[13px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.8)]">
         {lastDrawMeta?.risk_downgraded
           ? t("操作频率较高，请稍后再试可获得更好奖品。", "High activity detected. Try again later for better rewards.")
           : lastDrawMeta?.budget_warning === "BUDGET_EXCEEDED" || lastDrawMeta?.budget_warning === "RTP_LIMIT_REACHED"
             ? t("今日奖池接近上限，明天会有更多惊喜！", "Today's prizes are running low. More surprises tomorrow!")
             : t("下次好运！", "Better luck next time!")}
+      </p>
+      <p className="mt-2 text-[11px] leading-relaxed text-[hsl(var(--pu-m-text-dim)/0.62)]">
+        {t("提示：抽奖结果会随实时库存与活动状态动态变化。", "Tip: results can change with live stock and event status.")}
       </p>
     </div>
   );

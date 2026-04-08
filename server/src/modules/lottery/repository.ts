@@ -55,8 +55,29 @@ export async function listEnabledPrizes(tenantId: string | null): Promise<Lotter
 
 export async function upsertPrizes(tenantId: string | null, prizes: (LotteryPrize & { enabled?: boolean | number })[]): Promise<void> {
   await withTransaction(async (conn) => {
-    await conn.query('DELETE FROM lottery_prizes WHERE tenant_id <=> ?', [tenantId]);
+    const [existingRows] = await conn.query(
+      'SELECT id, COALESCE(stock_used, 0) AS stock_used FROM lottery_prizes WHERE tenant_id <=> ?',
+      [tenantId],
+    );
+    const existing = new Map<string, { stock_used: number }>();
+    for (const row of (existingRows as Array<{ id: string; stock_used: number }>)) {
+      existing.set(String(row.id), { stock_used: Number(row.stock_used) || 0 });
+    }
+
+    const incomingIds = prizes
+      .map((p) => String(p.id || '').trim())
+      .filter((id) => id.length > 0);
+    if (incomingIds.length > 0) {
+      const placeholders = incomingIds.map(() => '?').join(', ');
+      await conn.query(
+        `DELETE FROM lottery_prizes WHERE tenant_id <=> ? AND id NOT IN (${placeholders})`,
+        [tenantId, ...incomingIds],
+      );
+    } else {
+      await conn.query('DELETE FROM lottery_prizes WHERE tenant_id <=> ?', [tenantId]);
+    }
     for (const p of prizes) {
+      const prizeId = p.id || randomUUID();
       const disp =
         p.display_probability == null || !Number.isFinite(Number(p.display_probability))
           ? null
@@ -70,13 +91,30 @@ export async function upsertPrizes(tenantId: string | null, prizes: (LotteryPriz
         : p.type === 'points' ? Math.max(0, Number(p.value) || 0) : 0;
       const prizeEnabled =
         (p as { enabled?: boolean }).enabled === false || (p as { enabled?: unknown }).enabled === 0 ? 0 : 1;
+      const preservedStockUsed = existing.get(prizeId)?.stock_used ?? Math.max(0, Math.floor(Number((p as any).stock_used) || 0));
       await conn.query(
         `INSERT INTO lottery_prizes
            (id, tenant_id, name, type, value, description, probability, display_probability,
-            image_url, sort_order, enabled, prize_cost, stock_enabled, stock_total, daily_stock_limit)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            image_url, sort_order, enabled, prize_cost, stock_enabled, stock_total, stock_used, daily_stock_limit)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           tenant_id = VALUES(tenant_id),
+           name = VALUES(name),
+           type = VALUES(type),
+           value = VALUES(value),
+           description = VALUES(description),
+           probability = VALUES(probability),
+           display_probability = VALUES(display_probability),
+           image_url = VALUES(image_url),
+           sort_order = VALUES(sort_order),
+           enabled = VALUES(enabled),
+           prize_cost = VALUES(prize_cost),
+           stock_enabled = VALUES(stock_enabled),
+           stock_total = VALUES(stock_total),
+           stock_used = VALUES(stock_used),
+           daily_stock_limit = VALUES(daily_stock_limit)`,
         [
-          p.id || randomUUID(),
+          prizeId,
           tenantId,
           p.name,
           p.type,
@@ -90,6 +128,7 @@ export async function upsertPrizes(tenantId: string | null, prizes: (LotteryPriz
           prizeCost,
           stockEnabled,
           stockTotal,
+          preservedStockUsed,
           dailyStockLimit,
         ],
       );

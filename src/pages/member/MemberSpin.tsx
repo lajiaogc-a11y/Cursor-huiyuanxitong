@@ -404,6 +404,12 @@ export default function MemberSpin() {
         if (targetIdx < 0) {
           targetIdx = prizes.findIndex((p) => p.name === prize.name && p.type === prize.type);
         }
+        if (targetIdx < 0 && prize.type === "none") {
+          targetIdx = prizes.findIndex((p) => p.type === "none");
+        }
+        if (targetIdx < 0) {
+          targetIdx = prizes.findIndex((p) => p.type === prize.type);
+        }
 
         const onComplete = () => {
           setActiveIndex(-1);
