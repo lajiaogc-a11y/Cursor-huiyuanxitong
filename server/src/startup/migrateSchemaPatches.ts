@@ -1603,5 +1603,50 @@ export async function migrateSchemaPatches(): Promise<void> {
   await addCol('operation_logs', 'request_data', 'JSON NULL COMMENT \'请求/上下文 JSON，禁止仅依赖 object_description 纯文本\'');
   await addCol('operation_logs', 'target_ids', 'JSON NULL COMMENT \'批量操作时的目标 id 数组\'');
 
+  // ── WhatsApp 工作台 — 会话状态 + 跟进备注 ──
+  await createTbl('whatsapp_conversation_status', `
+    CREATE TABLE whatsapp_conversation_status (
+      id CHAR(36) NOT NULL PRIMARY KEY,
+      tenant_id CHAR(36) NULL,
+      account_id VARCHAR(64) NOT NULL COMMENT 'WhatsApp 账号标识',
+      channel VARCHAR(32) NOT NULL DEFAULT 'whatsapp',
+      phone_raw VARCHAR(64) NOT NULL COMMENT '原始手机号',
+      phone_normalized VARCHAR(32) NOT NULL COMMENT '标准化后手机号 (E.164)',
+      member_id CHAR(36) NULL COMMENT '匹配到的会员 ID',
+      status ENUM('unread','read_no_reply','replied','follow_up_required','priority','closed') NOT NULL DEFAULT 'unread',
+      priority_level TINYINT NOT NULL DEFAULT 0 COMMENT '0=普通 1=高 2=紧急',
+      assigned_to CHAR(36) NULL COMMENT '分配给的客服员工 ID',
+      last_message_at DATETIME(3) NULL,
+      last_read_at DATETIME(3) NULL,
+      last_replied_at DATETIME(3) NULL,
+      last_status_changed_at DATETIME(3) NULL,
+      last_status_note VARCHAR(500) NULL,
+      is_closed TINYINT NOT NULL DEFAULT 0,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+      INDEX idx_wcs_tenant (tenant_id),
+      INDEX idx_wcs_account (account_id),
+      INDEX idx_wcs_phone (phone_normalized),
+      INDEX idx_wcs_member (member_id),
+      INDEX idx_wcs_status (status),
+      UNIQUE INDEX uq_wcs_account_phone (account_id, phone_normalized)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+
+  await createTbl('whatsapp_conversation_notes', `
+    CREATE TABLE whatsapp_conversation_notes (
+      id CHAR(36) NOT NULL PRIMARY KEY,
+      tenant_id CHAR(36) NULL,
+      account_id VARCHAR(64) NOT NULL,
+      phone_normalized VARCHAR(32) NOT NULL,
+      member_id CHAR(36) NULL,
+      note TEXT NOT NULL,
+      created_by CHAR(36) NULL COMMENT '创建人员工 ID',
+      created_by_name VARCHAR(100) NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      INDEX idx_wcn_tenant (tenant_id),
+      INDEX idx_wcn_phone (account_id, phone_normalized),
+      INDEX idx_wcn_member (member_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+
   console.log('[schema-patch] done.');
 }

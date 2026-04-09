@@ -101,6 +101,7 @@ export const STAFF_NAV_TOP_LEVEL_ITEMS: StaffNavTopLevelBase[] = [
       { labelZh: "设置总览", labelEn: "Overview", path: "/staff/settings?tab=overview" },
     ],
   },
+  { navKey: "whatsapp_workbench", labelZh: "WhatsApp 工作台", labelEn: "WhatsApp", path: "/staff/whatsapp" },
   { navKey: "platform_tenant_management", labelZh: "租户管理", labelEn: "Tenants", path: "/staff/admin/tenants" },
   { navKey: "platform_tenant_view", labelZh: "租户数据查看", labelEn: "View Tenant Data", path: "/staff/admin/tenant-view" },
   { navKey: "platform_settings", labelZh: "平台设置", labelEn: "Platform Settings", path: "/staff/admin/settings" },

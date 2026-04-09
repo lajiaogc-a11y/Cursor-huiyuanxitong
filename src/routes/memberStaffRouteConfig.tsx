@@ -38,6 +38,7 @@ import {
   TasksPhoneExtract,
   TasksPosters,
   TasksSettings,
+  WhatsAppWorkbench,
 } from "@/routes/lazyPages";
 import { LegacyActivityReportsRedirect } from "@/routes/RedirectRoutes";
 
@@ -129,4 +130,5 @@ export const staffExtendedRoutes: Array<{ path: string; element: ReactNode }> = 
     path: ROUTES.STAFF.MEMBER_PROMOTION,
     element: <Navigate to={`${ROUTES.STAFF.SETTINGS}?tab=member-levels`} replace />,
   },
+  { path: ROUTES.STAFF.WHATSAPP, element: <WhatsAppWorkbench /> },
 ];

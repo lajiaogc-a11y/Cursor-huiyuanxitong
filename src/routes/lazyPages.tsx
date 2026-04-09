@@ -31,6 +31,7 @@ export const TasksHistory = lazyWithRetry(() => import("@/pages/TasksHistory"));
 export const TasksPosters = lazyWithRetry(() => import("@/pages/TasksPosters"));
 export const TasksPhoneExtract = lazyWithRetry(() => import("@/pages/TasksPhoneExtract"));
 export const MemberPortalSettingsPage = lazyWithRetry(() => import("@/pages/MemberPortalSettings"));
+export const WhatsAppWorkbench = lazyWithRetry(() => import("@/pages/whatsapp/WhatsAppWorkbench"));
 export const NotFound = lazyWithRetry(() => import("@/pages/NotFound"));
 export const MemberLogin = lazyWithRetry(() => import("@/pages/member/MemberLogin"));
 export const InviteLanding = lazyWithRetry(() => import("@/pages/member/InviteLanding"));

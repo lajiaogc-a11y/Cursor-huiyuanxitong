@@ -23,6 +23,7 @@ import {
   SlidersHorizontal,
   MonitorSmartphone,
   Database,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -80,6 +81,7 @@ const NAV_ICON_BY_KEY: Record<string, MenuItem["icon"]> = {
   login_logs: LogIn,
   data_management: Database,
   system_settings: Settings,
+  whatsapp_workbench: MessageSquare,
   platform_tenant_management: Building2,
   platform_tenant_view: Users,
   platform_settings: SlidersHorizontal,
