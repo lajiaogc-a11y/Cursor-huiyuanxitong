@@ -780,8 +780,8 @@ export async function deleteWithdrawal(
     operatorName: currentOperatorName || undefined,
   });
   
-  if (!reversalResult) {
-    console.warn('[MerchantSettlement] reverseAllEntriesForSource returned null for withdrawal', withdrawalId, '- attempting softDelete fallback');
+  if (reversalResult == null) {
+    console.warn('[MerchantSettlement] reverseAllEntriesForSource failed for withdrawal', withdrawalId, '- attempting softDelete fallback');
     await softDeleteLedgerEntry({
       sourceType: 'withdrawal',
       sourceId: `wd_${withdrawalId}`,
@@ -933,8 +933,8 @@ export async function deleteRecharge(
     operatorName: currentOperatorName || undefined,
   });
   
-  if (!reversalResult) {
-    console.warn('[MerchantSettlement] reverseAllEntriesForSource returned null for recharge', rechargeId, '- attempting softDelete fallback');
+  if (reversalResult == null) {
+    console.warn('[MerchantSettlement] reverseAllEntriesForSource failed for recharge', rechargeId, '- attempting softDelete fallback');
     await softDeleteLedgerEntry({
       sourceType: 'recharge',
       sourceId: `rc_${rechargeId}`,

@@ -373,7 +373,7 @@ export default function OrderManagement() {
     }
     
     if (searchTab) {
-      setActiveTab(searchTab);
+      setActiveTab(searchTab as "normal" | "usdt" | "meika-fiat" | "meika-usdt" | "mall");
       sessionStorage.removeItem("orderSearchTab");
     }
     
@@ -1661,7 +1661,11 @@ export default function OrderManagement() {
 
       <FilterBar>
         <div className={isMobile ? "flex w-full flex-col gap-3" : "flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"}>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto shrink-0">
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as "normal" | "usdt" | "meika-fiat" | "meika-usdt" | "mall")}
+            className="w-auto shrink-0"
+          >
             <TabsList className="flex h-auto min-h-9 flex-wrap gap-1 min-w-0 max-w-full sm:max-w-none">
               <TabsTrigger value="normal" className="px-1.5 text-[10px] sm:px-3 sm:text-xs">
                 {isMobile ? t("奈拉/赛地", "Naira/Cedi") : t("赛地 / 奈拉模式", "Cedi / Naira Mode")}
@@ -1804,7 +1808,11 @@ export default function OrderManagement() {
             />
           ) : null}
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as "normal" | "usdt" | "meika-fiat" | "meika-usdt" | "mall")}
+            className="w-full"
+          >
 
             <TabsContent value="normal">
               {isOrdersError && (

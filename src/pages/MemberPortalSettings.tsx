@@ -527,7 +527,7 @@ export default function MemberPortalSettingsPage() {
     if (snapshot === lastPublishedSnapshot) return;
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => {
-      saveDraftToServer(payload, undefined, tenantId).then((r) => {
+      saveDraftToServer(payload as unknown as MemberPortalSettings, undefined, tenantId).then((r) => {
         if (r.success) setHasDraft(true);
       }).catch((err) => { console.warn('[MemberPortalSettings] auto-save draft failed:', err); /* auto-save 静默失败 */ });
     }, 5000);
@@ -568,7 +568,7 @@ export default function MemberPortalSettingsPage() {
         const next = { ...prev, logo_url: url };
         // 立即保存草稿，避免刷新页面后 logo 丢失
         const p = buildPortalPayloadSnapshot(next, badgesText, banners, moduleOrder, loginCarouselSlides);
-        saveDraftToServer(p as MemberPortalSettings, undefined, tenantId).then((r) => {
+        saveDraftToServer(p as unknown as MemberPortalSettings, undefined, tenantId).then((r) => {
           if (r.success) setHasDraft(true);
         }).catch((err) => { console.warn('[MemberPortalSettings] saveDraftToServer failed:', err); });
         return next;
@@ -616,7 +616,7 @@ export default function MemberPortalSettingsPage() {
       // banner 状态更新后立即保存草稿
       const updatedBanners = banners.map((b, i) => (i === idx ? { ...b, image_url: bannerUrl, image_preset_id: "" } : b));
       const p = buildPortalPayloadSnapshot(settings, badgesText, updatedBanners, moduleOrder, loginCarouselSlides);
-      saveDraftToServer(p as MemberPortalSettings, undefined, tenantId).catch((err) => { console.warn('[MemberPortalSettings] saveDraftToServer (banner upload) failed:', err); });
+      saveDraftToServer(p as unknown as MemberPortalSettings, undefined, tenantId).catch((err) => { console.warn('[MemberPortalSettings] saveDraftToServer (banner upload) failed:', err); });
       notify.success(t("轮播图上传成功", "Banner image uploaded successfully"));
     } catch (e: any) {
       showServiceErrorToast(e, t, "轮播图上传失败", "Banner upload failed");
@@ -632,7 +632,7 @@ export default function MemberPortalSettingsPage() {
       i === idx ? { ...b, image_url: "", image_preset_id: presetId } : b,
     );
     const p = buildPortalPayloadSnapshot(settings, badgesText, updatedBanners, moduleOrder, loginCarouselSlides);
-    saveDraftToServer(p as MemberPortalSettings, undefined, tenantId).catch((err) => { console.warn('[MemberPortalSettings] saveDraftToServer (template apply) failed:', err); });
+    saveDraftToServer(p as unknown as MemberPortalSettings, undefined, tenantId).catch((err) => { console.warn('[MemberPortalSettings] saveDraftToServer (template apply) failed:', err); });
     notify.success(t("已套用模板", "Template applied"));
   };
 
@@ -678,7 +678,7 @@ export default function MemberPortalSettingsPage() {
       const updated = loginCarouselSlides.map((row, i) => (i === idx ? { ...row, image_url: url } : row));
       setLoginCarouselSlides(updated);
       const p = buildPortalPayloadSnapshot(settings, badgesText, banners, moduleOrder, updated);
-      saveDraftToServer(p as MemberPortalSettings, undefined, tenantId).catch((err) => { console.warn('[MemberPortalSettings] saveDraftToServer (carousel upload) failed:', err); });
+      saveDraftToServer(p as unknown as MemberPortalSettings, undefined, tenantId).catch((err) => { console.warn('[MemberPortalSettings] saveDraftToServer (carousel upload) failed:', err); });
       notify.success(t("图片上传成功", "Image uploaded"));
     } catch (e: any) {
       showServiceErrorToast(e, t, "图片上传失败", "Image upload failed");
@@ -929,7 +929,7 @@ export default function MemberPortalSettingsPage() {
     }
     setSavingDraft(true);
     try {
-      const result = await saveDraftToServer(payload, publishNote.trim() || undefined, tenantId);
+      const result = await saveDraftToServer(payload as unknown as MemberPortalSettings, publishNote.trim() || undefined, tenantId);
       if (!result.success) { showServiceErrorToast({ message: result.error }, t, "草稿保存失败", "Draft save failed"); return; }
       setHasDraft(true);
       notify.success(t("草稿已保存（尚未发布，会员端不会看到变更）", "Draft saved (not published yet, members won't see changes)"));
@@ -1098,7 +1098,7 @@ export default function MemberPortalSettingsPage() {
         lotteryRefetched = { prizes: np, settings: ns };
       }
 
-      const draftResult = await saveDraftToServer(payload, publishNote.trim() || undefined, tenantId);
+      const draftResult = await saveDraftToServer(payload as unknown as MemberPortalSettings, publishNote.trim() || undefined, tenantId);
       if (!draftResult.success) { showServiceErrorToast({ message: draftResult.error }, t, "草稿保存失败", "Draft save failed"); return; }
 
       const result = await publishServerDraft(publishNote.trim() || undefined, tenantId);
@@ -1145,7 +1145,7 @@ export default function MemberPortalSettingsPage() {
     const payload = buildPayload();
     setSaving(true);
     try {
-      const submitResult = await submitMyMemberPortalSettingsForApproval(payload, publishNote.trim() || undefined, scheduleAt || null, tenantId);
+      const submitResult = await submitMyMemberPortalSettingsForApproval(payload as unknown as MemberPortalSettings, publishNote.trim() || undefined, scheduleAt || null, tenantId);
       if (!submitResult.success) { showServiceErrorToast({ message: submitResult.error }, t, "提交审批失败", "Submit for approval failed"); return; }
       notify.success(t(`已提交审核 V${submitResult.version_no}`, `Submitted for review V${submitResult.version_no}`));
       setPublishNote(""); setScheduleAt("");

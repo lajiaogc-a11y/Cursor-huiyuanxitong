@@ -13,7 +13,7 @@ import { calculateNormalOrderDerivedValues, calculateUsdtOrderDerivedValues } fr
 import { runImportOrderSideEffects } from '@/services/orders/orderSideEffectOrchestrator';
 import { cleanPhoneNumber } from './utils';
 import { getNowBeijingISO } from '@/lib/beijingTime';
-import { generateUniqueOrderNumber } from '@/hooks/orders/utils';
+import { generateUniqueOrderNumber } from '@/services/orders/orderUtils';
 
 /**
  * 进度回调类型

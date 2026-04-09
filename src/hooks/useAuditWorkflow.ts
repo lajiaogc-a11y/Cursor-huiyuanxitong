@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiGet, apiPost } from '@/api/client';
+import { createAuditRecord, getRolePermissionCanEditRow } from '@/services/data/tableQueryService';
 import { loadSharedData } from '@/services/finance/sharedDataService';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -288,9 +288,7 @@ export function useAuditWorkflow() {
       return permissionCache.get(cacheKey)!;
     }
     
-    const row = await apiGet<{ can_edit?: unknown } | null>(
-      `/api/data/table/role_permissions?select=can_edit&role=eq.${encodeURIComponent(employee.role)}&module_name=eq.${encodeURIComponent(moduleName)}&field_name=eq.${encodeURIComponent(permissionField)}&single=true`
-    );
+    const row = await getRolePermissionCanEditRow(employee.role, moduleName, permissionField);
 
     let canEdit = false;
     if (row && row.can_edit !== undefined && row.can_edit !== null) {
@@ -369,7 +367,7 @@ export function useAuditWorkflow() {
     };
 
     try {
-      await apiPost(`/api/data/table/audit_records`, { data: auditData });
+      await createAuditRecord(auditData);
     } catch (err) {
       console.error('Failed to submit for approval:', err);
       return { submitted: false, message: t('提交审核失败', 'Failed to submit for review') };

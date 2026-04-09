@@ -343,11 +343,11 @@ export const COLUMN_ALIAS_MAP: Record<string, Record<string, string>> = {
     vendor: 'card_merchant_id',
     payment_provider_id: 'vendor_id',
   },
-  /** 前端沿用 Supabase 的 current_points，MySQL 账务列为 balance */
+  /** 前端沿用 current_points，MySQL 账务列为 balance */
   points_accounts: { current_points: 'balance' },
   user_data_store: { data_key: 'store_key', data_value: 'store_value' },
   shared_data_store: { data_key: 'store_key', data_value: 'store_value', key_name: 'store_key', value: 'store_value' },
-  /** MySQL notifications 表沿用 user_id / content，与 Supabase 的 recipient_id / message 对齐 */
+  /** MySQL notifications 表沿用 user_id / content，前端字段 recipient_id / message 做别名映射 */
   notifications: { recipient_id: 'user_id', message: 'content' },
   /** 前端上报 metadata → 库表 context(JSON) */
   error_reports: { metadata: 'context' },
@@ -390,7 +390,7 @@ export function toMySqlDatetime(val: unknown): unknown {
   return shanghaiToMySqlDatetime(val);
 }
 
-// 解析 Supabase 风格的过滤参数
+// 解析兼容风格的过滤参数（eq / neq / gt / lt / like / in 等）
 export function parseFilters(params: Record<string, string>, table?: string): { where: string; values: unknown[] } {
   const conditions: string[] = [];
   const values: unknown[] = [];

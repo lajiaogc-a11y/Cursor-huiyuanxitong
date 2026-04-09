@@ -1,7 +1,6 @@
 // TODO: unused-candidate — verify callers / product intent before removal
-import { apiPost, ApiError } from '@/api/client';
-import { STAFF_AUTH_PATHS } from '@/services/auth/authPaths';
-
+import { authApi } from '@/api/auth';
+import { ApiError } from '@/lib/apiClient';
 export type AuthPasswordSyncResult = {
   success: boolean;
   message?: string;
@@ -13,10 +12,10 @@ export type AuthPasswordSyncResult = {
  */
 export async function syncAuthPassword(username: string, password: string): Promise<AuthPasswordSyncResult> {
   try {
-    const res = await apiPost<{ success?: boolean; message?: string }>(STAFF_AUTH_PATHS.SYNC_PASSWORD, {
+    const res = (await authApi.syncPassword({
       username,
       password,
-    });
+    })) as { success?: boolean; message?: string };
     if (res && typeof res === 'object' && res.success === false) {
       return { success: false, message: res.message || '认证同步失败，请联系平台管理员重置密码' };
     }

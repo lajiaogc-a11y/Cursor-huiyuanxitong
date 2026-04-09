@@ -4,13 +4,12 @@
 import { Router, type Response } from 'express';
 import { memberAuthMiddleware, type MemberAuthenticatedRequest } from '../memberAuth/middleware.js';
 import {
-  countUnreadMemberInbox,
-  deleteMemberInboxRow,
-  listMemberInbox,
-  markAllMemberInboxRead,
-  markMemberInboxRead,
-} from './repository.js';
-import { getMemberInboxNotifyPolicy } from './notifyPolicy.js';
+  listMemberInboxService,
+  countUnreadMemberInboxService,
+  markMemberInboxReadService,
+  markAllMemberInboxReadService,
+  deleteMemberInboxRowService,
+} from './service.js';
 
 const router = Router();
 
@@ -34,18 +33,10 @@ router.get('/notifications', memberAuthMiddleware, async (req: MemberAuthenticat
   const lim = Math.min(200, Math.max(1, parseInt(String(req.query.limit || '80'), 10) || 80));
   const off = Math.max(0, parseInt(String(req.query.offset || '0'), 10) || 0);
   try {
-    const policy = await getMemberInboxNotifyPolicy(tenantId);
-    if (!policy.inboxEnabled) {
-      res.json({ success: true, items: [], total: 0 });
-      return;
-    }
-    const { items, total } = await listMemberInbox(memberId, tenantId, lim, off);
+    const { items, total } = await listMemberInboxService(memberId, tenantId, lim, off);
     res.json({ success: true, items, total });
   } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: { code: 'INTERNAL', message: (e as Error).message || 'LIST_FAILED' },
-    });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: (e as Error).message || 'LIST_FAILED' } });
   }
 });
 
@@ -58,18 +49,10 @@ router.get('/unread-count', memberAuthMiddleware, async (req: MemberAuthenticate
     return;
   }
   try {
-    const policy = await getMemberInboxNotifyPolicy(tenantId);
-    if (!policy.inboxEnabled) {
-      res.json({ success: true, unread: 0 });
-      return;
-    }
-    const unread = await countUnreadMemberInbox(memberId, tenantId);
+    const unread = await countUnreadMemberInboxService(memberId, tenantId);
     res.json({ success: true, unread });
   } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: { code: 'INTERNAL', message: (e as Error).message || 'COUNT_FAILED' },
-    });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: (e as Error).message || 'COUNT_FAILED' } });
   }
 });
 
@@ -83,13 +66,10 @@ router.post('/notifications/:id/read', memberAuthMiddleware, async (req: MemberA
     return;
   }
   try {
-    const ok = await markMemberInboxRead(memberId, tenantId, id);
+    const ok = await markMemberInboxReadService(memberId, tenantId, id);
     res.json({ success: true, updated: ok });
   } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: { code: 'INTERNAL', message: (e as Error).message || 'UPDATE_FAILED' },
-    });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: (e as Error).message || 'UPDATE_FAILED' } });
   }
 });
 
@@ -102,13 +82,10 @@ router.post('/notifications/read-all', memberAuthMiddleware, async (req: MemberA
     return;
   }
   try {
-    const n = await markAllMemberInboxRead(memberId, tenantId);
+    const n = await markAllMemberInboxReadService(memberId, tenantId);
     res.json({ success: true, updated: n });
   } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: { code: 'INTERNAL', message: (e as Error).message || 'UPDATE_FAILED' },
-    });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: (e as Error).message || 'UPDATE_FAILED' } });
   }
 });
 
@@ -122,13 +99,10 @@ router.delete('/notifications/:id', memberAuthMiddleware, async (req: MemberAuth
     return;
   }
   try {
-    const ok = await deleteMemberInboxRow(memberId, tenantId, id);
+    const ok = await deleteMemberInboxRowService(memberId, tenantId, id);
     res.json({ success: true, deleted: ok });
   } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: { code: 'INTERNAL', message: (e as Error).message || 'DELETE_FAILED' },
-    });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: (e as Error).message || 'DELETE_FAILED' } });
   }
 });
 

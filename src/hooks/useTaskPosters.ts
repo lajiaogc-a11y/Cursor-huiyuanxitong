@@ -2,7 +2,7 @@
  * 海报库 Hook - react-query 缓存，切换秒开
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiGet } from '@/api/client';
+import { getActiveEmployeesByTenant } from '@/services/data/tableQueryService';
 import { getTaskPostersResult, type TaskPoster } from '@/services/taskService';
 
 const STALE_TIME = 30_000;
@@ -16,9 +16,7 @@ async function fetchTaskPosters(tenantId: string | null): Promise<TaskPoster[]> 
 
 async function fetchTaskEmployees(tenantId: string | null): Promise<{ id: string; real_name: string }[]> {
   if (!tenantId) return [];
-  const data = await apiGet<{ id: string; real_name: string }[]>(
-    `/api/data/table/employees?select=id,real_name&tenant_id=eq.${encodeURIComponent(tenantId)}&status=eq.active&order=real_name.asc`
-  );
+  const data = await getActiveEmployeesByTenant(tenantId);
   return Array.isArray(data) ? data : [];
 }
 

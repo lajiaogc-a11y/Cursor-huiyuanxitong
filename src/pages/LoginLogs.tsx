@@ -55,6 +55,7 @@ function StaffLoginLogsPanel({ enabled, language }: { enabled: boolean; language
     totalLogs,
     totalPages: serverTotalPages,
     pageSize,
+    setPageSize,
     effectiveTenantId,
   } = useLoginLogs(language, { enabled });
   const isPlatformSuperAdmin = !!currentEmployee?.is_platform_super_admin;
@@ -359,6 +360,7 @@ function StaffLoginLogsPanel({ enabled, language }: { enabled: boolean; language
                 totalItems={totalLogs}
                 pageSize={pageSize}
                 onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
                 pageSizeOptions={[50, 100, 200]}
               />
               </>

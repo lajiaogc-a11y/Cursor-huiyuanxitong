@@ -151,7 +151,7 @@ export default function MemberSpin() {
   const simFeedLastKnownRef = useRef<SpinSimFeedItem[]>([]);
   /** 点击中奖滚动条后暂停 3 秒再继续 */
   const [simFeedClickPaused, setSimFeedClickPaused] = useState(false);
-  const simFeedClickPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const simFeedClickPauseTimerRef = useRef<number | null>(null);
 
   const simFeedDisplayItems = useMemo(() => {
     const source = simFeedItems.length > 0 ? simFeedItems : simFeedLastKnownRef.current;
@@ -418,7 +418,7 @@ export default function MemberSpin() {
           if (prize.type === "points" || prize.type === "custom") {
             playMemberSpinWin();
             if (navigator.vibrate) navigator.vibrate([50, 30, 80]);
-            fireMemberSpinWinConfetti(prizeDisplayTier(prize));
+            fireMemberSpinWinConfetti(prizeDisplayTier(prize as LotteryPrize));
           } else {
             playMemberSpinMiss();
           }
@@ -760,7 +760,7 @@ export default function MemberSpin() {
         <SpinResultDrawer
           open={showResult}
           onOpenChange={setShowResult}
-          result={result}
+          result={result ?? null}
           lastDrawRewardPoints={lastDrawRewardPoints}
           lastDrawRewardStatus={lastDrawRewardStatus}
           lastDrawMeta={lastDrawMeta}

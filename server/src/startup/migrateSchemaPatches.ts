@@ -104,6 +104,8 @@ export async function migrateSchemaPatches(): Promise<void> {
   await addCol('members', 'address', 'TEXT NULL');
   await addCol('members', 'avatar_url', 'TEXT NULL');
   await addCol('members', 'last_login_at', 'DATETIME(3) NULL');
+  /** 后台「复制密码」明文展示；员工/系统创建会员或重置密码时同步写入 */
+  await addCol('members', 'initial_password', 'VARCHAR(255) NULL');
   /** 每次会员密码登录 +1，JWT 携带 sid；新设备登录后旧 token 与库不一致即 401，实现单活跃会话 */
   await addCol('members', 'member_login_session_seq', 'BIGINT NOT NULL DEFAULT 0');
   /** 1=会员须先改密才能调用业务 API（员工创建/重置初始密码后） */

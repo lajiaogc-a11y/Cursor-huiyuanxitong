@@ -47,6 +47,7 @@ const bulkDeleteSelectionsSchema = z.object({
       activityMemberSummary: z.boolean().optional(),
       activityGift: z.boolean(),
       pointsLedger: z.boolean(),
+      activityMallRedemptions: z.boolean().optional(),
     })
     .optional(),
   shiftData: z
@@ -69,6 +70,12 @@ const bulkDeleteSelectionsSchema = z.object({
     .object({
       categories: z.boolean(),
       articles: z.boolean(),
+    })
+    .optional(),
+  taskData: z
+    .object({
+      tasks: z.boolean(),
+      taskItems: z.boolean(),
     })
     .optional(),
   preserveActivityData: z.boolean().optional(),

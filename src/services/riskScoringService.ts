@@ -2,7 +2,7 @@
 // 多维度风险信号合成，计算实时风险分数
 // 数据走后端 API
 
-import { apiGet, apiPost } from '@/api/client';
+import { riskApi } from '@/api/risk';
 
 export type RiskEventType = 'login_anomaly' | 'order_anomaly' | 'rate_anomaly' | 'frequency_anomaly' | 'ip_anomaly';
 export type RiskSeverity = 'low' | 'medium' | 'high' | 'critical';
@@ -57,7 +57,7 @@ export async function recordRiskEvent(
   const score = Math.round(EVENT_WEIGHTS[eventType] * SEVERITY_MULTIPLIERS[severity]);
 
   try {
-    await apiPost('/api/risk/events', {
+    await riskApi.recordEvent({
       employee_id: employeeId,
       event_type: eventType,
       severity,
@@ -78,7 +78,7 @@ export async function recordRiskEvent(
  */
 export async function recalculateRiskScore(employeeId: string): Promise<number> {
   try {
-    const result = await apiPost<{ score: number }>('/api/risk/recalculate', {
+    const result = await riskApi.recalculate({
       employee_id: employeeId,
     });
     return result?.score ?? 0;
@@ -93,7 +93,7 @@ export async function recalculateRiskScore(employeeId: string): Promise<number> 
  */
 export async function getAllRiskScores(): Promise<RiskScore[]> {
   try {
-    const data = await apiGet<RiskScore[]>('/api/risk/scores');
+    const data = await riskApi.getAllScores() as RiskScore[];
     return data || [];
   } catch (err) {
     console.error('[RiskScoring] Failed to get all risk scores:', err);
@@ -106,7 +106,7 @@ export async function getAllRiskScores(): Promise<RiskScore[]> {
  */
 export async function getRecentRiskEvents(limit: number = 50): Promise<RiskEvent[]> {
   try {
-    const data = await apiGet<RiskEvent[]>(`/api/risk/events?limit=${limit}`);
+    const data = await riskApi.getRecentEvents({ limit: String(limit) }) as RiskEvent[];
     return data || [];
   } catch (err) {
     console.error('[RiskScoring] Failed to get recent risk events:', err);
@@ -119,7 +119,7 @@ export async function getRecentRiskEvents(limit: number = 50): Promise<RiskEvent
  */
 export async function resolveRiskEvent(eventId: string, resolvedById: string): Promise<void> {
   try {
-    await apiPost('/api/risk/events/resolve', {
+    await riskApi.resolveEvent({
       event_id: eventId,
       resolved_by: resolvedById,
     });
@@ -133,7 +133,7 @@ export async function resolveRiskEvent(eventId: string, resolvedById: string): P
  */
 export async function checkLoginAnomaly(employeeId: string): Promise<void> {
   try {
-    await apiPost('/api/risk/check-login-anomaly', {
+    await riskApi.checkLoginAnomaly({
       employee_id: employeeId,
     });
   } catch (err) {
@@ -146,7 +146,7 @@ export async function checkLoginAnomaly(employeeId: string): Promise<void> {
  */
 export async function checkFrequencyAnomaly(employeeId: string, operatorAccount: string): Promise<void> {
   try {
-    await apiPost('/api/risk/check-frequency-anomaly', {
+    await riskApi.checkFrequencyAnomaly({
       employee_id: employeeId,
       operator_account: operatorAccount,
     });

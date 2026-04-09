@@ -1,22 +1,22 @@
 /**
  * activity_gifts 表代理：CRUD 操作
  */
-import { apiPatch, apiPost, apiDelete } from "@/api/client";
+import { dataTableApi } from "@/api/data";
 
-const BASE = "/api/data/table/activity_gifts";
+const TABLE = "activity_gifts";
 
 export async function patchActivityGiftRemark(giftId: string, remark: string): Promise<void> {
-  await apiPatch(`${BASE}?id=eq.${encodeURIComponent(giftId)}`, { data: { remark } });
+  await dataTableApi.patch(TABLE, `id=eq.${encodeURIComponent(giftId)}`, { data: { remark } });
 }
 
 export async function createActivityGiftRow(data: Record<string, unknown>): Promise<void> {
-  await apiPost(BASE, { data });
+  await dataTableApi.post(TABLE, { data });
 }
 
 export async function updateActivityGiftRow(id: string, data: Record<string, unknown>): Promise<void> {
-  await apiPatch(`${BASE}?id=eq.${encodeURIComponent(id)}`, { data });
+  await dataTableApi.patch(TABLE, `id=eq.${encodeURIComponent(id)}`, { data });
 }
 
 export async function deleteActivityGiftRow(id: string): Promise<void> {
-  await apiDelete(`${BASE}?id=eq.${encodeURIComponent(id)}`);
+  await dataTableApi.del(TABLE, `id=eq.${encodeURIComponent(id)}`);
 }

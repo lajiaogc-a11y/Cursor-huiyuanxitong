@@ -27,7 +27,7 @@ export async function migrateOrdersTable(): Promise<void> {
   }
 
   const additions: Array<[string, string]> = [
-    // 创建订单时前端写入（与 creator_id 同义，兼容旧 Supabase 字段名）
+    // 创建订单时前端写入（与 creator_id 同义，兼容旧字段名）
     ['account_id', 'CHAR(36) NULL'],
     // 表代理租户隔离、列表筛选依赖（与 fix_columns / 业务一致）
     ['tenant_id', 'CHAR(36) NULL'],

@@ -1,3 +1,4 @@
+import type { SyntheticEvent } from "react";
 import { ShoppingCart, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ import { num } from "@/pages/member/memberPointsShared";
 type RedeemDrawerImage = {
   resolvedSrc: string;
   usePlaceholder: boolean;
-  onImageError: () => void;
+  onImageError: (e: SyntheticEvent<HTMLImageElement>) => void;
 };
 
 export function MemberPointsRedeemDrawerBody({

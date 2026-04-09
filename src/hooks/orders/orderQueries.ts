@@ -109,11 +109,11 @@ export async function fetchOrdersFromDb(
       if (filters.creatorId) raw = raw.filter((d: DbOrderRow) => matchesSalesEmployee(d, filters!.creatorId!));
       if (filters.minProfit != null) raw = raw.filter((d: DbOrderRow) => (d.profit_ngn ?? 0) >= filters!.minProfit!);
       if (filters.maxProfit != null) raw = raw.filter((d: DbOrderRow) => (d.profit_ngn ?? 0) <= filters!.maxProfit!);
-      if (filters.dateRange?.start) raw = raw.filter((d: DbOrderRow) => new Date(d.created_at) >= filters!.dateRange!.start);
+      if (filters.dateRange?.start) raw = raw.filter((d: DbOrderRow) => new Date(d.created_at!) >= filters!.dateRange!.start);
       if (filters.dateRange?.end) {
         const end = new Date(filters.dateRange.end);
         end.setHours(23, 59, 59, 999);
-        raw = raw.filter((d: DbOrderRow) => new Date(d.created_at) <= end);
+        raw = raw.filter((d: DbOrderRow) => new Date(d.created_at!) <= end);
       }
       if (filters.searchTerm?.trim()) {
         const t = filters.searchTerm!.toLowerCase();
@@ -154,11 +154,11 @@ export async function fetchOrdersFromDb(
     if (filters.creatorId) raw = raw.filter((d: DbOrderRow) => matchesSalesEmployee(d, filters!.creatorId!));
     if (filters.minProfit != null) raw = raw.filter((d: DbOrderRow) => (d.profit_ngn ?? 0) >= filters!.minProfit!);
     if (filters.maxProfit != null) raw = raw.filter((d: DbOrderRow) => (d.profit_ngn ?? 0) <= filters!.maxProfit!);
-    if (filters.dateRange?.start) raw = raw.filter((d: DbOrderRow) => new Date(d.created_at) >= filters!.dateRange!.start);
+    if (filters.dateRange?.start) raw = raw.filter((d: DbOrderRow) => new Date(d.created_at!) >= filters!.dateRange!.start);
     if (filters.dateRange?.end) {
       const end = new Date(filters.dateRange.end);
       end.setHours(23, 59, 59, 999);
-      raw = raw.filter((d: DbOrderRow) => new Date(d.created_at) <= end);
+      raw = raw.filter((d: DbOrderRow) => new Date(d.created_at!) <= end);
     }
     if (filters.searchTerm?.trim()) {
       const t = filters.searchTerm!.toLowerCase();
@@ -206,11 +206,11 @@ export async function fetchUsdtOrdersFromDb(
       if (filters.creatorId) raw = raw.filter((d: DbOrderRow) => matchesSalesEmployee(d, filters!.creatorId!));
       if (filters.minProfit != null) raw = raw.filter((d: DbOrderRow) => (d.profit_usdt ?? 0) >= filters!.minProfit!);
       if (filters.maxProfit != null) raw = raw.filter((d: DbOrderRow) => (d.profit_usdt ?? 0) <= filters!.maxProfit!);
-      if (filters.dateRange?.start) raw = raw.filter((d: DbOrderRow) => new Date(d.created_at) >= filters!.dateRange!.start);
+      if (filters.dateRange?.start) raw = raw.filter((d: DbOrderRow) => new Date(d.created_at!) >= filters!.dateRange!.start);
       if (filters.dateRange?.end) {
         const end = new Date(filters.dateRange.end);
         end.setHours(23, 59, 59, 999);
-        raw = raw.filter((d: DbOrderRow) => new Date(d.created_at) <= end);
+        raw = raw.filter((d: DbOrderRow) => new Date(d.created_at!) <= end);
       }
       if (filters.searchTerm?.trim()) {
         const t = filters.searchTerm!.toLowerCase();
@@ -287,11 +287,11 @@ export async function fetchUsdtOrdersFromDb(
     if (filters.creatorId) raw = raw.filter((d: DbOrderRow) => matchesSalesEmployee(d, filters!.creatorId!));
     if (filters.minProfit != null) raw = raw.filter((d: DbOrderRow) => (d.profit_usdt ?? 0) >= filters!.minProfit!);
     if (filters.maxProfit != null) raw = raw.filter((d: DbOrderRow) => (d.profit_usdt ?? 0) <= filters!.maxProfit!);
-    if (filters.dateRange?.start) raw = raw.filter((d: DbOrderRow) => new Date(d.created_at) >= filters!.dateRange!.start);
+    if (filters.dateRange?.start) raw = raw.filter((d: DbOrderRow) => new Date(d.created_at!) >= filters!.dateRange!.start);
     if (filters.dateRange?.end) {
       const end = new Date(filters.dateRange.end);
       end.setHours(23, 59, 59, 999);
-      raw = raw.filter((d: DbOrderRow) => new Date(d.created_at) <= end);
+      raw = raw.filter((d: DbOrderRow) => new Date(d.created_at!) <= end);
     }
     if (filters.searchTerm?.trim()) {
       const t = filters.searchTerm!.toLowerCase();
@@ -381,11 +381,11 @@ export async function fetchOrderStats(
         if (filters.creatorId) r = r.filter((d: DbOrderRow) => matchesSalesEmployee(d, filters!.creatorId!));
         if (filters.minProfit != null) r = r.filter((d: DbOrderRow) => (isUsdt ? (d.profit_usdt ?? 0) : (d.profit_ngn ?? 0)) >= filters!.minProfit!);
         if (filters.maxProfit != null) r = r.filter((d: DbOrderRow) => (isUsdt ? (d.profit_usdt ?? 0) : (d.profit_ngn ?? 0)) <= filters!.maxProfit!);
-        if (filters.dateRange?.start) r = r.filter((d: DbOrderRow) => new Date(d.created_at) >= filters!.dateRange!.start);
+        if (filters.dateRange?.start) r = r.filter((d: DbOrderRow) => new Date(d.created_at!) >= filters!.dateRange!.start);
         if (filters.dateRange?.end) {
           const end = new Date(filters.dateRange.end);
           end.setHours(23, 59, 59, 999);
-          r = r.filter((d: DbOrderRow) => new Date(d.created_at) <= end);
+          r = r.filter((d: DbOrderRow) => new Date(d.created_at!) <= end);
         }
         if (filters.searchTerm?.trim()) {
           const t = filters.searchTerm!.toLowerCase();
@@ -455,11 +455,11 @@ export async function fetchOrderStats(
       if (filters.creatorId) r = r.filter((d: DbOrderRow) => matchesSalesEmployee(d, filters!.creatorId!));
       if (filters.minProfit != null) r = r.filter((d: DbOrderRow) => (isUsdt ? (d.profit_usdt ?? 0) : (d.profit_ngn ?? 0)) >= filters!.minProfit!);
       if (filters.maxProfit != null) r = r.filter((d: DbOrderRow) => (isUsdt ? (d.profit_usdt ?? 0) : (d.profit_ngn ?? 0)) <= filters!.maxProfit!);
-      if (filters.dateRange?.start) r = r.filter((d: DbOrderRow) => new Date(d.created_at) >= filters!.dateRange!.start);
+      if (filters.dateRange?.start) r = r.filter((d: DbOrderRow) => new Date(d.created_at!) >= filters!.dateRange!.start);
       if (filters.dateRange?.end) {
         const end = new Date(filters.dateRange.end);
         end.setHours(23, 59, 59, 999);
-        r = r.filter((d: DbOrderRow) => new Date(d.created_at) <= end);
+        r = r.filter((d: DbOrderRow) => new Date(d.created_at!) <= end);
       }
       if (filters.searchTerm?.trim()) {
         const t = filters.searchTerm!.toLowerCase();

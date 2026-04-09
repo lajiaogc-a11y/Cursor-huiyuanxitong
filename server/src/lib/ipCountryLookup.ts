@@ -1,5 +1,5 @@
 /**
- * 公网 IP → 国家（ip-api.com 免费接口，与 Supabase Edge 行为对齐）
+ * 公网 IP → 国家（ip-api.com 免费接口）
  */
 
 function stripV4Mapped(ip: string): string {

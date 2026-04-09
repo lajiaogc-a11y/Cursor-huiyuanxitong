@@ -14,7 +14,7 @@ import {
   clearMemberAccessToken,
   MEMBER_ACCESS_TOKEN_KEY,
   ApiError,
-} from '@/lib/apiClient';
+} from '@/services/auth/authApiService';
 import { clearMemberPortalSettingsBrowserCaches } from '@/lib/memberPortalBrowserCache';
 import { queryClient } from '@/lib/queryClient';
 import { memberQueryKeys } from '@/lib/memberQueryKeys';

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { hasAuthToken } from '@/api/client';
+import { hasAuthToken } from '@/services/auth/authApiService';
 import { getCurrentUserApi } from '@/services/auth/authApiService';
 
 const SESSION_CHECK_INTERVAL = 60 * 1000;

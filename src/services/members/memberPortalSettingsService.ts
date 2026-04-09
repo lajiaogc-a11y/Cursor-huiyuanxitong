@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut, apiDelete } from "@/api/client";
+import { memberPortalSettingsApi } from "@/api/memberPortalSettings";
 import { BANNER_MAX_DIMENSION, LOGO_MAX_DIMENSION } from "@/lib/imageClientCompress";
 import {
   normalizeHomeBannerImageFit,
@@ -174,7 +174,7 @@ export interface MemberPortalVersionItem {
   note: string | null;
   effective_at: string | null;
   is_applied: boolean;
-  approval_status?: "pending" | "approved" | "rejected";
+  approval_status?: "pending" | "approved" | "rejected" | "draft";
   review_note?: string | null;
   created_at: string;
   applied_at: string | null;
@@ -575,10 +575,9 @@ function normalizeSettings(raw: Record<string, unknown> = {}): MemberPortalSetti
 
 export async function getMyMemberPortalSettings(tenantId?: string | null): Promise<MemberPortalSettingsPayload> {
   try {
-    const qs = new URLSearchParams();
-    if (tenantId) qs.set("tenant_id", tenantId);
-    qs.set("_t", String(Date.now()));
-    const r = await apiGet<{
+    const params: Record<string, string> = { _t: String(Date.now()) };
+    if (tenantId) params.tenant_id = tenantId;
+    const r = (await memberPortalSettingsApi.get(params)) as {
       success: boolean;
       tenant_id?: string;
       tenant_name?: string;
@@ -586,7 +585,7 @@ export async function getMyMemberPortalSettings(tenantId?: string | null): Promi
       published_version_no?: number | null;
       settings_updated_at?: string | null;
       error?: string;
-    }>(`/api/member-portal-settings?${qs.toString()}`);
+    };
     if (!r.success) throw new Error(r.error || "Load settings failed");
     return {
       tenant_id: r.tenant_id ?? null,
@@ -601,7 +600,7 @@ export async function getMyMemberPortalSettings(tenantId?: string | null): Promi
 }
 
 export async function upsertMyMemberPortalSettings(settings: MemberPortalSettings): Promise<void> {
-  const r = await apiPut<{ success: boolean; error?: string }>("/api/member-portal-settings/", { settings });
+  const r = (await memberPortalSettingsApi.upsert({ settings })) as { success: boolean; error?: string };
   if (!r.success) throw new Error(r.error || "Save settings failed");
 }
 
@@ -614,9 +613,13 @@ export async function getMemberPortalSettingsByMember(memberId: string): Promise
 
   const p = (async (): Promise<MemberPortalSettingsPayload> => {
     try {
-      const r = await apiGet<{ success: boolean; tenant_id?: string; tenant_name?: string; settings?: any; error?: string }>(
-        `/api/member-portal-settings/by-member/${encodeURIComponent(memberId)}`
-      );
+      const r = (await memberPortalSettingsApi.getByMember(memberId)) as {
+        success: boolean;
+        tenant_id?: string;
+        tenant_name?: string;
+        settings?: any;
+        error?: string;
+      };
       if (!r.success) throw new Error(r.error || "Load portal settings failed");
       return {
         tenant_id: r.tenant_id ?? null,
@@ -636,9 +639,12 @@ export async function getMemberPortalSettingsByMember(memberId: string): Promise
 
 export async function getMemberPortalSettingsByInviteCode(code: string): Promise<MemberPortalSettingsPayload | null> {
   try {
-    const r = await apiGet<{ success: boolean; tenant_id?: string; tenant_name?: string; settings?: any }>(
-      `/api/member-portal-settings/by-invite-token/${encodeURIComponent(code)}`
-    );
+    const r = (await memberPortalSettingsApi.getByInviteToken(code)) as {
+      success: boolean;
+      tenant_id?: string;
+      tenant_name?: string;
+      settings?: any;
+    };
     if (!r.success) return null;
     return {
       tenant_id: r.tenant_id ?? null,
@@ -654,9 +660,12 @@ export async function getMemberPortalSettingsByAccount(account: string): Promise
   const value = String(account || "").trim();
   if (!value) return null;
   try {
-    const r = await apiGet<{ success: boolean; tenant_id?: string; tenant_name?: string; settings?: any }>(
-      `/api/member-portal-settings/by-account/${encodeURIComponent(value)}`
-    );
+    const r = (await memberPortalSettingsApi.getByAccount(value)) as {
+      success: boolean;
+      tenant_id?: string;
+      tenant_name?: string;
+      settings?: any;
+    };
     if (!r.success) return null;
     return {
       tenant_id: r.tenant_id ?? null,
@@ -670,9 +679,12 @@ export async function getMemberPortalSettingsByAccount(account: string): Promise
 
 export async function getDefaultMemberPortalSettings(): Promise<MemberPortalSettingsPayload | null> {
   try {
-    const r = await apiGet<{ success: boolean; tenant_id?: string; tenant_name?: string; settings?: any }>(
-      `/api/member-portal-settings/default`
-    );
+    const r = (await memberPortalSettingsApi.getDefault()) as {
+      success: boolean;
+      tenant_id?: string;
+      tenant_name?: string;
+      settings?: any;
+    };
     if (!r.success) return null;
     return {
       tenant_id: r.tenant_id ?? null,
@@ -711,10 +723,18 @@ export async function createMyMemberPortalSettingsVersion(
   tenantId?: string | null
 ): Promise<{ success: boolean; version_id?: string; version_no?: number; is_applied?: boolean; error?: string }> {
   try {
-    const r = await apiPost<{ success: boolean; version_id?: string; version_no?: number; is_applied?: boolean; error?: { code?: string; message?: string } }>(
-      "/api/member-portal-settings/versions",
-      { payload, note: note || null, effective_at: effectiveAt || null, tenant_id: tenantId || null }
-    );
+    const r = (await memberPortalSettingsApi.versions.create({
+      payload,
+      note: note || null,
+      effective_at: effectiveAt || null,
+      tenant_id: tenantId || null,
+    })) as {
+      success: boolean;
+      version_id?: string;
+      version_no?: number;
+      is_applied?: boolean;
+      error?: { code?: string; message?: string };
+    };
     if (!r.success) {
       const err = r.error;
       const msg = err && typeof err === "object" ? (err as { message?: string }).message : err;
@@ -733,22 +753,22 @@ export async function createMyMemberPortalSettingsVersion(
 }
 
 export async function listMyMemberPortalSettingsVersions(limit = 20, tenantId?: string | null): Promise<MemberPortalVersionItem[]> {
-  const params = new URLSearchParams();
-  params.set("limit", String(limit));
-  if (tenantId) params.set("tenant_id", tenantId);
-  const r = await apiGet<{ success: boolean; versions?: MemberPortalVersionItem[]; error?: string }>(
-    `/api/member-portal-settings/versions?${params.toString()}`
-  );
+  const listParams: Record<string, string> = { limit: String(limit) };
+  if (tenantId) listParams.tenant_id = tenantId;
+  const r = (await memberPortalSettingsApi.versions.list(listParams)) as {
+    success: boolean;
+    versions?: MemberPortalVersionItem[];
+    error?: string;
+  };
   if (!r.success) throw new Error(r.error || "Load versions failed");
   return (r.versions || []) as MemberPortalVersionItem[];
 }
 
 export async function rollbackMyMemberPortalSettingsVersion(versionId: string, tenantId?: string | null): Promise<boolean> {
-  const params = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";
-  const r = await apiPost<{ success: boolean; error?: string }>(
-    `/api/member-portal-settings/versions/${versionId}/rollback${params}`,
-    {}
-  );
+  const r = (await memberPortalSettingsApi.versions.rollback(
+    versionId,
+    tenantId ? { tenant_id: tenantId } : undefined,
+  )) as { success: boolean; error?: string };
   if (!r.success) throw new Error(r.error || "Rollback failed");
   return true;
 }
@@ -760,10 +780,12 @@ export async function submitMyMemberPortalSettingsForApproval(
   tenantId?: string | null
 ): Promise<{ success: boolean; version_id?: string; version_no?: number; error?: string }> {
   try {
-    const r = await apiPost<{ success: boolean; version_id?: string; version_no?: number; error?: string }>(
-      "/api/member-portal-settings/versions/submit-approval",
-      { payload, note: note || null, effective_at: effectiveAt || null, tenant_id: tenantId || null }
-    );
+    const r = (await memberPortalSettingsApi.versions.submitForApproval({
+      payload,
+      note: note || null,
+      effective_at: effectiveAt || null,
+      tenant_id: tenantId || null,
+    })) as { success: boolean; version_id?: string; version_no?: number; error?: string };
     return {
       success: !!r.success,
       version_id: r.version_id,
@@ -782,10 +804,11 @@ export async function approveMyMemberPortalSettingsVersion(
   tenantId?: string | null
 ): Promise<{ success: boolean; approved?: boolean; error?: string }> {
   try {
-    const r = await apiPost<{ success: boolean; approved?: boolean; error?: string }>(
-      `/api/member-portal-settings/versions/${versionId}/approve`,
-      { review_note: reviewNote || null, approve, tenant_id: tenantId || null }
-    );
+    const r = (await memberPortalSettingsApi.versions.approve(versionId, {
+      review_note: reviewNote || null,
+      approve,
+      tenant_id: tenantId || null,
+    })) as { success: boolean; approved?: boolean; error?: string };
     return { success: !!r.success, approved: r.approved, error: r.error };
   } catch (e: unknown) {
     return { success: false, error: (e instanceof Error ? e.message : String(e)) || "Approve failed" };
@@ -807,10 +830,11 @@ export async function saveDraftToServer(
   tenantId?: string | null
 ): Promise<{ success: boolean; draft_id?: string; error?: string }> {
   try {
-    const r = await apiPost<{ success: boolean; draft_id?: string; error?: string }>(
-      "/api/member-portal-settings/draft",
-      { payload, note: note || null, tenant_id: tenantId || null }
-    );
+    const r = (await memberPortalSettingsApi.draft.save({
+      payload,
+      note: note || null,
+      tenant_id: tenantId || null,
+    })) as { success: boolean; draft_id?: string; error?: string };
     return { success: !!r.success, draft_id: r.draft_id, error: r.error };
   } catch (e: unknown) {
     return { success: false, error: (e instanceof Error ? e.message : String(e)) || "Save draft failed" };
@@ -821,10 +845,9 @@ export async function getServerDraft(
   tenantId?: string | null
 ): Promise<{ success: boolean; draft: ServerDraft | null; error?: string }> {
   try {
-    const params = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";
-    const r = await apiGet<{ success: boolean; draft?: ServerDraft | null; error?: string }>(
-      `/api/member-portal-settings/draft${params}`,
-    );
+    const r = (await memberPortalSettingsApi.draft.get(
+      tenantId ? { tenant_id: tenantId } : undefined,
+    )) as { success: boolean; draft?: ServerDraft | null; error?: string };
     return { success: !!r.success, draft: r.draft ?? null, error: r.error };
   } catch (e: unknown) {
     return { success: false, draft: null, error: (e instanceof Error ? e.message : String(e)) || "Get draft failed" };
@@ -836,10 +859,16 @@ export async function publishServerDraft(
   tenantId?: string | null
 ): Promise<{ success: boolean; version_id?: string; version_no?: number; is_applied?: boolean; error?: string }> {
   try {
-    const r = await apiPost<{ success: boolean; version_id?: string; version_no?: number; is_applied?: boolean; error?: string }>(
-      "/api/member-portal-settings/publish",
-      { note: note || null, tenant_id: tenantId || null }
-    );
+    const r = (await memberPortalSettingsApi.draft.publish({
+      note: note || null,
+      tenant_id: tenantId || null,
+    })) as {
+      success: boolean;
+      version_id?: string;
+      version_no?: number;
+      is_applied?: boolean;
+      error?: string;
+    };
     return { success: !!r.success, version_id: r.version_id, version_no: r.version_no, is_applied: r.is_applied, error: r.error };
   } catch (e: unknown) {
     return { success: false, error: (e instanceof Error ? e.message : String(e)) || "Publish failed" };
@@ -850,10 +879,9 @@ export async function discardServerDraft(
   tenantId?: string | null
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const params = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";
-    const r = await apiDelete<{ success: boolean; error?: string }>(
-      `/api/member-portal-settings/draft${params}`
-    );
+    const r = (await memberPortalSettingsApi.draft.discard(
+      tenantId ? { tenant_id: tenantId } : undefined,
+    )) as { success: boolean; error?: string };
     return { success: !!r.success, error: r.error };
   } catch (e: unknown) {
     return { success: false, error: (e instanceof Error ? e.message : String(e)) || "Discard draft failed" };
@@ -862,9 +890,11 @@ export async function discardServerDraft(
 
 export async function listMyMemberSpinWheelPrizes(): Promise<SpinWheelPrizeItem[]> {
   try {
-    const r = await apiGet<{ success: boolean; items?: any[]; error?: string }>(
-      "/api/member-portal-settings/spin-wheel-prizes"
-    );
+    const r = (await memberPortalSettingsApi.spinWheelPrizes.list()) as {
+      success: boolean;
+      items?: any[];
+      error?: string;
+    };
     if (!r.success) throw new Error(r.error || "Load spin prizes failed");
     return Array.isArray(r.items)
       ? r.items.map((x: any) => ({
@@ -881,18 +911,15 @@ export async function listMyMemberSpinWheelPrizes(): Promise<SpinWheelPrizeItem[
 }
 
 export async function upsertMyMemberSpinWheelPrizes(items: SpinWheelPrizeItem[]): Promise<void> {
-  const r = await apiPost<{ success: boolean; error?: string }>(
-    "/api/member-portal-settings/spin-wheel-prizes",
-    {
-      items: items.map((x, idx) => ({
-        name: x.name,
-        prize_type: x.prize_type,
-        hit_rate: x.hit_rate,
-        enabled: x.enabled !== false,
-        sort_order: idx + 1,
-      })),
-    }
-  );
+  const r = (await memberPortalSettingsApi.spinWheelPrizes.upsert({
+    items: items.map((x, idx) => ({
+      name: x.name,
+      prize_type: x.prize_type,
+      hit_rate: x.hit_rate,
+      enabled: x.enabled !== false,
+      sort_order: idx + 1,
+    })),
+  })) as { success: boolean; error?: string };
   if (!r.success) {
     if (r.error === "ITEM_COUNT_OUT_OF_RANGE") throw new Error("奖品数量需在 6~10 个");
     if (r.error === "ENABLED_ITEMS_TOO_FEW") throw new Error("至少保留 6 个启用奖品");
@@ -905,9 +932,11 @@ export async function upsertMyMemberSpinWheelPrizes(items: SpinWheelPrizeItem[])
 
 export async function getMemberSpinWheelPrizesByMember(memberId: string): Promise<SpinWheelPrizeItem[]> {
   try {
-    const r = await apiGet<{ success: boolean; items?: any[]; error?: string }>(
-      `/api/member-portal-settings/spin-wheel-prizes/by-member/${encodeURIComponent(memberId)}`
-    );
+    const r = (await memberPortalSettingsApi.spinWheelPrizes.getByMember(memberId)) as {
+      success: boolean;
+      items?: any[];
+      error?: string;
+    };
     if (!r.success) throw new Error(r.error || "Load member spin prizes failed");
     return Array.isArray(r.items)
       ? r.items.map((x: any) => ({
@@ -944,15 +973,18 @@ export async function adminListPortalCheckIns(options?: {
 }): Promise<{ rows: PortalCheckInLogRow[]; total: number }> {
   const limit = options?.limit ?? 50;
   const offset = options?.offset ?? 0;
-  const q = new URLSearchParams();
-  q.set("limit", String(limit));
-  q.set("offset", String(offset));
-  if (options?.tenantId) q.set("tenant_id", options.tenantId);
-  if (options?.phone?.trim()) q.set("phone", options.phone.trim());
-  if (options?.memberCode?.trim()) q.set("member_code", options.memberCode.trim());
-  const r = await apiGet<{ success: boolean; check_ins?: PortalCheckInLogRow[]; total?: number }>(
-    `/api/member-portal-settings/check-ins?${q.toString()}`,
-  );
+  const checkInParams: Record<string, string> = {
+    limit: String(limit),
+    offset: String(offset),
+  };
+  if (options?.tenantId) checkInParams.tenant_id = options.tenantId;
+  if (options?.phone?.trim()) checkInParams.phone = options.phone.trim();
+  if (options?.memberCode?.trim()) checkInParams.member_code = options.memberCode.trim();
+  const r = (await memberPortalSettingsApi.checkIns.list(checkInParams)) as {
+    success: boolean;
+    check_ins?: PortalCheckInLogRow[];
+    total?: number;
+  };
   return { rows: r?.check_ins ?? [], total: r?.total ?? 0 };
 }
 
@@ -994,16 +1026,19 @@ export async function adminListSpinCreditsLog(options?: {
 }): Promise<{ rows: SpinCreditsLogRow[]; total: number }> {
   const limit = options?.limit ?? 50;
   const offset = options?.offset ?? 0;
-  const q = new URLSearchParams();
-  q.set("limit", String(limit));
-  q.set("offset", String(offset));
-  q.set("category", options?.category ?? "order");
-  if (options?.tenantId) q.set("tenant_id", options.tenantId);
-  if (options?.phone?.trim()) q.set("phone", options.phone.trim());
-  if (options?.memberCode?.trim()) q.set("member_code", options.memberCode.trim());
-  const r = await apiGet<{ success: boolean; rows?: SpinCreditsLogRow[]; total?: number }>(
-    `/api/member-portal-settings/spin-credits-log?${q.toString()}`,
-  );
+  const spinLogParams: Record<string, string> = {
+    limit: String(limit),
+    offset: String(offset),
+    category: options?.category ?? "order",
+  };
+  if (options?.tenantId) spinLogParams.tenant_id = options.tenantId;
+  if (options?.phone?.trim()) spinLogParams.phone = options.phone.trim();
+  if (options?.memberCode?.trim()) spinLogParams.member_code = options.memberCode.trim();
+  const r = (await memberPortalSettingsApi.spinCreditsLog.list(spinLogParams)) as {
+    success: boolean;
+    rows?: SpinCreditsLogRow[];
+    total?: number;
+  };
   return { rows: r?.rows ?? [], total: r?.total ?? 0 };
 }
 
@@ -1019,17 +1054,18 @@ export async function adminListLotteryPointsLedger(options?: {
 }> {
   const limit = options?.limit ?? 50;
   const offset = options?.offset ?? 0;
-  const q = new URLSearchParams();
-  q.set("limit", String(limit));
-  q.set("offset", String(offset));
-  if (options?.tenantId) q.set("tenant_id", options.tenantId);
-  if (options?.q?.trim()) q.set("q", options.q.trim());
-  const r = await apiGet<{
+  const ledgerParams: Record<string, string> = {
+    limit: String(limit),
+    offset: String(offset),
+  };
+  if (options?.tenantId) ledgerParams.tenant_id = options.tenantId;
+  if (options?.q?.trim()) ledgerParams.q = options.q.trim();
+  const r = (await memberPortalSettingsApi.lotteryPointsLedger.list(ledgerParams)) as {
     success: boolean;
     rows?: PortalLotteryPointsLedgerRow[];
     total?: number;
     stats?: { total_lottery_points_earned?: number };
-  }>(`/api/member-portal-settings/lottery-points-ledger?${q.toString()}`);
+  };
   return {
     rows: r?.rows ?? [],
     total: r?.total ?? 0,

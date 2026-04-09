@@ -82,7 +82,7 @@ export default function PermissionSettingsTab() {
     try {
       const data = await listRolePermissionsByModuleOrder();
       const typedData = (Array.isArray(data) ? data : []).map((r: Record<string, unknown>) => ({
-        ...(r as RolePermission),
+        ...(r as unknown as RolePermission),
         role: String(r.role || '') as PermissionRole,
         can_view: permBool(r.can_view),
         can_edit: permBool(r.can_edit),

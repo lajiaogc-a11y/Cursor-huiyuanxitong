@@ -60,7 +60,6 @@ export interface CardMerchantDialogsProps {
   setSelectedWithdrawalIds: Dispatch<SetStateAction<Set<string>>>;
   onEditWithdrawal: (w: WithdrawalRecord) => void;
   setDeletingWithdrawalId: (id: string | null) => void;
-  setPendingBatchWithdrawalDelete: (ids: string[] | null) => void;
 
   editingWithdrawal: WithdrawalRecord | null;
   setEditingWithdrawal: Dispatch<SetStateAction<WithdrawalRecord | null>>;

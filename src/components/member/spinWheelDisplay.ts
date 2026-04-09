@@ -73,6 +73,6 @@ export function formatPrizeListDisplayProbability(p: LotteryPrize): string | nul
     p.display_probability != null && Number.isFinite(Number(p.display_probability))
       ? Number(p.display_probability)
       : null;
-  if (!Number.isFinite(pick)) return null;
+  if (pick == null || !Number.isFinite(pick)) return null;
   return `${pick.toFixed(4)}%`;
 }

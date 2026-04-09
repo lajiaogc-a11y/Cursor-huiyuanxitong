@@ -59,7 +59,7 @@ import {
 import { SortableMerchantTableRow } from "@/pages/merchants/SortableMerchantTableRow";
 
 export function PaymentProviderTab() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
@@ -203,7 +203,15 @@ export function PaymentProviderTab() {
           <Input placeholder={t('merchants.searchProviders')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-9" />
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" size="icon" className="h-9 w-9" title={t('导出', 'Export')} onClick={() => providerExportConfirm.requestExport(() => exportTable('payment_providers', 'xlsx'))}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            title={t('导出', 'Export')}
+            onClick={() =>
+              providerExportConfirm.requestExport(() => void exportTable("payment_providers", language === "en", "xlsx"))
+            }
+          >
             <Download className="h-4 w-4" />
           </Button>
           <TableImportButton tableName="payment_providers" onImportComplete={() => refetch()} />

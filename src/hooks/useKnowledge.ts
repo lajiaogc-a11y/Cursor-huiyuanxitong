@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { apiPost } from '@/api/client';
-import { ApiError } from '@/lib/apiClient';
+import { uploadImageDataUrlApi } from '@/services/uploadService';
+import { ApiError } from '@/services/auth/authApiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
 import { notify } from "@/lib/notifyHub";
@@ -518,14 +518,11 @@ export async function uploadKnowledgeImage(file: File): Promise<string | null> {
       reader.readAsDataURL(compressed);
     });
 
-    const resp = await apiPost<{ success?: boolean; url?: string; error?: string; message?: string }>(
-      '/api/upload/image',
-      {
-        data: dataUrl,
-        content_type: compressed.type,
-        file_name: compressed.name,
-      }
-    );
+    const resp = await uploadImageDataUrlApi({
+      data: dataUrl,
+      content_type: compressed.type,
+      file_name: compressed.name,
+    });
 
     if (!resp || (resp as { success?: boolean }).success === false || !(resp as { url?: string }).url) {
       const msg = (resp as { message?: string })?.message || (resp as { error?: string })?.error || 'upload failed';

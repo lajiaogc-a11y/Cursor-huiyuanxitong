@@ -11,7 +11,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { memberRegisterInit, validateInviteAndSubmit } from "@/services/memberPortal/memberActivityService";
-import { ApiError } from "@/lib/apiClient";
+import { ApiError } from "@/services/auth/authApiService";
 import { notify } from "@/lib/notifyHub";
 import {
   DEFAULT_SETTINGS,
@@ -200,6 +200,20 @@ export default function InviteLanding() {
       return;
     }
     if (!registerToken?.trim()) {
+      if (registerInitError) {
+        notify.error(t("邀请链接校验失败，正在重试…", "Invite link verification failed, retrying…"));
+        const retry = code?.trim() ? await memberRegisterInit(code.trim()) : null;
+        if (retry && "success" in retry && retry.success) {
+          setRegisterToken(retry.registerToken);
+          setRegisterExpiresIn(retry.expiresIn);
+          setRegisterInitError(null);
+          notify.success(t("校验成功，请再次点击注册", "Verified! Please tap Register again."));
+        } else {
+          notify.error(t("服务暂不可用，请稍后再试", "Service temporarily unavailable, please try again later"));
+        }
+        setLoading(false);
+        return;
+      }
       notify.error(t("正在校验邀请链接，请稍候或刷新页面", "Verifying invite link — wait a moment or refresh"));
       return;
     }

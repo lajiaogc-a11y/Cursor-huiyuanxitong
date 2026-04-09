@@ -1,6 +1,6 @@
 /**
  * 通用表/RPC 代理控制器
- * 前端 Supabase 代理层（client.ts）将 supabase.from('table') / supabase.rpc('fn') 转发到这里
+ * 前端 API 代理层（client.ts）将 from('table') / rpc('fn') 请求转发到这里
  * 后端统一用 MySQL 查询处理
  *
  * 表 CRUD 实现在 tableProxySelectHandler / tableProxyMutationHandler；

@@ -132,3 +132,10 @@ export async function setTenantSuperAdminService(actor: TenantActor, employeeId:
   if (forbidden) return forbidden;
   return setTenantSuperAdminRepository(employeeId);
 }
+
+import { listTenantsRepository, type TenantRow } from './repository.js';
+
+/** 平台超管：获取所有租户列表 */
+export async function listTenantsService(): Promise<TenantRow[]> {
+  return listTenantsRepository();
+}

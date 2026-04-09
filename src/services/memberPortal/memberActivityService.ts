@@ -1,10 +1,11 @@
 /**
  * 会员门户：签到、分享领奖、邀请、订单与昵称等 RPC 统一入口（页面只负责展示与触发）。
  */
-import { apiPost, unwrapApiData } from "@/api/client";
+import { unwrapApiData } from "@/api/client";
+import { dataRpcApi } from "@/api/data";
+import { memberPortalApi } from "@/api/memberPortal";
 import { ApiError } from "@/lib/apiClient";
 import { safeCall, safeActionCall } from "@/lib/serviceErrorHandler";
-import { MEMBER_PORTAL_RPC_PATHS } from "./routes";
 
 export type MemberDailyStatus = {
   checked_in?: boolean;
@@ -31,7 +32,7 @@ export type MemberDailyStatus = {
 
 export async function fetchMemberDailyStatus(memberId: string): Promise<MemberDailyStatus> {
   return safeCall(
-    () => apiPost<MemberDailyStatus>(MEMBER_PORTAL_RPC_PATHS.MEMBER_CHECK_IN_TODAY, { p_member_id: memberId }),
+    () => dataRpcApi.call<MemberDailyStatus>("member_check_in_today", { p_member_id: memberId }),
     { checked_in_today: false, share_claimed_today: false },
     "fetchMemberDailyStatus",
   );
@@ -50,7 +51,7 @@ export type MemberCheckInResult = {
 
 export async function memberCheckIn(memberId: string): Promise<MemberCheckInResult> {
   return safeActionCall(
-    () => apiPost<MemberCheckInResult>(MEMBER_PORTAL_RPC_PATHS.MEMBER_CHECK_IN, { p_member_id: memberId }),
+    () => dataRpcApi.call<MemberCheckInResult>("member_check_in", { p_member_id: memberId }),
     "memberCheckIn",
   );
 }
@@ -71,10 +72,9 @@ export type ShareRewardResult = {
  */
 export async function requestShareNonce(memberId: string): Promise<{ success: boolean; nonce?: string; error?: string }> {
   return safeActionCall(
-    () => apiPost<{ success: boolean; nonce?: string; error?: string }>(
-      MEMBER_PORTAL_RPC_PATHS.MEMBER_REQUEST_SHARE_NONCE,
-      { p_member_id: memberId },
-    ),
+    () => dataRpcApi.call<{ success: boolean; nonce?: string; error?: string }>("member_request_share_nonce", {
+      p_member_id: memberId,
+    }),
     "requestShareNonce",
   );
 }
@@ -84,18 +84,21 @@ export async function requestShareNonce(memberId: string): Promise<{ success: bo
  */
 export async function memberClaimShareReward(memberId: string, shareNonce: string): Promise<ShareRewardResult> {
   return safeActionCall(
-    () => apiPost<ShareRewardResult>(
-      MEMBER_PORTAL_RPC_PATHS.MEMBER_GRANT_SPIN_FOR_SHARE,
-      { p_member_id: memberId, p_share_nonce: shareNonce },
-    ),
+    async () => {
+      const r = await dataRpcApi.call<ShareRewardResult>("member_grant_spin_for_share", {
+        p_member_id: memberId,
+        p_share_nonce: shareNonce,
+      });
+      return { ...r, success: r.success ?? false };
+    },
     "memberClaimShareReward",
-  ) as Promise<ShareRewardResult>;
+  );
 }
 
 export async function fetchMemberInviteToken(memberId: string): Promise<string | null> {
   return safeCall(
     async () => {
-      const r = await apiPost<{ success?: boolean; invite_token?: string }>(MEMBER_PORTAL_RPC_PATHS.MEMBER_GET_INVITE_TOKEN, {
+      const r = await dataRpcApi.call<{ success?: boolean; invite_token?: string }>("member_get_invite_token", {
         p_member_id: memberId,
       });
       return r?.invite_token ?? null;
@@ -109,7 +112,11 @@ export async function fetchMemberInviteToken(memberId: string): Promise<string |
 export async function memberGetOrdersRows(memberId: string): Promise<unknown[]> {
   return safeCall(
     async () => {
-      const raw = await apiPost<unknown>(MEMBER_PORTAL_RPC_PATHS.MEMBER_GET_ORDERS, { p_member_id: memberId, p_limit: 20, p_offset: 0 });
+      const raw = await dataRpcApi.call<unknown>("member_get_orders", {
+        p_member_id: memberId,
+        p_limit: 20,
+        p_offset: 0,
+      });
       const d = unwrapApiData<unknown>(raw);
       if (d && typeof d === "object" && Array.isArray((d as { rows?: unknown }).rows)) {
         return (d as { rows: unknown[] }).rows;
@@ -126,7 +133,7 @@ export type MemberOrdersPage = { rows: unknown[]; total: number };
 export async function memberGetOrdersPage(memberId: string, limit = 20, offset = 0): Promise<MemberOrdersPage> {
   return safeCall(
     async () => {
-      const raw = await apiPost<unknown>(MEMBER_PORTAL_RPC_PATHS.MEMBER_GET_ORDERS, {
+      const raw = await dataRpcApi.call<unknown>("member_get_orders", {
         p_member_id: memberId,
         p_limit: limit,
         p_offset: offset,
@@ -149,10 +156,11 @@ export async function memberUpdateNickname(
   nickname: string,
 ): Promise<{ success?: boolean; error?: string }> {
   return safeActionCall(
-    () => apiPost(MEMBER_PORTAL_RPC_PATHS.MEMBER_UPDATE_NICKNAME, {
-      p_member_id: memberId,
-      p_nickname: nickname.trim(),
-    }),
+    () =>
+      dataRpcApi.call("member_update_nickname", {
+        p_member_id: memberId,
+        p_nickname: nickname.trim(),
+      }),
     "memberUpdateNickname",
   );
 }
@@ -162,10 +170,11 @@ export async function memberUpdateAvatar(
   avatarDataUrl: string | null,
 ): Promise<{ success?: boolean; error?: string }> {
   return safeActionCall(
-    () => apiPost(MEMBER_PORTAL_RPC_PATHS.MEMBER_UPDATE_AVATAR, {
-      p_member_id: memberId,
-      p_avatar_url: avatarDataUrl,
-    }),
+    () =>
+      dataRpcApi.call("member_update_avatar", {
+        p_member_id: memberId,
+        p_avatar_url: avatarDataUrl,
+      }),
     "memberUpdateAvatar",
   );
 }
@@ -177,12 +186,12 @@ export async function memberRegisterInit(code: string): Promise<
   { success: true; registerToken: string; expiresIn: number } | { success: false; error: string }
 > {
   try {
-    const r = await apiPost<{
+    const r = (await memberPortalApi.registerInit({ code: code.trim() })) as {
       success?: boolean;
       registerToken?: string;
       expiresIn?: number;
       error?: { code?: string };
-    }>("/api/member/register-init", { code: code.trim() });
+    };
     if (r && typeof r === "object" && r.success === true && typeof r.registerToken === "string") {
       return {
         success: true,
@@ -220,16 +229,16 @@ export async function validateInviteAndSubmit(params: {
   code?: string | null | undefined;
 }): Promise<InviteSubmitResult> {
   try {
-    const r = await apiPost<{
-      success?: boolean;
-      memberId?: string;
-      error?: { code?: string };
-    }>(MEMBER_PORTAL_RPC_PATHS.MEMBER_REGISTER, {
+    const r = (await memberPortalApi.register({
       registerToken: params.registerToken.trim(),
       phone: params.phone.trim(),
       password: params.password,
       name: params.name ?? undefined,
-    });
+    })) as {
+      success?: boolean;
+      memberId?: string;
+      error?: { code?: string };
+    };
     if (r && typeof r === "object" && r.success === true) {
       return { success: true };
     }

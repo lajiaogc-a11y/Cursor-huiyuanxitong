@@ -20,7 +20,7 @@ export async function handleRpcStaffMallProcessGroup(ctx: RpcCtx): Promise<RpcDi
         result = { success: false, error: 'EMPLOYEE_ONLY' };
         break;
       }
-      /** 与 Supabase 版一致：按租户整表替换，保存后列表与数据库完全一致（可清空后只保留新商品） */
+      /** 按租户整表替换，保存后列表与数据库完全一致（可清空后只保留新商品） */
       const items = Array.isArray(params.p_items) ? params.p_items : [];
       if (!tenantId) {
         result = { success: false, error: 'TENANT_NOT_FOUND' };

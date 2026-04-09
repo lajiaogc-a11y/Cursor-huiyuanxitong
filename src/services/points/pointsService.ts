@@ -3,7 +3,8 @@
 // 积分状态与订单状态强绑定（正常 → 已发放，取消/删除 → 已回收）
 // 读写走后端 API
 
-import { apiGet, apiPost } from '@/api/client';
+import { getReferrerByPhone } from '@/api/members';
+import { pointsApi } from '@/api/points';
 import { CurrencyCode } from '@/config/currencies';
 import { getPointsSettingsAsync, PointsSettings } from '@/services/points/pointsSettingsService';
 import { logOperation } from '@/services/audit/auditLogService';
@@ -61,9 +62,7 @@ function getExchangeRate(currency: CurrencyCode, settings: PointsSettings): numb
 // ============= 查找推荐人 =============
 async function findReferrer(orderPhoneNumber: string): Promise<ReferrerInfo | null> {
   try {
-    const data = await apiGet<{ referrer_phone: string; referrer_member_code: string } | null>(
-      `/api/members/referrer-by-phone/${encodeURIComponent(orderPhoneNumber)}`
-    );
+    const data = await getReferrerByPhone(orderPhoneNumber);
 
     if (!data?.referrer_phone) {
       logger.log(`[PointsService] No referrer found for phone: ${orderPhoneNumber}`);
@@ -204,7 +203,7 @@ export async function createPointsOnOrderCreate(params: CreatePointsParams): Pro
         creator_id: params.creatorId || null,
       };
 
-      await apiPost('/api/points/ledger', consumptionEntry);
+      await pointsApi.postLedger(consumptionEntry);
 
       result.consumptionPoints = consumptionPoints;
       logger.log('[PointsService] Consumption points created:', consumptionPoints);
@@ -320,7 +319,7 @@ async function updateMemberActivityForConsumption(
   consumptionPoints: number
 ): Promise<void> {
   try {
-    await apiPost('/api/points/member-activity/add-consumption', {
+    await pointsApi.addConsumption({
       phone_number: phoneNumber,
       consumption_points: consumptionPoints,
     });
@@ -355,7 +354,7 @@ async function createReferralPoints(
       creator_id: creatorId || null,
     };
 
-    await apiPost('/api/points/ledger', entry);
+    await pointsApi.postLedger(entry);
 
     logger.log(`[PointsService] ${transactionType} points created:`, points);
 
@@ -390,7 +389,7 @@ async function createReferralPoints(
 function updateReferrerActivityAsync(referrer: ReferrerInfo, totalReferralPoints: number): void {
   setTimeout(async () => {
     try {
-      await apiPost('/api/points/member-activity/add-referral', {
+      await pointsApi.addReferral({
         phone_number: referrer.phoneNumber,
         referral_points: totalReferralPoints,
       });
@@ -426,7 +425,7 @@ export async function reversePointsOnOrderCancel(orderId: string): Promise<boole
   try {
     logger.log('[PointsService] Reversing points for order:', orderId);
     
-    const result = await apiPost<{ success: boolean }>('/api/points/reverse-on-order-cancel', {
+    const result = await pointsApi.reverseOnOrderCancel({
       order_id: orderId,
     });
 
@@ -467,14 +466,14 @@ export async function restorePointsOnOrderRestore(params: CreatePointsParams): P
   };
 
   try {
-    const apiResult = await apiPost<CreatePointsResult>('/api/points/restore-on-order-restore', {
+    const apiResult = (await pointsApi.restoreOnOrderRestore({
       order_id: params.orderId,
       order_phone_number: params.orderPhoneNumber,
       member_code: params.memberCode,
       actual_payment: params.actualPayment,
       currency: params.currency,
       creator_id: params.creatorId || null,
-    });
+    })) as CreatePointsResult | null;
 
     if (apiResult) {
       result.consumptionPoints = apiResult.consumptionPoints || 0;
@@ -547,7 +546,7 @@ export async function adjustPointsOnOrderEdit(params: AdjustPointsOnEditParams):
   });
 
   try {
-    const result = await apiPost<{ delta: number; success: boolean }>('/api/points/adjust-on-order-edit', {
+    const result = await pointsApi.adjustOnOrderEdit({
       order_id: orderId,
       member_code: memberCode,
       phone_number: phoneNumber,
@@ -584,12 +583,9 @@ export async function adjustPointsOnOrderEdit(params: AdjustPointsOnEditParams):
 // 对应已有路由: GET /api/points/member/:memberId
 export async function getMemberPointsBalance(memberCode: string, lastResetTime?: string | null): Promise<number> {
   try {
-    const params = new URLSearchParams();
-    if (lastResetTime) params.set('last_reset_time', lastResetTime);
-    const queryStr = params.toString() ? `?${params.toString()}` : '';
-
-    const data = await apiGet<{ balance: number }>(
-      `/api/points/member/${encodeURIComponent(memberCode)}/balance${queryStr}`
+    const data = await pointsApi.getMemberBalance(
+      memberCode,
+      lastResetTime ?? undefined,
     );
 
     return data?.balance ?? 0;
@@ -604,9 +600,7 @@ export async function getMemberPointsBalance(memberCode: string, lastResetTime?:
  */
 export async function hasOrderEarnedPoints(orderId: string): Promise<boolean> {
   try {
-    const data = await apiGet<{ hasEarned: boolean }>(
-      `/api/points/order/${encodeURIComponent(orderId)}/has-earned`
-    );
+    const data = await pointsApi.hasOrderEarned(orderId);
     return data?.hasEarned ?? false;
   } catch (error) {
     logger.error('[PointsService] Failed to check order points:', error);
@@ -619,10 +613,8 @@ export async function hasOrderEarnedPoints(orderId: string): Promise<boolean> {
  */
 export async function getOrderPointsEntries(orderId: string): Promise<PointsEntry[]> {
   try {
-    const data = await apiGet<PointsEntry[]>(
-      `/api/points/order/${encodeURIComponent(orderId)}/entries`
-    );
-    return data || [];
+    const data = await pointsApi.getOrderEntries(orderId);
+    return (data as PointsEntry[]) || [];
   } catch (error) {
     logger.error('[PointsService] Failed to get order points entries:', error);
     return [];
@@ -635,10 +627,8 @@ export async function getOrderPointsEntries(orderId: string): Promise<PointsEntr
 // 对应已有路由: GET /api/points/member/:memberId/breakdown
 export async function getMemberPointsEntries(memberCode: string): Promise<PointsEntry[]> {
   try {
-    const data = await apiGet<PointsEntry[]>(
-      `/api/points/member/${encodeURIComponent(memberCode)}/breakdown`
-    );
-    return data || [];
+    const data = await pointsApi.getMemberEntries(memberCode);
+    return (data as PointsEntry[]) || [];
   } catch (error) {
     logger.error('[PointsService] Failed to get member points entries:', error);
     return [];

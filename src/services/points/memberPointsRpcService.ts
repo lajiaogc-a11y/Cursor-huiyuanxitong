@@ -3,11 +3,23 @@
  * - 员工端（有 JWT 且非会员路径）：通过后端 API 调用
  * - 会员端（无 JWT 或当前在 /member/*）：通过后端 API rpc stub
  */
-import { apiGet, apiPost, hasAuthToken, unwrapApiData } from '@/api/client';
+import { dataRpcApi } from '@/api/data';
+import { pointsApi } from '@/api/points';
+import { hasAuthToken } from '@/lib/apiClient';
 import { isMemberRealmPathname } from '@/lib/memberTokenPathMatrix';
 import { getSpaPathname } from '@/lib/spaNavigation';
-import { MEMBER_POINTS_HTTP_PATHS, MEMBER_PORTAL_RPC_PATHS } from '@/services/memberPortal/routes';
 import type { MemberPointsResult, MemberPointsBreakdownResult, MemberSpinQuotaResult } from './memberPointsApiTypes';
+
+/** 兼容 apiClient 返回：可能直接返回 data，或返回 { success, data } */
+function unwrapApiData<T>(res: unknown): T | null {
+  if (res === null || res === undefined) return null;
+  if (Array.isArray(res)) return res as T;
+  if (typeof res === 'object' && res !== null && 'data' in res) {
+    const d = (res as { data?: T }).data;
+    return d !== undefined ? d : null;
+  }
+  return res as T;
+}
 
 export type { MemberPointsResult, MemberPointsBreakdownResult, MemberSpinQuotaResult };
 
@@ -43,12 +55,10 @@ function shouldUseMemberPortalPointsPath(): boolean {
 export async function getMemberPointsRpc(memberId: string): Promise<MemberPointsResult> {
   try {
     if (!shouldUseMemberPortalPointsPath()) {
-      const res = await apiGet<{ success: boolean; data: MemberPointsResult }>(
-        MEMBER_POINTS_HTTP_PATHS.member(memberId)
-      );
-      return res.data ?? { success: false, points: 0 };
+      const res = await pointsApi.getMemberPoints(memberId);
+      return unwrapApiData<MemberPointsResult>(res) ?? { success: false, points: 0 };
     }
-    const data = await apiPost<any>(MEMBER_PORTAL_RPC_PATHS.MEMBER_GET_POINTS, { p_member_id: memberId });
+    const data = await dataRpcApi.call('member_get_points', { p_member_id: memberId });
     const r = data as { success?: boolean; points?: number; balance?: number; frozen_points?: number; total_points?: number };
     const pts = r?.success ? Number(r.points ?? r.balance ?? 0) : 0;
     const frozen = r?.success ? Number(r.frozen_points ?? 0) : 0;
@@ -65,9 +75,7 @@ export async function getMemberPointsBreakdownRpc(
 ): Promise<MemberPointsBreakdownResult> {
   try {
     if (!shouldUseMemberPortalPointsPath()) {
-      const res = await apiGet<MemberPointsBreakdownResult | { success?: boolean; data?: MemberPointsBreakdownResult }>(
-        MEMBER_POINTS_HTTP_PATHS.breakdown(memberId)
-      );
+      const res = await pointsApi.getMemberBreakdown(memberId);
       const d = unwrapApiData<MemberPointsBreakdownResult>(res);
       if (!d?.success) {
         return {
@@ -91,7 +99,7 @@ export async function getMemberPointsBreakdownRpc(
         referral_count: Math.max(0, Math.floor(Number(d.referral_count ?? 0))),
       };
     }
-    const data = await apiPost<any>(MEMBER_PORTAL_RPC_PATHS.MEMBER_GET_POINTS_BREAKDOWN, { p_member_id: memberId });
+    const data = await dataRpcApi.call('member_get_points_breakdown', { p_member_id: memberId });
     const r = data as {
       success?: boolean;
       balance?: number;
@@ -144,7 +152,7 @@ export async function getMemberPointsLedgerRpc(
   offset = 0
 ): Promise<MemberPointsLedgerListResult> {
   try {
-    const data = await apiPost<MemberPointsLedgerListResult>(MEMBER_PORTAL_RPC_PATHS.MEMBER_LIST_POINTS_LEDGER, {
+    const data = await dataRpcApi.call<MemberPointsLedgerListResult>('member_list_points_ledger', {
       p_member_id: memberId,
       p_category: category,
       p_limit: limit,
@@ -167,10 +175,9 @@ export async function getMemberPointsLedgerRpc(
 /** Server-side SUM of today's earned points — no row-count cap */
 export async function getMemberTodayEarnedRpc(memberId: string): Promise<number> {
   try {
-    const data = await apiPost<{ success?: boolean; earned?: number }>(
-      MEMBER_PORTAL_RPC_PATHS.MEMBER_SUM_TODAY_EARNED,
-      { p_member_id: memberId },
-    );
+    const data = await dataRpcApi.call<{ success?: boolean; earned?: number }>('member_sum_today_earned', {
+      p_member_id: memberId,
+    });
     return data?.success ? Math.max(0, Number(data.earned ?? 0)) : 0;
   } catch {
     return 0;
@@ -181,16 +188,14 @@ export async function getMemberTodayEarnedRpc(memberId: string): Promise<number>
 export async function getMemberSpinQuotaRpc(memberId: string): Promise<MemberSpinQuotaResult> {
   try {
     if (!shouldUseMemberPortalPointsPath()) {
-      const res = await apiGet<MemberSpinQuotaResult | { success?: boolean; data?: MemberSpinQuotaResult }>(
-        MEMBER_POINTS_HTTP_PATHS.spinQuota(memberId)
-      );
+      const res = await pointsApi.getMemberSpinQuota(memberId);
       const d = unwrapApiData<MemberSpinQuotaResult>(res);
       return {
         success: !!d?.success,
         remaining: d?.success ? Number(d.remaining ?? 0) : 0,
       };
     }
-    const data = await apiPost<any>(MEMBER_PORTAL_RPC_PATHS.MEMBER_GET_SPIN_QUOTA, { p_member_id: memberId });
+    const data = await dataRpcApi.call('member_get_spin_quota', { p_member_id: memberId });
     const r = data as { success?: boolean; remaining?: number };
     return {
       success: !!r?.success,

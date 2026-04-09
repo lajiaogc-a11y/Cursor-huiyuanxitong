@@ -7,8 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Shield, Plus, Trash2, Save, Globe, AlertTriangle, MapPin, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { upsertDataSetting, type IpAccessControlNormalized } from "@/services/staff/dataApi/permissionsAndSettings";
-import { apiClient } from "@/lib/apiClient";
+import { upsertDataSetting, getIpAccessControlConfig, type IpAccessControlNormalized } from "@/services/staff/dataApi/permissionsAndSettings";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { notify } from "@/lib/notifyHub";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -69,7 +68,7 @@ export default function IpAccessControlTab() {
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await apiClient.get<IpAccessControlNormalized>("/api/data/settings/ip-access-control");
+        const data = await getIpAccessControlConfig();
         if (data && typeof data === "object") {
           setConfig({
             ...defaultConfig(),

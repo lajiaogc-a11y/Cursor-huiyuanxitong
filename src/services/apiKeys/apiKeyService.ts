@@ -1,7 +1,7 @@
 /**
  * 员工端 API Key 表代理与本地生成/哈希（明文 key 仅创建时返回一次）
  */
-import { apiDelete, apiGet, apiPatch, apiPost } from "@/api/client";
+import { dataTableApi } from "@/api/data";
 
 export interface ApiKey {
   id: string;
@@ -73,7 +73,7 @@ function parseNullableStringArray(v: unknown): string[] | null {
 }
 
 export async function listApiKeys(): Promise<ApiKey[]> {
-  const data = await apiGet<unknown[]>("/api/data/table/api_keys?select=*&order=created_at.desc");
+  const data = await dataTableApi.get<unknown[]>("api_keys", "select=*&order=created_at.desc");
   return (data || []).map((k) => {
     const row = k as Record<string, unknown>;
     return {
@@ -96,11 +96,11 @@ export async function listApiKeys(): Promise<ApiKey[]> {
 }
 
 export async function listApiRequestLogs(keyId?: string, limit = 100): Promise<ApiRequestLog[]> {
-  let url = `/api/data/table/api_request_logs?select=*&order=created_at.desc&limit=${limit}`;
+  let q = `select=*&order=created_at.desc&limit=${limit}`;
   if (keyId) {
-    url += `&api_key_id=eq.${encodeURIComponent(keyId)}`;
+    q += `&api_key_id=eq.${encodeURIComponent(keyId)}`;
   }
-  const data = await apiGet<unknown[]>(url);
+  const data = await dataTableApi.get<unknown[]>("api_request_logs", q);
   return (data || []).map((l) => {
     const row = l as Record<string, unknown>;
     return {
@@ -121,15 +121,15 @@ export async function listApiRequestLogs(keyId?: string, limit = 100): Promise<A
 }
 
 export async function createApiKeyRecord(body: Record<string, unknown>): Promise<void> {
-  await apiPost("/api/data/table/api_keys", { data: body });
+  await dataTableApi.post("api_keys", { data: body });
 }
 
 export async function patchApiKeyRecord(keyId: string, body: Record<string, unknown>): Promise<void> {
   const data = Object.fromEntries(Object.entries(body).filter(([, v]) => v !== undefined));
   if (Object.keys(data).length === 0) return;
-  await apiPatch(`/api/data/table/api_keys?id=eq.${encodeURIComponent(keyId)}`, { data });
+  await dataTableApi.patch("api_keys", `id=eq.${encodeURIComponent(keyId)}`, { data });
 }
 
 export async function deleteApiKeyRecord(keyId: string): Promise<void> {
-  await apiDelete(`/api/data/table/api_keys?id=eq.${encodeURIComponent(keyId)}`);
+  await dataTableApi.del("api_keys", `id=eq.${encodeURIComponent(keyId)}`);
 }

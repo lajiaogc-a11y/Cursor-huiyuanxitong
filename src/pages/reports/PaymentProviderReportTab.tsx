@@ -94,16 +94,16 @@ export function PaymentProviderReportTab({
           <Table className="text-xs">
             <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
               <TableRow>
-                <SortableTableHead sortKey="providerName" currentSort={providerSortConfig} onSort={requestProviderSort} className="text-center px-1.5">
+                <SortableTableHead sortKey="providerName" currentSort={providerSortConfig ?? null} onSort={requestProviderSort} className="text-center px-1.5">
                   {t("商家名称", "Provider")}
                 </SortableTableHead>
-                <SortableTableHead sortKey="orderCount" currentSort={providerSortConfig} onSort={requestProviderSort} className="text-center px-1.5">
+                <SortableTableHead sortKey="orderCount" currentSort={providerSortConfig ?? null} onSort={requestProviderSort} className="text-center px-1.5">
                   {t("订单数量", "Orders")}
                 </SortableTableHead>
-                <SortableTableHead sortKey="paymentValueNgnGhs" currentSort={providerSortConfig} onSort={requestProviderSort} className="text-center px-1.5">
+                <SortableTableHead sortKey="paymentValueNgnGhs" currentSort={providerSortConfig ?? null} onSort={requestProviderSort} className="text-center px-1.5">
                   {t("代付总额(人)", "Payment NGN/GHS")}
                 </SortableTableHead>
-                <SortableTableHead sortKey="paymentValueUsdt" currentSort={providerSortConfig} onSort={requestProviderSort} className="text-center px-1.5">
+                <SortableTableHead sortKey="paymentValueUsdt" currentSort={providerSortConfig ?? null} onSort={requestProviderSort} className="text-center px-1.5">
                   {t("代付总额(USDT)", "Payment USDT")}
                 </SortableTableHead>
               </TableRow>

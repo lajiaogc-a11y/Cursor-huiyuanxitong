@@ -4,7 +4,7 @@
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
-import { apiGet, apiPatch } from '@/api/client';
+import { getOperationLogsTableRecent, patchOperationLogById } from '@/services/data/tableQueryService';
 import { useAuth } from '@/contexts/AuthContext';
 import { postOperationLog } from '@/services/staff/dataApi';
 import { parseOperationLogDataField } from '@/lib/operationLogPayload';
@@ -48,9 +48,7 @@ export interface OperationLog {
 
 // Standalone fetch function (used by useQuery and prefetch)
 export async function fetchOperationLogsFromDb(): Promise<OperationLog[]> {
-  const data = await apiGet<OperationLogRow[]>(
-    `/api/data/table/operation_logs?select=*&order=timestamp.desc&limit=5000`
-  );
+  const data = await getOperationLogsTableRecent<OperationLogRow[]>();
   const rows = Array.isArray(data) ? data : [];
 
   return rows.map((log: OperationLogRow) => ({
@@ -112,7 +110,7 @@ export function useOperationLogs() {
     }
 
     try {
-      await apiPatch(`/api/data/table/operation_logs?id=eq.${encodeURIComponent(logId)}`, {
+      await patchOperationLogById(logId, {
         data: {
           is_restored: true,
           restored_by: employee.id,

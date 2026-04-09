@@ -1,0 +1,66 @@
+---
+description: 强制分层架构 — Page→Service→API Client→Backend→Database，所有功能开发必须严格遵守
+alwaysApply: true
+---
+
+# 强制分层架构规则（不可绕过）
+
+## 唯一合法架构
+
+```
+Page（页面/UI）
+  → Service（业务层）
+    → API Client（请求层）
+      → Backend/API（后端）
+        → Database（数据库）
+```
+
+## 各层职责边界（违反即重构）
+
+| 层级 | 允许 | 禁止 |
+|------|------|------|
+| **Page** | 页面展示、用户交互、状态管理、调用 Service | 直接请求后端、写业务逻辑、直接导入 `@/api/*` 或 `@/lib/apiClient` |
+| **Service** | 业务规则、流程编排、数据处理、调用 API Client | 包含 React Hook（useState/useQuery/useMemo 等）、直接发 HTTP 请求 |
+| **API Client** | 请求封装、token/header/error 统一处理 | 写业务逻辑、反向依赖 Service 层 |
+| **Backend Controller** | 接口接收、参数校验、调用后端 Service | 直接操作数据库（禁止 controller → db 跨层） |
+| **Database** | 数据存储、查询、事务、表结构 | 业务逻辑 |
+
+## 规则 1：开始编码前必须输出【架构预览】
+
+格式固定，等用户确认后才可动手：
+
+```
+【功能名称】
+【页面层】  受影响的 Page/Component 文件
+【业务层】  受影响的 Service 文件
+【请求层】  受影响的 API Client 文件
+【后端层】  受影响的 Controller/Route/Service 文件
+【数据库层】 涉及的表 / 字段
+【调用链】  Page → Service → APIClient → Backend → DB 完整链路
+【分层自检结果】 逐层确认是否合规
+【是否存在跨层调用】 是 / 否（有则必须说明并先重构）
+【风险说明】 可能影响的现有功能
+```
+
+## 规则 2：涉及旧代码修改时必须先输出【旧代码迁移清单】
+
+```
+【旧代码迁移清单】
+- 需改动的旧文件：逐文件列出路径
+- 当前层级职责问题：每个文件违反了什么规范
+- 迁移方案：移动 / 拆分 / 重写
+- 回退方案：是否保留旧路径兼容导出
+```
+
+## 规则 3：发现违规必须先重构再开发
+
+发现以下任意一条，必须先重构，再继续开发：
+- Page 直接调用 `@/api/*` 或 `fetch`
+- Page 内写业务逻辑
+- Controller 直接执行 SQL / 操作数据库
+- Service 内包含 React Hook
+- API Client 层导入 Service 层（反向依赖）
+
+## 验收标准
+
+功能可用 **+** 架构合规 **+** 层级清晰 **+** 便于维护扩展

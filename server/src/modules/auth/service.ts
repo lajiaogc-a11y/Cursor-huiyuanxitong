@@ -1,5 +1,5 @@
 /**
- * Auth Service - 认证业务逻辑，使用 JWT 替代 Supabase Auth
+ * Auth Service - 认证业务逻辑（JWT + MySQL）
  */
 import jwt from 'jsonwebtoken';
 import { config } from '../../config/index.js';
@@ -252,7 +252,7 @@ export async function loginService(
   };
   const token = jwt.sign(payload, config.jwt.secret, { expiresIn: JWT_EXPIRES_IN });
 
-  // Supabase JWT 已不再需要（已迁移到 MySQL）
+  // 旧外部 JWT 已不再需要
 
   const user = toAuthUser(empWithPlatform);
   return { success: true, token, user };
@@ -359,4 +359,25 @@ export async function refreshTokenService(
 
   const token = jwt.sign(payload, config.jwt.secret, { expiresIn: JWT_EXPIRES_IN });
   return { success: true, token, user };
+}
+
+// ── 密码操作（供 Controller 统一走 Service 层） ────────────────────────────
+
+import { syncAuthPasswordViaEdgeRepository } from '../tenants/repository.js';
+import { verifyAdminPasswordRepository } from '../admin/repository.js';
+
+/** 将当前员工密码同步写入 employees.password_hash（bcrypt） */
+export async function syncAuthPasswordService(
+  username: string,
+  password: string,
+): Promise<{ success: boolean; message?: string }> {
+  return syncAuthPasswordViaEdgeRepository(username, password);
+}
+
+/** 校验员工密码（bcrypt 兼容 SHA256 历史格式） */
+export async function verifyAuthPasswordService(
+  username: string,
+  password: string,
+): Promise<boolean> {
+  return verifyAdminPasswordRepository(username, password);
 }

@@ -13,7 +13,7 @@ import { useMaintenanceMode } from '@/hooks/useMaintenanceMode';
 import { MaintenanceBlockedView } from '@/components/MaintenanceBlockedView';
 import { ROUTES } from '@/routes/constants';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
-import { hasAuthToken } from '@/api/client';
+import { hasAuthToken } from '@/services/auth/authApiService';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;

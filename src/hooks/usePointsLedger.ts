@@ -3,7 +3,13 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
-import { apiGet } from '@/api/client';
+import {
+  getPointsLedgerAllOrdered,
+  getPointsLogAllOrdered,
+  getPointsLedgerByMemberCodeForBalance,
+  getMembersIdByMemberCode,
+  getPointsLedgerByMemberIdForBalance,
+} from '@/services/data/tableQueryService';
 import { CurrencyCode } from '@/config/currencies';
 import { 
   createPointsOnOrderCreate, 
@@ -92,8 +98,8 @@ function deduplicateLogRows(
 // Standalone fetch function — merges points_ledger + points_log for a complete timeline
 export async function fetchPointsLedgerFromDb(): Promise<PointsLedgerEntry[]> {
   const [ledgerData, logData] = await Promise.all([
-    apiGet<unknown>(`/api/data/table/points_ledger?select=*&order=created_at.desc`),
-    apiGet<unknown>(`/api/data/table/points_log?select=*&order=created_at.desc`).catch(() => []),
+    getPointsLedgerAllOrdered(),
+    getPointsLogAllOrdered().catch(() => []),
   ]);
   const ledgerRows = (Array.isArray(ledgerData) ? ledgerData : [])
     .map((row) => normalizePointsLedgerRow(row as Record<string, unknown>));
@@ -208,20 +214,14 @@ export function usePointsLedger() {
         ? `&created_at=gt.${encodeURIComponent(lastResetTime)}`
         : '';
 
-      const byCode = await apiGet<{ points_earned?: number | null; amount?: number | null; id?: string }[]>(
-        `/api/data/table/points_ledger?select=id,points_earned,amount,status&member_code=eq.${encodeURIComponent(member_code)}&status=in.(issued,reversed)${resetQ}`
-      );
+      const byCode = await getPointsLedgerByMemberCodeForBalance(member_code, resetQ);
 
       let byId: { points_earned?: number | null; amount?: number | null; id?: string }[] = [];
       try {
-        const memberRow = await apiGet<{ id?: string }[]>(
-          `/api/data/table/members?select=id&member_code=eq.${encodeURIComponent(member_code)}&limit=1`
-        );
+        const memberRow = await getMembersIdByMemberCode(member_code);
         const memberId = Array.isArray(memberRow) && memberRow[0]?.id;
         if (memberId) {
-          byId = await apiGet<{ points_earned?: number | null; amount?: number | null; id?: string }[]>(
-            `/api/data/table/points_ledger?select=id,points_earned,amount,status&member_id=eq.${encodeURIComponent(memberId)}&status=in.(issued,reversed)${resetQ}`
-          );
+          byId = await getPointsLedgerByMemberIdForBalance(memberId, resetQ);
         }
       } catch {
         /* fallback to code-only */

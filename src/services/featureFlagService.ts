@@ -1,7 +1,7 @@
 /**
  * Feature Flag Service — connected to real backend RPC.
  */
-import { apiPost } from "@/api/client";
+import { dataRpcApi } from "@/api/data";
 import { fail, ok, type ServiceResult } from "@/services/serviceResult";
 
 export const FEATURE_FLAGS = {
@@ -23,14 +23,14 @@ export async function getTenantFeatureFlagResult(
 ): Promise<ServiceResult<boolean>> {
   if (!tenantId) return fail("TENANT_REQUIRED", "Tenant id is required", "TENANT");
   try {
-    const data = await apiPost<{ enabled: boolean }>("/api/data/rpc/get_tenant_feature_flag", {
+    const data = await dataRpcApi.call<{ enabled: boolean }>("get_tenant_feature_flag", {
       tenant_id: tenantId,
       flag_key: flagKey,
     });
     return ok(data?.enabled ?? defaultEnabled);
   } catch (e) {
     // M2 fix: fail-closed — API errors should not enable features
-    return fail("FLAG_FETCH_FAILED", (e as Error).message || "Failed to fetch feature flag");
+    return fail("FLAG_FETCH_FAILED", (e as Error).message || "Failed to fetch feature flag", "TENANT");
   }
 }
 
@@ -39,7 +39,7 @@ export async function getTenantFeatureFlagsResult(
 ): Promise<ServiceResult<FeatureFlagRow[]>> {
   if (!tenantId) return fail("TENANT_REQUIRED", "Tenant id is required", "TENANT");
   try {
-    const data = await apiPost<FeatureFlagRow[]>("/api/data/rpc/list_tenant_feature_flags", {
+    const data = await dataRpcApi.call<FeatureFlagRow[]>("list_tenant_feature_flags", {
       tenant_id: tenantId,
     });
     return ok(Array.isArray(data) ? data : []);
@@ -55,13 +55,13 @@ export async function setTenantFeatureFlagResult(
 ): Promise<ServiceResult<true>> {
   if (!tenantId) return fail("TENANT_REQUIRED", "Tenant id is required", "TENANT");
   try {
-    await apiPost("/api/data/rpc/set_tenant_feature_flag", {
+    await dataRpcApi.call("set_tenant_feature_flag", {
       tenant_id: tenantId,
       flag_key: flagKey,
       enabled,
     });
     return ok(true);
   } catch (e) {
-    return fail("SET_FLAG_FAILED", (e as Error).message);
+    return fail("SET_FLAG_FAILED", (e as Error).message, "TENANT");
   }
 }

@@ -67,13 +67,21 @@ import { formatBeijingTime, formatBeijingDate, getNowBeijingISO } from "@/lib/be
 import { getSpinCreditsDetailApi, type SpinCreditDetailRow } from "@/services/staff/dataApi/activityData";
 import { ActivityPointsHistoryDrawer } from "./ActivityPointsHistoryDrawer";
 import { ActivitySpinDetailDrawer } from "./ActivitySpinDetailDrawer";
-import { ActivityRedeemDialog } from "./ActivityRedeemDialog";
+import {
+  ActivityRedeemDialog,
+  type ActivityRedeemingRow,
+  type ActivityRedeemPreview,
+} from "./ActivityRedeemDialog";
 
 // 类型定义
 interface Member {
   id: string;
   phone_number: string;
   member_code: string;
+  /** 与 useMembers / 兑换弹窗一致的驼峰字段（活动行 `compatibleMember` 会写入） */
+  phoneNumber?: string;
+  memberCode?: string;
+  preferredCurrency?: string[];
   nickname?: string | null;
   /** 行内展示用：昵称或会员编号 */
   memberDisplayName?: string;
@@ -492,9 +500,9 @@ export default function MemberActivityDataContent() {
         };
       });
 
-      const ledgerAmt = (e: { points_earned?: number; amount?: number | string }) =>
+      const ledgerAmt = (e: { points_earned?: number; amount?: number | string | null | undefined }) =>
         Number(e.points_earned ?? e.amount ?? 0);
-      const ledgerTxn = (e: { transaction_type?: string; type?: string }) =>
+      const ledgerTxn = (e: { transaction_type?: string | null; type?: string | null }) =>
         String(e.transaction_type || e.type || '').toLowerCase();
       const ledgerOk = (e: { status?: string | null }) => {
         const st = e.status;
@@ -814,11 +822,11 @@ export default function MemberActivityDataContent() {
       
       // 调用后端事务性 RPC
       const result = await redeemPointsAndRecordRpc({
-        p_member_code: member.memberCode,
-        p_phone: member.phoneNumber,
+        p_member_code: member.memberCode ?? member.member_code,
+        p_phone: member.phoneNumber ?? member.phone_number,
         p_member_id: memberId,
         p_points_to_redeem: remainingPoints,
-        p_activity_type: activityType,
+        p_activity_type: activityType ?? "activity_1",
         p_gift_currency: preferredCurrency,
         p_gift_amount: rewardAmount,
         p_gift_rate: currentRate,
@@ -858,7 +866,7 @@ export default function MemberActivityDataContent() {
             providerName: selectedPaymentProvider,
             giftValue: giftValue,
             giftId: (result as any).gift_id || '',
-            phoneNumber: member.phoneNumber,
+            phoneNumber: member.phoneNumber ?? '',
             operatorId: currentEmployeeId || undefined,
             operatorName: employee?.real_name || undefined,
           });
@@ -873,7 +881,7 @@ export default function MemberActivityDataContent() {
         await logOperationToDb(
           'activity',
           'redeem_points',
-          member.memberCode,
+          member.memberCode ?? null,
           { remainingPoints, memberCode: member.memberCode, phoneNumber: member.phoneNumber },
           { pointsRedeemed: remainingPoints, currency: preferredCurrency, amount: rewardAmount, giftValue, activityType, paymentAgent: selectedPaymentProvider },
           `兑换积分: ${member.memberCode} (${member.phoneNumber}) - ${remainingPoints}积分 -> ${rewardAmount} ${preferredCurrency}`,
@@ -887,8 +895,8 @@ export default function MemberActivityDataContent() {
       import('@/services/webhookService').then(({ triggerPointsRedeemed }) => {
         triggerPointsRedeemed({
           memberId: memberId ?? undefined,
-          memberCode: member.memberCode,
-          phoneNumber: member.phoneNumber,
+          memberCode: member.memberCode ?? '',
+          phoneNumber: member.phoneNumber ?? '',
           points: remainingPoints,
           createdAt: new Date().toISOString(),
         }).catch(err => console.error('[MemberActivityData] Webhook trigger failed:', err));
@@ -1147,8 +1155,8 @@ export default function MemberActivityDataContent() {
 
       // 从数据库获取最新积分数据
       const summary = await getMemberPointsSummary(
-        row.member.memberCode,
-        row.member.phoneNumber,
+        row.member.memberCode ?? '',
+        row.member.phoneNumber ?? '',
         undefined,
         row.member.id,
       );
@@ -1185,8 +1193,8 @@ export default function MemberActivityDataContent() {
       }));
 
       const copyText = generateEnglishCopyText({
-        phoneNumber: row.member.phoneNumber,
-        memberCode: row.member.memberCode,
+        phoneNumber: row.member.phoneNumber ?? '',
+        memberCode: row.member.memberCode ?? '',
         earnedPoints: lastEarnedPoints,
         totalPoints,
         referralPoints,
@@ -1289,7 +1297,7 @@ export default function MemberActivityDataContent() {
               ) : paginatedActivityData.map((row) => (
                 <MobileCard key={row.member.id} accent="default">
                   <MobileCardHeader>
-                    <span className="font-mono text-sm">{displayPhone(row.member.phoneNumber)}</span>
+                    <span className="font-mono text-sm">{displayPhone(row.member.phoneNumber ?? '')}</span>
                     <Badge variant="outline" className="font-mono text-xs">{row.member.memberCode}</Badge>
                   </MobileCardHeader>
                   <MobileCardRow label={t("会员名称", "Member name")} value={row.member.memberDisplayName ?? row.member.memberCode} />
@@ -1299,7 +1307,7 @@ export default function MemberActivityDataContent() {
                       <button
                         type="button"
                         className="underline decoration-dotted underline-offset-2 text-violet-600 dark:text-violet-400 font-medium"
-                        onClick={() => openSpinDetail(row.member.id, row.member.memberCode)}
+                        onClick={() => openSpinDetail(row.member.id, row.member.memberCode ?? '')}
                       >
                         {row.lotterySpinBalance}
                       </button>
@@ -1323,7 +1331,7 @@ export default function MemberActivityDataContent() {
                     <MobileCardRow label={t("赠送赛地", "Gift GHS")} value={row.giftGhs > 0 ? `+${row.giftGhs.toFixed(2)}` : "0"} />
                     <MobileCardRow label={t("赠送US", "Gift USDT")} value={row.giftUsdt > 0 ? `+${row.giftUsdt.toFixed(2)}` : "0"} />
                     <MobileCardRow label={t("推荐人数", "Referrals")} value={row.referralCount > 0 ? (
-                      <Button variant="ghost" size="sm" className="h-6 px-1 text-xs" onClick={() => showReferralDialog(row.referralList, row.member.phoneNumber)}>
+                      <Button variant="ghost" size="sm" className="h-6 px-1 text-xs" onClick={() => showReferralDialog(row.referralList, row.member.phoneNumber ?? '')}>
                         <Users className="h-3 w-3 mr-1" />{row.referralCount}
                       </Button>
                     ) : "0"} />
@@ -1390,7 +1398,7 @@ export default function MemberActivityDataContent() {
                 ) : (
                   paginatedActivityData.map((row) => (
                     <TableRow key={row.member.id}>
-                      {isVisible('phone') && <TableCell className="font-mono text-center">{displayPhone(row.member.phoneNumber)}</TableCell>}
+                      {isVisible('phone') && <TableCell className="font-mono text-center">{displayPhone(row.member.phoneNumber ?? '')}</TableCell>}
                       {isVisible('memberCode') && <TableCell className="text-center">
                         <Badge variant="outline" className="font-mono">
                           {row.member.memberCode}
@@ -1403,7 +1411,7 @@ export default function MemberActivityDataContent() {
                         <button
                           type="button"
                           className="underline decoration-dotted underline-offset-2 hover:text-violet-800 dark:hover:text-violet-300 cursor-pointer"
-                          onClick={() => openSpinDetail(row.member.id, row.member.memberCode)}
+                          onClick={() => openSpinDetail(row.member.id, row.member.memberCode ?? '')}
                         >
                           {row.lotterySpinBalance}
                         </button>
@@ -1462,7 +1470,7 @@ export default function MemberActivityDataContent() {
                             variant="ghost"
                             size="sm"
                             className="h-7 px-2"
-                            onClick={() => showReferralDialog(row.referralList, row.member.phoneNumber)}
+                            onClick={() => showReferralDialog(row.referralList, row.member.phoneNumber ?? '')}
                           >
                             <Users className="h-3 w-3 mr-1" />
                             {row.referralCount}
@@ -1698,8 +1706,8 @@ export default function MemberActivityDataContent() {
       <ActivityRedeemDialog
         redeemOpen={isRedeemDialogOpen}
         onRedeemOpenChange={setIsRedeemDialogOpen}
-        redeemingRow={redeemingRow}
-        redeemPreview={redeemPreview}
+        redeemingRow={redeemingRow as ActivityRedeemingRow | null}
+        redeemPreview={redeemPreview as ActivityRedeemPreview | null}
         paymentProviders={paymentProviders}
         selectedPaymentProvider={selectedPaymentProvider}
         onSelectedPaymentProviderChange={setSelectedPaymentProvider}

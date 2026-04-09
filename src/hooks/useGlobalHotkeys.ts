@@ -44,7 +44,7 @@ export function useGlobalHotkeys() {
         if (el) {
           e.preventDefault();
           el.focus();
-          el.select?.();
+          (el as HTMLInputElement).select();
         }
         return;
       }

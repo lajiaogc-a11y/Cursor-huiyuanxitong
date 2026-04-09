@@ -1,7 +1,7 @@
 /**
  * Maintenance Mode Service — connected to real backend RPC.
  */
-import { apiPost } from "@/api/client";
+import { dataRpcApi } from "@/api/data";
 import { fail, ok, type ServiceResult } from "@/services/serviceResult";
 
 export type MaintenanceStatus = {
@@ -25,7 +25,7 @@ export async function getMaintenanceModeStatusResult(
   tenantId?: string | null
 ): Promise<ServiceResult<MaintenanceStatus>> {
   try {
-    const data = await apiPost<MaintenanceStatus>("/api/data/rpc/get_maintenance_mode_status", {
+    const data = await dataRpcApi.call<MaintenanceStatus>("get_maintenance_mode_status", {
       tenant_id: tenantId || undefined,
     });
     if (!data) {
@@ -57,7 +57,7 @@ export async function setGlobalMaintenanceModeResult(
   allowedRoles?: string[]
 ): Promise<ServiceResult<true>> {
   try {
-    await apiPost("/api/data/rpc/set_maintenance_mode", {
+    await dataRpcApi.call("set_maintenance_mode", {
       scope: "global",
       enabled,
       message: message ?? "",
@@ -65,7 +65,7 @@ export async function setGlobalMaintenanceModeResult(
     });
     return ok(true);
   } catch (e) {
-    return fail("SET_MAINTENANCE_FAILED", (e as Error).message);
+    return fail("SET_MAINTENANCE_FAILED", (e as Error).message, "COMMON");
   }
 }
 
@@ -77,7 +77,7 @@ export async function setTenantMaintenanceModeResult(
 ): Promise<ServiceResult<true>> {
   if (!tenantId) return fail("TENANT_REQUIRED", "Tenant id is required", "TENANT");
   try {
-    await apiPost("/api/data/rpc/set_maintenance_mode", {
+    await dataRpcApi.call("set_maintenance_mode", {
       scope: "tenant",
       tenant_id: tenantId,
       enabled,
@@ -86,13 +86,13 @@ export async function setTenantMaintenanceModeResult(
     });
     return ok(true);
   } catch (e) {
-    return fail("SET_MAINTENANCE_FAILED", (e as Error).message);
+    return fail("SET_MAINTENANCE_FAILED", (e as Error).message, "COMMON");
   }
 }
 
 export async function getTenantMaintenanceModesResult(): Promise<ServiceResult<TenantMaintenanceMode[]>> {
   try {
-    const data = await apiPost<TenantMaintenanceMode[]>("/api/data/rpc/list_tenant_maintenance_modes", {});
+    const data = await dataRpcApi.call<TenantMaintenanceMode[]>("list_tenant_maintenance_modes", {});
     return ok(Array.isArray(data) ? data : []);
   } catch {
     return ok([]);

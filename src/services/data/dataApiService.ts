@@ -1,7 +1,8 @@
 /**
  * Data API Service - 操作日志、公司文档（通过后端 API 绕过 RLS）
  */
-import { apiGet } from '@/api/client';
+import { knowledgeApi } from '@/api/knowledge';
+import { logsApi } from '@/api/logs';
 
 export interface OperationLogsResult {
   logs: Array<{
@@ -53,9 +54,12 @@ export async function getOperationLogsApi(query: OperationLogsQuery): Promise<Op
   if (query.dateEnd) params.set('dateEnd', query.dateEnd);
   if (query.tenantId) params.set('tenant_id', query.tenantId);
   if (query.export) params.set('export', '1');
-  const q = params.toString();
-  const res = await apiGet<unknown>(`/api/logs/audit${q ? `?${q}` : ''}`);
-  const raw = res as Record<string, unknown>;
+  const flat: Record<string, string> = {};
+  params.forEach((v, k) => {
+    flat[k] = v;
+  });
+  const res = await logsApi.getAuditLogs(Object.keys(flat).length ? flat : undefined);
+  const raw = res as unknown as Record<string, unknown>;
   const payload = raw?.data ?? raw;
   const p = (payload && typeof payload === 'object') ? payload as Record<string, unknown> : {};
   const logs = (Array.isArray(p?.logs) ? p.logs : p?.logs ?? []) as unknown[];
@@ -66,21 +70,20 @@ export async function getOperationLogsApi(query: OperationLogsQuery): Promise<Op
 }
 
 export async function getKnowledgeCategoriesApi(tenantId?: string | null): Promise<unknown[]> {
-  const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : '';
-  const res = await apiGet<unknown>(`/api/knowledge/categories${q}`);
-  const raw = res as Record<string, unknown>;
+  const res = await knowledgeApi.getCategories(
+    tenantId ? { tenant_id: tenantId } : undefined,
+  );
+  const raw = res as unknown as Record<string, unknown>;
   const arr = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
   return arr as unknown[];
 }
 
 export async function getKnowledgeArticlesApi(categoryId: string, tenantId?: string | null): Promise<unknown[]> {
-  const params = new URLSearchParams();
-  if (tenantId) params.set('tenant_id', tenantId);
-  const q = params.toString();
-  const res = await apiGet<unknown>(
-    `/api/knowledge/articles/${encodeURIComponent(categoryId)}${q ? `?${q}` : ''}`
+  const res = await knowledgeApi.getArticles(
+    categoryId,
+    tenantId ? { tenant_id: tenantId } : undefined,
   );
-  const raw = res as Record<string, unknown>;
+  const raw = res as unknown as Record<string, unknown>;
   const arr = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
   return arr as unknown[];
 }
@@ -97,11 +100,10 @@ export interface LoginLogApiRow {
 }
 
 export async function getLoginLogsApi(limit?: number, tenantId?: string | null): Promise<LoginLogApiRow[]> {
-  const params = new URLSearchParams();
-  if (limit != null) params.set('page_size', String(limit));
-  if (tenantId) params.set('tenant_id', tenantId);
-  const q = params.toString();
-  const res = await apiGet<unknown>(`/api/logs/login${q ? `?${q}` : ''}`);
+  const flat: Record<string, string> = {};
+  if (limit != null) flat.page_size = String(limit);
+  if (tenantId) flat.tenant_id = tenantId;
+  const res = await logsApi.getLoginLogs(Object.keys(flat).length ? flat : undefined);
   if (Array.isArray(res)) return res as LoginLogApiRow[];
   const raw = res as Record<string, unknown>;
   if (Array.isArray(raw.rows)) return raw.rows as LoginLogApiRow[];

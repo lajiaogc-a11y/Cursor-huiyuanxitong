@@ -133,7 +133,7 @@ export function UpdatePrompt() {
         "已发布新的前端构建，刷新即可加载最新功能与修复。",
         "A new frontend build is available. Refresh to load the latest fixes and features.",
       )}
-      sheetMaxWidth="md"
+      sheetMaxWidth="xl"
       sheetContentProps={{ onPointerDownOutside: (e) => e.preventDefault() }}
     >
       <div className="flex flex-col gap-5">

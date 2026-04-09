@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from "react";
 import {
   Share2,
   Copy,
@@ -137,82 +137,108 @@ export default function MemberInvite() {
     }
   };
 
-  const downloadInvitePoster = useCallback(async () => {
-    if (!inviteLink) return;
-    const svgEl = document.getElementById("member-invite-qr-svg");
-    if (!svgEl) {
-      notify.error(t("请稍后再试", "Please try again"));
-      return;
-    }
-    const company = portalSettings.company_name || "FastGC";
+  const buildPosterOpts = useCallback(() => {
     const spins = inviteRewardSpins;
     const frame = getPosterFrame(portalSettings.poster_frame_id || "gold");
-
     const headlineL1 = portalSettings.poster_headline_zh || portalSettings.poster_headline_en
       ? t(portalSettings.poster_headline_zh || "", portalSettings.poster_headline_en || "")
       : "";
-    const headlineL2 = "";
-
     const rawSubtext = portalSettings.poster_subtext_zh || portalSettings.poster_subtext_en
-      ? t(
-          portalSettings.poster_subtext_zh || "",
-          portalSettings.poster_subtext_en || "",
-        )
+      ? t(portalSettings.poster_subtext_zh || "", portalSettings.poster_subtext_en || "")
       : "";
     const subtext = rawSubtext.replace(/\{spins\}/g, String(spins));
-
     const footer = portalSettings.poster_footer_zh || portalSettings.poster_footer_en
       ? t(portalSettings.poster_footer_zh || "", portalSettings.poster_footer_en || "")
       : "";
+    return { frame, headlineL1, headlineL2: "", subtext, footer };
+  }, [portalSettings, inviteRewardSpins, t]);
 
-    const canvas = document.createElement("canvas");
+  const loadCustomBg = useCallback(async (): Promise<HTMLImageElement | null> => {
+    if (!portalSettings.poster_custom_bg_url) return null;
+    try {
+      return await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("bg load failed"));
+        img.src = portalSettings.poster_custom_bg_url!;
+      });
+    } catch {
+      return null;
+    }
+  }, [portalSettings.poster_custom_bg_url]);
 
-    let customBgImage: HTMLImageElement | null = null;
-    if (portalSettings.poster_custom_bg_url) {
+  const [posterPreviewUrl, setPosterPreviewUrl] = useState<string | null>(null);
+  const posterCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    if (!inviteLink) return;
+    let cancelled = false;
+    const genPreview = async () => {
+      await new Promise((r) => requestAnimationFrame(r));
+      const svgEl = document.getElementById("member-invite-qr-svg");
+      if (!svgEl || cancelled) return;
+      const { frame, headlineL1, headlineL2, subtext, footer } = buildPosterOpts();
+      const customBgImage = await loadCustomBg();
+      if (cancelled) return;
+      const canvas = document.createElement("canvas");
       try {
-        customBgImage = await new Promise<HTMLImageElement>((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.onload = () => resolve(img);
-          img.onerror = () => reject(new Error("bg load failed"));
-          img.src = portalSettings.poster_custom_bg_url!;
+        await drawInvitePoster(canvas, {
+          frame, headlineL1, headlineL2, subtext, footerText: footer,
+          inviteLink, qrSvgElement: svgEl, customBgImage,
+        });
+        if (cancelled) return;
+        posterCanvasRef.current = canvas;
+        setPosterPreviewUrl(canvas.toDataURL("image/png", 0.92));
+      } catch {
+        if (!cancelled) setPosterPreviewUrl(null);
+      }
+    };
+    void genPreview();
+    return () => { cancelled = true; };
+  }, [inviteLink, buildPosterOpts, loadCustomBg]);
+
+  const downloadInvitePoster = useCallback(async () => {
+    if (!inviteLink) return;
+
+    let canvas = posterCanvasRef.current;
+    if (!canvas) {
+      const svgEl = document.getElementById("member-invite-qr-svg");
+      if (!svgEl) {
+        notify.error(t("请稍后再试", "Please try again"));
+        return;
+      }
+      canvas = document.createElement("canvas");
+      const { frame, headlineL1, headlineL2, subtext, footer } = buildPosterOpts();
+      const customBgImage = await loadCustomBg();
+      try {
+        await drawInvitePoster(canvas, {
+          frame, headlineL1, headlineL2, subtext, footerText: footer,
+          inviteLink, qrSvgElement: svgEl, customBgImage,
         });
       } catch {
-        customBgImage = null;
+        notify.error(t("无法生成图片", "Could not create image"));
+        return;
       }
     }
 
-    try {
-      await drawInvitePoster(canvas, {
-        frame,
-        headlineL1,
-        headlineL2,
-        subtext,
-        footerText: footer,
-        inviteLink,
-        qrSvgElement: svgEl,
-        customBgImage,
-      });
-      const finishPoster = (blob: Blob | null) => {
-        if (!blob) {
-          notify.error(t("无法生成图片", "Could not create image"));
-          return;
-        }
-        const name = blob.type === "image/png" ? "invite-poster.png" : "invite-poster.webp";
-        void saveInvitePosterPngBlob(blob, name, t);
-      };
-      canvas.toBlob(
-        (b) => {
-          if (b) finishPoster(b);
-          else canvas.toBlob((b2) => finishPoster(b2), "image/png", 0.95);
-        },
-        "image/webp",
-        0.92,
-      );
-    } catch {
-      notify.error(t("无法生成图片", "Could not create image"));
-    }
-  }, [inviteLink, portalSettings, inviteRewardSpins, t]);
+    const finishPoster = (blob: Blob | null) => {
+      if (!blob) {
+        notify.error(t("无法生成图片", "Could not create image"));
+        return;
+      }
+      const name = blob.type === "image/png" ? "invite-poster.png" : "invite-poster.webp";
+      void saveInvitePosterPngBlob(blob, name, t);
+    };
+    canvas.toBlob(
+      (b) => {
+        if (b) finishPoster(b);
+        else canvas!.toBlob((b2) => finishPoster(b2), "image/png", 0.95);
+      },
+      "image/webp",
+      0.92,
+    );
+  }, [inviteLink, buildPosterOpts, loadCustomBg, t]);
 
   if (!member) return null;
   if (!portalSettings.enable_invite) {
@@ -453,7 +479,22 @@ export default function MemberInvite() {
           </div>
         </div>
 
-        {/* 二维码 — boost */}
+        {/* 隐藏的 QR SVG，供海报 canvas 绘制使用 */}
+        {inviteLink ? (
+          <div className="sr-only" aria-hidden>
+            <QRCodeSVG
+              id="member-invite-qr-svg"
+              value={inviteLink}
+              size={160}
+              level="M"
+              bgColor="hsl(210, 40%, 98%)"
+              fgColor="hsl(216, 50%, 8%)"
+              includeMargin={false}
+            />
+          </div>
+        ) : null}
+
+        {/* 海报预览 — 所见即所得（与下载一致） */}
         {inviteLink ? (
           <div className="mb-6">
             <div className="m-glass relative overflow-hidden rounded-2xl p-5">
@@ -462,28 +503,29 @@ export default function MemberInvite() {
                 <div className="mb-4 flex items-center gap-2">
                   <QrCode className="h-4 w-4 text-pu-emerald" aria-hidden />
                   <h3 className="text-sm font-extrabold text-[hsl(var(--pu-m-text))]">
-                    {t("二维码邀请", "QR invite")}
+                    {t("邀请海报", "Invite poster")}
                   </h3>
                 </div>
                 <p className="mb-4 text-[11px] text-[hsl(var(--pu-m-text-dim))]">
-                  {t("让好友扫描下方二维码直接注册", "Friends can scan to register")}
+                  {t("长按图片或点击下方按钮保存海报", "Long press the image or tap the button to save")}
                 </p>
                 <div className="mb-4 flex justify-center">
-                  <div className="rounded-2xl bg-[hsl(var(--pu-m-text))] p-3">
-                    <QRCodeSVG
-                      id="member-invite-qr-svg"
-                      value={inviteLink}
-                      size={160}
-                      level="M"
-                      bgColor="hsl(210, 40%, 98%)"
-                      fgColor="hsl(216, 50%, 8%)"
-                      includeMargin={false}
+                  {posterPreviewUrl ? (
+                    <img
+                      src={posterPreviewUrl}
+                      alt={t("邀请海报预览", "Invite poster preview")}
+                      className="w-full max-w-[320px] rounded-2xl shadow-lg"
+                      draggable
                     />
-                  </div>
+                  ) : (
+                    <div className="flex h-[568px] w-full max-w-[320px] items-center justify-center rounded-2xl bg-[hsl(var(--pu-m-surface)/0.35)]">
+                      <div className="flex flex-col items-center gap-2 text-[hsl(var(--pu-m-text-dim)/0.5)]">
+                        <QrCode className="h-8 w-8 animate-pulse" aria-hidden />
+                        <span className="text-xs">{t("正在生成海报…", "Generating poster…")}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <p className="mb-3 truncate text-center font-mono text-[10px] text-[hsl(var(--pu-m-text-dim)/0.55)]">
-                  {inviteLink}
-                </p>
                 <button
                   type="button"
                   onClick={downloadInvitePoster}

@@ -1,5 +1,6 @@
-import { apiPost, ApiError } from "@/api/client";
-import { fail, getErrorMessage, ok, ServiceResult } from "@/services/serviceResult";
+import { tenantsApi } from "@/api/tenants";
+import { ApiError } from "@/lib/apiClient";
+import { fail, getErrorMessage, ok, type ServiceErrorCode, ServiceResult } from "@/services/serviceResult";
 import { listMembersApi } from "@/services/members/membersApiService";
 import { listEmployeesApi } from "@/api/employees";
 import {
@@ -59,7 +60,7 @@ export async function checkCreateTenantConflicts(
   adminRealName: string
 ): Promise<CreateTenantConflicts> {
   // 通过后端 API 检查冲突（stub - 后续需后端实现对应路由）
-  const data: any = await apiPost('/api/tenants/check-conflicts', {
+  const data: any = await tenantsApi.checkConflicts({
     tenant_code: tenantCode.trim(),
     admin_username: adminUsername.trim(),
     admin_real_name: adminRealName.trim(),
@@ -221,7 +222,7 @@ export async function getMyTenantDashboardTrend(
   endDate: Date,
   salesPerson: string | null
 ): Promise<{ rows: any[]; summary: any }> {
-  const data: any[] = await apiPost<any[]>('/api/tenants/my-dashboard-trend', {
+  const data: any[] = await tenantsApi.getMyDashboardTrend({
     start_date: startDate.toISOString(),
     end_date: endDate.toISOString(),
     sales_person: salesPerson || null,
@@ -286,7 +287,7 @@ export async function getTenantDashboardTrend(
   endDate: Date,
   salesPerson: string | null
 ): Promise<{ rows: any[]; summary: any }> {
-  const data: any[] = await apiPost<any[]>('/api/tenants/dashboard-trend', {
+  const data: any[] = await tenantsApi.getDashboardTrend({
     tenant_id: tenantId,
     start_date: startDate.toISOString(),
     end_date: endDate.toISOString(),
@@ -352,7 +353,7 @@ export async function getPlatformDashboardTrendData(
   endDate: Date,
   salesPerson: string | null
 ): Promise<{ rows: any[]; summary: any }> {
-  const data: any[] = await apiPost<any[]>('/api/tenants/platform-dashboard-trend', {
+  const data: any[] = await tenantsApi.getPlatformDashboardTrend({
     start_date: startDate.toISOString(),
     end_date: endDate.toISOString(),
     sales_person: salesPerson || null,
@@ -421,7 +422,7 @@ export async function getTenantDataOverview(tenantId: string): Promise<{
   member_count: number;
   employee_count: number;
 }> {
-  const data: any = await apiPost('/api/tenants/overview', {
+  const data: any = await tenantsApi.getOverview({
     tenant_id: tenantId,
   }).catch((err) => { console.warn('[tenantService] getTenantDataOverview failed silently:', err); return null; });
   const row = Array.isArray(data) ? data[0] : data;
@@ -447,7 +448,7 @@ export async function getTenantOrders(
   created_at: string;
   completed_at: string | null;
 }>> {
-  const data: any[] = await apiPost<any[]>('/api/tenants/orders', {
+  const data: any[] = await tenantsApi.getOrders({
     tenant_id: tenantId,
     limit,
     offset,
@@ -466,7 +467,7 @@ export async function getTenantMembers(
   member_level: string | null;
   created_at: string;
 }>> {
-  const data: any[] = await apiPost<any[]>('/api/tenants/members', {
+  const data: any[] = await tenantsApi.getMembers({
     tenant_id: tenantId,
     limit,
     offset,
@@ -560,7 +561,11 @@ export async function createTenantWithAdminResult(
   try {
     const result = await createTenantWithAdmin(params);
     if (!result.success) {
-      return fail(String(result.errorCode ?? "UNKNOWN"), result.errorCode || "Create tenant failed", "TENANT");
+      return fail(
+        (result.errorCode ?? "UNKNOWN") as ServiceErrorCode,
+        result.errorCode || "Create tenant failed",
+        "TENANT",
+      );
     }
     return ok({
       tenantId: result.tenantId,
@@ -582,7 +587,11 @@ export async function updateTenantBasicInfoResult(params: {
   try {
     const result = await updateTenantBasicInfo(params);
     if (!result.success) {
-      return fail(String(result.errorCode ?? "UNKNOWN"), result.errorCode || "Update tenant failed", "TENANT");
+      return fail(
+        (result.errorCode ?? "UNKNOWN") as ServiceErrorCode,
+        result.errorCode || "Update tenant failed",
+        "TENANT",
+      );
     }
     return ok(undefined);
   } catch (error) {
@@ -599,9 +608,9 @@ export async function resetTenantAdminPasswordResult(params: {
     const result = await resetTenantAdminPassword(params);
     if (!result.success) {
       return fail(
-        String(result.errorCode ?? "UNKNOWN"),
+        (result.errorCode ?? "UNKNOWN") as ServiceErrorCode,
         result.errorCode || "Reset tenant admin password failed",
-        "TENANT"
+        "TENANT",
       );
     }
     return ok({
@@ -626,9 +635,9 @@ export async function deleteTenantResult(params: {
     const result = await deleteTenant(params);
     if (!result.success) {
       return fail(
-        String(result.errorCode ?? "UNKNOWN"),
+        (result.errorCode ?? "UNKNOWN") as ServiceErrorCode,
         result.detail || result.errorCode || "Delete tenant failed",
-        "TENANT"
+        "TENANT",
       );
     }
     return ok({ detail: result.detail });
@@ -642,9 +651,9 @@ export async function setTenantSuperAdminResult(employeeId: string): Promise<Ser
     const result = await setTenantSuperAdmin(employeeId);
     if (!result.success) {
       return fail(
-        String(result.errorCode ?? "UNKNOWN"),
+        (result.errorCode ?? "UNKNOWN") as ServiceErrorCode,
         result.errorCode || "Set super admin failed",
-        "TENANT"
+        "TENANT",
       );
     }
     return ok(undefined);

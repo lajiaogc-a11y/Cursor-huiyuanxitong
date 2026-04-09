@@ -3,7 +3,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { notifyError, notifyInfo, notifySuccess } from "@/utils/notify";
-import { ApiError } from "@/lib/apiClient";
+import { ApiError } from "@/services/auth/authApiService";
 import { useActionGuard } from "@/lib/actionGuard";
 import {
   fetchMemberDailyStatus,

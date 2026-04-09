@@ -121,7 +121,7 @@ export default defineConfig(({ mode }) => {
               cacheableResponse: { statuses: [0, 200] },
             },
           },
-          // Supabase REST cache rule removed – project has migrated to MySQL/Express API
+          // (no additional cache rules)
         ],
       },
     }),

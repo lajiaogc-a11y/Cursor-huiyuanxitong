@@ -71,6 +71,11 @@ export default function RatePosterGenerator({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [posterDataUrl, setPosterDataUrl] = useState<string | null>(null);
+  const {
+    resolvedSrc: posterResolvedSrc,
+    usePlaceholder: posterUsePlaceholder,
+    onImageError: posterImgError,
+  } = useMemberResolvableMedia("rate-poster-preview", posterDataUrl);
   const [selectedTemplate, setSelectedTemplate] = useState<PosterTemplate>("dark");
   const [textSettings, setTextSettings] = useState<PosterTextSettings>(DEFAULT_TEXT_SETTINGS);
   const [showTextEditor, setShowTextEditor] = useState(false);

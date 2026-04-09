@@ -2,7 +2,7 @@
  * 数据导出服务
  */
 
-import { apiGet } from '@/api/client';
+import { customerSourcesApi } from '@/api/customerSources';
 import { getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getMyTenantMembersFull, getTenantOrdersFull, getTenantUsdtOrdersFull, getTenantMembersFull } from '@/services/tenantService';
 import { EXPORTABLE_TABLES } from './tableConfig';
 import { createUtf8CsvBlob, escapeCSVField, formatDateForFilename } from './utils';
@@ -34,7 +34,7 @@ async function getMemberExportData(options?: ExportOrdersOptions): Promise<any[]
   const members = membersData || [];
   if (members.length === 0) return [];
 
-  const sources: any[] = (await apiGet('/api/customer-sources/').catch((err) => { console.warn('[exportService] customer sources fetch failed silently:', err); return []; })) as any[];
+  const sources: any[] = (await customerSourcesApi.list().catch((err) => { console.warn('[exportService] customer sources fetch failed silently:', err); return []; })) as any[];
   const sourceMap: Record<string, string> = {};
   (sources || []).forEach((s: any) => { sourceMap[s.id] = s.name; });
 

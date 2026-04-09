@@ -1,28 +1,7 @@
 /**
  * 第三方行情 / 汇率 HTTP 入口集中配置。
  * 修改时请同步 server/src/config/externalApis.ts（Node 与 Vite 未共用单文件）。
- *
- * 历史 Edge 函数 slug 常量（仅供文档/兼容引用）；实际请求由 Node 提供，例如 USDT：`GET /api/data/fetch-usdt-rates`。
  */
-/** 历史 Edge slug 名（与旧云端 Edge 命名对齐；当前请走 Node `/api/data/*`） */
-export const LEGACY_EDGE_SLUGS = {
-  FETCH_USDT_RATES: "fetch-usdt-rates",
-  GET_CLIENT_IP: "get-client-ip",
-  VALIDATE_IP_COUNTRY: "validate-ip-country",
-  GET_IP_LOCATION: "get-ip-location",
-  EXTERNAL_API: "external-api",
-} as const;
-
-export type LegacyEdgeSlug = (typeof LEGACY_EDGE_SLUGS)[keyof typeof LEGACY_EDGE_SLUGS];
-
-/** @deprecated 请使用 getApiBaseUrl() + `/api/...`；本函数固定返回同源 `/api/data/${slug}` */
-export function buildSupabaseEdgeUrl(
-  _dbBaseUrl: string | undefined,
-  slug: LegacyEdgeSlug
-): string {
-  return `/api/data/${slug}`;
-}
-
 export const EXTERNAL_API = {
   EXCHANGE_RATE_USD_ER_API: "https://open.er-api.com/v6/latest/USD",
   EXCHANGE_RATE_USD_EXCHANGERATE_API: "https://api.exchangerate-api.com/v4/latest/USD",

@@ -34,6 +34,8 @@ export interface ApiReferralRelation {
 
 export interface CustomerDetailMember {
   id: string;
+  /** 多租户校验；部分响应可能省略 */
+  tenant_id?: string | null;
   phone_number: string;
   member_code: string;
   member_level: string | null;
@@ -43,6 +45,7 @@ export interface CustomerDetailMember {
   currency_preferences: string[];
   bank_card: string | null;
   customer_feature: string | null;
+  source_id?: string | null;
   source_name: string | null;
   remark: string | null;
   created_at: string;
@@ -199,8 +202,19 @@ export async function listReferrals(tenantId?: string | null): Promise<ApiReferr
   return Array.isArray(data) ? data : [];
 }
 
-export async function getCustomerDetailByPhone(phone: string, tenantId?: string | null): Promise<CustomerDetailResponse> {
-  const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : '';
+export async function getCustomerDetailByPhone(
+  phone: string,
+  tenantId?: string | null,
+  lookupOptions?: { syncCommonCards?: boolean },
+): Promise<CustomerDetailResponse> {
+  const qs = new URLSearchParams();
+  if (tenantId != null && String(tenantId).trim() !== '') {
+    qs.set('tenant_id', String(tenantId).trim());
+  }
+  if (lookupOptions !== undefined && lookupOptions.syncCommonCards !== false) {
+    qs.set('sync_common_cards', '1');
+  }
+  const q = qs.toString() ? `?${qs.toString()}` : '';
   const res = await apiClient.get<CustomerDetailResponse | { success?: boolean; data?: CustomerDetailResponse }>(
     `/api/members/customer-detail/${encodeURIComponent(phone)}${q}`
   );
@@ -238,4 +252,13 @@ export async function bulkCreateMembers(
   >(`/api/members/bulk${q}`, { members: items });
   const data = unwrapData(res);
   return Array.isArray(data) ? data : null;
+}
+
+export async function getReferrerByPhone(phone: string): Promise<{ referrer_phone: string; referrer_member_code: string } | null> {
+  try {
+    const res = await apiClient.get<{ referrer_phone: string; referrer_member_code: string } | null>(
+      `/api/members/referrer-by-phone/${encodeURIComponent(phone)}`
+    );
+    return res && typeof res === 'object' ? res : null;
+  } catch { return null; }
 }

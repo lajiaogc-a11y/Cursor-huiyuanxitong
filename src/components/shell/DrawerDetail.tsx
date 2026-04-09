@@ -1,4 +1,4 @@
-import type { ComponentPropsWithoutRef, FocusEvent, ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { useCallback } from "react";
 import {
   Sheet,
@@ -11,6 +11,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 export type DrawerDetailVariant = "staff" | "member";
+
+type SheetContentProps = ComponentPropsWithoutRef<typeof SheetContent>;
 
 /**
  * 详情：桌面端右侧 Drawer，移动端底部 Sheet（避免全屏 Dialog）。
@@ -51,8 +53,10 @@ export function DrawerDetail({
    * 会员端移动端：避免打开抽屉时自动聚焦数量输入框而弹出键盘；
    * 不可只 preventDefault 而不移焦点——否则焦点留在遮罩下层，会触发「aria-hidden 子树含焦点」告警。
    */
-  const suppressMobileMemberKeyboard = useCallback(
-    (e: FocusEvent) => {
+  const suppressMobileMemberKeyboard = useCallback<
+    NonNullable<SheetContentProps["onOpenAutoFocus"]>
+  >(
+    (e) => {
       e.preventDefault();
       const root = e.currentTarget as HTMLElement | null;
       window.requestAnimationFrame(() => {

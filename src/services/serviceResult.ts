@@ -31,7 +31,11 @@ export type ServiceErrorCode =
   | "QUOTA_EXCEEDED"
   | "MAINTENANCE_MODE"
   | "TARGET_NOT_FOUND"
-  | "INVALID_FLAG_KEY";
+  | "INVALID_FLAG_KEY"
+  | "FLAG_FETCH_FAILED"
+  | "SET_FLAG_FAILED"
+  | "SET_2FA_FAILED"
+  | "SET_MAINTENANCE_FAILED";
 
 export interface ServiceError {
   code: ServiceErrorCode;

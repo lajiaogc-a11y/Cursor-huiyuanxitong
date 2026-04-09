@@ -29,7 +29,7 @@ export interface MemberInfo {
 export async function memberSignIn(
   phone: string,
   password: string,
-): Promise<{ success: boolean; member?: MemberInfo; token?: string; message: string }> {
+): Promise<{ success: boolean; member?: MemberInfo; token?: string; message: string; code?: string }> {
   try {
     const res = await apiClient.post<unknown>(MEMBER_AUTH_PATHS.SIGNIN, { phone: phone.trim(), password });
     const r = res as {

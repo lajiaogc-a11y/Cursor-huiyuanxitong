@@ -29,7 +29,7 @@ import { useMembers } from "@/hooks/useMembers";
 import { cn } from "@/lib/utils";
 import { OrderMallRedemptionsSection, type MallOrderStatusFilter } from "@/components/orders/OrderMallRedemptionsSection";
 import { deleteActivityGiftApi } from "@/services/staff/dataApi";
-import { listEmployeesApi } from "@/api/employees";
+import { getEmployees } from "@/services/employees/employeeCrudService";
 import { logOperation } from "@/services/audit/auditLogService";
 import {
   type ActivityRecord,
@@ -118,7 +118,7 @@ export default function ActivityReports() {
   const { data: employeeList = [] } = useQuery({
     queryKey: ['activity-report-employees', effectiveTenantId ?? ''],
     queryFn: async () => {
-      const data = await listEmployeesApi(effectiveTenantId ? { tenant_id: effectiveTenantId } : undefined);
+      const data = await getEmployees(effectiveTenantId);
       return data
         .filter((e) => e.status === 'active')
         .map((e) => ({ id: e.id, realName: e.real_name }));
@@ -521,7 +521,9 @@ const [editFormData, setEditFormData] = useState<ActivityGiftEditForm>({
                         size="sm"
                         className="h-9 touch-manipulation"
                         onClick={() =>
-                          exportConfirm.requestExport(() => window.dispatchEvent(new CustomEvent("activity-export")))
+                          exportConfirm.requestExport(() => {
+                            void window.dispatchEvent(new CustomEvent("activity-export"));
+                          })
                         }
                       >
                         <Download className="h-4 w-4 sm:mr-1" />
@@ -546,9 +548,9 @@ const [editFormData, setEditFormData] = useState<ActivityGiftEditForm>({
                       size="sm"
                       className="h-9 touch-manipulation"
                       onClick={() =>
-                        exportConfirm.requestExport(() =>
-                          window.dispatchEvent(new CustomEvent("points-ledger-export")),
-                        )
+                        exportConfirm.requestExport(() => {
+                          void window.dispatchEvent(new CustomEvent("points-ledger-export"));
+                        })
                       }
                     >
                       <Download className="h-4 w-4 sm:mr-1" />

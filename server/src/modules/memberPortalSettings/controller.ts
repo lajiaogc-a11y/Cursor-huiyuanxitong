@@ -26,7 +26,7 @@ import {
   listLotteryPointsRowsForTenant,
   sumLotteryPointsPositiveForTenant,
 } from './lotteryPointsAdmin.js';
-import { selectMemberTenantIdByMemberId } from './repository.js';
+import { getMemberTenantIdForPortalService } from './service.js';
 import {
   countSpinCreditsForTenant,
   listSpinCreditsForTenant,
@@ -257,7 +257,7 @@ export async function getSettingsByMemberController(
   // M10: staff must belong to same tenant as the queried member
   if (req.user?.type !== 'member' && req.user?.tenant_id) {
     try {
-      const memberTenant = await selectMemberTenantIdByMemberId(memberId);
+      const memberTenant = await getMemberTenantIdForPortalService(memberId);
       if (memberTenant && memberTenant.tenant_id !== req.user.tenant_id) {
         res.status(403).json({ success: false, error: 'CROSS_TENANT_FORBIDDEN' });
         return;
@@ -401,7 +401,7 @@ export async function listSpinWheelPrizesByMemberController(
   // M10: staff must belong to same tenant as the queried member
   if (req.user?.type !== 'member' && req.user?.tenant_id) {
     try {
-      const memberTenant = await selectMemberTenantIdByMemberId(memberId);
+      const memberTenant = await getMemberTenantIdForPortalService(memberId);
       if (memberTenant && memberTenant.tenant_id !== req.user.tenant_id) {
         res.status(403).json({ success: false, error: 'CROSS_TENANT_FORBIDDEN' });
         return;

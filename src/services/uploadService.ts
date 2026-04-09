@@ -1,4 +1,4 @@
-import { apiPost } from '@/api/client';
+import { uploadApi } from '@/api/upload';
 import { compressImageToUploadableFile, type CompressImageOptions } from '@/lib/imageClientCompress';
 
 export interface UploadImageResponse {
@@ -13,8 +13,13 @@ export interface UploadImageResponse {
  * 以 data URL 提交到 `/api/upload/image`。
  * 服务端会用 Sharp **强制转 WebP** 后存储；`file_name` 仅影响展示名，扩展名会被规范为 `.webp`。
  */
-export async function uploadImageDataUrlApi(body: { data: string; file_name: string; tenant_id?: string }): Promise<UploadImageResponse> {
-  return apiPost<UploadImageResponse>('/api/upload/image', body);
+export async function uploadImageDataUrlApi(body: {
+  data: string;
+  file_name: string;
+  content_type?: string;
+  tenant_id?: string;
+}): Promise<UploadImageResponse> {
+  return uploadApi.uploadImage(body) as Promise<UploadImageResponse>;
 }
 
 export type UploadImageFileOptions = CompressImageOptions & {
@@ -39,5 +44,5 @@ export async function uploadImageFileAsWebp(file: File, options: UploadImageFile
     file_name: compressed.name,
   };
   if (tenant_id) payload.tenant_id = tenant_id;
-  return apiPost<UploadImageResponse>('/api/upload/image', payload);
+  return uploadApi.uploadImage(payload) as Promise<UploadImageResponse>;
 }

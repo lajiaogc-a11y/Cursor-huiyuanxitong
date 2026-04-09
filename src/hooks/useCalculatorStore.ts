@@ -93,11 +93,11 @@ function overlaySessionOntoHydratedForm(
   (Object.keys(fromDb) as (keyof CalculatorFormData)[]).forEach((k) => {
     const s = session[k];
     if (Array.isArray(s)) {
-      if (s.length > 0) (out as Record<string, unknown>)[k] = s;
+      if (s.length > 0) (out as unknown as Record<string, unknown>)[k] = s;
       return;
     }
     if (typeof s === 'string' && s.length > 0) {
-      (out as Record<string, unknown>)[k] = s;
+      (out as unknown as Record<string, unknown>)[k] = s;
     }
   });
   return out;

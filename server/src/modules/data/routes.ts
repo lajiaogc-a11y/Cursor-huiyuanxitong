@@ -172,7 +172,7 @@ router.get('/shift-handovers', getShiftHandoversController);
 router.get('/audit-records', getAuditRecordsController);
 router.get('/audit-records/pending-count', getPendingAuditCountController);
 
-// 通知接口（前端频繁请求；列名与 Supabase 对齐：recipient_id / message）
+// 通知接口（前端频繁请求；前端字段 recipient_id / message 在 tableConfig 中做别名映射）
 router.get('/notifications', async (req: AuthenticatedRequest, res) => {
   try {
     if (req.user?.type === 'member' || !req.user?.id) {

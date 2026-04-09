@@ -2,7 +2,7 @@ export * from './membersApiService';
 export * from './memberPortalSettingsService';
 export * from './memberPortalLiveUpdateService';
 export * from './memberPointsMallService';
-export * from './memberLookupService';
+export { lookupMemberForReferral, getMemberByPhoneForMyTenant, isMemberInTenant, type MemberByPhone } from './memberLookupService';
 export * from './memberAdminRpcService';
 export * from './memberPointsRedeemRpcService';
 export * from './customerDetailService';

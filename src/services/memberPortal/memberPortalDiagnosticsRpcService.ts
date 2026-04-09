@@ -1,7 +1,7 @@
 /**
  * 员工端「会员门户设置」内嵌诊断：抽奖记录、会员操作日志等 RPC
  */
-import { apiPost } from "@/api/client";
+import { dataRpcApi } from "@/api/data";
 
 export type AdminListSpinsParams = {
   p_search?: string;
@@ -19,7 +19,7 @@ export type AdminListSpinsResult = {
 };
 
 export async function adminListSpins(params: AdminListSpinsParams): Promise<AdminListSpinsResult> {
-  return apiPost<AdminListSpinsResult>("/api/data/rpc/admin_list_spins", params);
+  return dataRpcApi.call<AdminListSpinsResult>("admin_list_spins", params);
 }
 
 export type AdminListMemberOperationLogsParams = {
@@ -39,7 +39,7 @@ export type AdminListMemberOperationLogsResult = {
 export async function adminListMemberOperationLogs(
   params: AdminListMemberOperationLogsParams,
 ): Promise<AdminListMemberOperationLogsResult> {
-  return apiPost<AdminListMemberOperationLogsResult>("/api/data/rpc/admin_list_member_operation_logs", params);
+  return dataRpcApi.call<AdminListMemberOperationLogsResult>("admin_list_member_operation_logs", params);
 }
 
 export type AdminListMemberLoginLogsParams = {
@@ -58,5 +58,5 @@ export type AdminListMemberLoginLogsResult = {
 export async function adminListMemberLoginLogs(
   params: AdminListMemberLoginLogsParams,
 ): Promise<AdminListMemberLoginLogsResult> {
-  return apiPost<AdminListMemberLoginLogsResult>("/api/data/rpc/admin_list_member_login_logs", params);
+  return dataRpcApi.call<AdminListMemberLoginLogsResult>("admin_list_member_login_logs", params);
 }

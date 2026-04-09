@@ -2,11 +2,16 @@
  * Auth Controller - 接收请求、调用 Service、返回结果
  */
 import type { Request, Response } from 'express';
-import { loginService, registerService, getMeService, refreshTokenService } from './service.js';
+import {
+  loginService,
+  registerService,
+  getMeService,
+  refreshTokenService,
+  syncAuthPasswordService,
+  verifyAuthPasswordService,
+} from './service.js';
 import type { AuthUser, LoginRequest, RegisterRequest } from './types.js';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
-import { syncAuthPasswordViaEdgeRepository } from '../tenants/repository.js';
-import { verifyAdminPasswordRepository } from '../admin/repository.js';
 import { config } from '../../config/index.js';
 import { getRequestClientIp } from '../../lib/requestClientIp.js';
 
@@ -90,7 +95,7 @@ export async function logoutController(_req: Request, res: Response): Promise<vo
   res.json({ success: true, message: 'Signed out' });
 }
 
-/** 当前登录员工将 MySQL employees.password_hash 更新为给定密码（bcrypt），替代 Supabase Edge Function */
+/** 当前登录员工将 MySQL employees.password_hash 更新为给定密码（bcrypt） */
 export async function syncPasswordController(req: Request, res: Response): Promise<void> {
   const authReq = req as AuthenticatedRequest;
   const u = authReq.user;
@@ -111,7 +116,7 @@ export async function syncPasswordController(req: Request, res: Response): Promi
     return;
   }
 
-  const r = await syncAuthPasswordViaEdgeRepository(username, password);
+  const r = await syncAuthPasswordService(username, password);
   if (!r.success) {
     res.status(400).json({ success: false, message: r.message || 'Sync failed' });
     return;
@@ -136,7 +141,7 @@ export async function verifyPasswordController(req: Request, res: Response): Pro
     return;
   }
   try {
-    const valid = await verifyAdminPasswordRepository(username, password);
+    const valid = await verifyAuthPasswordService(username, password);
     res.json({ success: true, valid });
   } catch (e) {
     console.error('[Auth] verify-password error:', e);

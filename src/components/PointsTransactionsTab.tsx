@@ -95,6 +95,7 @@ export default function PointsTransactionsTab({
   onSearchChange 
 }: PointsTransactionsTabProps) {
   const { t, language } = useLanguage();
+  const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const { entries, loading, getPointsStatistics, refetch } = usePointsLedger();

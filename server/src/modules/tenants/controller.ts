@@ -3,10 +3,10 @@
  */
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
-import { listTenantsRepository } from './repository.js';
 import {
   createTenantWithAdminService,
   deleteTenantService,
+  listTenantsService,
   resetTenantAdminPasswordService,
   setTenantSuperAdminService,
   updateTenantBasicInfoService,
@@ -26,7 +26,7 @@ export async function listTenantsController(req: AuthenticatedRequest, res: Resp
     return;
   }
   try {
-    const data = await listTenantsRepository();
+    const data = await listTenantsService();
     res.json({ success: true, data: Array.isArray(data) ? data : [] });
   } catch (e) {
     console.error('[Tenants] list error:', e);

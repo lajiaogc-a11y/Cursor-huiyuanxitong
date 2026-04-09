@@ -132,7 +132,7 @@ async function clearFormState(skipPersist = false) {
 
 export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: ActivityGiftTabProps) {
   const { currencies } = useCurrencies();
-  const { employee } = useAuth();
+  const { employee, isAdmin } = useAuth();
   const isPlatformAdminReadonlyView = useIsPlatformAdminViewingTenant({ allowOperationalMutations: true });
   const { members, findMemberByPhone } = useMembers();
 
@@ -407,7 +407,7 @@ export default function ActivityGiftTab({ nairaRate, cediRate, usdtRate }: Activ
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>{t("提交后将写入活动赠送记录并影响会员数据，请核对：", "This will create a gift record. Please verify:")}</p>
                 <ul className="list-disc pl-4 space-y-1 text-foreground/90">
-                  <li>{t("电话", "Phone")}: {getDisplayPhone(phoneNumber)}</li>
+                  <li>{t("电话", "Phone")}: {getDisplayPhone(phoneNumber, isAdmin)}</li>
                   <li>{t("币种", "Currency")}: {currency}</li>
                   <li>{t("赠送金额", "Amount")}: {amount}</li>
                   <li>

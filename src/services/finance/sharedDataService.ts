@@ -5,7 +5,7 @@
 //
 // 下方经 cacheManager 的 TTL 内存缓存仅作请求加速；读写的权威来源仍为后端 API / 数据库。
 
-import { apiDelete } from '@/api/client';
+import { dataTableApi } from '@/api/data';
 
 // 当前有效的租户 ID（由 SharedDataTenantProvider 设置）
 let _sharedDataTenantId: string | null = null;
@@ -172,8 +172,9 @@ export async function deleteSharedData(dataKey: SharedDataKey): Promise<boolean>
     const tenantId = getEffectiveTenantId();
     if (!tenantId) return false;
 
-    await apiDelete(
-      `/api/data/table/shared_data_store?data_key=eq.${encodeURIComponent(dataKey)}&tenant_id=eq.${encodeURIComponent(tenantId)}`,
+    await dataTableApi.del(
+      'shared_data_store',
+      `data_key=eq.${encodeURIComponent(dataKey)}&tenant_id=eq.${encodeURIComponent(tenantId)}`,
     );
     clearCacheKey(getSharedCacheKey(dataKey, tenantId));
     return true;

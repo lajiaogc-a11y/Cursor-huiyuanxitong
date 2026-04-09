@@ -106,7 +106,9 @@ export function MemberSettingsAccountSection({
                 variant="inline"
                 avatarUrl={settingsAvatarUrl}
                 displayInitial={displayName}
-                onPickAvatar={setSettingsAvatarFromFile}
+                onPickAvatar={async (file) => {
+                  setSettingsAvatarFromFile(file);
+                }}
                 onClearAvatar={clearSettingsAvatar}
                 t={t}
               />

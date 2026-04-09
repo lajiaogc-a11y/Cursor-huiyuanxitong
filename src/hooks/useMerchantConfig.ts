@@ -1,33 +1,38 @@
-// ============= Merchant Config Hook - react-query Migration =============
-// react-query 缓存确保页面切换不重复请求；卡商数据按当前生效租户隔离
-import { useEffect } from 'react';
+/**
+ * useMerchantConfig — 商家配置（卡片、卡商、代付商）的 react-query hooks
+ *
+ * 架构: Page → Hook(useCards/useVendors/usePaymentProviders) → API Service → Backend
+ *
+ * 提供:
+ *   - useCards / useVendors / usePaymentProviders  (带 CRUD 的 react-query hooks)
+ *   - useMerchantConfig (组合 hook，只读)
+ *   - fetchCardsFromDb / fetchVendorsFromDb / fetchPaymentProvidersFromDb  (独立 fetch 供 prefetch)
+ *   - 类型: CardItem, Vendor, PaymentProvider
+ */
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { notify } from "@/lib/notifyHub";
-import { logOperation } from '@/services/audit/auditLogService';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { useTenantView } from '@/contexts/TenantViewContext';
-import { getPlatformTenantId } from '@/services/auth/authApiService';
-import { fetchMerchantCards, fetchMerchantVendors, fetchMerchantPaymentProviders } from '@/services/finance/merchantConfigReadService';
+import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
+import { getSharedDataTenantId } from '@/services/finance/sharedDataService';
 import {
+  listCardsApi,
   createCardApi,
   updateCardApi,
   deleteCardApi,
+  listVendorsApi,
   createVendorApi,
   updateVendorApi,
   deleteVendorApi,
+  listPaymentProvidersApi,
   createPaymentProviderApi,
   updatePaymentProviderApi,
   deletePaymentProviderApi,
+  type ApiCard,
+  type ApiVendor,
+  type ApiPaymentProvider,
 } from '@/services/giftcards/giftcardsApiService';
-import { logger } from '@/lib/logger';
+import { logOperation } from '@/services/audit/auditLogService';
 
-/** 与 SharedDataTenantProvider 一致：平台「进入租户」后代管该租户卡商配置 */
-function useGiftcardsTenantId(): string | null {
-  const { viewingTenantId } = useTenantView() || {};
-  const { employee } = useAuth() || {};
-  return viewingTenantId || employee?.tenant_id || getPlatformTenantId() || null;
-}
+// --------------- Types ---------------
 
 export interface CardItem {
   id: string;
@@ -35,9 +40,8 @@ export interface CardItem {
   type: string;
   status: string;
   remark: string;
-  createdAt: string;
-  cardVendors?: string[];
-  sortOrder?: number;
+  cardVendors: string[];
+  sortOrder: number;
 }
 
 export interface Vendor {
@@ -45,9 +49,8 @@ export interface Vendor {
   name: string;
   status: string;
   remark: string;
-  createdAt: string;
-  paymentProviders?: string[];
-  sortOrder?: number;
+  paymentProviders: string[];
+  sortOrder: number;
 }
 
 export interface PaymentProvider {
@@ -55,435 +58,382 @@ export interface PaymentProvider {
   name: string;
   status: string;
   remark: string;
-  createdAt: string;
-  sortOrder?: number;
+  sortOrder: number;
 }
 
-// ============= Standalone fetch functions =============
-export async function fetchCardsFromDb(tenantId: string): Promise<CardItem[]> {
-  const rows = await fetchMerchantCards(tenantId);
-  return rows.map((c) => ({
+// Legacy aliases used by ExchangeRate.tsx / useMerchantConfig combined hook
+export type MerchantCard = CardItem;
+export type MerchantVendor = Vendor;
+export type MerchantProvider = PaymentProvider;
+
+export interface MerchantConfigResult {
+  cardsList: CardItem[];
+  vendorsList: Vendor[];
+  paymentProvidersList: PaymentProvider[];
+  loading: boolean;
+  refetch: () => Promise<void>;
+}
+
+// --------------- Mappers ---------------
+
+function mapCard(c: ApiCard): CardItem {
+  return {
     id: c.id,
     name: c.name,
-    type: c.type,
+    type: c.type || '',
     status: c.status,
-    remark: c.remark,
-    createdAt: c.createdAt,
-    cardVendors: c.cardVendors,
-    sortOrder: c.sortOrder,
-  }));
+    remark: c.remark || '',
+    cardVendors: c.card_vendors || [],
+    sortOrder: c.sort_order || 0,
+  };
 }
 
-export async function fetchVendorsFromDb(tenantId: string): Promise<Vendor[]> {
-  const rows = await fetchMerchantVendors(tenantId);
-  return rows.map((v) => ({
+function mapVendor(v: ApiVendor): Vendor {
+  return {
     id: v.id,
     name: v.name,
     status: v.status,
-    remark: v.remark,
-    createdAt: v.createdAt,
-    paymentProviders: v.paymentProviders,
-    sortOrder: v.sortOrder,
-  }));
+    remark: v.remark || '',
+    paymentProviders: v.payment_providers || [],
+    sortOrder: v.sort_order || 0,
+  };
 }
 
-export async function fetchPaymentProvidersFromDb(tenantId: string): Promise<PaymentProvider[]> {
-  const rows = await fetchMerchantPaymentProviders(tenantId);
-  return rows.map((p) => ({
+function mapProvider(p: ApiPaymentProvider): PaymentProvider {
+  return {
     id: p.id,
     name: p.name,
     status: p.status,
-    remark: p.remark,
-    createdAt: p.createdAt,
-    sortOrder: p.sortOrder,
-  }));
+    remark: p.remark || '',
+    sortOrder: p.sort_order || 0,
+  };
 }
 
-// ============= Cards Hook =============
+// --------------- Standalone fetch for prefetch / queryFn ---------------
+
+export async function fetchCardsFromDb(): Promise<CardItem[]> {
+  const tid = getSharedDataTenantId();
+  if (!tid) return [];
+  try {
+    const rows = await listCardsApi(tid);
+    return rows.map(mapCard).sort((a, b) => a.sortOrder - b.sortOrder);
+  } catch (e) {
+    console.error('[useMerchantConfig] fetchCardsFromDb failed:', e);
+    return [];
+  }
+}
+
+export async function fetchVendorsFromDb(): Promise<Vendor[]> {
+  const tid = getSharedDataTenantId();
+  if (!tid) return [];
+  try {
+    const rows = await listVendorsApi(tid);
+    return rows.map(mapVendor).sort((a, b) => a.sortOrder - b.sortOrder);
+  } catch (e) {
+    console.error('[useMerchantConfig] fetchVendorsFromDb failed:', e);
+    return [];
+  }
+}
+
+export async function fetchPaymentProvidersFromDb(): Promise<PaymentProvider[]> {
+  const tid = getSharedDataTenantId();
+  if (!tid) return [];
+  try {
+    const rows = await listPaymentProvidersApi(tid);
+    return rows.map(mapProvider).sort((a, b) => a.sortOrder - b.sortOrder);
+  } catch (e) {
+    console.error('[useMerchantConfig] fetchPaymentProvidersFromDb failed:', e);
+    return [];
+  }
+}
+
+// --------------- useCards ---------------
+
 export function useCards() {
   const queryClient = useQueryClient();
-  const { t } = useLanguage();
-  const tenantId = useGiftcardsTenantId();
-
   const { data: cards = [], isLoading: loading } = useQuery({
-    queryKey: ['cards', tenantId],
-    queryFn: () => fetchCardsFromDb(tenantId!),
-    enabled: !!tenantId,
+    queryKey: ['cards'],
+    queryFn: fetchCardsFromDb,
+    staleTime: STALE_TIME_LIST_MS,
   });
-
-  // 轮询替代 Realtime 订阅：每 30 秒刷新
-  useEffect(() => {
-    const timer = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
-    }, 30000);
-    return () => { clearInterval(timer); };
-  }, [queryClient, tenantId]);
-
-  const addCard = async (card: Omit<CardItem, 'id' | 'createdAt'>): Promise<CardItem | null> => {
-    if (!tenantId) return null;
-    try {
-      const data = await createCardApi(tenantId, {
-        name: card.name,
-        type: card.type,
-        status: card.status,
-        remark: card.remark,
-        card_vendors: card.cardVendors || [],
-      });
-      if (!data) throw new Error('创建失败');
-      const newCard: CardItem = {
-        id: data.id,
-        name: data.name,
-        type: data.type || '',
-        status: data.status as "active" | "inactive",
-        remark: data.remark || '',
-        createdAt: data.created_at?.split('T')[0] || '',
-        cardVendors: data.card_vendors || [],
-      };
-      logOperation('merchant_management', 'create', data.id, null, data, `新增卡片: ${card.name}`);
-      await queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
-      return newCard;
-    } catch (error) {
-      logger.error('Failed to add card:', error);
-      notify.error(t('创建卡片失败', 'Failed to create card'));
-      return null;
-    }
-  };
-
-  const updateCard = async (id: string, updates: Partial<CardItem>): Promise<boolean> => {
-    if (!tenantId) return false;
-    try {
-      const oldCard = cards.find(c => c.id === id);
-      const body: Record<string, unknown> = {};
-      if (updates.name !== undefined) body.name = updates.name;
-      if (updates.type !== undefined) body.type = updates.type;
-      if (updates.status !== undefined) body.status = updates.status;
-      if (updates.remark !== undefined) body.remark = updates.remark;
-      if (updates.cardVendors !== undefined) body.card_vendors = updates.cardVendors;
-      const data = await updateCardApi(tenantId, id, body);
-      if (!data) throw new Error('更新失败');
-      if (oldCard) {
-        logOperation('card_management', 'update', id, oldCard, updates, `更新卡片: ${oldCard.name}`);
-      }
-      await queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
-      return true;
-    } catch (error) {
-      logger.error('Failed to update card:', error);
-      return false;
-    }
-  };
-
-  const deleteCard = async (id: string): Promise<boolean> => {
-    if (!tenantId) return false;
-    try {
-      const cardToDelete = cards.find(c => c.id === id);
-      const ok = await deleteCardApi(tenantId, id);
-      if (!ok) throw new Error('删除失败');
-      if (cardToDelete) {
-        logOperation('card_management', 'delete', id, cardToDelete, null, `删除卡片: ${cardToDelete.name}`);
-      }
-      await queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
-      return true;
-    } catch (error) {
-      logger.error('Failed to delete card:', error);
-      return false;
-    }
-  };
 
   const activeCards = cards.filter(c => c.status === 'active');
 
-  const updateCardSortOrder = async (id: string, sortOrder: number): Promise<boolean> => {
-    if (!tenantId) return false;
+  const refetch = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ['cards'] }),
+    [queryClient],
+  );
+
+  const addCard = useCallback(async (body: { name: string; type?: string; status?: string; remark?: string; card_vendors?: string[]; cardVendors?: string[] }): Promise<boolean> => {
+    const tid = getSharedDataTenantId();
+    if (!tid) return false;
     try {
-      const data = await updateCardApi(tenantId, id, { sort_order: sortOrder });
-      if (!data) throw new Error('更新失败');
-      await queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
+      const apiBody = { ...body, card_vendors: body.cardVendors ?? body.card_vendors };
+      delete (apiBody as Record<string, unknown>).cardVendors;
+      const created = await createCardApi(tid, apiBody);
+      if (created) logOperation('card_management', 'create', created.id, null, body, `新增卡片: ${body.name}`);
+      await refetch();
       return true;
-    } catch (error) {
-      logger.error('Failed to update card sort order:', error);
+    } catch (e) {
+      console.error('[useCards] addCard failed:', e);
       return false;
     }
-  };
+  }, [refetch]);
 
-  const updateCardSortOrders = async (items: { id: string; sortOrder: number }[]): Promise<boolean> => {
-    if (!tenantId) return false;
+  const updateCard = useCallback(async (id: string, updates: Record<string, unknown>): Promise<boolean> => {
+    const tid = getSharedDataTenantId();
+    if (!tid) return false;
     try {
-      const results = await Promise.all(
-        items.map((item) => updateCardApi(tenantId, item.id, { sort_order: item.sortOrder })),
-      );
-      if (results.some(r => !r)) return false;
-      await queryClient.invalidateQueries({ queryKey: ['cards', tenantId] });
+      const before = cards.find(c => c.id === id);
+      const apiUpdates: Record<string, unknown> = { ...updates };
+      if ('cardVendors' in apiUpdates) {
+        apiUpdates.card_vendors = apiUpdates.cardVendors;
+        delete apiUpdates.cardVendors;
+      }
+      if ('sortOrder' in apiUpdates) {
+        apiUpdates.sort_order = apiUpdates.sortOrder;
+        delete apiUpdates.sortOrder;
+      }
+      await updateCardApi(tid, id, apiUpdates as Partial<ApiCard>);
+      logOperation('card_management', 'update', id, before, updates, `更新卡片: ${(updates.name as string) || before?.name}`);
+      await refetch();
       return true;
-    } catch (error) {
-      logger.error('Failed to update card sort orders:', error);
+    } catch (e) {
+      console.error('[useCards] updateCard failed:', e);
       return false;
     }
-  };
+  }, [cards, refetch]);
 
-  return {
-    cards, activeCards, loading,
-    addCard, updateCard, deleteCard,
-    updateCardSortOrder, updateCardSortOrders,
-    refetch: () => queryClient.invalidateQueries({ queryKey: ['cards', tenantId] }),
-  };
+  const deleteCard = useCallback(async (id: string): Promise<boolean> => {
+    const tid = getSharedDataTenantId();
+    if (!tid) return false;
+    try {
+      const before = cards.find(c => c.id === id);
+      await deleteCardApi(tid, id);
+      if (before) logOperation('card_management', 'delete', id, before, null, `删除卡片: ${before.name}`);
+      await refetch();
+      return true;
+    } catch (e) {
+      console.error('[useCards] deleteCard failed:', e);
+      return false;
+    }
+  }, [cards, refetch]);
+
+  const updateCardSortOrders = useCallback(async (items: { id: string; sortOrder: number }[]): Promise<boolean> => {
+    const tid = getSharedDataTenantId();
+    if (!tid) return false;
+    try {
+      await Promise.all(items.map(item => updateCardApi(tid, item.id, { sort_order: item.sortOrder })));
+      await refetch();
+      return true;
+    } catch (e) {
+      console.error('[useCards] updateCardSortOrders failed:', e);
+      return false;
+    }
+  }, [refetch]);
+
+  return { cards, activeCards, loading, addCard, updateCard, deleteCard, updateCardSortOrders, refetch };
 }
 
-// ============= Vendors Hook =============
+// --------------- useVendors ---------------
+
 export function useVendors() {
   const queryClient = useQueryClient();
-  const { t } = useLanguage();
-  const tenantId = useGiftcardsTenantId();
-
   const { data: vendors = [], isLoading: loading } = useQuery({
-    queryKey: ['vendors', tenantId],
-    queryFn: () => fetchVendorsFromDb(tenantId!),
-    enabled: !!tenantId,
+    queryKey: ['vendors'],
+    queryFn: fetchVendorsFromDb,
+    staleTime: STALE_TIME_LIST_MS,
   });
-
-  // 轮询替代 Realtime 订阅：每 30 秒刷新
-  useEffect(() => {
-    const timer = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ['vendors', tenantId] });
-    }, 30000);
-    return () => { clearInterval(timer); };
-  }, [queryClient, tenantId]);
-
-  const addVendor = async (vendor: Omit<Vendor, 'id' | 'createdAt'>): Promise<Vendor | null> => {
-    if (!tenantId) return null;
-    try {
-      const data = await createVendorApi(tenantId, { name: vendor.name, status: vendor.status, remark: vendor.remark });
-      if (!data) throw new Error('创建失败');
-      const newVendor: Vendor = {
-        id: data.id,
-        name: data.name,
-        status: data.status as "active" | "inactive",
-        remark: data.remark || '',
-        createdAt: data.created_at?.split('T')[0] || '',
-      };
-      logOperation('merchant_management', 'create', data.id, null, data, `新增卡商: ${vendor.name}`);
-      await queryClient.invalidateQueries({ queryKey: ['vendors', tenantId] });
-      return newVendor;
-    } catch (error) {
-      logger.error('Failed to add vendor:', error);
-      notify.error(t('创建卡商失败', 'Failed to create vendor'));
-      return null;
-    }
-  };
-
-  const updateVendor = async (id: string, updates: Partial<Vendor & { sortOrder?: number }>): Promise<boolean> => {
-    if (!tenantId) return false;
-    try {
-      const oldVendor = vendors.find(v => v.id === id);
-      const body: Record<string, unknown> = {};
-      if (updates.name !== undefined) body.name = updates.name;
-      if (updates.status !== undefined) body.status = updates.status;
-      if (updates.remark !== undefined) body.remark = updates.remark;
-      if (updates.paymentProviders !== undefined) body.payment_providers = updates.paymentProviders;
-      if (updates.sortOrder !== undefined) body.sort_order = updates.sortOrder;
-
-      const data = await updateVendorApi(tenantId, id, body);
-      if (!data) throw new Error('更新失败');
-      
-      if (oldVendor) {
-        logOperation('vendor_management', 'update', id, oldVendor, updates, `更新卡商: ${oldVendor.name}`);
-      }
-      
-      if (updates.name && oldVendor?.name && updates.name !== oldVendor.name) {
-        const { renameVendorSettlement } = await import('@/services/finance/merchantSettlementService');
-        await renameVendorSettlement(oldVendor.name, updates.name);
-      }
-      
-      await queryClient.invalidateQueries({ queryKey: ['vendors', tenantId] });
-      return true;
-    } catch (error) {
-      logger.error('Failed to update vendor:', error);
-      return false;
-    }
-  };
-
-  const deleteVendor = async (id: string): Promise<boolean> => {
-    if (!tenantId) return false;
-    try {
-      const vendorToDelete = vendors.find(v => v.id === id);
-      const ok = await deleteVendorApi(tenantId, id);
-      if (!ok) throw new Error('删除失败');
-      
-      if (vendorToDelete) {
-        logOperation('vendor_management', 'delete', id, vendorToDelete, null, `删除卡商: ${vendorToDelete.name}`);
-      }
-      
-      await queryClient.invalidateQueries({ queryKey: ['vendors', tenantId] });
-      return true;
-    } catch (error) {
-      logger.error('Failed to delete vendor:', error);
-      return false;
-    }
-  };
 
   const activeVendors = vendors.filter(v => v.status === 'active');
 
-  const updateVendorOrder = async (reorderedVendors: Vendor[]): Promise<boolean> => {
-    if (!tenantId) return false;
+  const refetch = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ['vendors'] }),
+    [queryClient],
+  );
+
+  const addVendor = useCallback(async (body: { name: string; status?: string; remark?: string; payment_providers?: string[]; paymentProviders?: string[] }): Promise<boolean> => {
+    const tid = getSharedDataTenantId();
+    if (!tid) return false;
     try {
-      for (let i = 0; i < reorderedVendors.length; i++) {
-        await updateVendorApi(tenantId, reorderedVendors[i].id, { sort_order: i });
+      const apiBody = { ...body, payment_providers: body.paymentProviders ?? body.payment_providers };
+      delete (apiBody as Record<string, unknown>).paymentProviders;
+      const created = await createVendorApi(tid, apiBody);
+      if (created) logOperation('vendor_management', 'create', created.id, null, body, `新增卡商: ${body.name}`);
+      await refetch();
+      return true;
+    } catch (e) {
+      console.error('[useVendors] addVendor failed:', e);
+      return false;
+    }
+  }, [refetch]);
+
+  const updateVendor = useCallback(async (id: string, updates: Record<string, unknown>): Promise<boolean> => {
+    const tid = getSharedDataTenantId();
+    if (!tid) return false;
+    try {
+      const before = vendors.find(v => v.id === id);
+      const apiUpdates: Record<string, unknown> = { ...updates };
+      if ('paymentProviders' in apiUpdates) {
+        apiUpdates.payment_providers = apiUpdates.paymentProviders;
+        delete apiUpdates.paymentProviders;
       }
-      await queryClient.invalidateQueries({ queryKey: ['vendors', tenantId] });
+      if ('sortOrder' in apiUpdates) {
+        apiUpdates.sort_order = apiUpdates.sortOrder;
+        delete apiUpdates.sortOrder;
+      }
+      await updateVendorApi(tid, id, apiUpdates as Partial<ApiVendor>);
+      logOperation('vendor_management', 'update', id, before, updates, `更新卡商: ${(updates.name as string) || before?.name}`);
+      await refetch();
       return true;
-    } catch (error) {
-      logger.error('Failed to update vendor order:', error);
+    } catch (e) {
+      console.error('[useVendors] updateVendor failed:', e);
       return false;
     }
-  };
+  }, [vendors, refetch]);
 
-  const updateVendorSortOrders = async (items: { id: string; sortOrder: number }[]): Promise<boolean> => {
-    if (!tenantId) return false;
+  const deleteVendor = useCallback(async (id: string): Promise<boolean> => {
+    const tid = getSharedDataTenantId();
+    if (!tid) return false;
     try {
-      const results = await Promise.all(
-        items.map((item) => updateVendorApi(tenantId, item.id, { sort_order: item.sortOrder })),
-      );
-      if (results.some(r => !r)) return false;
-      await queryClient.invalidateQueries({ queryKey: ['vendors', tenantId] });
+      const before = vendors.find(v => v.id === id);
+      await deleteVendorApi(tid, id);
+      if (before) logOperation('vendor_management', 'delete', id, before, null, `删除卡商: ${before.name}`);
+      await refetch();
       return true;
-    } catch (error) {
-      logger.error('Failed to update vendor sort orders:', error);
+    } catch (e) {
+      console.error('[useVendors] deleteVendor failed:', e);
       return false;
     }
-  };
+  }, [vendors, refetch]);
 
-  return {
-    vendors, activeVendors, loading,
-    addVendor, updateVendor, deleteVendor,
-    updateVendorOrder, updateVendorSortOrders,
-    refetch: () => queryClient.invalidateQueries({ queryKey: ['vendors', tenantId] }),
-  };
+  const updateVendorSortOrders = useCallback(async (items: { id: string; sortOrder: number }[]): Promise<boolean> => {
+    const tid = getSharedDataTenantId();
+    if (!tid) return false;
+    try {
+      await Promise.all(items.map(item => updateVendorApi(tid, item.id, { sort_order: item.sortOrder })));
+      await refetch();
+      return true;
+    } catch (e) {
+      console.error('[useVendors] updateVendorSortOrders failed:', e);
+      return false;
+    }
+  }, [refetch]);
+
+  return { vendors, activeVendors, loading, addVendor, updateVendor, deleteVendor, updateVendorSortOrders, refetch };
 }
 
-// ============= Payment Providers Hook =============
+// --------------- usePaymentProviders ---------------
+
 export function usePaymentProviders() {
   const queryClient = useQueryClient();
-  const { t } = useLanguage();
-  const tenantId = useGiftcardsTenantId();
-
   const { data: providers = [], isLoading: loading } = useQuery({
-    queryKey: ['payment-providers', tenantId],
-    queryFn: () => fetchPaymentProvidersFromDb(tenantId!),
-    enabled: !!tenantId,
+    queryKey: ['payment-providers'],
+    queryFn: fetchPaymentProvidersFromDb,
+    staleTime: STALE_TIME_LIST_MS,
   });
-
-  // 轮询替代 Realtime 订阅：每 30 秒刷新
-  useEffect(() => {
-    const timer = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ['payment-providers', tenantId] });
-    }, 30000);
-    return () => { clearInterval(timer); };
-  }, [queryClient, tenantId]);
-
-  const addProvider = async (provider: Omit<PaymentProvider, 'id' | 'createdAt'>): Promise<PaymentProvider | null> => {
-    if (!tenantId) return null;
-    try {
-      const data = await createPaymentProviderApi(tenantId, { name: provider.name, status: provider.status, remark: provider.remark });
-      if (!data) throw new Error('创建失败');
-      const newProvider: PaymentProvider = {
-        id: data.id,
-        name: data.name,
-        status: data.status as "active" | "inactive",
-        remark: data.remark || '',
-        createdAt: data.created_at?.split('T')[0] || '',
-      };
-      logOperation('merchant_management', 'create', data.id, null, data, `新增代付商家: ${provider.name}`);
-      await queryClient.invalidateQueries({ queryKey: ['payment-providers', tenantId] });
-      return newProvider;
-    } catch (error) {
-      logger.error('Failed to add payment provider:', error);
-      notify.error(t('创建代付商家失败', 'Failed to create payment provider'));
-      return null;
-    }
-  };
-
-  const updateProvider = async (id: string, updates: Partial<PaymentProvider & { sortOrder?: number }>): Promise<boolean> => {
-    if (!tenantId) return false;
-    try {
-      const oldProvider = providers.find(p => p.id === id);
-      const body: Record<string, unknown> = {};
-      if (updates.name !== undefined) body.name = updates.name;
-      if (updates.status !== undefined) body.status = updates.status;
-      if (updates.remark !== undefined) body.remark = updates.remark;
-      if (updates.sortOrder !== undefined) body.sort_order = updates.sortOrder;
-
-      const data = await updatePaymentProviderApi(tenantId, id, body);
-      if (!data) throw new Error('更新失败');
-      
-      if (oldProvider) {
-        logOperation('provider_management', 'update', id, oldProvider, updates, `更新代付商家: ${oldProvider.name}`);
-      }
-      
-      if (updates.name && oldProvider?.name && updates.name !== oldProvider.name) {
-        const { renameProviderSettlement } = await import('@/services/finance/merchantSettlementService');
-        await renameProviderSettlement(oldProvider.name, updates.name);
-      }
-      
-      await queryClient.invalidateQueries({ queryKey: ['payment-providers', tenantId] });
-      return true;
-    } catch (error) {
-      logger.error('Failed to update payment provider:', error);
-      return false;
-    }
-  };
-
-  const deleteProvider = async (id: string): Promise<boolean> => {
-    if (!tenantId) return false;
-    try {
-      const providerToDelete = providers.find(p => p.id === id);
-      const ok = await deletePaymentProviderApi(tenantId, id);
-      if (!ok) throw new Error('删除失败');
-      
-      if (providerToDelete) {
-        logOperation('provider_management', 'delete', id, providerToDelete, null, `删除代付商家: ${providerToDelete.name}`);
-      }
-      
-      await queryClient.invalidateQueries({ queryKey: ['payment-providers', tenantId] });
-      return true;
-    } catch (error) {
-      logger.error('Failed to delete payment provider:', error);
-      return false;
-    }
-  };
 
   const activeProviders = providers.filter(p => p.status === 'active');
 
-  const updateProviderOrder = async (reorderedProviders: PaymentProvider[]): Promise<boolean> => {
-    if (!tenantId) return false;
+  const refetch = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ['payment-providers'] }),
+    [queryClient],
+  );
+
+  const addProvider = useCallback(async (body: { name: string; status?: string; remark?: string }): Promise<boolean> => {
+    const tid = getSharedDataTenantId();
+    if (!tid) return false;
     try {
-      for (let i = 0; i < reorderedProviders.length; i++) {
-        await updatePaymentProviderApi(tenantId, reorderedProviders[i].id, { sort_order: i });
+      const created = await createPaymentProviderApi(tid, body);
+      if (created) logOperation('provider_management', 'create', created.id, null, body, `新增代付商: ${body.name}`);
+      await refetch();
+      return true;
+    } catch (e) {
+      console.error('[usePaymentProviders] addProvider failed:', e);
+      return false;
+    }
+  }, [refetch]);
+
+  const updateProvider = useCallback(async (id: string, updates: Record<string, unknown>): Promise<boolean> => {
+    const tid = getSharedDataTenantId();
+    if (!tid) return false;
+    try {
+      const before = providers.find(p => p.id === id);
+      const apiUpdates: Record<string, unknown> = { ...updates };
+      if ('sortOrder' in apiUpdates) {
+        apiUpdates.sort_order = apiUpdates.sortOrder;
+        delete apiUpdates.sortOrder;
       }
-      await queryClient.invalidateQueries({ queryKey: ['payment-providers', tenantId] });
+      await updatePaymentProviderApi(tid, id, apiUpdates as Partial<ApiPaymentProvider>);
+      logOperation('provider_management', 'update', id, before, updates, `更新代付商: ${(updates.name as string) || before?.name}`);
+      await refetch();
       return true;
-    } catch (error) {
-      logger.error('Failed to update provider order:', error);
+    } catch (e) {
+      console.error('[usePaymentProviders] updateProvider failed:', e);
       return false;
     }
-  };
+  }, [providers, refetch]);
 
-  const updateProviderSortOrders = async (items: { id: string; sortOrder: number }[]): Promise<boolean> => {
-    if (!tenantId) return false;
+  const deleteProvider = useCallback(async (id: string): Promise<boolean> => {
+    const tid = getSharedDataTenantId();
+    if (!tid) return false;
     try {
-      const results = await Promise.all(
-        items.map((item) => updatePaymentProviderApi(tenantId, item.id, { sort_order: item.sortOrder })),
-      );
-      if (results.some(r => !r)) return false;
-      await queryClient.invalidateQueries({ queryKey: ['payment-providers', tenantId] });
+      const before = providers.find(p => p.id === id);
+      await deletePaymentProviderApi(tid, id);
+      if (before) logOperation('provider_management', 'delete', id, before, null, `删除代付商: ${before.name}`);
+      await refetch();
       return true;
-    } catch (error) {
-      logger.error('Failed to update provider sort orders:', error);
+    } catch (e) {
+      console.error('[usePaymentProviders] deleteProvider failed:', e);
       return false;
     }
-  };
+  }, [providers, refetch]);
 
-  return {
-    providers, activeProviders, loading,
-    addProvider, updateProvider, deleteProvider,
-    updateProviderOrder, updateProviderSortOrders,
-    refetch: () => queryClient.invalidateQueries({ queryKey: ['payment-providers', tenantId] }),
-  };
+  const updateProviderSortOrders = useCallback(async (items: { id: string; sortOrder: number }[]): Promise<boolean> => {
+    const tid = getSharedDataTenantId();
+    if (!tid) return false;
+    try {
+      await Promise.all(items.map(item => updatePaymentProviderApi(tid, item.id, { sort_order: item.sortOrder })));
+      await refetch();
+      return true;
+    } catch (e) {
+      console.error('[usePaymentProviders] updateProviderSortOrders failed:', e);
+      return false;
+    }
+  }, [refetch]);
+
+  return { providers, activeProviders, loading, addProvider, updateProvider, deleteProvider, updateProviderSortOrders, refetch };
+}
+
+// --------------- useMerchantConfig (combined, read-only) ---------------
+
+export function useMerchantConfig(): MerchantConfigResult {
+  const [cardsList, setCardsList] = useState<CardItem[]>([]);
+  const [vendorsList, setVendorsList] = useState<Vendor[]>([]);
+  const [paymentProvidersList, setPaymentProvidersList] = useState<PaymentProvider[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [cards, vendors, providers] = await Promise.all([
+        fetchCardsFromDb(),
+        fetchVendorsFromDb(),
+        fetchPaymentProvidersFromDb(),
+      ]);
+      setCardsList(cards.filter(c => c.status === 'active'));
+      setVendorsList(vendors.filter(v => v.status === 'active'));
+      setPaymentProvidersList(providers.filter(p => p.status === 'active'));
+    } catch (e) {
+      console.error('[useMerchantConfig] load failed:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  return { cardsList, vendorsList, paymentProvidersList, loading, refetch: loadData };
 }

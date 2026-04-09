@@ -1,9 +1,9 @@
 /**
  * role_permissions 表代理：导入/导出
  */
-import { apiGet, apiPost } from "@/api/client";
+import { dataTableApi } from "@/api/data";
 
-const BASE = "/api/data/table/role_permissions";
+const TABLE = "role_permissions";
 
 export type RolePermissionRow = {
   id?: string;
@@ -21,19 +21,19 @@ export async function listRolePermissions(roleFilter?: string): Promise<RolePerm
     order: "module_name.asc,field_name.asc",
   });
   if (roleFilter) p.set("role", `eq.${roleFilter}`);
-  const rows = await apiGet<RolePermissionRow[]>(`${BASE}?${p.toString()}`);
+  const rows = await dataTableApi.get<RolePermissionRow[]>(TABLE, p.toString());
   return Array.isArray(rows) ? rows : [];
 }
 
 /** 与权限设置 / 数据字段权限面板历史请求一致：仅按 module_name 排序 */
 export async function listRolePermissionsByModuleOrder(): Promise<RolePermissionRow[]> {
-  const rows = await apiGet<RolePermissionRow[]>(`${BASE}?select=*&order=module_name.asc`);
+  const rows = await dataTableApi.get<RolePermissionRow[]>(TABLE, "select=*&order=module_name.asc");
   return Array.isArray(rows) ? rows : [];
 }
 
 export async function upsertRolePermissions(rows: RolePermissionRow[]): Promise<void> {
   if (rows.length === 0) return;
-  await apiPost(BASE, {
+  await dataTableApi.post(TABLE, {
     data: rows,
     upsert: true,
     onConflict: "role,module_name,field_name",

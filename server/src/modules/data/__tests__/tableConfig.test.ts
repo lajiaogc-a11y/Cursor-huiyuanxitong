@@ -4,7 +4,7 @@
  * 重点验证：
  * 1. SQL 注入防止（ORDER BY / SELECT 列名校验）
  * 2. 表白名单分级访问控制
- * 3. Supabase 风格过滤参数解析
+ * 3. 兼容风格过滤参数解析
  * 4. 列名别名映射
  * 5. ISO 时间格式转换
  */
@@ -110,7 +110,7 @@ describe('parseOrder — ORDER BY 注入防止', () => {
 
 // ─── parseFilters ─────────────────────────────────────────────────────────────
 
-describe('parseFilters — Supabase 风格过滤解析', () => {
+describe('parseFilters — 兼容风格过滤解析', () => {
   it('parses eq filter', () => {
     const { where, values } = parseFilters({ status: 'eq.active' });
     expect(where).toBe('WHERE `status` = ?');

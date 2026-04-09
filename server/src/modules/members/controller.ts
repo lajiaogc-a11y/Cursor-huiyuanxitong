@@ -17,7 +17,7 @@ import {
   bulkCreateMembersService,
   lookupMemberForReferralService,
 } from './service.js';
-import { updateMemberPasswordHashByMemberId } from './repository.js';
+import { getMemberTenantIdService, updateMemberPasswordHashService } from './service.js';
 
 function resolveTenantId(
   req: AuthenticatedRequest,
@@ -324,15 +324,13 @@ export async function adminResetMemberPasswordController(req: AuthenticatedReque
   }
   const memberId = req.params.id;
 
-  // H2 fix: tenant isolation — non-platform admins can only reset their own tenant's members
   if (!req.user?.is_platform_super_admin && req.user?.tenant_id) {
-    const { queryOne: qo } = await import('../../database/index.js');
-    const memberRow = await qo<{ tenant_id: string | null }>('SELECT tenant_id FROM members WHERE id = ? LIMIT 1', [memberId]);
-    if (!memberRow) {
+    const memberTenant = await getMemberTenantIdService(memberId);
+    if (memberTenant === null) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Member not found' } });
       return;
     }
-    if (memberRow.tenant_id !== req.user.tenant_id) {
+    if (memberTenant !== req.user.tenant_id) {
       res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Cannot reset password for members outside your tenant' } });
       return;
     }
@@ -346,7 +344,7 @@ export async function adminResetMemberPasswordController(req: AuthenticatedReque
   const password = new_password.trim();
   try {
     const hash = await bcrypt.hash(password, 10);
-    const affected = await updateMemberPasswordHashByMemberId(memberId, hash, req.user?.tenant_id ?? null);
+    const affected = await updateMemberPasswordHashService(memberId, req.user?.tenant_id ?? '', hash);
     if (affected === 0) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Member not found' } });
       return;

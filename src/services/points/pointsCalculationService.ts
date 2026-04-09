@@ -5,7 +5,7 @@
 // - 订单删除回收：status='reversed' + points_earned < 0
 // - 净积分 = 所有匹配记录的 points_earned 总和（正负自动抵消）
 
-import { apiGet } from '@/api/client';
+import { dataTableApi } from '@/api/data';
 
 function asRowArray<T>(v: T[] | T | null | undefined): T[] {
   if (v == null) return [];
@@ -84,32 +84,33 @@ export async function getMemberPointsSummary(
 ): Promise<MemberPointsSummary> {
   try {
     const orClause = `member_code.eq.${memberCode},phone_number.eq.${phoneNumber}`;
-    const ledgerPath =
-      `/api/data/table/points_ledger?select=*&or=${encodeURIComponent(orClause)}&status=${encodeURIComponent('in.(issued,reversed)')}`;
+    const ledgerQuery = `select=*&or=${encodeURIComponent(orClause)}&status=${encodeURIComponent('in.(issued,reversed)')}`;
 
     const phoneQ = String(phoneNumber || '').trim();
     const mid = String(memberId ?? '').trim();
-    const accountsPath =
+    const accountsQuery =
       phoneQ.length > 0
-        ? `/api/data/table/points_accounts?select=balance,last_reset_time&or=${encodeURIComponent(
+        ? `select=balance,last_reset_time&or=${encodeURIComponent(
             `member_code.eq.${memberCode},phone.eq.${phoneQ}`,
           )}&limit=1`
-        : `/api/data/table/points_accounts?select=balance,last_reset_time&member_code=eq.${encodeURIComponent(memberCode)}&limit=1`;
+        : `select=balance,last_reset_time&member_code=eq.${encodeURIComponent(memberCode)}&limit=1`;
 
     const activitySelect =
       'order_count,total_accumulated_ngn,total_accumulated_ghs,total_accumulated_usdt';
     const loadMemberActivity = async (): Promise<Record<string, unknown>[]> => {
       if (mid) {
-        const byId = await apiGet<Record<string, unknown> | Record<string, unknown>[]>(
-          `/api/data/table/member_activity?select=${activitySelect}&member_id=eq.${encodeURIComponent(mid)}&limit=1`,
+        const byId = await dataTableApi.get<Record<string, unknown> | Record<string, unknown>[]>(
+          'member_activity',
+          `select=${activitySelect}&member_id=eq.${encodeURIComponent(mid)}&limit=1`,
         )
           .then(asRowArray)
           .catch(() => [] as Record<string, unknown>[]);
         if (byId.length > 0) return byId;
       }
       if (phoneQ.length > 0) {
-        return apiGet<Record<string, unknown> | Record<string, unknown>[]>(
-          `/api/data/table/member_activity?select=${activitySelect}&phone_number=eq.${encodeURIComponent(phoneQ)}&limit=1`,
+        return dataTableApi.get<Record<string, unknown> | Record<string, unknown>[]>(
+          'member_activity',
+          `select=${activitySelect}&phone_number=eq.${encodeURIComponent(phoneQ)}&limit=1`,
         )
           .then(asRowArray)
           .catch(() => [] as Record<string, unknown>[]);
@@ -119,12 +120,17 @@ export async function getMemberPointsSummary(
 
     const [activityRows, accountRows, pointsData] = await Promise.all([
       loadMemberActivity(),
-      apiGet<
-        { balance?: number | string | null; last_reset_time?: string | null } | { balance?: number | string | null; last_reset_time?: string | null }[]
-      >(accountsPath)
+      dataTableApi
+        .get<
+          | { balance?: number | string | null; last_reset_time?: string | null }
+          | { balance?: number | string | null; last_reset_time?: string | null }[]
+        >('points_accounts', accountsQuery)
         .then(asRowArray)
         .catch(() => [] as { balance?: number | string | null; last_reset_time?: string | null }[]),
-      apiGet<PointsLedgerRow | PointsLedgerRow[]>(ledgerPath).then(asRowArray).catch(() => [] as PointsLedgerRow[]),
+      dataTableApi
+        .get<PointsLedgerRow | PointsLedgerRow[]>('points_ledger', ledgerQuery)
+        .then(asRowArray)
+        .catch(() => [] as PointsLedgerRow[]),
     ]);
 
     const memberActivity = activityRows[0];

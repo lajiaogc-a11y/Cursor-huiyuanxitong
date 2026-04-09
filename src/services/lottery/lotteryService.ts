@@ -1,9 +1,8 @@
 /**
  * 抽奖系统前端 API 服务
  */
-import { apiGet, apiPost, apiGetAsStaff, apiPostAsStaff } from '@/api/client';
+import { lotteryApi } from '@/api/lottery';
 import { safeCall, safeActionCall } from '@/lib/serviceErrorHandler';
-import { MEMBER_LOTTERY_PATHS } from '@/services/memberPortal/routes';
 
 /* ──── 类型 ──── */
 
@@ -127,14 +126,14 @@ export interface LotterySettings {
 export async function lotteryDraw(memberId: string): Promise<DrawResult> {
   const request_id = crypto.randomUUID();
   return safeActionCall(
-    () => apiPost<DrawResult>(MEMBER_LOTTERY_PATHS.DRAW, { member_id: memberId, request_id }),
+    async () => (await lotteryApi.draw({ member_id: memberId, request_id })) as unknown as DrawResult,
     "lotteryDraw",
   );
 }
 
 export async function getLotteryQuota(memberId: string): Promise<QuotaResult> {
   return safeCall(
-    () => apiGet<QuotaResult>(MEMBER_LOTTERY_PATHS.quota(memberId)),
+    () => lotteryApi.getQuota(memberId) as Promise<QuotaResult>,
     { success: false, remaining: 0, daily_free: 0, credits: 0, used_today: 0 },
     "getLotteryQuota",
   );
@@ -147,9 +146,11 @@ export async function getMyLotteryLogs(
 ): Promise<{ logs: LotteryLog[]; total: number }> {
   return safeCall(
     async () => {
-      const r = await apiGet<{ success: boolean; logs: LotteryLog[]; total?: number }>(
-        MEMBER_LOTTERY_PATHS.logs(memberId, limit, offset),
-      );
+      const r = (await lotteryApi.getMyLogs(memberId, { limit, offset })) as {
+        success?: boolean;
+        logs?: LotteryLog[];
+        total?: number;
+      };
       return { logs: r?.logs ?? [], total: r?.total ?? r?.logs?.length ?? 0 };
     },
     { logs: [], total: 0 },
@@ -167,7 +168,7 @@ export interface SpinSimFeedItem {
 export async function getSpinSimFeed(): Promise<SpinSimFeedItem[]> {
   return safeCall(
     async () => {
-      const r = await apiGet<{ success?: boolean; items?: SpinSimFeedItem[] }>(MEMBER_LOTTERY_PATHS.SIM_FEED);
+      const r = (await lotteryApi.getSimFeed()) as { success?: boolean; items?: SpinSimFeedItem[] };
       return Array.isArray(r?.items) ? r.items : [];
     },
     [],
@@ -184,14 +185,14 @@ export async function getMemberLotteryPrizes(memberId: string): Promise<{
 }> {
   return safeCall(
     async () => {
-      const r = await apiGet<{
-        success: boolean;
-        prizes: LotteryPrize[];
+      const r = (await lotteryApi.getMemberPrizes(memberId, { cache: "no-store" })) as {
+        success?: boolean;
+        prizes?: LotteryPrize[];
         probability_notice?: string | null;
         enabled?: boolean;
         order_completed_spin_enabled?: boolean;
         order_completed_spin_amount?: number;
-      }>(MEMBER_LOTTERY_PATHS.prizes(memberId), { cache: "no-store" });
+      };
       return {
         prizes: r?.prizes ?? [],
         probability_notice: r?.probability_notice ?? null,
@@ -216,7 +217,7 @@ export async function getMemberLotteryPrizes(memberId: string): Promise<{
 export async function adminGetLotteryPrizes(): Promise<LotteryPrize[]> {
   return safeCall(
     async () => {
-      const r = await apiGetAsStaff<{ success: boolean; prizes: LotteryPrize[] }>('/api/lottery/admin/prizes');
+      const r = (await lotteryApi.admin.listPrizes()) as { success?: boolean; prizes?: LotteryPrize[] };
       return r?.prizes ?? [];
     },
     [],
@@ -225,7 +226,7 @@ export async function adminGetLotteryPrizes(): Promise<LotteryPrize[]> {
 }
 
 export async function adminSaveLotteryPrizes(prizes: LotteryPrize[]): Promise<void> {
-  await apiPostAsStaff('/api/lottery/admin/prizes', { prizes });
+  await lotteryApi.admin.savePrizes({ prizes });
 }
 
 export async function adminGetLotteryLogs(options?: {
@@ -239,17 +240,20 @@ export async function adminGetLotteryLogs(options?: {
   const limit = options?.limit ?? 50;
   const offset = options?.offset ?? 0;
   const tid = options?.tenantId?.trim();
-  const qs = new URLSearchParams();
-  qs.set("limit", String(limit));
-  qs.set("offset", String(offset));
-  if (tid) qs.set("tenant_id", tid);
-  if (options?.phone?.trim()) qs.set("phone", options.phone.trim());
-  if (options?.memberCode?.trim()) qs.set("member_code", options.memberCode.trim());
+  const params: Record<string, string> = {
+    limit: String(limit),
+    offset: String(offset),
+  };
+  if (tid) params.tenant_id = tid;
+  if (options?.phone?.trim()) params.phone = options.phone.trim();
+  if (options?.memberCode?.trim()) params.member_code = options.memberCode.trim();
   return safeCall(
     async () => {
-      const r = await apiGetAsStaff<{ success: boolean; logs: LotteryLog[]; total?: number }>(
-        `/api/lottery/admin/logs?${qs.toString()}`,
-      );
+      const r = (await lotteryApi.admin.listLogs(params)) as {
+        success?: boolean;
+        logs?: LotteryLog[];
+        total?: number;
+      };
       return { logs: r?.logs ?? [], total: r?.total ?? r?.logs?.length ?? 0 };
     },
     { logs: [], total: 0 },
@@ -260,10 +264,10 @@ export async function adminGetLotteryLogs(options?: {
 export async function adminGetLotterySettings(): Promise<LotterySettings> {
   return safeCall(
     async () => {
-      const r = await apiGetAsStaff<{
-        success: boolean;
-        daily_free_spins: number;
-        enabled: boolean;
+      const r = (await lotteryApi.admin.getSettings()) as {
+        success?: boolean;
+        daily_free_spins?: number;
+        enabled?: boolean;
         probability_notice?: string | null;
         order_completed_spin_enabled?: boolean;
         order_completed_spin_amount?: number;
@@ -277,7 +281,7 @@ export async function adminGetLotterySettings(): Promise<LotterySettings> {
         risk_ip_daily_limit?: number;
         risk_ip_burst_limit?: number;
         risk_high_score_threshold?: number;
-      }>('/api/lottery/admin/settings');
+      };
       const bp = String(r?.budget_policy ?? 'downgrade').toLowerCase();
       return {
         daily_free_spins: r?.daily_free_spins ?? 0,
@@ -319,7 +323,7 @@ export async function adminGetLotterySettings(): Promise<LotterySettings> {
 }
 
 export async function adminSaveLotterySettings(settings: LotterySettings): Promise<void> {
-  await apiPostAsStaff('/api/lottery/admin/settings', settings);
+  await lotteryApi.admin.saveSettings(settings);
 }
 
 /** 活动数据「模拟设置」：假昵称批量配置（需 tenant_id，与活动数据列表一致） */
@@ -336,17 +340,16 @@ export interface AdminSimFakeSettings {
 }
 
 export async function adminGetSimFakeSettings(tenantId: string): Promise<AdminSimFakeSettings> {
-  const q = encodeURIComponent(tenantId);
   return safeCall(
     async () => {
-      const r = await apiGetAsStaff<{
+      const r = (await lotteryApi.admin.getSimFakeSettings({ tenant_id: tenantId })) as {
         success?: boolean;
         nicknames_raw?: string;
         pool_count?: number;
         nickname_tokens_count?: number;
         source?: SimFakeSettingsSource;
         updated_at?: string | null;
-      }>(`/api/lottery/admin/sim-fake-settings?tenant_id=${q}`);
+      };
       return {
         nicknames_raw: r?.nicknames_raw ?? '',
         pool_count: typeof r?.pool_count === 'number' ? r.pool_count : 100,
@@ -355,7 +358,13 @@ export async function adminGetSimFakeSettings(tenantId: string): Promise<AdminSi
         updated_at: r?.updated_at ?? null,
       };
     },
-    { nicknames_raw: '', pool_count: 100, source: 'builtin' as const, updated_at: null },
+    {
+      nicknames_raw: '',
+      pool_count: 100,
+      nickname_tokens_count: undefined,
+      source: 'builtin' as const,
+      updated_at: null,
+    },
     'adminGetSimFakeSettings',
   );
 }
@@ -364,12 +373,15 @@ export async function adminSaveSimFakeSettings(
   tenantId: string,
   nicknames_raw: string,
 ): Promise<{ source: SimFakeSettingsSource; pool_count: number }> {
-  const q = encodeURIComponent(tenantId);
-  const r = await apiPostAsStaff<{
+  const nickname_tokens_count = nicknames_raw.split(/\r?\n/).filter((line) => line.trim().length > 0).length;
+  const r = (await lotteryApi.admin.saveSimFakeSettings(
+    { nicknames_raw, nickname_tokens_count },
+    { tenant_id: tenantId },
+  )) as {
     success?: boolean;
     source?: SimFakeSettingsSource;
     pool_count?: number;
-  }>(`/api/lottery/admin/sim-fake-settings?tenant_id=${q}`, { nicknames_raw });
+  };
   return {
     source: r?.source === 'builtin' ? 'builtin' : 'custom',
     pool_count: typeof r?.pool_count === 'number' ? r.pool_count : 100,
@@ -392,12 +404,11 @@ export interface AdminSimulationSettings {
 }
 
 export async function adminGetSimulationSettings(tenantId: string): Promise<AdminSimulationSettings> {
-  const q = encodeURIComponent(tenantId);
   return safeCall(
     async () => {
-      const r = await apiGetAsStaff<AdminSimulationSettings & { success?: boolean }>(
-        `/api/lottery/admin/simulation-settings?tenant_id=${q}`,
-      );
+      const r = (await lotteryApi.admin.getSimulationSettings({ tenant_id: tenantId })) as AdminSimulationSettings & {
+        success?: boolean;
+      };
       return {
         retention_days: Math.max(1, Number(r?.retention_days ?? 3)),
         cron_fake_draws_per_hour: Math.max(
@@ -426,11 +437,9 @@ export async function adminSaveSimulationSettings(
   tenantId: string,
   body: Partial<AdminSimulationSettings>,
 ): Promise<AdminSimulationSettings> {
-  const q = encodeURIComponent(tenantId);
-  const r = await apiPostAsStaff<AdminSimulationSettings & { success?: boolean }>(
-    `/api/lottery/admin/simulation-settings?tenant_id=${q}`,
-    body,
-  );
+  const r = (await lotteryApi.admin.saveSimulationSettings(body, { tenant_id: tenantId })) as AdminSimulationSettings & {
+    success?: boolean;
+  };
   return {
     retention_days: Math.max(1, Number(r?.retention_days ?? 3)),
     cron_fake_draws_per_hour: Math.max(
@@ -456,12 +465,12 @@ export async function adminListSimulationFeed(
   tenantId: string,
   limit = 80,
 ): Promise<AdminSimulationFeedRow[]> {
-  const q = encodeURIComponent(tenantId);
   return safeCall(
     async () => {
-      const r = await apiGetAsStaff<{ success?: boolean; rows?: AdminSimulationFeedRow[] }>(
-        `/api/lottery/admin/simulation-feed?tenant_id=${q}&limit=${limit}`,
-      );
+      const r = (await lotteryApi.admin.listSimulationFeed({ tenant_id: tenantId, limit })) as {
+        success?: boolean;
+        rows?: AdminSimulationFeedRow[];
+      };
       return Array.isArray(r?.rows) ? r.rows : [];
     },
     [],
@@ -478,12 +487,12 @@ export async function adminListSimulationHourRuns(
   tenantId: string,
   limit = 80,
 ): Promise<AdminSimulationHourRunRow[]> {
-  const q = encodeURIComponent(tenantId);
   return safeCall(
     async () => {
-      const r = await apiGetAsStaff<{ success?: boolean; rows?: AdminSimulationHourRunRow[] }>(
-        `/api/lottery/admin/simulation-hour-runs?tenant_id=${q}&limit=${limit}`,
-      );
+      const r = (await lotteryApi.admin.listSpinFakeHourRuns({ tenant_id: tenantId, limit })) as {
+        success?: boolean;
+        rows?: AdminSimulationHourRunRow[];
+      };
       return Array.isArray(r?.rows) ? r.rows : [];
     },
     [],
@@ -492,11 +501,10 @@ export async function adminListSimulationHourRuns(
 }
 
 export async function adminStartSimulationCron(tenantId: string): Promise<{ cron_fake_anchor_at: string | null }> {
-  const q = encodeURIComponent(tenantId);
-  const r = await apiPostAsStaff<{ success?: boolean; cron_fake_anchor_at?: string | null }>(
-    `/api/lottery/admin/simulation-cron-start?tenant_id=${q}`,
-    {},
-  );
+  const r = (await lotteryApi.admin.startSpinFakeCron({ tenant_id: tenantId })) as {
+    success?: boolean;
+    cron_fake_anchor_at?: string | null;
+  };
   return { cron_fake_anchor_at: r?.cron_fake_anchor_at ?? null };
 }
 
@@ -522,15 +530,17 @@ export async function adminListPendingRewards(opts?: {
   limit?: number;
   offset?: number;
 }): Promise<{ rows: PendingRewardRow[]; total: number }> {
-  const qs = new URLSearchParams();
-  if (opts?.status) qs.set('status', opts.status);
-  if (opts?.limit) qs.set('limit', String(opts.limit));
-  if (opts?.offset) qs.set('offset', String(opts.offset));
+  const params: Record<string, string> = {};
+  if (opts?.status) params.status = opts.status;
+  if (opts?.limit) params.limit = String(opts.limit);
+  if (opts?.offset) params.offset = String(opts.offset);
   return safeCall(
     async () => {
-      const r = await apiGetAsStaff<{ success: boolean; rows: PendingRewardRow[]; total: number }>(
-        `/api/lottery/admin/pending-rewards?${qs.toString()}`,
-      );
+      const r = (await lotteryApi.admin.getPendingRewards(params)) as {
+        success?: boolean;
+        rows?: PendingRewardRow[];
+        total?: number;
+      };
       return { rows: r?.rows ?? [], total: r?.total ?? 0 };
     },
     { rows: [], total: 0 },
@@ -547,10 +557,7 @@ export interface RetryBatchResult {
 
 export async function adminRetryFailedRewards(batchSize = 20): Promise<RetryBatchResult> {
   return safeActionCall(
-    () => apiPostAsStaff<RetryBatchResult & { success: boolean }>(
-      '/api/lottery/admin/retry-failed-rewards',
-      { batch_size: batchSize },
-    ),
+    () => lotteryApi.admin.retryFailedRewards({ batch_size: batchSize }) as Promise<RetryBatchResult & { success: boolean }>,
     'adminRetryFailedRewards',
   ) as Promise<RetryBatchResult>;
 }
@@ -560,14 +567,14 @@ export async function adminConfirmReward(
   action: 'done' | 'failed',
   reason?: string,
 ): Promise<void> {
-  await apiPostAsStaff('/api/lottery/admin/confirm-reward', { log_id: logId, action, reason });
+  await lotteryApi.admin.confirmReward({ log_id: logId, action, reason });
 }
 
 export async function adminManualRetryReward(logId: string): Promise<{ new_status?: string }> {
-  const r = await apiPostAsStaff<{ success: boolean; new_status?: string }>(
-    '/api/lottery/admin/manual-retry-reward',
-    { log_id: logId },
-  );
+  const r = (await lotteryApi.admin.manualRetryReward({ log_id: logId })) as {
+    success?: boolean;
+    new_status?: string;
+  };
   return { new_status: r?.new_status };
 }
 
@@ -626,9 +633,7 @@ export interface SimulateCurrentResult extends SimulationResult {
 export async function adminSimulateCurrent(rounds = 10_000): Promise<SimulateCurrentResult | null> {
   return safeCall(
     async () => {
-      const r = await apiGetAsStaff<SimulateCurrentResult & { success: boolean }>(
-        `/api/lottery/admin/simulate?rounds=${rounds}`,
-      );
+      const r = (await lotteryApi.admin.simulateCurrent({ rounds })) as SimulateCurrentResult & { success: boolean };
       return r?.success ? r : null;
     },
     null,
@@ -659,10 +664,7 @@ export interface SimulatePreviewInput {
 export async function adminSimulatePreview(input: SimulatePreviewInput): Promise<SimulationResult | null> {
   return safeCall(
     async () => {
-      const r = await apiPostAsStaff<SimulationResult & { success: boolean }>(
-        '/api/lottery/admin/simulate-preview',
-        input,
-      );
+      const r = (await lotteryApi.admin.simulatePreview(input)) as SimulationResult & { success: boolean };
       return r?.success ? r : null;
     },
     null,
@@ -674,9 +676,7 @@ export async function adminSimulatePreview(input: SimulatePreviewInput): Promise
 export async function adminGetSnapshot(): Promise<TenantSnapshot | null> {
   return safeCall(
     async () => {
-      const r = await apiGetAsStaff<TenantSnapshot & { success: boolean }>(
-        '/api/lottery/admin/snapshot',
-      );
+      const r = (await lotteryApi.admin.getSnapshot()) as TenantSnapshot & { success: boolean };
       return r?.success ? r : null;
     },
     null,
@@ -753,10 +753,10 @@ export async function adminReconcileAll(opts?: {
 }): Promise<ReconcileAllResult | null> {
   return safeCall(
     async () => {
-      const r = await apiPostAsStaff<ReconcileAllResult & { success: boolean }>(
-        '/api/lottery/admin/reconcile-all',
-        { auto_fix: opts?.auto_fix ?? true, include_reward_retry: opts?.include_reward_retry ?? true },
-      );
+      const r = (await lotteryApi.admin.reconcileAll({
+        auto_fix: opts?.auto_fix ?? true,
+        include_reward_retry: opts?.include_reward_retry ?? true,
+      })) as ReconcileAllResult & { success: boolean };
       return r?.success ? r : null;
     },
     null,
@@ -771,10 +771,10 @@ export async function adminRunTask(
 ): Promise<TaskRunRecord | null> {
   return safeCall(
     async () => {
-      const r = await apiPostAsStaff<{ success: boolean; record: TaskRunRecord }>(
-        '/api/lottery/admin/run-task',
-        { task, auto_fix: autoFix },
-      );
+      const r = (await lotteryApi.admin.runTask({ task, auto_fix: autoFix })) as {
+        success: boolean;
+        record: TaskRunRecord;
+      };
       return r?.success ? r.record : null;
     },
     null,
@@ -787,16 +787,16 @@ export async function adminGetTaskHistory(opts?: {
   type?: ReconcileTaskType;
   limit?: number;
 }): Promise<{ history: TaskRunRecord[]; last_runs: Record<string, TaskRunRecord | null> }> {
-  const qs = new URLSearchParams();
-  if (opts?.type) qs.set('type', opts.type);
-  if (opts?.limit) qs.set('limit', String(opts.limit));
+  const params: Record<string, string> = {};
+  if (opts?.type) params.type = opts.type;
+  if (opts?.limit) params.limit = String(opts.limit);
   return safeCall(
     async () => {
-      const r = await apiGetAsStaff<{
-        success: boolean;
-        history: TaskRunRecord[];
-        last_runs: Record<string, TaskRunRecord | null>;
-      }>(`/api/lottery/admin/task-history?${qs.toString()}`);
+      const r = (await lotteryApi.admin.getTaskHistory(params)) as {
+        success?: boolean;
+        history?: TaskRunRecord[];
+        last_runs?: Record<string, TaskRunRecord | null>;
+      };
       return { history: r?.history ?? [], last_runs: r?.last_runs ?? {} };
     },
     { history: [], last_runs: {} },
@@ -810,10 +810,10 @@ export async function adminSchedulerControl(
 ): Promise<{ running: boolean }> {
   return safeCall(
     async () => {
-      const r = await apiPostAsStaff<{ success: boolean; running: boolean }>(
-        '/api/lottery/admin/scheduler',
-        action ? { action } : {},
-      );
+      const r = (await lotteryApi.admin.setScheduler(action ? { action } : {})) as {
+        success?: boolean;
+        running?: boolean;
+      };
       return { running: r?.running ?? false };
     },
     { running: false },
@@ -886,10 +886,10 @@ export interface OperationalStats {
 export async function adminGetOperationalStats(): Promise<OperationalStats | null> {
   return safeCall(
     async () => {
-      const r = await apiGetAsStaff<OperationalStats & { success: boolean }>(
-        '/api/lottery/admin/operational-stats',
-      );
-      return r?.success ? r : null;
+      const r = (await lotteryApi.admin.getOperationalStats()) as unknown as OperationalStats & {
+        success?: boolean;
+      };
+      return r?.success ? (r as unknown as OperationalStats) : null;
     },
     null,
     'adminGetOperationalStats',

@@ -3,6 +3,7 @@
  * Extracted from ExchangeRate.tsx – manages NGN cross-rate fetching, caching, and persistence.
  */
 import { EXTERNAL_API } from "@/config/externalApis";
+import { externalGet } from "@/lib/externalHttpClient";
 import {
   loadSharedData,
   saveSharedData,
@@ -122,37 +123,34 @@ export async function fetchCurrencyRatesToNGN(): Promise<CurrencyRates | null> {
 
   // Source 1: open.er-api.com
   try {
-    const signal = makeSignal(8000);
-    const res = await fetch(EXTERNAL_API.EXCHANGE_RATE_USD_ER_API, signal ? { signal } : {});
-    if (res.ok) {
-      const data = await res.json() as { rates?: RawRates };
-      if (data?.rates?.NGN) sources.push(data.rates);
-    }
+    const data = await externalGet<{ rates?: RawRates }>(
+      EXTERNAL_API.EXCHANGE_RATE_USD_ER_API,
+      { signal: makeSignal(8000) },
+    );
+    if (data?.rates?.NGN) sources.push(data.rates);
   } catch { /* skip */ }
 
   // Source 2: exchangerate-api.com
   try {
-    const signal = makeSignal(8000);
-    const res = await fetch(EXTERNAL_API.EXCHANGE_RATE_USD_EXCHANGERATE_API, signal ? { signal } : {});
-    if (res.ok) {
-      const data = await res.json() as { rates?: RawRates };
-      if (data?.rates?.NGN) sources.push(data.rates);
-    }
+    const data = await externalGet<{ rates?: RawRates }>(
+      EXTERNAL_API.EXCHANGE_RATE_USD_EXCHANGERATE_API,
+      { signal: makeSignal(8000) },
+    );
+    if (data?.rates?.NGN) sources.push(data.rates);
   } catch { /* skip */ }
 
   // Source 3: currency-api (fawazahmed0)
   try {
-    const signal = makeSignal(8000);
-    const res = await fetch(EXTERNAL_API.EXCHANGE_RATE_USD_CURRENCY_PAGES, signal ? { signal } : {});
-    if (res.ok) {
-      const data = await res.json() as { usd?: Record<string, number> };
-      const usd = data?.usd;
-      if (usd?.ngn) {
-        const mapped: RawRates = {
-          NGN: usd.ngn, MYR: usd.myr, GBP: usd.gbp, CAD: usd.cad, EUR: usd.eur, CNY: usd.cny,
-        };
-        sources.push(mapped);
-      }
+    const data = await externalGet<{ usd?: Record<string, number> }>(
+      EXTERNAL_API.EXCHANGE_RATE_USD_CURRENCY_PAGES,
+      { signal: makeSignal(8000) },
+    );
+    const usd = data?.usd;
+    if (usd?.ngn) {
+      const mapped: RawRates = {
+        NGN: usd.ngn, MYR: usd.myr, GBP: usd.gbp, CAD: usd.cad, EUR: usd.eur, CNY: usd.cny,
+      };
+      sources.push(mapped);
     }
   } catch { /* skip */ }
 

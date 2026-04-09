@@ -1,4 +1,4 @@
-import { apiGetAsStaff, apiPostAsStaff, apiPatchAsStaff } from "@/api/client";
+import { memberPortalSettingsApi } from "@/api/memberPortalSettings";
 
 export type InviteLeaderboardGrowthSettings = {
   auto_growth_enabled: boolean;
@@ -34,16 +34,16 @@ export type InviteLeaderboardFakeRow = {
   updated_at: string;
 };
 
-function tenantQs(tenantId: string | null): string {
-  return tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";
+function tenantParams(tenantId: string | null): Record<string, string> | undefined {
+  return tenantId ? { tenant_id: tenantId } : undefined;
 }
+
+const il = memberPortalSettingsApi.inviteLeaderboard;
 
 export async function staffGetInviteLeaderboardGrowthSettings(
   tenantId: string | null,
 ): Promise<InviteLeaderboardGrowthSettings | null> {
-  const res = await apiGetAsStaff<unknown>(
-    `/api/member-portal-settings/invite-leaderboard/growth-settings${tenantQs(tenantId)}`,
-  );
+  const res = await il.getGrowthSettings(tenantParams(tenantId));
   const o = res as { settings?: InviteLeaderboardGrowthSettings };
   return o.settings ?? null;
 }
@@ -52,16 +52,13 @@ export async function staffPatchInviteLeaderboardGrowthSettings(
   tenantId: string | null,
   body: InviteLeaderboardGrowthSettingsPatch,
 ): Promise<InviteLeaderboardGrowthSettings | null> {
-  const res = await apiPatchAsStaff<unknown>(
-    `/api/member-portal-settings/invite-leaderboard/growth-settings${tenantQs(tenantId)}`,
-    body,
-  );
+  const res = await il.patchGrowthSettings(body, tenantParams(tenantId));
   const o = res as { settings?: InviteLeaderboardGrowthSettings };
   return o.settings ?? null;
 }
 
 export async function staffListInviteLeaderboardFakes(tenantId: string | null): Promise<InviteLeaderboardFakeRow[]> {
-  const res = await apiGetAsStaff<unknown>(`/api/member-portal-settings/invite-leaderboard/fake-users${tenantQs(tenantId)}`);
+  const res = await il.listFakeUsers(tenantParams(tenantId));
   const o = res as { rows?: InviteLeaderboardFakeRow[] };
   return Array.isArray(o.rows) ? o.rows : [];
 }
@@ -71,10 +68,7 @@ export async function staffPatchInviteLeaderboardFake(
   id: string,
   body: { name?: string; base_invite_count?: number },
 ): Promise<InviteLeaderboardFakeRow | null> {
-  const res = await apiPatchAsStaff<unknown>(
-    `/api/member-portal-settings/invite-leaderboard/fake-users/${encodeURIComponent(id)}${tenantQs(tenantId)}`,
-    body,
-  );
+  const res = await il.patchFakeUser(id, body, tenantParams(tenantId));
   const o = res as { row?: InviteLeaderboardFakeRow };
   return o.row ?? null;
 }
@@ -84,10 +78,7 @@ export async function staffToggleInviteLeaderboardFake(
   id: string,
   is_active: boolean,
 ): Promise<InviteLeaderboardFakeRow | null> {
-  const res = await apiPostAsStaff<unknown>(
-    `/api/member-portal-settings/invite-leaderboard/fake-users/${encodeURIComponent(id)}/toggle${tenantQs(tenantId)}`,
-    { is_active },
-  );
+  const res = await il.toggleFakeUser(id, { is_active }, tenantParams(tenantId));
   const o = res as { row?: InviteLeaderboardFakeRow };
   return o.row ?? null;
 }
@@ -96,10 +87,7 @@ export async function staffResetInviteLeaderboardFakeGrowth(
   tenantId: string | null,
   id: string,
 ): Promise<InviteLeaderboardFakeRow | null> {
-  const res = await apiPostAsStaff<unknown>(
-    `/api/member-portal-settings/invite-leaderboard/fake-users/${encodeURIComponent(id)}/reset-growth${tenantQs(tenantId)}`,
-    {},
-  );
+  const res = await il.resetFakeUserGrowth(id, tenantParams(tenantId));
   const o = res as { row?: InviteLeaderboardFakeRow };
   return o.row ?? null;
 }
@@ -108,10 +96,7 @@ export async function staffSeedInviteLeaderboardFakes(
   tenantId: string | null,
   replace: boolean,
 ): Promise<{ inserted: number }> {
-  const res = await apiPostAsStaff<unknown>(
-    `/api/member-portal-settings/invite-leaderboard/seed${tenantQs(tenantId)}`,
-    { replace },
-  );
+  const res = await il.seedFakeUsers({ replace }, tenantParams(tenantId));
   const o = res as { inserted?: number };
   return { inserted: Number(o.inserted ?? 0) };
 }
@@ -121,23 +106,21 @@ export async function staffRunInviteLeaderboardGrowthNow(): Promise<{
   message?: string;
   fake_rows_updated?: number;
 }> {
-  const res = await apiPostAsStaff<{
+  const res = await il.runGrowthNow();
+  const r = res as {
     success?: boolean;
     message?: string;
     fake_rows_updated?: number;
-  }>("/api/member-portal-settings/invite-leaderboard/run-growth-now", {});
+  };
   return {
-    success: res?.success !== false,
-    message: typeof res?.message === "string" ? res.message : undefined,
-    fake_rows_updated: typeof res?.fake_rows_updated === "number" ? res.fake_rows_updated : undefined,
+    success: r?.success !== false,
+    message: typeof r?.message === "string" ? r.message : undefined,
+    fake_rows_updated: typeof r?.fake_rows_updated === "number" ? r.fake_rows_updated : undefined,
   };
 }
 
 export async function staffDeleteAllInviteLeaderboardFakes(tenantId: string | null): Promise<{ deleted: number }> {
-  const res = await apiPostAsStaff<unknown>(
-    `/api/member-portal-settings/invite-leaderboard/fake-users/delete-all${tenantQs(tenantId)}`,
-    {},
-  );
+  const res = await il.deleteAllFakeUsers(tenantParams(tenantId));
   const o = res as { deleted?: number };
   return { deleted: Number(o.deleted ?? 0) };
 }
@@ -145,10 +128,7 @@ export async function staffDeleteAllInviteLeaderboardFakes(tenantId: string | nu
 export async function staffResetInviteLeaderboardGrowthCycle(
   tenantId: string | null,
 ): Promise<InviteLeaderboardGrowthSettings | null> {
-  const res = await apiPostAsStaff<unknown>(
-    `/api/member-portal-settings/invite-leaderboard/reset-cycle${tenantQs(tenantId)}`,
-    {},
-  );
+  const res = await il.resetCycle(tenantParams(tenantId));
   const o = res as { settings?: InviteLeaderboardGrowthSettings };
   return o.settings ?? null;
 }
@@ -158,10 +138,7 @@ export async function staffRandomizeInviteLeaderboardFakeBase(
   min = 1,
   max = 3,
 ): Promise<{ updated: number; min: number; max: number }> {
-  const res = await apiPostAsStaff<unknown>(
-    `/api/member-portal-settings/invite-leaderboard/fake-users/randomize-base${tenantQs(tenantId)}`,
-    { min, max },
-  );
+  const res = await il.randomizeBase({ min, max }, tenantParams(tenantId));
   const o = res as { updated?: number; min?: number; max?: number };
   return {
     updated: Number(o.updated ?? 0),

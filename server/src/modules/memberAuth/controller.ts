@@ -3,14 +3,14 @@
  */
 import type { Request, Response } from 'express';
 import {
-  verifyMemberPasswordRepository,
-  setMemberPasswordRepository,
-  getMemberInfoRepository,
-  recordMemberLoginRepository,
-  bumpMemberLoginSessionRepository,
-  getMemberTokenClaimsForSignRepository,
+  verifyMemberPasswordService,
+  bumpMemberLoginSessionService,
+  recordMemberLoginService,
+  setMemberPasswordService,
+  getMemberInfoService,
+  getMemberTokenClaimsService,
   grantReferralSpinsOnFirstLogin,
-} from './repository.js';
+} from './service.js';
 import { signMemberToken, type MemberAuthenticatedRequest } from './middleware.js';
 
 export async function memberSignInController(req: Request, res: Response): Promise<void> {
@@ -20,7 +20,7 @@ export async function memberSignInController(req: Request, res: Response): Promi
     return;
   }
   try {
-    const result = await verifyMemberPasswordRepository(String(phone).trim(), password);
+    const result = await verifyMemberPasswordService(String(phone).trim(), password);
     if (!result.success) {
       const msg = result.error === 'MEMBER_NOT_FOUND' ? 'Member not found'
         : result.error === 'NO_PASSWORD_SET' ? 'Please contact admin to set your password'
@@ -36,7 +36,7 @@ export async function memberSignInController(req: Request, res: Response): Promi
     }
     let sessionSeq = 0;
     try {
-      sessionSeq = await bumpMemberLoginSessionRepository(member.id);
+      sessionSeq = await bumpMemberLoginSessionService(member.id);
     } catch (e) {
       console.error('[MemberAuth] bump session seq error:', e);
       res.status(500).json({ success: false, code: 'INTERNAL_ERROR', message: 'Login failed' });
@@ -45,7 +45,7 @@ export async function memberSignInController(req: Request, res: Response): Promi
     const token = signMemberToken(member.id, member.phone_number, member.tenant_id, sessionSeq);
     res.json({ success: true, data: { member, token } });
     // Fire-and-forget: record login + referral spins (don't block the response)
-    recordMemberLoginRepository(member.id, member.tenant_id ?? null).catch((e) => {
+    recordMemberLoginService(member.id, member.tenant_id ?? null).catch((e) => {
       console.error('[MemberAuth] record login error:', e);
     });
     grantReferralSpinsOnFirstLogin(member.id).catch((e) => {
@@ -69,11 +69,7 @@ export async function memberSetPasswordController(req: MemberAuthenticatedReques
     return;
   }
   try {
-    const result = await setMemberPasswordRepository(
-      memberId,
-      old_password ?? null,
-      new_password
-    );
+    const result = await setMemberPasswordService(memberId, old_password ?? null, new_password);
     if (!result.success) {
       const msg = result.error === 'WRONG_PASSWORD' ? 'Wrong password'
         : result.error === 'PASSWORD_TOO_SHORT' ? 'Password must be at least 6 characters'
@@ -82,8 +78,8 @@ export async function memberSetPasswordController(req: MemberAuthenticatedReques
       res.status(400).json({ success: false, code: result.error ?? 'FAILED', message: msg });
       return;
     }
-    const claims = await getMemberTokenClaimsForSignRepository(memberId);
-    const info = await getMemberInfoRepository(memberId);
+    const claims = await getMemberTokenClaimsService(memberId);
+    const info = await getMemberInfoService(memberId);
     if (!claims || !info.success || !info.member) {
       res.json({ success: true, message: 'Password updated' });
       return;
@@ -107,7 +103,7 @@ export async function memberGetInfoController(req: MemberAuthenticatedRequest, r
     return;
   }
   try {
-    const result = await getMemberInfoRepository(memberId);
+    const result = await getMemberInfoService(memberId);
     if (!result.success || !result.member) {
       res.status(404).json({ success: false, code: 'MEMBER_NOT_FOUND', message: 'Member not found' });
       return;

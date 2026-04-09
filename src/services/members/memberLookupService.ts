@@ -2,7 +2,11 @@
  * 会员按电话查询服务 - 通过后端 API 调用
  * 解决 profiles.employee_id 为空时计算页无法自动填充会员数据的问题
  */
-import { apiGet } from '@/api/client';
+import {
+  getCustomerDetailByPhone,
+  lookupMemberForReferral as lookupMemberForReferralApi,
+  type ApiMember,
+} from '@/api/members';
 
 /** 校验会员是否属于当前操作租户（多租户下防止错绑其它租户会员） */
 export function isMemberInTenant(
@@ -42,6 +46,7 @@ export interface MemberByPhone {
 interface CustomerDetailResponse {
   member: {
     id: string;
+    tenant_id?: string | null;
     phone_number: string;
     member_code: string;
     member_level: string | null;
@@ -77,17 +82,9 @@ export async function getMemberByPhoneForMyTenant(
   if (!cleaned) return null;
 
   try {
-    const qs = new URLSearchParams();
-    if (tenantId && String(tenantId).trim()) {
-      qs.set('tenant_id', String(tenantId).trim());
-    }
-    if (options?.syncCommonCards !== false) {
-      qs.set('sync_common_cards', '1');
-    }
-    const q = qs.toString() ? `?${qs.toString()}` : '';
-    const data = await apiGet<CustomerDetailResponse | null>(
-      `/api/members/customer-detail/${encodeURIComponent(cleaned)}${q}`
-    );
+    const data = await getCustomerDetailByPhone(cleaned, tenantId, {
+      syncCommonCards: options?.syncCommonCards,
+    });
     if (!data?.member) return null;
     const m = data.member;
     const a = data.activity;
@@ -115,4 +112,13 @@ export async function getMemberByPhoneForMyTenant(
     console.error('[MemberLookup] API failed:', e);
     return null;
   }
+}
+
+export type { ApiMember };
+
+export async function lookupMemberForReferral(
+  q: string,
+  tenantId: string,
+): Promise<ApiMember | null> {
+  return lookupMemberForReferralApi(q, tenantId);
 }

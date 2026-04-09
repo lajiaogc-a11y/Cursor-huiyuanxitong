@@ -1,7 +1,7 @@
 // ============= Activity Gifts Hook - react-query Migration =============
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
-import { apiGet, apiPost } from '@/api/client';
+import { getActivityGiftIdByGiftNumber, insertActivityGiftRow } from '@/services/data/tableQueryService';
 import { notify } from "@/lib/notifyHub";
 import { logOperation } from '@/services/audit/auditLogService';
 import { getEmployeeNameById, getActivityTypeLabelByValue } from '@/services/members/nameResolver';
@@ -18,9 +18,7 @@ export async function generateUniqueGiftNumber(maxRetries = 8): Promise<string> 
   for (let i = 0; i < maxRetries; i++) {
     const giftNumber = buildShortGiftNumberCandidate();
     try {
-      const row = await apiGet<{ id?: string } | null>(
-        `/api/data/table/activity_gifts?select=id&gift_number=eq.${encodeURIComponent(giftNumber)}&single=true`
-      );
+      const row = await getActivityGiftIdByGiftNumber(giftNumber);
       if (!row?.id) return giftNumber;
     } catch (e) {
       console.error('[generateUniqueGiftNumber] Check failed:', e);
@@ -126,7 +124,7 @@ export function useActivityGifts() {
         tenant_id: effectiveTenantId ?? employee?.tenant_id ?? null,
       };
 
-      const data = await apiPost<Record<string, unknown>>('/api/data/table/activity_gifts', { data: dbGift });
+      const data = await insertActivityGiftRow({ data: dbGift });
 
       const newGift = mapDbGiftToGift(data);
 

@@ -4,7 +4,7 @@
  * 🔧 已完成迁移：仅写入 ledger_transactions，旧 balance_change_logs 已废弃
  */
 
-import { apiGet, apiPatch } from '@/api/client';
+import { dataTableApi } from '@/api/data';
 import { createLedgerEntry, createAdjustmentEntry, reverseAllEntriesForSource, AccountType, SourceType } from '@/services/finance/ledgerTransactionService';
 import { 
   getCardMerchantSettlementsAsync, 
@@ -440,19 +440,18 @@ export async function syncMemberActivityOnOrderEdit(params: {
   }
 
   try {
-    const maBase = '/api/data/table/member_activity';
     const p = new URLSearchParams({ select: '*', single: 'true' });
     if (memberId) p.set('member_id', `eq.${memberId}`);
     else p.set('phone_number', `eq.${phoneNumber}`);
 
-    const existingActivity = await apiGet<{
+    const existingActivity = await dataTableApi.get<{
       id: string;
       total_accumulated_ngn?: number | null;
       total_accumulated_ghs?: number | null;
       total_accumulated_usdt?: number | null;
       accumulated_profit?: number | null;
       accumulated_profit_usdt?: number | null;
-    } | null>(`${maBase}?${p.toString()}`);
+    } | null>('member_activity', p.toString());
 
     if (!existingActivity) {
       logger.warn('[BalanceLogService] No activity record found for member:', memberId || phoneNumber);
@@ -517,9 +516,11 @@ export async function syncMemberActivityOnOrderEdit(params: {
       }
     }
 
-    await apiPatch(`${maBase}?id=eq.${encodeURIComponent(String(existingActivity.id))}`, {
-      data: updateData,
-    });
+    await dataTableApi.patch(
+      'member_activity',
+      `id=eq.${encodeURIComponent(String(existingActivity.id))}`,
+      { data: updateData },
+    );
 
     return true;
   } catch (error) {

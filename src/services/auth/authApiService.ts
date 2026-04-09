@@ -1,11 +1,20 @@
 /**
  * Auth API Service - 通过 Backend API 进行认证（JWT）
  */
-import { apiGet, apiPost } from '@/api/client';
-import { ApiError } from '@/lib/apiClient';
-import { STAFF_AUTH_PATHS } from './authPaths';
-import { setAuthToken, clearAuthToken, clearMemberAccessToken } from '@/api/client';
+import {
+  setAuthToken, clearAuthToken, clearMemberAccessToken, hasAuthToken, ApiError, API_ACCESS_TOKEN_KEY,
+  setMemberAccessToken, MEMBER_ACCESS_TOKEN_KEY,
+  AUTH_UNAUTHORIZED_EVENT,
+} from '@/lib/apiClient';
+import { authApi } from '@/api/auth';
+import { dataRpcApi } from '@/api/data';
 import { pickBilingual } from '@/lib/appLocale';
+
+export {
+  setAuthToken, clearAuthToken, clearMemberAccessToken, hasAuthToken, ApiError, API_ACCESS_TOKEN_KEY,
+  setMemberAccessToken, MEMBER_ACCESS_TOKEN_KEY,
+  AUTH_UNAUTHORIZED_EVENT,
+};
 
 export interface AuthUser {
   id: string;
@@ -32,12 +41,12 @@ export async function loginApi(
   deviceId?: string | null
 ): Promise<{ success: boolean; user?: AuthUser; message?: string }> {
   try {
-    const body: Record<string, string> = {
+    const body: { username: string; password: string; device_id?: string } = {
       username: username.trim(),
       password,
     };
     if (deviceId?.trim()) body.device_id = deviceId.trim();
-    const res = await apiPost<LoginResponse>(STAFF_AUTH_PATHS.LOGIN, body);
+    const res = (await authApi.login(body)) as LoginResponse;
     if (!res.success || !res.token || !res.user) {
       return { success: false, message: (res as { error?: string }).error || pickBilingual('登录失败', 'Login failed') };
     }
@@ -59,12 +68,12 @@ export async function loginApi(
 /** 登出（清除本地 token，可选调用服务端） */
 export async function logoutApi(): Promise<void> {
   try {
-    await apiPost(STAFF_AUTH_PATHS.LOGOUT, {});
+    await authApi.logout();
   } catch {
     // 忽略服务端错误（如未登录时 401），本地清除即可
   }
   clearAuthToken();
-  localStorage.removeItem('supabase_access_token'); // 历史键，清理旧会话
+  localStorage.removeItem('supabase_access_token'); // 清理旧平台遗留 token
   _cachedPlatformTenantId = null;
 }
 
@@ -102,7 +111,7 @@ export function getPlatformTenantId(): string | null {
 
 /** 校验当前登录员工的密码（/api/auth/verify-password，与 /api/admin/verify-password 不同） */
 export async function verifyAuthPasswordApi(password: string): Promise<{ success?: boolean; valid?: boolean }> {
-  return apiPost<{ success?: boolean; valid?: boolean }>('/api/auth/verify-password', { password });
+  return authApi.verifyPassword({ password });
 }
 
 export interface RegisterStaffPayload {
@@ -121,17 +130,17 @@ export interface RegisterStaffResponse {
 
 /** 员工注册（公开页，可无 JWT） */
 export async function registerStaffApi(payload: RegisterStaffPayload): Promise<RegisterStaffResponse> {
-  return apiPost<RegisterStaffResponse>(STAFF_AUTH_PATHS.REGISTER, {
+  return authApi.register({
     username: payload.username,
     password: payload.password,
     realName: payload.realName,
     invitationCode: payload.invitationCode,
-  });
+  }) as Promise<RegisterStaffResponse>;
 }
 
 /** 任意已登录员工可调用，校验当前 JWT 对应账号密码（非 /api/admin/verify-password） */
 export async function verifyCurrentUserPasswordApi(password: string): Promise<boolean> {
-  const res = await apiPost<{ success?: boolean; valid?: boolean }>(STAFF_AUTH_PATHS.VERIFY_PASSWORD, { password });
+  const res = await authApi.verifyPassword({ password });
   return (res as { valid?: boolean })?.valid === true;
 }
 
@@ -142,9 +151,9 @@ export async function verifyEmployeeLoginDetailedApi(
   username: string,
   password: string,
 ): Promise<VerifyEmployeeLoginDetailedRow | null> {
-  const data = await apiPost<
+  const data = await dataRpcApi.call<
     VerifyEmployeeLoginDetailedRow[] | VerifyEmployeeLoginDetailedRow
-  >('/api/data/rpc/verify_employee_login_detailed', {
+  >("verify_employee_login_detailed", {
     p_username: username,
     p_password: password,
   });
@@ -155,7 +164,7 @@ export async function verifyEmployeeLoginDetailedApi(
 /** 获取当前用户信息 */
 export async function getCurrentUserApi(): Promise<AuthUser | null> {
   try {
-    const raw = await apiGet<unknown>(STAFF_AUTH_PATHS.ME);
+    const raw = await authApi.me();
     if (raw && typeof raw === 'object') {
       const ptid = (raw as Record<string, unknown>).platform_tenant_id;
       _cachedPlatformTenantId = (typeof ptid === 'string' && ptid) ? ptid : null;
@@ -164,4 +173,59 @@ export async function getCurrentUserApi(): Promise<AuthUser | null> {
   } catch {
     return null;
   }
+}
+
+/** 获取客户端 IP（走后端 /api/auth/client-ip） */
+export async function getClientIpApi(): Promise<string | null> {
+  try {
+    const res = await authApi.clientIp();
+    return (res as { ip?: string })?.ip || null;
+  } catch {
+    return null;
+  }
+}
+
+export interface IpValidationResult {
+  valid: boolean;
+  skipped?: boolean;
+  reason?: string;
+  source?: string;
+  ip?: string;
+  country_code?: string;
+  country_name?: string;
+  city?: string;
+  error?: string;
+  message?: string;
+}
+
+/** 走后端公开接口，按平台「IP 访问控制」中的国家/地区策略校验 */
+export async function checkIpAccessApi(): Promise<IpValidationResult> {
+  try {
+    const json = await import('@/lib/apiClient').then(m =>
+      m.apiClient.get<{ data?: IpValidationResult; success?: boolean }>('/api/data/settings/ip-country-check'),
+    );
+    const data = json?.data ?? (json as unknown as IpValidationResult);
+    if (data?.skipped) {
+      return { ...data, valid: true, skipped: true };
+    }
+    if (data?.valid === false) {
+      return {
+        valid: false,
+        skipped: false,
+        ip: data.ip,
+        country_code: data.country_code,
+        country_name: data.country_name,
+        error: data.error,
+        message: data.message || 'Your IP does not meet the login region policy',
+      };
+    }
+    return { valid: true, skipped: false, ip: data?.ip, country_code: data?.country_code, country_name: data?.country_name };
+  } catch {
+    return { valid: true, skipped: true, reason: 'NETWORK_ERROR' };
+  }
+}
+
+/** 触发后端回填登录日志的 IP 地理位置 */
+export async function resolveLoginLogLocationsApi(): Promise<void> {
+  await authApi.resolveLoginLogLocations();
 }

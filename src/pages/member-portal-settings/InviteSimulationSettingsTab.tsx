@@ -29,7 +29,7 @@ import {
   type AdminSimulationSettings,
 } from "@/services/lottery/lotteryService";
 import { cn } from "@/lib/utils";
-import { ApiError } from "@/lib/apiClient";
+import { ApiError } from "@/services/auth/authApiService";
 import { InviteLeaderboardSettingsTab } from "./InviteLeaderboardSettingsTab";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { normalizeSpinSimFeedLineForMember } from "@/lib/spinSimFeedDisplay";
@@ -87,6 +87,7 @@ export function InviteSimulationSettingsTab({ tenantId, canManage }: InviteSimul
   const [simFakeRaw, setSimFakeRaw] = useState("");
   const [simFakeMeta, setSimFakeMeta] = useState<{
     pool_count: number;
+    nickname_tokens_count?: number;
     source: "builtin" | "custom";
     updated_at: string | null;
   }>({ pool_count: 100, source: "builtin", updated_at: null });

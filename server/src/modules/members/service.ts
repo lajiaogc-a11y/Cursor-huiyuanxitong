@@ -117,3 +117,21 @@ export async function bulkCreateMembersService(tenantId: string, items: BulkCrea
   const stripped = items.map(({ member_level: _x, ...item }) => item);
   return bulkCreateMembersRepository(tenantId, stripped);
 }
+
+// ── 权限辅助（Controller 统一走 Service 层） ──────────────────────────────
+
+import { getMemberTenantIdById, updateMemberPasswordHashByMemberId } from './repository.js';
+
+/** 获取会员所属租户 ID（用于跨模块权限校验） */
+export async function getMemberTenantIdService(memberId: string): Promise<string | null> {
+  return getMemberTenantIdById(memberId);
+}
+
+/** 更新会员密码哈希，返回受影响行数 */
+export async function updateMemberPasswordHashService(
+  memberId: string,
+  tenantId: string | null,
+  hash: string,
+): Promise<number> {
+  return updateMemberPasswordHashByMemberId(memberId, hash, tenantId);
+}

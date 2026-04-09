@@ -1,7 +1,7 @@
 // ============= Webhook Service =============
 // 入队到 MySQL webhook_event_queue，由服务端投递（见 server/src/modules/webhooks）
 
-import { apiPost } from '@/api/client';
+import { webhooksApi } from '@/api/webhooks';
 
 // Webhook 事件类型
 export type WebhookEventType =
@@ -75,10 +75,10 @@ export async function triggerWebhookEvent(
       data: payload,
     };
 
-    const res = await apiPost<{ success?: boolean; error?: string }>('/api/webhooks/enqueue', {
+    const res = await webhooksApi.enqueue({
       event_type: eventType,
       payload: eventData,
-    });
+    }) as { success?: boolean; error?: string };
 
     if (res && typeof res === 'object' && res.success === false) {
       console.warn('[WebhookService] Enqueue rejected:', res.error);

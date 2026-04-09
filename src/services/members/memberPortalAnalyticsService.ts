@@ -1,4 +1,4 @@
-import { apiGet, apiPut, apiPost } from "@/api/client";
+import { memberPortalSettingsApi } from "@/api/memberPortalSettings";
 
 export interface MemberPortalWebsiteStats {
   /** 统计口径标识，固定为 invite_register，表示仅含自助注册链接来源 */
@@ -30,10 +30,9 @@ export interface MemberPortalWebsiteStats {
  * 路径前缀：使用 site-data 替代 analytics，
  * 避免被浏览器广告拦截/隐私插件按 EasyPrivacy 规则阻断。
  */
-const BASE = "/api/member-portal/site-data";
 
-function tenantQs(tenantId: string | null | undefined): string {
-  return tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";
+function tenantParams(tenantId: string | null | undefined): Record<string, string> | undefined {
+  return tenantId ? { tenant_id: tenantId } : undefined;
 }
 
 export async function getMemberPortalWebsiteStats(
@@ -41,12 +40,13 @@ export async function getMemberPortalWebsiteStats(
   startDate?: string,
   endDate?: string,
 ): Promise<MemberPortalWebsiteStats> {
-  const q = new URLSearchParams();
-  if (tenantId) q.set("tenant_id", tenantId);
-  if (startDate) q.set("start_date", startDate);
-  if (endDate) q.set("end_date", endDate);
-  const qs = q.toString();
-  return apiGet<MemberPortalWebsiteStats>(`${BASE}/stats${qs ? `?${qs}` : ""}`);
+  const params: Record<string, string> = {};
+  if (tenantId) params.tenant_id = tenantId;
+  if (startDate) params.start_date = startDate;
+  if (endDate) params.end_date = endDate;
+  return memberPortalSettingsApi.siteData.getStats(
+    Object.keys(params).length ? params : undefined,
+  ) as Promise<MemberPortalWebsiteStats>;
 }
 
 export interface DataCleanupSettings {
@@ -57,26 +57,25 @@ export interface DataCleanupSettings {
 }
 
 export async function getMemberPortalDataCleanupSettings(tenantId: string | null | undefined): Promise<DataCleanupSettings> {
-  return apiGet<DataCleanupSettings>(`${BASE}/data-cleanup${tenantQs(tenantId)}`);
+  return memberPortalSettingsApi.siteData.getDataCleanup(tenantParams(tenantId)) as Promise<DataCleanupSettings>;
 }
 
 export async function putMemberPortalDataCleanupSettings(
   tenantId: string | null | undefined,
   body: DataCleanupSettings,
 ): Promise<void> {
-  await apiPut(`${BASE}/data-cleanup${tenantQs(tenantId)}`, body);
+  await memberPortalSettingsApi.siteData.putDataCleanup(
+    body as unknown as Record<string, unknown>,
+    tenantParams(tenantId),
+  );
 }
 
 export async function previewMemberPortalDataCleanup(tenantId: string | null | undefined): Promise<{ count: number }> {
-  return apiGet<{ count: number }>(
-    `${BASE}/data-cleanup/preview${tenantQs(tenantId)}`,
-  );
+  return memberPortalSettingsApi.siteData.previewDataCleanup(tenantParams(tenantId));
 }
 
 export async function runMemberPortalDataCleanup(
   tenantId: string | null | undefined,
 ): Promise<{ matched: number; purged: number }> {
-  return apiPost<{ matched: number; purged: number }>(
-    `${BASE}/data-cleanup/run${tenantQs(tenantId)}`,
-  );
+  return memberPortalSettingsApi.siteData.runDataCleanup(tenantParams(tenantId));
 }

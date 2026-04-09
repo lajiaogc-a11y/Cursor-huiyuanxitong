@@ -4,7 +4,8 @@
  * 员工端走 REST /api/points/orders/*
  * 会员端走 RPC /api/data/rpc/member_create_point_order 等
  */
-import { apiGet, apiPost } from '@/api/client';
+import { dataRpcApi } from '@/api/data';
+import { pointsApi } from '@/api/points';
 import { hasAuthToken } from '@/lib/apiClient';
 import { isMemberRealmPathname } from '@/lib/memberTokenPathMatrix';
 import { getSpaPathname } from '@/lib/spaNavigation';
@@ -55,7 +56,7 @@ export async function memberCreatePointOrder(params: {
 }): Promise<{ success: boolean; order?: PointOrder; error?: string }> {
   const clientRequestId = generateClientRequestId();
   if (isMemberPortal()) {
-    const res = await apiPost<any>('/api/data/rpc/member_create_point_order', {
+    const res = await dataRpcApi.call('member_create_point_order', {
       p_member_id: params.memberId,
       p_product_name: params.productName,
       p_product_id: params.productId ?? null,
@@ -65,7 +66,7 @@ export async function memberCreatePointOrder(params: {
     });
     return res as { success: boolean; order?: PointOrder; error?: string };
   }
-  const res = await apiPost<any>('/api/points/orders', {
+  const res = await pointsApi.orders.create({
     member_id: params.memberId,
     product_name: params.productName,
     product_id: params.productId ?? null,
@@ -73,19 +74,22 @@ export async function memberCreatePointOrder(params: {
     points_cost: params.pointsCost,
     client_request_id: clientRequestId,
   });
-  return { success: true, order: res?.data ?? res };
+  return { success: true, order: (res as { data?: PointOrder })?.data ?? (res as PointOrder) };
 }
 
 export async function memberListPointOrders(memberId: string, limit = 50): Promise<PointOrder[]> {
   if (isMemberPortal()) {
-    const res = await apiPost<any>('/api/data/rpc/member_list_point_orders', {
+    const res = await dataRpcApi.call('member_list_point_orders', {
       p_member_id: memberId,
       p_limit: limit,
     });
-    return (res as any)?.orders ?? [];
+    return (res as { orders?: PointOrder[] })?.orders ?? [];
   }
-  const res = await apiGet<any>(`/api/points/orders?member_id=${encodeURIComponent(memberId)}&limit=${limit}`);
-  return res?.data ?? res ?? [];
+  const res = await pointsApi.orders.list({
+    member_id: memberId,
+    limit: String(limit),
+  });
+  return (res as { data?: PointOrder[] })?.data ?? (res as PointOrder[]) ?? [];
 }
 
 // ── 员工端（审核用） ──
@@ -95,17 +99,19 @@ export async function staffListPointOrders(params?: {
   memberId?: string;
   limit?: number;
 }): Promise<PointOrder[]> {
-  const qs = new URLSearchParams();
-  if (params?.status) qs.set('status', params.status);
-  if (params?.memberId) qs.set('member_id', params.memberId);
-  if (params?.limit) qs.set('limit', String(params.limit));
-  const res = await apiGet<any>(`/api/points/orders?${qs.toString()}`);
-  return res?.data ?? res ?? [];
+  const listParams: Record<string, string> = {};
+  if (params?.status) listParams.status = params.status;
+  if (params?.memberId) listParams.member_id = params.memberId;
+  if (params?.limit != null) listParams.limit = String(params.limit);
+  const res = await pointsApi.orders.list(
+    Object.keys(listParams).length > 0 ? listParams : undefined,
+  );
+  return (res as { data?: PointOrder[] })?.data ?? (res as PointOrder[]) ?? [];
 }
 
 export async function staffApprovePointOrder(orderId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    await apiPost<any>(`/api/points/orders/${encodeURIComponent(orderId)}/approve`, {});
+    await pointsApi.orders.approve(orderId);
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message ?? String(e) };
@@ -117,7 +123,7 @@ export async function staffRejectPointOrder(
   reason?: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await apiPost<any>(`/api/points/orders/${encodeURIComponent(orderId)}/reject`, { reason });
+    await pointsApi.orders.reject(orderId, reason);
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message ?? String(e) };

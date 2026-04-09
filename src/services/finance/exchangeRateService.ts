@@ -4,6 +4,7 @@
 
 import { CurrencyCode } from "@/config/currencies";
 import { EXTERNAL_API } from "@/config/externalApis";
+import { externalGet } from "@/lib/externalHttpClient";
 import { loadSharedData, saveSharedData, saveSharedDataSync, getSharedDataSync } from "@/services/finance/sharedDataService";
 import { formatBeijingTime } from "@/lib/beijingTime";
 
@@ -86,36 +87,24 @@ export function saveExchangeRateSettings(settings: ExchangeRateSettings): void {
 // 从真实API获取汇率
 export async function fetchBaseRates(): Promise<{ usdToNgn: number; usdToGhs: number }> {
   try {
-    const response = await fetch(EXTERNAL_API.EXCHANGE_RATE_USD_ER_API);
-    
-    if (!response.ok) {
-      throw new Error('API request failed');
-    }
-    
-    const data = await response.json();
-    
+    const data = await externalGet<{ result?: string; rates?: Record<string, number> }>(
+      EXTERNAL_API.EXCHANGE_RATE_USD_ER_API,
+    );
     if (data.result === 'success' && data.rates) {
       const ngnRate = data.rates.NGN;
       const ghsRate = data.rates.GHS;
-
       if (!ngnRate || !ghsRate) {
         throw new Error(`API returned incomplete rates: NGN=${ngnRate}, GHS=${ghsRate}`);
       }
-      
       console.log('Fetched exchange rates from API:', { NGN: ngnRate, GHS: ghsRate });
-      
       return { usdToNgn: ngnRate, usdToGhs: ghsRate };
     }
-    
     throw new Error('Invalid API response');
   } catch (error) {
     console.error('[ExchangeRate] API failed, falling back to last saved rates:', error);
     const settings = getExchangeRateSettings();
     if (settings.baseRates.usdToNgn && settings.baseRates.usdToGhs) {
-      return {
-        usdToNgn: settings.baseRates.usdToNgn,
-        usdToGhs: settings.baseRates.usdToGhs,
-      };
+      return { usdToNgn: settings.baseRates.usdToNgn, usdToGhs: settings.baseRates.usdToGhs };
     }
     throw new Error('No saved exchange rates available and API failed');
   }

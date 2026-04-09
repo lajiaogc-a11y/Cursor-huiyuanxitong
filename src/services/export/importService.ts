@@ -2,7 +2,7 @@
  * 数据导入服务
  */
 
-import { apiPost } from '@/api/client';
+import { dataTableApi } from '@/api/data';
 import { fetchTableCountExact } from '@/lib/tableProxyCount';
 import { EXPORTABLE_TABLES } from './tableConfig';
 import { parseCSV, escapeCSVField, createUtf8CsvBlob } from './utils';
@@ -12,19 +12,19 @@ import { batchImportOrders } from './orderImportService';
 import type { ExportFormat } from './types';
 
 async function tableUpsertBatch(tableName: string, batch: Record<string, unknown>[], onConflict: string) {
-  await apiPost(`/api/data/table/${encodeURIComponent(tableName)}`, { data: batch, upsert: true, onConflict });
+  await dataTableApi.post(encodeURIComponent(tableName), { data: batch, upsert: true, onConflict });
 }
 
 async function tableInsertBatch(tableName: string, batch: Record<string, unknown>[]) {
-  await apiPost(`/api/data/table/${encodeURIComponent(tableName)}`, { data: batch });
+  await dataTableApi.post(encodeURIComponent(tableName), { data: batch });
 }
 
 async function tableUpsertOne(tableName: string, record: Record<string, unknown>, onConflict: string) {
-  await apiPost(`/api/data/table/${encodeURIComponent(tableName)}`, { data: record, upsert: true, onConflict });
+  await dataTableApi.post(encodeURIComponent(tableName), { data: record, upsert: true, onConflict });
 }
 
 async function tableInsertOne(tableName: string, record: Record<string, unknown>) {
-  await apiPost(`/api/data/table/${encodeURIComponent(tableName)}`, { data: record });
+  await dataTableApi.post(encodeURIComponent(tableName), { data: record });
 }
 
 /**

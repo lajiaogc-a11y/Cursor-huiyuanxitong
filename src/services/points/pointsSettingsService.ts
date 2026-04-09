@@ -3,6 +3,7 @@
 
 import { loadSharedData, saveSharedData, saveSharedDataSync } from '@/services/finance/sharedDataService';
 import { EXTERNAL_API } from '@/config/externalApis';
+import { externalGet } from '@/lib/externalHttpClient';
 import { logOperation } from '@/services/audit/auditLogService';
 import { pickBilingual } from '@/lib/appLocale';
 
@@ -160,68 +161,58 @@ async function fetchRealExchangeRates(): Promise<{ ngnRate: number; ghsRate: num
     return { ngnRate: resultNgn, ghsRate: resultGhs };
   };
 
-  const timedFetch = (url: string, ms = 8000) => {
-    const c = new AbortController();
-    const t = setTimeout(() => c.abort(), ms);
-    return fetch(url, { signal: c.signal }).finally(() => clearTimeout(t));
-  };
-
   const sources: Array<{ ngn: number; ghs: number; src: string }> = [];
 
   // Source 1: open.er-api.com
   try {
-    const r = await timedFetch(EXTERNAL_API.EXCHANGE_RATE_USD_ER_API);
-    if (r.ok) {
-      const d = await r.json();
-      if (d?.rates?.NGN && d?.rates?.GHS) {
-        const ngn = Number(d.rates.NGN);
-        const ghs = Number(d.rates.GHS);
-        if (isValidNgn(ngn) && isValidGhs(ghs)) {
-          sources.push({ ngn, ghs, src: 'open.er-api' });
-        }
+    const d = await externalGet<{ rates?: Record<string, number> }>(
+      EXTERNAL_API.EXCHANGE_RATE_USD_ER_API, { timeoutMs: 8000 },
+    );
+    if (d?.rates?.NGN && d?.rates?.GHS) {
+      const ngn = Number(d.rates.NGN);
+      const ghs = Number(d.rates.GHS);
+      if (isValidNgn(ngn) && isValidGhs(ghs)) {
+        sources.push({ ngn, ghs, src: 'open.er-api' });
       }
     }
   } catch { /* skip */ }
 
   // Source 2: exchangerate-api.com (free, no key)
   try {
-    const r = await timedFetch(EXTERNAL_API.EXCHANGE_RATE_USD_EXCHANGERATE_API);
-    if (r.ok) {
-      const d = await r.json();
-      if (d?.rates?.NGN && d?.rates?.GHS) {
-        const ngn = Number(d.rates.NGN);
-        const ghs = Number(d.rates.GHS);
-        if (isValidNgn(ngn) && isValidGhs(ghs)) {
-          sources.push({ ngn, ghs, src: 'exchangerate-api' });
-        }
+    const d = await externalGet<{ rates?: Record<string, number> }>(
+      EXTERNAL_API.EXCHANGE_RATE_USD_EXCHANGERATE_API, { timeoutMs: 8000 },
+    );
+    if (d?.rates?.NGN && d?.rates?.GHS) {
+      const ngn = Number(d.rates.NGN);
+      const ghs = Number(d.rates.GHS);
+      if (isValidNgn(ngn) && isValidGhs(ghs)) {
+        sources.push({ ngn, ghs, src: 'exchangerate-api' });
       }
     }
   } catch { /* skip */ }
 
   // Source 3: Frankfurter（欧洲央行参考，稳定）
   try {
-    const r = await timedFetch(EXTERNAL_API.EXCHANGE_RATE_FRANKFURTER_USD_TO_NGN_GHS);
-    if (r.ok) {
-      const d = await r.json();
-      const ngn = Number(d?.rates?.NGN);
-      const ghs = Number(d?.rates?.GHS);
-      if (isValidNgn(ngn) && isValidGhs(ghs)) {
-        sources.push({ ngn, ghs, src: 'frankfurter' });
-      }
+    const d = await externalGet<{ rates?: Record<string, number> }>(
+      EXTERNAL_API.EXCHANGE_RATE_FRANKFURTER_USD_TO_NGN_GHS, { timeoutMs: 8000 },
+    );
+    const ngn = Number(d?.rates?.NGN);
+    const ghs = Number(d?.rates?.GHS);
+    if (isValidNgn(ngn) && isValidGhs(ghs)) {
+      sources.push({ ngn, ghs, src: 'frankfurter' });
     }
   } catch { /* skip */ }
 
   // Source 4: currency-api (fawazahmed0, GitHub CDN, market rates)
   try {
-    const r = await timedFetch(EXTERNAL_API.EXCHANGE_RATE_USD_CURRENCY_PAGES);
-    if (r.ok) {
-      const d = await r.json();
-      if (d?.usd?.ngn && d?.usd?.ghs) {
-        const ngn = Number(d.usd.ngn);
-        const ghs = Number(d.usd.ghs);
-        if (isValidNgn(ngn) && isValidGhs(ghs)) {
-          sources.push({ ngn, ghs, src: 'currency-api-pages' });
-        }
+    const d = await externalGet<{ usd?: Record<string, number> }>(
+      EXTERNAL_API.EXCHANGE_RATE_USD_CURRENCY_PAGES, { timeoutMs: 8000 },
+    );
+    if (d?.usd?.ngn && d?.usd?.ghs) {
+      const ngn = Number(d.usd.ngn);
+      const ghs = Number(d.usd.ghs);
+      if (isValidNgn(ngn) && isValidGhs(ghs)) {
+        sources.push({ ngn, ghs, src: 'currency-api-pages' });
       }
     }
   } catch { /* skip */ }

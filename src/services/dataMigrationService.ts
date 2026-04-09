@@ -1,4 +1,4 @@
-import { apiPost } from "@/api/client";
+import { dataRpcApi } from "@/api/data";
 import { fail, ok, type ServiceErrorCode, type ServiceResult } from "@/services/serviceResult";
 
 export interface TenantMigrationPreview {
@@ -78,7 +78,7 @@ export async function previewTenantDataMigrationResult(
   targetTenantId: string,
 ): Promise<ServiceResult<TenantMigrationPreview>> {
   try {
-    const data = await apiPost<unknown>("/api/data/rpc/preview_tenant_data_migration", {
+    const data = await dataRpcApi.call<unknown>("preview_tenant_data_migration", {
       p_source_tenant_id: sourceTenantId,
       p_target_tenant_id: targetTenantId,
     });
@@ -100,7 +100,7 @@ export async function exportTenantDataJsonResult(
   limit = 5000,
 ): Promise<ServiceResult<Record<string, unknown>>> {
   try {
-    const data = await apiPost<Record<string, unknown>>("/api/data/rpc/export_tenant_data_json", {
+    const data = await dataRpcApi.call<Record<string, unknown>>("export_tenant_data_json", {
       p_source_tenant_id: sourceTenantId,
       p_limit: limit,
     });
@@ -120,7 +120,7 @@ export async function exportTenantDataJsonResult(
 
 export async function listTenantMigrationJobsResult(limit = 100): Promise<ServiceResult<TenantMigrationJob[]>> {
   try {
-    const data = await apiPost<TenantMigrationJob[]>("/api/data/rpc/list_tenant_migration_jobs", {
+    const data = await dataRpcApi.call<TenantMigrationJob[]>("list_tenant_migration_jobs", {
       p_limit: limit,
     });
     return ok((data || []) as TenantMigrationJob[]);
@@ -137,7 +137,7 @@ export async function listTenantMigrationJobsPagedResult(input: {
   status?: string;
 }): Promise<ServiceResult<{ items: TenantMigrationJob[]; total: number }>> {
   try {
-    const data = await apiPost<TenantMigrationJob[]>("/api/data/rpc/list_tenant_migration_jobs_v2", {
+    const data = await dataRpcApi.call<TenantMigrationJob[]>("list_tenant_migration_jobs_v2", {
       p_page: input.page,
       p_page_size: input.pageSize,
       p_operation: input.operation || null,
@@ -158,7 +158,7 @@ export async function getTenantMigrationConflictDetailsResult(
   limit = 500,
 ): Promise<ServiceResult<Record<string, unknown>>> {
   try {
-    const data = await apiPost<Record<string, unknown>>("/api/data/rpc/get_tenant_migration_conflict_details", {
+    const data = await dataRpcApi.call<Record<string, unknown>>("get_tenant_migration_conflict_details", {
       p_source_tenant_id: sourceTenantId,
       p_target_tenant_id: targetTenantId,
       p_limit: limit,
@@ -184,7 +184,7 @@ export async function executeTenantDataMigrationResult(input: {
   limit: number;
 }): Promise<ServiceResult<ExecuteMigrationResult>> {
   try {
-    const data = await apiPost<unknown>("/api/data/rpc/execute_tenant_data_migration", {
+    const data = await dataRpcApi.call<unknown>("execute_tenant_data_migration", {
       p_source_tenant_id: input.sourceTenantId,
       p_target_tenant_id: input.targetTenantId,
       p_member_conflict_strategy: input.memberConflictStrategy,
@@ -206,7 +206,7 @@ export async function executeTenantDataMigrationResult(input: {
 
 export async function rollbackTenantMigrationJobResult(jobId: string): Promise<ServiceResult<{ restored: number }>> {
   try {
-    const data = await apiPost<unknown>("/api/data/rpc/rollback_tenant_migration_job", {
+    const data = await dataRpcApi.call<unknown>("rollback_tenant_migration_job", {
       p_job_id: jobId,
     });
     const row = Array.isArray(data) ? data[0] : data;
@@ -227,7 +227,7 @@ export async function verifyTenantMigrationJobResult(
   jobId: string,
 ): Promise<ServiceResult<MigrationVerificationPayload>> {
   try {
-    const data = await apiPost<Record<string, unknown>>("/api/data/rpc/verify_tenant_migration_job", {
+    const data = await dataRpcApi.call<Record<string, unknown>>("verify_tenant_migration_job", {
       p_job_id: jobId,
     });
     const payload = data;
@@ -249,7 +249,7 @@ export async function exportTenantMigrationAuditBundleResult(
   conflictLimit = 2000,
 ): Promise<ServiceResult<Record<string, unknown>>> {
   try {
-    const data = await apiPost<Record<string, unknown>>("/api/data/rpc/export_tenant_migration_audit_bundle", {
+    const data = await dataRpcApi.call<Record<string, unknown>>("export_tenant_migration_audit_bundle", {
       p_job_id: jobId,
       p_conflict_limit: conflictLimit,
     });

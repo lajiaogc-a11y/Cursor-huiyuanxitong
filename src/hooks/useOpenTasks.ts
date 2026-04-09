@@ -2,7 +2,7 @@
  * 维护设置 - 进行中任务 Hook - react-query 缓存，切换秒开
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiGet } from '@/api/client';
+import { getActiveEmployeesByTenant } from '@/services/data/tableQueryService';
 import { getOpenTasksResult } from '@/services/taskService';
 
 const STALE_TIME = 30_000;
@@ -16,9 +16,7 @@ async function fetchOpenTasks(tenantId: string | null): Promise<{ id: string; ti
 
 async function fetchTaskSettingsEmployees(tenantId: string | null): Promise<{ id: string; real_name: string }[]> {
   if (!tenantId) return [];
-  const data = await apiGet<{ id: string; real_name: string }[]>(
-    `/api/data/table/employees?select=id,real_name&tenant_id=eq.${encodeURIComponent(tenantId)}&status=eq.active&order=real_name.asc`
-  );
+  const data = await getActiveEmployeesByTenant(tenantId);
   return Array.isArray(data) ? data : [];
 }
 

@@ -196,7 +196,8 @@ export function MemberDashboardPortalOverlays({
         variant="member"
         title={(selectedAnn?.title && selectedAnn.title.trim()) || t("公告", "Announcement")}
         description={
-          formatAnnouncementPublishedAt(selectedAnn?.published_at, language) || t("来自团队", "From your team")
+          formatAnnouncementPublishedAt(selectedAnn?.published_at, language as "zh" | "en") ||
+          t("来自团队", "From your team")
         }
         sheetMaxWidth="2xl"
       >

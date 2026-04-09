@@ -175,51 +175,16 @@ export async function postReverseAll(req: AuthenticatedRequest, res: Response) {
   const source_prefix = String(b.source_prefix || '');
   const adj_prefix = String(b.adj_prefix || '');
   const tenant_id = req.user?.tenant_id ?? null;
-  const tenantSql = tenant_id ? 'AND (tenant_id IS NULL OR tenant_id = ?)' : '';
-  const args: unknown[] = [account_type, account_id];
-  if (tenant_id) args.push(tenant_id);
-  const { query: dbQuery, execute: dbExecute } = await import('../../database/index.js');
 
-  const exactSourceId = `${source_prefix}${order_id}`;
-  const adjPattern = `${adj_prefix}${order_id}%`;
-  const restorePrefixMap: Record<string, string> = {
-    'wd_': 'wdrestore_',
-    'rc_': 'rcrestore_',
-    'order_v_': 'restore_v_',
-    'order_p_': 'restore_p_',
-    'gift_': 'grestore_',
-  };
-  const restorePrefix = restorePrefixMap[source_prefix] ?? '';
-  const restorePattern = restorePrefix ? `${restorePrefix}${order_id}%` : '';
-
-  let matchClause = '(source_id = ? OR source_id LIKE ?)';
-  const matchArgs = [exactSourceId, adjPattern];
-  if (restorePattern) {
-    matchClause = '(source_id = ? OR source_id LIKE ? OR source_id LIKE ?)';
-    matchArgs.push(restorePattern);
-  }
-
-  const countRows = await dbQuery<{ c: number }>(
-    `SELECT COUNT(*) AS c FROM ledger_transactions
-     WHERE account_type = ? AND account_id = ? ${tenantSql}
-     AND (is_active = 1 OR is_active IS NULL)
-     AND ${matchClause}`,
-    [...args, ...matchArgs]
-  );
-  const matchCount = Number(countRows[0]?.c ?? 0);
+  const matchCount = await ledger.softDeleteLedgerRowsBySourcePattern({
+    account_type, account_id, tenant_id, source_prefix, order_id, adj_prefix,
+  });
   if (matchCount === 0) {
-    res.json({ success: true, data: null });
+    res.json({ success: true, data: { matchCount: 0, recalculated: false } });
     return;
   }
-  await dbExecute(
-    `UPDATE ledger_transactions SET is_active = 0
-     WHERE account_type = ? AND account_id = ? ${tenantSql}
-     AND (is_active = 1 OR is_active IS NULL)
-     AND ${matchClause}`,
-    [...args, ...matchArgs]
-  );
   await ledger.recalculateLedgerRunningBalancesForAccount(account_type, account_id, tenant_id);
-  res.json({ success: true, data: null });
+  res.json({ success: true, data: { matchCount, recalculated: true } });
 }
 
 /** 按时间链重算 before_balance / balance_after（修复历史脏数据或供运维一次性校正） */

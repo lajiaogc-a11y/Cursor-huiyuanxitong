@@ -23,7 +23,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useMembers, Member } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
-import { lookupMemberForReferral, type ApiMember } from "@/api/members";
+import { lookupMemberForReferral, type ApiMember } from "@/services/members/memberLookupService";
 import {
   getMemberByPhoneForMyTenant,
   type MemberByPhone,

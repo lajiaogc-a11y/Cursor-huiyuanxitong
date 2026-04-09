@@ -11,9 +11,9 @@ function reducedMotion(): boolean {
 
 /** 抽奖中奖（对齐 premium-ui-boost 撒花；谢谢参与不调用） */
 export function fireMemberSpinWinConfetti(
-  tier: "legendary" | "epic" | "rare" | "common",
+  tier: "legendary" | "epic" | "rare" | "common" | "miss",
 ): void {
-  if (reducedMotion()) return;
+  if (tier === "miss" || reducedMotion()) return;
   const defaults = { startVelocity: 28, spread: 360, ticks: 72, zIndex: 9999 };
   const n = tier === "legendary" ? 88 : tier === "epic" ? 72 : tier === "rare" ? 56 : 46;
   void confetti({ ...defaults, particleCount: n, origin: { x: 0.5, y: 0.42 } });

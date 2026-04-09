@@ -1,6 +1,10 @@
 // Hook for managing permission change logs
 import { useState, useCallback } from 'react';
-import { apiGet, apiPost } from '@/api/client';
+import {
+  listPermissionChangeLogs,
+  insertPermissionChangeLog,
+  listPermissionChangeLogsByRole,
+} from '@/services/data/tableQueryService';
 import { useAuth } from '@/contexts/AuthContext';
 
 function unwrapSingle<T>(data: unknown): T | null {
@@ -51,9 +55,7 @@ export function usePermissionChangeLogs() {
   const fetchLogs = useCallback(async (limit = 100) => {
     setLoading(true);
     try {
-      const data = await apiGet<unknown[]>(
-        `/api/data/table/permission_change_logs?select=*&order=changed_at.desc&limit=${limit}`
-      );
+      const data = await listPermissionChangeLogs(limit);
       setLogs((Array.isArray(data) ? data : []) as unknown as PermissionChangeLog[]);
     } catch (error) {
       console.error('Failed to fetch permission change logs:', error);
@@ -66,7 +68,7 @@ export function usePermissionChangeLogs() {
     if (!employee) return null;
 
     try {
-      const inserted = await apiPost<unknown>(`/api/data/table/permission_change_logs`, {
+      const inserted = await insertPermissionChangeLog({
         data: {
           changed_by: employee.id,
           changed_by_name: employee.real_name,
@@ -88,9 +90,7 @@ export function usePermissionChangeLogs() {
 
   const getLogsByRole = useCallback(async (role: string) => {
     try {
-      const data = await apiGet<unknown>(
-        `/api/data/table/permission_change_logs?select=*&target_role=eq.${encodeURIComponent(role)}&order=changed_at.desc&limit=50`
-      );
+      const data = await listPermissionChangeLogsByRole(role);
       return (Array.isArray(data) ? data : []) as unknown as PermissionChangeLog[];
     } catch (error) {
       console.error('Failed to fetch logs by role:', error);

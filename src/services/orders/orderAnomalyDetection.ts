@@ -2,7 +2,7 @@
  * 订单异常检测服务
  * 基于近30天历史订单数据，检测当前提交订单是否存在异常
  */
-import { apiGet } from '@/api/client';
+import { dataTableApi } from '@/api/data';
 import { pickBilingual } from '@/lib/appLocale';
 
 export interface AnomalyWarning {
@@ -48,9 +48,9 @@ async function getRecentOrderStats(tenantId?: string): Promise<OrderStats> {
   let data: { profit_rate: number | null; foreign_rate: number | null; amount: number | null; currency: string | null }[];
   try {
     const iso = thirtyDaysAgo.toISOString();
-    let url = `/api/data/table/orders?select=profit_rate,foreign_rate,amount,currency&is_deleted=eq.false&status=eq.completed&created_at=gte.${encodeURIComponent(iso)}&limit=500`;
-    if (tenantId) url += `&tenant_id=eq.${encodeURIComponent(tenantId)}`;
-    const rows = await apiGet<unknown>(url);
+    let q = `select=profit_rate,foreign_rate,amount,currency&is_deleted=eq.false&status=eq.completed&created_at=gte.${encodeURIComponent(iso)}&limit=500`;
+    if (tenantId) q += `&tenant_id=eq.${encodeURIComponent(tenantId)}`;
+    const rows = await dataTableApi.get<unknown>("orders", q);
     data = Array.isArray(rows) ? rows : [];
   } catch (e) {
     console.warn('[orderAnomalyDetection] Failed to load recent orders:', e);

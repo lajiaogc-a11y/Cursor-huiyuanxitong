@@ -899,14 +899,36 @@ export async function bulkDeleteRepository(
   if (taskData.tasks) {
     const cond = deleteAll ? 'id <> ?' : 'created_at < ?';
     const val = deleteAll ? NULL_UUID : cutoffDateStr;
+    try {
+      await execute(`DELETE FROM task_comments WHERE task_id IN (SELECT id FROM tasks WHERE ${cond})`, [val]);
+    } catch { /* task_comments may not exist */ }
+    try {
+      await execute(`DELETE FROM task_items WHERE task_id IN (SELECT id FROM tasks WHERE ${cond})`, [val]);
+    } catch { /* already deleted above or empty */ }
     const cnt = await safeCount(`SELECT COUNT(*) as cnt FROM tasks WHERE ${cond}`, [val]);
     try {
-      if (taskData.taskItems !== true) {
-        await execute(`DELETE FROM task_items WHERE task_id IN (SELECT id FROM tasks WHERE ${cond})`, [val]);
-      }
       await execute(`DELETE FROM tasks WHERE ${cond}`, [val]);
       if (cnt) deletedSummary.push({ table: 'Work tasks', count: cnt });
     } catch (e: unknown) { errors.push(`tasks: ${e instanceof Error ? e.message : String(e)}`); }
+    try {
+      await execute(`DELETE FROM task_posters WHERE ${deleteAll ? 'id <> ?' : 'created_at < ?'}`, [val]);
+    } catch { /* task_posters may not exist */ }
+    try {
+      await execute(`DELETE FROM task_templates WHERE ${deleteAll ? 'id <> ?' : 'created_at < ?'}`, [val]);
+    } catch { /* task_templates may not exist */ }
+  }
+
+  // 22. extract_settings (提取设置记录)
+  if (taskData.tasks || taskData.taskItems) {
+    try {
+      const esCond = deleteAll ? 'id <> ?' : 'created_at < ?';
+      const esVal = deleteAll ? NULL_UUID : cutoffDateStr;
+      const esCnt = await safeCount(`SELECT COUNT(*) as cnt FROM extract_settings WHERE ${esCond}`, [esVal]);
+      if (esCnt > 0) {
+        await execute(`DELETE FROM extract_settings WHERE ${esCond}`, [esVal]);
+        deletedSummary.push({ table: 'Extract settings', count: esCnt });
+      }
+    } catch { /* extract_settings may not exist */ }
   }
 
   } catch (topErr: unknown) {

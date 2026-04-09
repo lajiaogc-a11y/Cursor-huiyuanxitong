@@ -2,7 +2,7 @@
 // 统一名称解析服务 - 合并了 useNameResolvers 和 useMerchantNameResolver
 // 提供 ID 到名称的统一解析功能，配合 CacheManager 使用
 
-import { apiGet } from '@/api/client';
+import { dataTableApi } from '@/api/data';
 import { 
   getCache, 
   setCache, 
@@ -56,6 +56,16 @@ let providersData: EntityCache<MerchantInfo> = { byId: new Map(), byName: new Ma
 function asRows<T>(v: T | T[] | null | undefined): T[] {
   if (v == null) return [];
   return Array.isArray(v) ? v : [v];
+}
+
+/**
+ * 从中英文混合名称中提取英文部分（如 "比特币btc" → "btc", "其他现金Other cash" → "Other cash"）。
+ * 会员端展示卡片名称时使用，去掉 CJK 字符只保留拉丁文本。
+ */
+export function extractEnglishName(input: string): string {
+  if (!input) return input;
+  const stripped = input.replace(/[\u4e00-\u9fff\u3400-\u4dbf\uF900-\uFAFF\u3000-\u303F\uFF00-\uFFEF]/g, '').trim();
+  return stripped || input;
 }
 
 /**
@@ -200,9 +210,12 @@ async function loadCards(): Promise<void> {
       logger.warn('[NameResolver] API load cards failed, fallback to table proxy:', apiErr);
     }
     const raw = asRows(
-      await apiGet<Record<string, unknown>>(`/api/data/table/gift_cards?select=id,name,card_number,status&limit=5000`).catch(
-        (err) => { logger.warn('[nameResolver] gift_cards fallback fetch failed silently:', err); return []; },
-      ),
+      await dataTableApi
+        .get<Record<string, unknown>>("gift_cards", "select=id,name,card_number,status&limit=5000")
+        .catch((err) => {
+          logger.warn('[nameResolver] gift_cards fallback fetch failed silently:', err);
+          return [];
+        }),
     );
     cardsData.byId.clear();
     cardsData.byName.clear();
@@ -246,7 +259,12 @@ async function loadVendors(): Promise<void> {
       logger.warn('[NameResolver] API load vendors failed, fallback to table proxy:', apiErr);
     }
     const raw = asRows(
-      await apiGet<Record<string, unknown>>(`/api/data/table/vendors?select=id,name,status&limit=5000`).catch((err) => { logger.warn('[nameResolver] vendors fallback fetch failed silently:', err); return []; }),
+      await dataTableApi
+        .get<Record<string, unknown>>("vendors", "select=id,name,status&limit=5000")
+        .catch((err) => {
+          logger.warn('[nameResolver] vendors fallback fetch failed silently:', err);
+          return [];
+        }),
     );
     vendorsData.byId.clear();
     vendorsData.byName.clear();
@@ -289,9 +307,12 @@ async function loadPaymentProviders(): Promise<void> {
       logger.warn('[NameResolver] API load providers failed, fallback to table proxy:', apiErr);
     }
     const raw = asRows(
-      await apiGet<{ id: string; name: string; status?: string }>(
-        `/api/data/table/payment_providers?select=id,name,status&limit=5000`,
-      ).catch((err) => { logger.warn('[nameResolver] payment_providers fallback fetch failed silently:', err); return []; }),
+      await dataTableApi
+        .get<{ id: string; name: string; status?: string }>("payment_providers", "select=id,name,status&limit=5000")
+        .catch((err) => {
+          logger.warn('[nameResolver] payment_providers fallback fetch failed silently:', err);
+          return [];
+        }),
     );
     providersData.byId.clear();
     providersData.byName.clear();

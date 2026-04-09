@@ -469,7 +469,7 @@ export async function discardDraft(
 function sanitizeDeadUrls(obj: Record<string, unknown>): void {
   for (const key of Object.keys(obj)) {
     const v = obj[key];
-    if (typeof v === 'string' && v.includes('supabase.co/')) {
+    if (typeof v === 'string' && (v.includes('supabase.co/') || v.includes('//localhost'))) {
       obj[key] = '';
     }
   }
@@ -1074,4 +1074,13 @@ export async function rollbackMemberPortalSettingsVersion(
   const payload = typeof ver.payload === 'string' ? JSON.parse(ver.payload) : ver.payload;
   await applySettingsPayload(tenantId, payload, employeeId, versionId);
   return { success: true };
+}
+
+import { selectMemberTenantIdByMemberId } from './repository.js';
+
+/** 根据会员 ID 获取所属租户 ID（供 Controller 层权限校验使用） */
+export async function getMemberTenantIdForPortalService(
+  memberId: string,
+): Promise<{ tenant_id: string | null } | null> {
+  return selectMemberTenantIdByMemberId(memberId);
 }

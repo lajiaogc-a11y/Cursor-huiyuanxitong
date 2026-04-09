@@ -1,77 +1,83 @@
 /**
  * 操作日志「恢复」流程用到的 data 表与 restore 端点
  */
-import { apiGet, apiPatch, apiPost } from "@/api/client";
+import { dataTableApi, dataOpsApi } from "@/api/data";
 
 export type RestoreAuditBody = {
   logId: string;
   objectId: string | null;
   beforeData: unknown;
-  objectDescription: string | null;
-  operatorId?: string;
+  objectDescription?: string | null;
+  operatorId?: string | null;
   operatorName?: string | null;
 };
 
 export async function getMemberRow(id: string): Promise<unknown | null> {
-  return apiGet<unknown>(
-    `/api/data/table/members?select=*&id=eq.${encodeURIComponent(id)}&single=true`,
-  ).catch((err) => { console.warn('[operationLogRestoreService] getMemberRow failed silently:', err); return null; });
+  return dataTableApi
+    .get<unknown>("members", `select=*&id=eq.${encodeURIComponent(id)}&single=true`)
+    .catch((err) => {
+      console.warn("[operationLogRestoreService] getMemberRow failed silently:", err);
+      return null;
+    });
 }
 
 export async function createMemberRow(body: Record<string, unknown>): Promise<void> {
-  await apiPost("/api/data/table/members", { data: body });
+  await dataTableApi.post("members", { data: body });
 }
 
 export async function patchMemberRow(id: string, body: Record<string, unknown>): Promise<void> {
-  await apiPatch(`/api/data/table/members?id=eq.${encodeURIComponent(id)}`, { data: body });
+  await dataTableApi.patch("members", `id=eq.${encodeURIComponent(id)}`, { data: body });
 }
 
 export async function getEmployeeRow(id: string): Promise<unknown | null> {
-  return apiGet<unknown>(
-    `/api/data/table/employees?select=*&id=eq.${encodeURIComponent(id)}&single=true`,
-  ).catch((err) => { console.warn('[operationLogRestoreService] getEmployeeRow failed silently:', err); return null; });
+  return dataTableApi
+    .get<unknown>("employees", `select=*&id=eq.${encodeURIComponent(id)}&single=true`)
+    .catch((err) => {
+      console.warn("[operationLogRestoreService] getEmployeeRow failed silently:", err);
+      return null;
+    });
 }
 
 export async function createEmployeeRow(body: Record<string, unknown>): Promise<void> {
-  await apiPost("/api/data/table/employees", { data: body });
+  await dataTableApi.post("employees", { data: body });
 }
 
 export async function patchEmployeeRow(id: string, body: Record<string, unknown>): Promise<void> {
-  await apiPatch(`/api/data/table/employees?id=eq.${encodeURIComponent(id)}`, { data: body });
+  await dataTableApi.patch("employees", `id=eq.${encodeURIComponent(id)}`, { data: body });
 }
 
 export async function restoreOrderFromAudit(body: RestoreAuditBody): Promise<void> {
-  await apiPost("/api/data/restore/order", body);
+  await dataOpsApi.restoreOrder(body);
 }
 
 export async function restoreActivityGiftFromAudit(body: RestoreAuditBody): Promise<void> {
-  await apiPost("/api/data/restore/activity-gift", body);
+  await dataOpsApi.restoreActivityGift(body);
 }
 
 export async function restoreCardFromAudit(body: RestoreAuditBody): Promise<void> {
-  await apiPost("/api/data/restore/card", body);
+  await dataOpsApi.restoreCard(body);
 }
 
 export async function restoreVendorFromAudit(body: RestoreAuditBody): Promise<void> {
-  await apiPost("/api/data/restore/vendor", body);
+  await dataOpsApi.restoreVendor(body);
 }
 
 export async function restorePaymentProviderFromAudit(body: RestoreAuditBody): Promise<void> {
-  await apiPost("/api/data/restore/payment-provider", body);
+  await dataOpsApi.restorePaymentProvider(body);
 }
 
 export async function restoreActivityTypeFromAudit(body: RestoreAuditBody): Promise<void> {
-  await apiPost("/api/data/restore/activity-type", body);
+  await dataOpsApi.restoreActivityType(body);
 }
 
 export async function restoreCurrencyFromAudit(body: RestoreAuditBody): Promise<void> {
-  await apiPost("/api/data/restore/currency", body);
+  await dataOpsApi.restoreCurrency(body);
 }
 
 export async function restoreCustomerSourceFromAudit(body: RestoreAuditBody): Promise<void> {
-  await apiPost("/api/data/restore/customer-source", body);
+  await dataOpsApi.restoreCustomerSource(body);
 }
 
 export async function restoreReferralFromAudit(body: RestoreAuditBody): Promise<void> {
-  await apiPost("/api/data/restore/referral", body);
+  await dataOpsApi.restoreReferral(body);
 }

@@ -1,5 +1,5 @@
 /**
- * 本地磁盘数据备份（替代 Supabase Storage + Edge scheduled-backup）
+ * 本地磁盘数据备份（定时 JSON 快照）
  */
 import fs from 'fs/promises';
 import path from 'path';

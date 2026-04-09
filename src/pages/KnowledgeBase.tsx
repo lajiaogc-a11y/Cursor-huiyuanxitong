@@ -462,7 +462,9 @@ export default function KnowledgeBase() {
                 onOpenAddArticle={openAddArticle}
                 onOpenEditArticle={openEditArticle}
                 onRequestDeleteArticle={setDeletingArticleId}
-                onRequestExport={() => kbExportConfirm.requestExport(() => exportTable("knowledge_articles", "xlsx"))}
+                onRequestExport={() =>
+                  kbExportConfirm.requestExport(() => void exportTable("knowledge_articles", language === "en", "xlsx"))
+                }
                 onImportComplete={() => fetchArticles()}
                 t={t}
               />

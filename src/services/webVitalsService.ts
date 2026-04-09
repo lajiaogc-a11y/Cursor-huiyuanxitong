@@ -2,7 +2,7 @@
  * Web Vitals 采集与上报服务
  * 在生产环境采集 LCP、CLS、INP 等 Core Web Vitals 指标并上报到数据库
  */
-import { apiPost } from '@/api/client';
+import { webVitalsApi } from '@/api/webVitals';
 
 let employeeId: string | null = null;
 
@@ -21,7 +21,7 @@ export function initWebVitals() {
   import('web-vitals').then(({ onLCP, onCLS, onINP, onFCP, onTTFB }) => {
     const reportMetric = async (metric: { name: string; value: number; rating: string; navigationType: string }) => {
       try {
-        await apiPost('/api/web-vitals', {
+        await webVitalsApi.report({
           metric_name: metric.name,
           metric_value: Math.round(metric.value * 100) / 100,
           rating: metric.rating,

@@ -5,7 +5,7 @@
  * 🔧 已迁移：扫描和修复均基于 ledger_transactions 表（旧 balance_change_logs 已废弃）
  */
 
-import { apiGet, apiPatch } from '@/api/client';
+import { dataTableApi } from '@/api/data';
 import { safeNumber } from '@/lib/safeCalc';
 import { createLedgerEntry } from '@/services/finance/ledgerTransactionService';
 import { listVendorsApi, listPaymentProvidersApi } from '@/services/shared/entityLookupService';
@@ -50,8 +50,9 @@ async function fetchAllCompletedOrders(fields: string) {
 
   while (hasMore) {
     try {
-      const data = await apiGet<unknown[]>(
-        `/api/data/table/orders?select=${encodeURIComponent(select)}&status=eq.completed&is_deleted=eq.false&limit=${batchSize}&offset=${offset}`
+      const data = await dataTableApi.get<unknown[]>(
+        'orders',
+        `select=${encodeURIComponent(select)}&status=eq.completed&is_deleted=eq.false&limit=${batchSize}&offset=${offset}`,
       );
       const rows = Array.isArray(data) ? data : [];
       if (rows.length > 0) {
@@ -79,8 +80,9 @@ async function fetchAllLedgerEntries(accountType: string, sourcePrefix: string) 
 
   while (hasMore) {
     try {
-      const data = await apiGet<unknown[]>(
-        `/api/data/table/ledger_transactions?select=source_id,account_id,is_active&account_type=eq.${encodeURIComponent(accountType)}&source_type=eq.order&source_id=like.${encodeURIComponent(likePat)}&is_active=eq.true&limit=${batchSize}&offset=${offset}`
+      const data = await dataTableApi.get<unknown[]>(
+        'ledger_transactions',
+        `select=source_id,account_id,is_active&account_type=eq.${encodeURIComponent(accountType)}&source_type=eq.order&source_id=like.${encodeURIComponent(likePat)}&is_active=eq.true&limit=${batchSize}&offset=${offset}`,
       );
       const rows = Array.isArray(data) ? data : [];
       if (rows.length > 0) {
@@ -316,8 +318,9 @@ export async function scanOrphanedLogs(): Promise<OrphanedLogSummary[]> {
 
   while (hasMore) {
     try {
-      const data = await apiGet<unknown[]>(
-        `/api/data/table/ledger_transactions?select=id,source_id,account_type,account_id&source_type=eq.order&is_active=eq.true&limit=${batchSize}&offset=${offset}`
+      const data = await dataTableApi.get<unknown[]>(
+        'ledger_transactions',
+        `select=id,source_id,account_type,account_id&source_type=eq.order&is_active=eq.true&limit=${batchSize}&offset=${offset}`,
       );
       const rows = Array.isArray(data) ? data : [];
       if (rows.length > 0) {
@@ -370,8 +373,9 @@ export async function deleteOrphanedLogs(): Promise<RepairResult> {
 
   while (hasMore) {
     try {
-      const data = await apiGet<unknown[]>(
-        `/api/data/table/ledger_transactions?select=id,source_id&source_type=eq.order&is_active=eq.true&limit=${batchSize}&offset=${offset}`
+      const data = await dataTableApi.get<unknown[]>(
+        'ledger_transactions',
+        `select=id,source_id&source_type=eq.order&is_active=eq.true&limit=${batchSize}&offset=${offset}`,
       );
       const rows = Array.isArray(data) ? data : [];
       if (rows.length > 0) {
@@ -406,7 +410,7 @@ export async function deleteOrphanedLogs(): Promise<RepairResult> {
     const batch = orphanedIds.slice(i, i + deleteBatchSize);
     const inList = batch.join(',');
     try {
-      await apiPatch(`/api/data/table/ledger_transactions?id=in.(${inList})`, {
+      await dataTableApi.patch('ledger_transactions', `id=in.(${inList})`, {
         data: { is_active: false },
       });
       deleted += batch.length;

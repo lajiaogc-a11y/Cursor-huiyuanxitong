@@ -1,7 +1,7 @@
 // System Audit Log Store - Immutable operation logging
 // 使用数据库 operation_logs 表作为唯一数据源
 
-import { apiGet, apiPost } from '@/api/client';
+import { dataTableApi, dataOpsApi } from '@/api/data';
 import { getCurrentOperatorSync, OperatorInfo } from '@/services/members/operatorService';
 import { postOperationLog } from '@/services/staff/dataApi';
 import { notify } from "@/lib/notifyHub";
@@ -175,8 +175,9 @@ export async function initializeAuditLogCache(): Promise<void> {
   if (cacheInitialized) return;
   
   try {
-    const data = await apiGet<unknown>(
-      `/api/data/table/operation_logs?select=*&order=timestamp.desc&limit=1000`
+    const data = await dataTableApi.get<unknown>(
+      'operation_logs',
+      'select=*&order=timestamp.desc&limit=1000',
     );
     logsCache = mapOperationLogRows(data);
     cacheInitialized = true;
@@ -189,8 +190,9 @@ export async function initializeAuditLogCache(): Promise<void> {
 // ============= 刷新缓存（公开） =============
 export async function refreshAuditLogCache(): Promise<void> {
   try {
-    const data = await apiGet<unknown>(
-      `/api/data/table/operation_logs?select=*&order=timestamp.desc&limit=1000`
+    const data = await dataTableApi.get<unknown>(
+      'operation_logs',
+      'select=*&order=timestamp.desc&limit=1000',
     );
     logsCache = mapOperationLogRows(data);
     cacheInitialized = true;
@@ -464,13 +466,7 @@ export async function markLogAsRestored(
   tenantId?: string | null,
 ): Promise<boolean> {
   try {
-    const params = new URLSearchParams();
-    if (tenantId) params.set('tenant_id', tenantId);
-    const q = params.toString();
-    await apiPost(
-      `/api/data/operation-logs/${encodeURIComponent(logId)}/mark-restored${q ? `?${q}` : ''}`,
-      {},
-    );
+    await dataOpsApi.markLogRestored(logId, tenantId || undefined);
 
     const log = logsCache.find(l => l.id === logId);
     if (log) {

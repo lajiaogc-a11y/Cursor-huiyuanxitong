@@ -80,6 +80,7 @@ import {
   getSharedDataSync,
   subscribeToSharedData,
   type CalculatorInputRates,
+  type SharedDataKey,
 } from "@/services/finance/sharedDataService";
 
 import { BtcPriceConfig } from "@/components/BtcPriceSettingsCard";
@@ -97,12 +98,13 @@ import {
 import {
   DEFAULT_QUICK_AMOUNTS,
   DEFAULT_QUICK_RATES,
-  fetchCardsFromDatabase,
-  fetchPaymentProvidersFromDatabase,
-  fetchVendorsFromDatabase,
 } from "@/pages/exchangeRate/exchangeRateHelpers";
+import { useMerchantConfig } from "@/hooks/useMerchantConfig";
 import { ExchangeRateRedeemDrawer, type ExchangeRateRedeemPreviewData } from "@/pages/exchangeRate/ExchangeRateRedeemDrawer";
 import { useOrderSubmit } from "@/pages/exchangeRate/useOrderSubmit";
+
+let currencyRatesCache: CurrencyRates | null = null;
+let currencyRatesCacheLoaded = false;
 
 export default function ExchangeRate() {
   trackRender('ExchangeRate');
@@ -133,10 +135,7 @@ export default function ExchangeRate() {
   // 使用数据库hooks获取活动赠送
   const { addGift: addActivityGift } = useActivityGifts();
   
-  // 从商家管理动态获取的数据
-  const [cardsList, setCardsList] = useState<{ id: string; name: string; cardVendors?: string[] }[]>([]);
-  const [vendorsList, setVendorsList] = useState<{ id: string; name: string; paymentProviders?: string[] }[]>([]);
-  const [paymentProvidersList, setPaymentProvidersList] = useState<{ id: string; name: string }[]>([]);
+  const { cardsList, vendorsList, paymentProvidersList } = useMerchantConfig();
   
   // 基础信息
   const [cardType, setCardType] = useState("");
@@ -437,26 +436,13 @@ export default function ExchangeRate() {
       setCustomerSources(getActiveCustomerSources());
     });
     
-    // 异步加载商家管理数据（从数据库）
-    const loadMerchantData = async () => {
-      const [cards, vendors, providers] = await Promise.all([
-        fetchCardsFromDatabase(),
-        fetchVendorsFromDatabase(),
-        fetchPaymentProvidersFromDatabase(),
-      ]);
-      setCardsList(cards);
-      setVendorsList(vendors);
-      setPaymentProvidersList(providers);
-    };
-    loadMerchantData();
-    
     // 快捷金额/汇率：一次批量请求替代两次串行 loadSharedData，缩短首包后对齐时间
     const loadQuickSettings = async () => {
       const keys = ['quickAmounts', 'quickRates'] as const;
       let savedAmounts: string[] | null = null;
       let savedRates: string[] | null = null;
       try {
-        const batch = await loadMultipleSharedData(keys);
+        const batch = await loadMultipleSharedData([...keys] as SharedDataKey[]);
         const a = batch.quickAmounts;
         const r = batch.quickRates;
         if (Array.isArray(a) && a.length > 0) savedAmounts = a.map(String);
@@ -586,20 +572,10 @@ export default function ExchangeRate() {
     return () => window.removeEventListener('data-refresh:customer_sources', onCustomerSourcesRefresh);
   }, []);
 
-  // Merchant tables Realtime handled by dataRefreshManager; listen for its events
+  // Merchant tables Realtime: delegate to useMerchantConfig's refetch
+  const { refetch: refetchMerchantConfig } = useMerchantConfig();
   useEffect(() => {
-    const refetchMerchants = async () => {
-      const [cards, vendors, providers] = await Promise.all([
-        fetchCardsFromDatabase(),
-        fetchVendorsFromDatabase(),
-        fetchPaymentProvidersFromDatabase(),
-      ]);
-      setCardsList(cards);
-      setVendorsList(vendors);
-      setPaymentProvidersList(providers);
-    };
-
-    const handler = () => { refetchMerchants(); };
+    const handler = () => { refetchMerchantConfig(); };
     window.addEventListener('data-refresh:cards', handler);
     window.addEventListener('data-refresh:vendors', handler);
     window.addEventListener('data-refresh:payment_providers', handler);
@@ -608,7 +584,7 @@ export default function ExchangeRate() {
       window.removeEventListener('data-refresh:vendors', handler);
       window.removeEventListener('data-refresh:payment_providers', handler);
     };
-  }, []);
+  }, [refetchMerchantConfig]);
 
   // 定期刷新USDT手续费（从系统设置读取）
   useEffect(() => {

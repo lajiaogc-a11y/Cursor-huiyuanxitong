@@ -240,14 +240,18 @@ export default function AnnouncementsTab() {
                   {t(TYPE_OPTIONS.find(o => o.value === item.type)?.zh || item.type, TYPE_OPTIONS.find(o => o.value === item.type)?.en || item.type)}
                 </Badge>
               </MobileCardHeader>
-              <MobileCardRow label={t("范围", "Scope")}>
-                {item.scope === "global"
-                  ? t("全站", "Global")
-                  : `${t("租户", "Tenant")}: ${tenantNameMap.get(item.tenant_id || "") || "-"}`}
-              </MobileCardRow>
-              <MobileCardRow label={t("内容", "Message")}>
-                <span className="line-clamp-2 text-xs">{item.message}</span>
-              </MobileCardRow>
+              <MobileCardRow
+                label={t("范围", "Scope")}
+                value={
+                  item.scope === "global"
+                    ? t("全站", "Global")
+                    : `${t("租户", "Tenant")}: ${tenantNameMap.get(item.tenant_id || "") || "-"}`
+                }
+              />
+              <MobileCardRow
+                label={t("内容", "Message")}
+                value={<span className="line-clamp-2 text-xs">{item.message}</span>}
+              />
             </MobileCard>
           ))}
         </MobileCardList>

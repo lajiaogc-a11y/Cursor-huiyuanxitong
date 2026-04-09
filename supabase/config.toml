@@ -1,5 +1,0 @@
-project_id = "aoyvgvecvxfwgrmngnrc"
-
-# 允许登录时未认证调用（用于密码同步）
-[functions.sync-auth-password]
-verify_jwt = false

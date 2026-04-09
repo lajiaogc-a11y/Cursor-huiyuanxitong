@@ -40,7 +40,7 @@ function TabPanel({
       role="tabpanel"
       aria-hidden={!show}
       className={cn("member-tab-panel", show ? "relative z-[1] block" : "hidden")}
-      inert={!show ? true : undefined}
+      {...({ inert: !show ? true : undefined } as Record<string, unknown>)}
       data-member-tab-panel={path}
     >
       {mounted ? children : null}

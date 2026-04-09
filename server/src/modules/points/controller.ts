@@ -3,7 +3,7 @@
  */
 import type { Request, Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
-import { queryOne } from '../../database/index.js';
+import { getMemberTenantIdService } from '../members/service.js';
 import {
   getMemberPointsService,
   getMemberPointsBreakdownService,
@@ -20,8 +20,8 @@ async function assertMemberAccess(req: AuthenticatedRequest, memberId: string): 
   if (req.user?.type === 'member') return req.user.id === memberId;
   if (req.user?.is_platform_super_admin) return true;
   if (!req.user?.tenant_id) return false;
-  const row = await queryOne<{ tenant_id: string | null }>('SELECT tenant_id FROM members WHERE id = ? LIMIT 1', [memberId]);
-  return row?.tenant_id === req.user.tenant_id;
+  const memberTenant = await getMemberTenantIdService(memberId);
+  return memberTenant === req.user.tenant_id;
 }
 
 export async function getMemberPointsController(req: AuthenticatedRequest, res: Response): Promise<void> {

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, type MutableRefObject } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
@@ -591,7 +591,7 @@ function PosterFramePreview({
   const drawPreview = useCallback(
     (node: HTMLCanvasElement | null) => {
       if (!node || drawnRef.current) return;
-      canvasRef.current = node;
+      (canvasRef as MutableRefObject<HTMLCanvasElement | null>).current = node;
       const ctx = node.getContext("2d");
       if (!ctx) return;
       node.width = 75;

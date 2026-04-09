@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost } from "@/api/client";
+import { memberInboxApi } from "@/api/memberInbox";
 
 export type MemberInboxApiCategory = "trade" | "redemption" | "announcement" | "other";
 
@@ -38,23 +38,21 @@ function asTotal(raw: unknown): number {
 }
 
 export async function fetchMemberInboxNotifications(limit = 40, offset = 0): Promise<MemberInboxPage> {
-  const raw = await apiGet<unknown>(
-    `/api/member-inbox/notifications?limit=${encodeURIComponent(String(limit))}&offset=${encodeURIComponent(String(offset))}`,
-  );
+  const raw = await memberInboxApi.list({ limit, offset });
   return { items: asItems(raw), total: asTotal(raw) };
 }
 
 export async function fetchMemberInboxUnreadCount(): Promise<number> {
-  const raw = await apiGet<unknown>("/api/member-inbox/unread-count");
+  const raw = await memberInboxApi.getUnreadCount();
   return asUnread(raw);
 }
 
 export async function postMemberInboxMarkRead(id: string): Promise<void> {
-  await apiPost<unknown>(`/api/member-inbox/notifications/${encodeURIComponent(id)}/read`, {});
+  await memberInboxApi.markRead(id);
 }
 
 export async function postMemberInboxMarkAllRead(): Promise<number> {
-  const raw = await apiPost<unknown>("/api/member-inbox/notifications/read-all", {});
+  const raw = await memberInboxApi.markAllRead();
   if (raw && typeof raw === "object" && typeof (raw as { updated?: unknown }).updated === "number") {
     return Math.max(0, Math.floor((raw as { updated: number }).updated));
   }
@@ -62,5 +60,5 @@ export async function postMemberInboxMarkAllRead(): Promise<number> {
 }
 
 export async function deleteMemberInboxNotification(id: string): Promise<void> {
-  await apiDelete<unknown>(`/api/member-inbox/notifications/${encodeURIComponent(id)}`);
+  await memberInboxApi.del(id);
 }

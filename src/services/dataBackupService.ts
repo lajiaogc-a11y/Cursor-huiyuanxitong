@@ -1,5 +1,6 @@
 // Data Backup Service — 列表/删除走表代理；执行备份、读快照、删备份走 Node /api/admin/backup/*
-import { apiGet, apiDelete, apiPost } from '@/api/client';
+import { adminApi } from '@/api/admin';
+import { dataTableApi } from '@/api/data';
 
 export interface BackupRecord {
   id: string;
@@ -43,8 +44,9 @@ const BACKUP_TABLES = [
 
 // Get backup history from data_backups table
 export async function getBackupHistory(): Promise<BackupRecord[]> {
-  const data = await apiGet<BackupRecord[]>(
-    '/api/data/table/data_backups?select=*&order=created_at.desc&limit=30'
+  const data = await dataTableApi.get<BackupRecord[]>(
+    'data_backups',
+    'select=*&order=created_at.desc&limit=30',
   );
   return Array.isArray(data) ? data : [];
 }
@@ -67,18 +69,19 @@ export async function executeBackup(
     throw new Error('Only manual trigger supported from client');
   }
 
-  const data = await apiPost<RunBackupResponse>('/api/admin/backup/run', {
+  const data = await adminApi.backup.run({
     trigger_type: 'manual',
     created_by_name: employeeName || '管理员',
-  });
+  }) as RunBackupResponse;
 
   if (!data?.backup_id) {
     throw new Error('Backup failed');
   }
 
   const run = data;
-  const record = await apiGet<BackupRecord | null>(
-    `/api/data/table/data_backups?select=*&id=eq.${encodeURIComponent(run.backup_id)}&single=true`
+  const record = await dataTableApi.get<BackupRecord | null>(
+    'data_backups',
+    `select=*&id=eq.${encodeURIComponent(run.backup_id)}&single=true`,
   );
 
   return (record as unknown as BackupRecord) || {
@@ -100,14 +103,12 @@ export async function executeBackup(
 
 // Delete backup：磁盘目录 + DB 记录（管理员接口）
 export async function deleteBackup(backupId: string): Promise<void> {
-  await apiDelete(`/api/admin/backup/${encodeURIComponent(backupId)}`);
+  await adminApi.backup.delete(backupId);
 }
 
 // Get backup snapshot for a specific table
 export async function getBackupSnapshot(backupId: string, table: string): Promise<any[]> {
-  const rows = await apiGet<unknown[]>(
-    `/api/admin/backup/${encodeURIComponent(backupId)}/table/${encodeURIComponent(table)}`
-  );
+  const rows = await adminApi.backup.getTableSnapshot(backupId, table) as unknown[];
   return Array.isArray(rows) ? rows : [];
 }
 
@@ -131,7 +132,7 @@ export async function restoreBackup(backupId: string): Promise<{
       for (let i = 0; i < rows.length; i += 200) {
         const batch = rows.slice(i, i + 200);
         try {
-          await apiPost(`/api/data/table/${encodeURIComponent(table)}`, {
+          await dataTableApi.post(encodeURIComponent(table), {
             data: batch,
             upsert: true,
             onConflict: 'id',
@@ -171,7 +172,7 @@ export async function restoreEmployeesOnly(backupId: string): Promise<{
       for (let i = 0; i < rows.length; i += 200) {
         const batch = rows.slice(i, i + 200);
         try {
-          await apiPost(`/api/data/table/${encodeURIComponent(table)}`, {
+          await dataTableApi.post(encodeURIComponent(table), {
             data: batch,
             upsert: true,
             onConflict: 'id',
@@ -217,7 +218,7 @@ export async function cleanupWebhookEventQueue(options?: {
   processedRetentionDays?: number;
   failedRetentionDays?: number;
 }): Promise<number> {
-  const res = await apiPost<{ deleted?: number }>('/api/admin/webhooks/cleanup-event-queue', {
+  const res = await adminApi.cleanupWebhookEventQueueWithBody({
     processed_retention_days: options?.processedRetentionDays,
     failed_retention_days: options?.failedRetentionDays,
   });

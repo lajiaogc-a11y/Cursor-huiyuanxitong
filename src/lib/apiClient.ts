@@ -398,3 +398,5 @@ export const apiClient = {
   patchAsStaff: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body, 0, false, 'staff-only'),
   deleteAsStaff: <T>(path: string) => request<T>('DELETE', path, undefined, 0, false, 'staff-only'),
 };
+
+export const AUTH_UNAUTHORIZED_EVENT = 'auth:unauthorized';

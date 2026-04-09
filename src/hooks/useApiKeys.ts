@@ -13,7 +13,7 @@ import {
 } from '@/services/apiKeys/apiKeyService';
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
-import { ApiError } from '@/api/client';
+import { ApiError } from '@/services/auth/authApiService';
 
 const STALE_TIME = 5 * 60 * 1000;
 

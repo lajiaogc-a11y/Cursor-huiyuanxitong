@@ -290,6 +290,7 @@ export function MemberLoginCarousel({ displaySettings, theme, t, paused }: Membe
               />
             );
           }
+          if (layer.kind !== "gradient") return null;
           return (
             <div
               key={layer.id}

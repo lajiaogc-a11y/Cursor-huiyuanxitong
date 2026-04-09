@@ -34,7 +34,7 @@ export interface UseCalculatorSubmitParams {
   setMemberPointsSummary: Dispatch<SetStateAction<MemberPointsSummary | null>>;
   findMemberByPhone: (phone: string) => Member | undefined;
   addMember: (data: Partial<Member> & { phoneNumber: string }) => Promise<Member | null>;
-  updateMemberByPhone: (phone: string, updates: Partial<Member>) => Promise<void>;
+  updateMemberByPhone: (phone: string, updates: Partial<Member>) => Promise<Member | null>;
   addOrder: (
     orderData: Omit<Order, "id" | "dbId" | "status" | "order_points" | "points_status">,
     memberId?: string,
@@ -42,7 +42,7 @@ export interface UseCalculatorSubmitParams {
     memberCode?: string,
     options?: { meikaZone?: boolean },
   ) => Promise<OrderResult>;
-  employee: { id?: string; real_name?: string; tenant_id?: string } | null;
+  employee: { id?: string; real_name?: string; tenant_id?: string | null } | null;
   t: (zh: string, en: string) => string;
 }
 

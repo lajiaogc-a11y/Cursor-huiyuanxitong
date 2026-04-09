@@ -117,7 +117,7 @@ function redeemFailureDetail(r: RedeemPointsMallItemResult, t: (zh: string, en: 
   }
 }
 
-const _mallCache = getMallCache() as Map<string, PointsMallItem[]>;
+const _mallCache = getMallCache() as unknown as Map<string, PointsMallItem[]>;
 
 export default function MemberPoints() {
   const { member, refreshMember } = useMemberAuth();

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Trophy, Medal, Award, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
-import { listEmployeesApi } from "@/api/employees";
+import { getEmployees, type Employee } from "@/services/employees/employeeCrudService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
@@ -47,7 +47,7 @@ export default function EmployeeLeaderboard() {
         : await Promise.all([getMyTenantOrdersFull(), getMyTenantUsdtOrdersFull()]);
       const allOrders = [...(normalOrders || []), ...(usdtOrders || [])]
         .filter((o: any) => !o.is_deleted && new Date(o.created_at) >= startOfMonth);
-      const employeesList = await listEmployeesApi(effectiveTenantId ? { tenant_id: effectiveTenantId } : undefined);
+      const employeesList: Employee[] = await getEmployees(effectiveTenantId);
       const employees = employeesList.filter((e) => e.status === "active");
 
       const orders = allOrders;

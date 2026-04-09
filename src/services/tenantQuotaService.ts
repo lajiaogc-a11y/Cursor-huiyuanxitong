@@ -1,4 +1,4 @@
-import { apiPost } from '@/api/client';
+import { tenantQuotaApi } from '@/api/tenantQuota';
 import { fail, ok, type ServiceResult, type ServiceErrorCode } from "@/services/serviceResult";
 
 export type TenantQuotaResource = "employees" | "members" | "daily_orders";
@@ -81,10 +81,10 @@ export async function checkMyTenantQuotaResult(
   increment = 1
 ): Promise<ServiceResult<{ remaining: number; message?: string }>> {
   try {
-    const data = await apiPost<{ success: boolean; remaining?: number; message?: string }>('/api/tenant/quota/check', {
+    const data = (await tenantQuotaApi.check({
       p_resource: resource,
       p_increment: increment,
-    });
+    })) as { success: boolean; remaining?: number; message?: string };
     if (!data?.success) {
       return fail(toQuotaCode(data?.message), data?.message || "Quota check failed", "TENANT");
     }
@@ -97,9 +97,9 @@ export async function checkMyTenantQuotaResult(
 
 export async function getTenantQuotaStatusResult(tenantId: string): Promise<ServiceResult<TenantQuotaStatus>> {
   try {
-    const data = await apiPost<TenantQuotaStatus>('/api/tenant/quota/status', {
+    const data = (await tenantQuotaApi.getStatus({
       p_tenant_id: tenantId,
-    });
+    })) as TenantQuotaStatus;
     if (!data?.tenant_id) return fail("TARGET_NOT_FOUND", "Tenant quota status not found", "TENANT");
     return ok(data as TenantQuotaStatus);
   } catch (error: any) {
@@ -109,7 +109,7 @@ export async function getTenantQuotaStatusResult(tenantId: string): Promise<Serv
 
 export async function listTenantQuotasResult(): Promise<ServiceResult<TenantQuotaRow[]>> {
   try {
-    const data = await apiPost<TenantQuotaRow[]>('/api/tenant/quota/list', {});
+    const data = (await tenantQuotaApi.list()) as TenantQuotaRow[];
     return ok((data || []) as TenantQuotaRow[]);
   } catch (error: any) {
     return fail("UNKNOWN", error?.message || "List tenant quotas failed", "TENANT");
@@ -124,13 +124,13 @@ export async function setTenantQuotaResult(input: {
   exceedStrategy?: "BLOCK" | "WARN";
 }): Promise<ServiceResult<true>> {
   try {
-    const data = await apiPost<{ success: boolean; message?: string }>('/api/tenant/quota/set', {
+    const data = (await tenantQuotaApi.set({
       p_tenant_id: input.tenantId,
       p_max_employees: input.maxEmployees,
       p_max_members: input.maxMembers,
       p_max_daily_orders: input.maxDailyOrders,
       p_exceed_strategy: input.exceedStrategy || "BLOCK",
-    });
+    })) as { success: boolean; message?: string };
     if (!data?.success) {
       return fail(toQuotaCode(data?.message), data?.message || "Set tenant quota failed", "TENANT");
     }

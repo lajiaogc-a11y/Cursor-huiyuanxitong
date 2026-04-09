@@ -4,7 +4,13 @@
 import { useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
-import { apiGet, apiPatch, ApiError } from '@/api/client';
+import { ApiError } from '@/services/auth/authApiService';
+import {
+  getAuditRecordByIdSingle,
+  getOrderByIdSingle,
+  patchAuditRecordById,
+  patchDataTableById,
+} from '@/services/data/tableQueryService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
 import { notify } from "@/lib/notifyHub";
@@ -403,15 +409,13 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
     auditInFlightRef.current.add(recordId);
 
     try {
-      const record = await apiGet<{
+      const record = await getAuditRecordByIdSingle<{
         id: string;
         status: string;
         new_data: AuditJson;
         target_table: string;
         target_id: string;
-      } | null>(
-        `/api/data/table/audit_records?select=*&id=eq.${encodeURIComponent(recordId)}&single=true`
-      );
+      }>(recordId);
 
       if (!record) {
         notify.error(t('找不到审核记录', 'Audit record not found'));
@@ -456,12 +460,10 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
         const profitFieldKeys = ['fee', 'feeUsdt', 'actual_payment', 'actualPaidUsdt', 'card_value', 'exchange_rate', 'foreign_rate', 'amount'];
         const affectsProfit = Object.keys(newData).some(k => profitFieldKeys.includes(k));
         if (affectsProfit) {
-          const currentOrder = await apiGet<Record<string, unknown> | null>(
-            `/api/data/table/orders?select=*&id=eq.${encodeURIComponent(targetId)}&single=true`
-          );
+          const currentOrder = await getOrderByIdSingle<Record<string, unknown>>(targetId);
           if (currentOrder) {
             const merged = { ...currentOrder, ...newData };
-            const currency = (merged.currency || 'NGN').toUpperCase();
+            const currency = String(merged.currency ?? 'NGN').toUpperCase();
             if (currency === 'USDT') {
               const derived = calculateUsdtOrderDerivedValues({
                 cardValue: Number(merged.card_value) || 0,
@@ -488,14 +490,14 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
               newData.payment_value = derived.paymentValue;
               newData.amount = derived.cardWorth;
             }
-            const oldCur = (currentOrder.currency || 'NGN').toUpperCase();
+            const oldCur = String(currentOrder.currency ?? 'NGN').toUpperCase();
             const newCur = currency;
             const oldProfit = oldCur === 'USDT' ? (Number(currentOrder.profit_usdt) || 0) : (Number(currentOrder.profit_ngn) || 0);
             const newProfit = newCur === 'USDT' ? (Number(newData.profit_usdt) || 0) : (Number(newData.profit_ngn) || 0);
             if ((currentOrder.member_id || currentOrder.phone_number) && (Math.abs(newProfit - oldProfit) > 0.01 || Math.abs(Number(merged.actual_payment) - Number(currentOrder.actual_payment)) > 0.01)) {
               orderSyncParams = {
-                memberId: currentOrder.member_id || '',
-                phoneNumber: currentOrder.phone_number || '',
+                memberId: String(currentOrder.member_id ?? ''),
+                phoneNumber: String(currentOrder.phone_number ?? ''),
                 oldActualPaid: Number(currentOrder.actual_payment) || 0,
                 oldProfit,
                 oldCurrency: oldCur,
@@ -516,10 +518,7 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
         review_time: new Date().toISOString(),
       };
       try {
-        await apiPatch<unknown>(
-          `/api/data/table/audit_records?id=eq.${encodeURIComponent(recordId)}`,
-          { data: reviewPayload },
-        );
+        await patchAuditRecordById<unknown>(recordId, { data: reviewPayload });
       } catch (auditError) {
         console.error('Failed to update audit record:', auditError);
         if (auditError instanceof ApiError && auditError.statusCode === 409) {
@@ -539,16 +538,13 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
 
       const patchTable = targetTable === 'activity' ? 'activity_gifts' : targetTable;
       try {
-        await apiPatch(`/api/data/table/${patchTable}?id=eq.${encodeURIComponent(targetId)}`, {
-          data: newData,
-        });
+        await patchDataTableById(patchTable, targetId, { data: newData });
       } catch (updateError) {
         console.error('Failed to apply audit change, reverting audit status:', updateError);
         try {
-          await apiPatch<unknown>(
-            `/api/data/table/audit_records?id=eq.${encodeURIComponent(recordId)}`,
-            { data: { status: 'pending', reviewer_id: null, review_time: null } },
-          );
+          await patchAuditRecordById<unknown>(recordId, {
+            data: { status: 'pending', reviewer_id: null, review_time: null },
+          });
         } catch { /* best-effort revert */ }
         notify.error(t('应用修改失败，审核状态已回滚', 'Failed to apply changes, audit status reverted'));
         await queryClient.invalidateQueries({ queryKey: ['audit-records'] });
@@ -598,17 +594,14 @@ export function useAuditRecords(params?: AuditRecordsFetchParams) {
 
     try {
       try {
-        await apiPatch<unknown>(
-          `/api/data/table/audit_records?id=eq.${encodeURIComponent(recordId)}`,
-          {
-            data: {
-              status: 'rejected',
-              reviewer_id: employee.id,
-              review_time: new Date().toISOString(),
-              review_comment: reason,
-            },
-          }
-        );
+        await patchAuditRecordById<unknown>(recordId, {
+          data: {
+            status: 'rejected',
+            reviewer_id: employee.id,
+            review_time: new Date().toISOString(),
+            review_comment: reason,
+          },
+        });
       } catch (error) {
         console.error('Failed to reject audit record:', error);
         if (error instanceof ApiError && error.statusCode === 409) {

@@ -731,3 +731,25 @@ export async function countLotteryRiskBlockedToday(
   );
   return row?.cnt ?? 0;
 }
+
+/** Get tenant_id for a lottery log entry — used by admin confirm/retry tenant checks. */
+export async function getLotteryLogTenantId(logId: string): Promise<{ exists: boolean; tenant_id: string | null }> {
+  const row = await queryOne<{ tenant_id: string | null }>('SELECT tenant_id FROM lottery_logs WHERE id = ?', [logId]);
+  if (!row) return { exists: false, tenant_id: null };
+  return { exists: true, tenant_id: row.tenant_id };
+}
+
+/** Sum of consumption points for today (pool-level, no connection required). */
+export async function getTodayConsumptionPointsTotal(tenantId: string | null, dayStart: string): Promise<number> {
+  const rows = await query<{ total: number }>(
+    `SELECT COALESCE(SUM(amount), 0) AS total
+     FROM points_ledger
+     WHERE tenant_id <=> ?
+       AND amount > 0
+       AND (type = 'consumption' OR transaction_type = 'consumption')
+       AND created_at >= ?
+       AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
+    [tenantId, dayStart, dayStart],
+  );
+  return Number(rows[0]?.total ?? 0);
+}

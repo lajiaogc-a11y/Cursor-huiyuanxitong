@@ -27,6 +27,7 @@ export async function downloadMysqlDump(
   }
   const url = getMysqlDumpUrl(mode);
   onProgress?.('请求备份…');
+  // 此处必须使用原生 fetch：响应是流式 SQL 文件（Blob 下载），apiClient 仅支持 JSON
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
     cache: 'no-store',

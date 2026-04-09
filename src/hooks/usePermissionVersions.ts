@@ -1,6 +1,11 @@
 // Hook for managing permission versions
 import { useState, useCallback } from 'react';
-import { apiGet, apiPost, apiDelete } from '@/api/client';
+import {
+  deletePermissionVersionById,
+  getPermissionVersionByIdQuery,
+  getPermissionVersions,
+  postPermissionVersion,
+} from '@/services/data/tableQueryService';
 import { useAuth } from '@/contexts/AuthContext';
 
 function unwrapSingle<T>(data: unknown): T | null {
@@ -50,8 +55,8 @@ export function usePermissionVersions() {
     setLoading(true);
     try {
       const roleQ = role ? `&target_role=eq.${encodeURIComponent(role)}` : '';
-      const data = await apiGet<unknown>(
-        `/api/data/table/permission_versions?select=*&order=created_at.desc&limit=50${roleQ}`
+      const data = await getPermissionVersions(
+        `select=*&order=created_at.desc&limit=50${roleQ}`,
       );
       setVersions((Array.isArray(data) ? data : []) as unknown as PermissionVersion[]);
     } catch (error) {
@@ -65,7 +70,7 @@ export function usePermissionVersions() {
     if (!employee) return null;
 
     try {
-      const inserted = await apiPost<unknown>(`/api/data/table/permission_versions`, {
+      const inserted = await postPermissionVersion({
         data: {
           version_name: params.versionName,
           version_description: params.versionDescription || null,
@@ -86,9 +91,7 @@ export function usePermissionVersions() {
 
   const deleteVersion = useCallback(async (versionId: string) => {
     try {
-      await apiDelete(
-        `/api/data/table/permission_versions?id=eq.${encodeURIComponent(versionId)}`
-      );
+      await deletePermissionVersionById(versionId);
       setVersions(prev => prev.filter(v => v.id !== versionId));
       return true;
     } catch (error) {
@@ -99,9 +102,7 @@ export function usePermissionVersions() {
 
   const getVersionById = useCallback(async (versionId: string) => {
     try {
-      const data = await apiGet<unknown>(
-        `/api/data/table/permission_versions?select=*&id=eq.${encodeURIComponent(versionId)}&single=true`
-      );
+      const data = await getPermissionVersionByIdQuery(versionId);
       return data as PermissionVersion | null;
     } catch (error) {
       console.error('Failed to fetch version:', error);

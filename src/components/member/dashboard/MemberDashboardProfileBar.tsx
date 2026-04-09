@@ -1,3 +1,4 @@
+import type { SyntheticEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Moon, Settings, Sun } from "lucide-react";
 import { ROUTES } from "@/routes/constants";
@@ -8,7 +9,7 @@ export interface MemberDashboardProfileBarProps {
   avatarLetter: string;
   showHomeAvatarImg: boolean;
   homeAvatarResolvedSrc: string;
-  onHomeAvatarImageError: () => void;
+  onHomeAvatarImageError: (e: SyntheticEvent<HTMLImageElement>) => void;
   theme: "light" | "dark";
   toggleTheme: () => void;
   showMemberInbox: boolean;

@@ -186,7 +186,7 @@ export default function SystemSettings() {
         </div>
       )}
       <div className={cn("rounded-xl border bg-card shadow-sm min-h-[400px]", isMobile ? "p-3" : "p-6")}>
-        {(activeTab === "member-levels" || activeTab === "version-update" || ActiveComp) && (
+        {(activeTab === "member-levels" || activeTab === "version-update" || activeTab in TAB_COMPONENTS) && (
           <Suspense fallback={<TabFallback />}>
             {activeTab === "member-levels" ? (
               <MemberPromotionSettingsTab key={activeTab} embedded />

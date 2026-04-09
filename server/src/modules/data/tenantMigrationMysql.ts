@@ -1,5 +1,5 @@
 /**
- * 租户数据迁移 RPC — MySQL 实现（与 Supabase 版不等价，覆盖常用收口能力）
+ * 租户数据迁移 RPC — MySQL 实现（覆盖常用收口能力）
  */
 import type { ResultSetHeader } from 'mysql2';
 import type { PoolConnection } from 'mysql2/promise';

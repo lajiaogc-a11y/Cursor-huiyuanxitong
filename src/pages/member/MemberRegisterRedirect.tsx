@@ -14,7 +14,7 @@ import {
   Lock,
 } from "lucide-react";
 import { memberRegisterInit, validateInviteAndSubmit } from "@/services/memberPortal/memberActivityService";
-import { ApiError } from "@/lib/apiClient";
+import { ApiError } from "@/services/auth/authApiService";
 import { seedPlatformBrandLogoFromSettings } from "@/lib/memberPortalPlatformBrandLogo";
 import {
   getInviteCodeFromSearchParams,

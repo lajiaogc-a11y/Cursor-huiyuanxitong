@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Share2, ShieldCheck, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -62,7 +62,26 @@ export default function MemberDashboard() {
   const { remaining: spinRemaining, error: spinError, refresh: refreshSpinQuota } = useMemberSpinQuota(member?.id);
   const { settings: ps, loading: portalLoading } = useMemberPortalSettings(member?.id);
   const showMemberInbox = !!ps.enable_member_inbox;
-  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupOpen, setPopupOpen] = useState(() => {
+    if (!member?.id) return false;
+    const body = String(ps.announcement_popup_content || "").trim();
+    if (!body) return false;
+    const freq = (() => {
+      const f = ps.announcement_popup_frequency;
+      if (f === "daily_first" || f === "every_login" || f === "off") return f;
+      return ps.show_announcement_popup ? "every_login" : "off";
+    })();
+    if (freq === "off") return false;
+    const fp = announcementPopupContentFingerprint(ps.announcement_popup_title || "", ps.announcement_popup_content);
+    if (freq === "every_login") {
+      try { if (sessionStorage.getItem(`member_ann_popup_sess_${member.id}_${fp}`)) return false; } catch { /* */ }
+    }
+    if (freq === "daily_first") {
+      const dk = `member_ann_popup_day_${member.id}_${localCalendarDateKey()}_${fp}`;
+      try { if (localStorage.getItem(dk)) return false; } catch { /* */ }
+    }
+    return true;
+  });
   const [signOutLoading, setSignOutLoading] = useState(false);
   const [todayEarned, setTodayEarned] = useState(0);
   const [todayEarnedLoading, setTodayEarnedLoading] = useState(true);
@@ -139,7 +158,7 @@ export default function MemberDashboard() {
     setPopupOpen(false);
   }, [member?.id, announcementPopupFreq, announcementPopupBody, announcementFp]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!member?.id || announcementPopupFreq === "off" || !announcementPopupBody) return;
 
     const sessKey = `member_ann_popup_sess_${member.id}_${announcementFp}`;
@@ -198,9 +217,15 @@ export default function MemberDashboard() {
     inviteToken,
     invitePathFallback: member?.member_code || "",
     buildShareInviteText,
-    refreshMember,
-    refreshPoints,
-    refreshSpinQuota,
+    refreshMember: async () => {
+      await refreshMember();
+    },
+    refreshPoints: async () => {
+      await refreshPoints();
+    },
+    refreshSpinQuota: async () => {
+      await refreshSpinQuota();
+    },
   });
 
   const totalStaffRemaining = breakdown.balance;

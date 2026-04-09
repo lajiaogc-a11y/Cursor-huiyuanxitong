@@ -9,7 +9,7 @@
  * - 每次写操作后自动对账
  */
 
-import { apiGet, apiPost, apiDelete } from '@/api/client';
+import { financeApi } from '@/api/finance';
 import { notifyDataMutation } from '@/services/system/dataRefreshManager';
 import { logger } from '@/lib/logger';
 
@@ -69,7 +69,7 @@ export interface CreateLedgerEntryParams {
  */
 export async function createLedgerEntry(params: CreateLedgerEntryParams): Promise<LedgerTransaction | null> {
   try {
-    const result = await apiPost<LedgerTransaction>('/api/finance/ledger', {
+    const result = (await financeApi.createEntry({
       account_type: params.accountType,
       account_id: params.accountId,
       source_type: params.sourceType,
@@ -80,7 +80,7 @@ export async function createLedgerEntry(params: CreateLedgerEntryParams): Promis
       operator_name: params.operatorName || null,
       reversal_of: params.reversalOf || null,
       batch_id: params.batchId || null,
-    });
+    })) as unknown as LedgerTransaction;
 
     notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'mutation' }).catch(logger.error);
     return result;
@@ -107,7 +107,7 @@ export async function softDeleteLedgerEntry(params: {
   operatorName?: string;
 }): Promise<LedgerTransaction | null> {
   try {
-    const result = await apiPost<LedgerTransaction>('/api/finance/ledger/soft-delete', {
+    const result = (await financeApi.softDelete({
       source_type: params.sourceType,
       source_id: params.sourceId,
       account_type: params.accountType,
@@ -115,7 +115,7 @@ export async function softDeleteLedgerEntry(params: {
       note: params.note || null,
       operator_id: params.operatorId || null,
       operator_name: params.operatorName || null,
-    });
+    })) as unknown as LedgerTransaction;
 
     notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'mutation' }).catch(logger.error);
     return result;
@@ -171,7 +171,7 @@ export async function setInitialBalanceLedger(params: {
     : `设置初始余额: ¥${params.newBalance.toFixed(2)}`;
 
   try {
-    const result = await apiPost<LedgerTransaction>('/api/finance/ledger/initial-balance', {
+    const result = (await financeApi.setInitialBalance({
       account_type: params.accountType,
       account_id: params.accountId,
       new_balance: params.newBalance,
@@ -179,7 +179,7 @@ export async function setInitialBalanceLedger(params: {
       note,
       operator_id: params.operatorId || null,
       operator_name: params.operatorName || null,
-    });
+    })) as unknown as LedgerTransaction;
 
     notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'mutation' }).catch(logger.error);
     return result;
@@ -202,15 +202,16 @@ export async function getLedgerTransactions(
   }
 ): Promise<LedgerTransaction[]> {
   try {
-    const params = new URLSearchParams();
-    params.set('account_type', accountType);
-    params.set('account_id', accountId);
-    if (options?.sourceType) params.set('source_type', options.sourceType);
-    if (options?.activeOnly !== undefined) params.set('active_only', String(options.activeOnly));
-    if (options?.limit) params.set('limit', String(options.limit));
+    const q: Record<string, string> = {
+      account_type: accountType,
+      account_id: accountId,
+    };
+    if (options?.sourceType) q.source_type = options.sourceType;
+    if (options?.activeOnly !== undefined) q.active_only = String(options.activeOnly);
+    if (options?.limit) q.limit = String(options.limit);
 
-    const data = await apiGet<LedgerTransaction[]>(`/api/finance/ledger?${params.toString()}`);
-    return data || [];
+    const data = await financeApi.getLedger(q);
+    return (data || []) as unknown as LedgerTransaction[];
   } catch (error) {
     logger.error('[LedgerService] Failed to get transactions:', error);
     return [];
@@ -228,13 +229,13 @@ export async function getAllLedgerTransactions(
   }
 ): Promise<LedgerTransaction[]> {
   try {
-    const params = new URLSearchParams();
-    if (accountType) params.set('account_type', accountType);
-    if (options?.startDate) params.set('start_date', options.startDate);
-    if (options?.endDate) params.set('end_date', options.endDate);
+    const q: Record<string, string> = {};
+    if (accountType) q.account_type = accountType;
+    if (options?.startDate) q.start_date = options.startDate;
+    if (options?.endDate) q.end_date = options.endDate;
 
-    const data = await apiGet<LedgerTransaction[]>(`/api/finance/ledger/all?${params.toString()}`);
-    return data || [];
+    const data = await financeApi.getLedgerAll(q);
+    return (data || []) as unknown as LedgerTransaction[];
   } catch (error) {
     logger.error('[LedgerService] Failed to get all transactions:', error);
     return [];
@@ -249,7 +250,7 @@ export async function getLedgerBalance(
   accountId: string,
 ): Promise<number> {
   try {
-    const result = await apiGet<{ balance: number }>(`/api/finance/ledger/balance?account_type=${encodeURIComponent(accountType)}&account_id=${encodeURIComponent(accountId)}`);
+    const result = await financeApi.getBalance(accountType, accountId);
     return result?.balance ?? 0;
   } catch (error) {
     logger.error('[LedgerService] Failed to get ledger balance:', error);
@@ -263,7 +264,7 @@ export async function recalculateLedgerRunningBalances(params: {
   accountId: string;
 }): Promise<boolean> {
   try {
-    await apiPost<{ success?: boolean }>('/api/finance/ledger/recalculate-running-balances', {
+    await financeApi.recalculateRunningBalances({
       account_type: params.accountType,
       account_id: params.accountId,
     });
@@ -292,7 +293,11 @@ export async function reconcileAccount(
   activeSum: number;
 } | null> {
   try {
-    const result = await apiPost<{
+    const result = (await financeApi.reconcile({
+      account_type: accountType,
+      account_id: accountId,
+      derived_balance: derivedBalance ?? null,
+    })) as unknown as {
       computedBalance: number;
       storedBalance: number;
       discrepancy: number;
@@ -300,11 +305,7 @@ export async function reconcileAccount(
       transactionCount: number;
       initialBalance: number;
       activeSum: number;
-    }>('/api/finance/ledger/reconcile', {
-      account_type: accountType,
-      account_id: accountId,
-      derived_balance: derivedBalance ?? null,
-    });
+    };
 
     return result;
   } catch (error) {
@@ -324,16 +325,13 @@ export async function reconcileAndCorrect(params: {
   operatorName?: string;
 }): Promise<{ computedBalance: number; corrected: boolean; correctionAmount: number }> {
   try {
-    const result = await apiPost<{ computedBalance: number; corrected: boolean; correctionAmount: number }>(
-      '/api/finance/ledger/reconcile-and-correct',
-      {
-        account_type: params.accountType,
-        account_id: params.accountId,
-        derived_balance: params.derivedBalance,
-        operator_id: params.operatorId || null,
-        operator_name: params.operatorName || null,
-      }
-    );
+    const result = (await financeApi.reconcileAndCorrect({
+      account_type: params.accountType,
+      account_id: params.accountId,
+      derived_balance: params.derivedBalance,
+      operator_id: params.operatorId || null,
+      operator_name: params.operatorName || null,
+    })) as unknown as { computedBalance: number; corrected: boolean; correctionAmount: number };
     if (result?.corrected) {
       notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'mutation' }).catch(logger.error);
     }
@@ -374,7 +372,10 @@ export async function deleteLedgerTransactions(
   accountId: string
 ): Promise<boolean> {
   try {
-    await apiDelete(`/api/finance/ledger?account_type=${encodeURIComponent(accountType)}&account_id=${encodeURIComponent(accountId)}`);
+    await financeApi.deleteAccount({
+      account_type: accountType,
+      account_id: accountId,
+    });
     notifyDataMutation({ table: 'ledger_transactions', operation: 'DELETE', source: 'mutation' }).catch(logger.error);
     return true;
   } catch (error) {
@@ -464,9 +465,9 @@ export async function reverseAllEntriesForSource(params: {
   note?: string;
   operatorId?: string;
   operatorName?: string;
-}): Promise<LedgerTransaction | null> {
+}): Promise<{ matchCount: number; recalculated: boolean } | null> {
   try {
-    const result = await apiPost<LedgerTransaction>('/api/finance/ledger/reverse-all', {
+    const raw = await financeApi.reverseAll({
       account_type: params.accountType,
       account_id: params.accountId,
       order_id: params.orderId,
@@ -476,6 +477,9 @@ export async function reverseAllEntriesForSource(params: {
       operator_id: params.operatorId || null,
       operator_name: params.operatorName || null,
     });
+    const result = (raw != null && typeof raw === 'object')
+      ? raw as { matchCount: number; recalculated: boolean }
+      : { matchCount: 0, recalculated: false };
 
     notifyDataMutation({ table: 'ledger_transactions', operation: 'INSERT', source: 'mutation' }).catch(logger.error);
     return result;
@@ -496,13 +500,13 @@ export async function reverseInitialBalanceEntry(params: {
   operatorName?: string;
 }): Promise<LedgerTransaction | null> {
   try {
-    const result = await apiPost<LedgerTransaction>('/api/finance/ledger/reverse-initial-balance', {
+    const result = (await financeApi.reverseInitialBalance({
       account_type: params.accountType,
       account_id: params.accountId,
       note: params.note || null,
       operator_id: params.operatorId || null,
       operator_name: params.operatorName || null,
-    });
+    })) as unknown as LedgerTransaction;
 
     return result;
   } catch (error) {

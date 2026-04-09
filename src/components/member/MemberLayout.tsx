@@ -323,7 +323,7 @@ export function MemberLayout({ children }: { children: ReactNode }) {
                       ? "relative z-[1] translate-y-0 opacity-100"
                       : "pointer-events-none absolute inset-0 z-0 translate-y-1 opacity-0",
                   )}
-                  inert={!isBottomTab ? true : undefined}
+                  {...({ inert: !isBottomTab ? true : undefined } as Record<string, unknown>)}
                   data-member-tab-stack="1"
                 >
                   <MemberTabbedShell activePath={shellActivePath} />
@@ -335,7 +335,7 @@ export function MemberLayout({ children }: { children: ReactNode }) {
                       ? "pointer-events-none absolute inset-0 z-0 translate-y-1 opacity-0"
                       : "relative z-[1] translate-y-0 opacity-100",
                   )}
-                  inert={isBottomTab ? true : undefined}
+                  {...({ inert: isBottomTab ? true : undefined } as Record<string, unknown>)}
                   data-member-sub-route-outlet="1"
                 >
                   <PageTransition key={pathname}>

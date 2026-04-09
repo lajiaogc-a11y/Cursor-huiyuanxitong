@@ -2,7 +2,7 @@
  * 员工端通知：表代理 + 全部已读 RPC
  */
 import { fetchTableSelectRaw } from "@/api/tableProxyRaw";
-import { apiDelete, apiGet, apiPatch, apiPost } from "@/api/client";
+import { dataTableApi, dataRpcApi } from "@/api/data";
 
 export interface Notification {
   id: string;
@@ -17,10 +17,8 @@ export interface Notification {
   created_at: string;
 }
 
-const LIST_PATH = "/api/data/table/notifications?select=*&order=created_at.desc&limit=50";
-
 export async function listNotifications(): Promise<Notification[]> {
-  const data = await apiGet<Notification[]>(LIST_PATH);
+  const data = await dataTableApi.get<Notification[]>("notifications", "select=*&order=created_at.desc&limit=50");
   return (data || []) as Notification[];
 }
 
@@ -37,17 +35,17 @@ export async function countUnreadNotificationsForRecipient(recipientId: string):
 }
 
 export async function patchNotificationRead(id: string): Promise<void> {
-  await apiPatch(`/api/data/table/notifications?id=eq.${encodeURIComponent(id)}`, {
+  await dataTableApi.patch("notifications", `id=eq.${encodeURIComponent(id)}`, {
     data: { is_read: true },
   });
 }
 
 export async function deleteNotificationById(id: string): Promise<void> {
-  await apiDelete(`/api/data/table/notifications?id=eq.${encodeURIComponent(id)}`);
+  await dataTableApi.del("notifications", `id=eq.${encodeURIComponent(id)}`);
 }
 
 export async function markAllNotificationsReadRpc(): Promise<void> {
-  await apiPost("/api/data/rpc/mark_all_notifications_read", {});
+  await dataRpcApi.call("mark_all_notifications_read", {});
 }
 
 export async function createNotification(params: {
@@ -60,7 +58,7 @@ export async function createNotification(params: {
   metadata?: Record<string, unknown>;
 }): Promise<boolean> {
   try {
-    await apiPost("/api/data/table/notifications", {
+    await dataTableApi.post("notifications", {
       data: {
         recipient_id: params.recipientId,
         title: params.title,

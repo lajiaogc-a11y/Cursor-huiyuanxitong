@@ -510,6 +510,62 @@ export async function getLedgerBalance(accountType: string, accountId: string, t
   return getLatestActiveAfterBalance(accountType, accountId, tenantId);
 }
 
+/**
+ * Soft-delete all active ledger rows matching a source pattern (order/gift reversal).
+ * Returns the number of rows affected.
+ */
+export async function softDeleteLedgerRowsBySourcePattern(params: {
+  account_type: string;
+  account_id: string;
+  tenant_id: string | null;
+  source_prefix: string;
+  order_id: string;
+  adj_prefix: string;
+}): Promise<number> {
+  const { account_type, account_id, tenant_id, source_prefix, order_id, adj_prefix } = params;
+  const tenantSql = tenant_id ? 'AND (tenant_id IS NULL OR tenant_id = ?)' : '';
+  const baseArgs: unknown[] = [account_type, account_id];
+  if (tenant_id) baseArgs.push(tenant_id);
+
+  const exactSourceId = `${source_prefix}${order_id}`;
+  const adjPattern = `${adj_prefix}${order_id}%`;
+  const restorePrefixMap: Record<string, string> = {
+    'wd_': 'wdrestore_',
+    'rc_': 'rcrestore_',
+    'order_v_': 'restore_v_',
+    'order_p_': 'restore_p_',
+    'gift_': 'grestore_',
+  };
+  const restorePrefix = restorePrefixMap[source_prefix] ?? '';
+  const restorePattern = restorePrefix ? `${restorePrefix}${order_id}%` : '';
+
+  let matchClause = '(source_id = ? OR source_id LIKE ?)';
+  const matchArgs = [exactSourceId, adjPattern];
+  if (restorePattern) {
+    matchClause = '(source_id = ? OR source_id LIKE ? OR source_id LIKE ?)';
+    matchArgs.push(restorePattern);
+  }
+
+  const countRows = await query<{ c: number }>(
+    `SELECT COUNT(*) AS c FROM ledger_transactions
+     WHERE account_type = ? AND account_id = ? ${tenantSql}
+     AND (is_active = 1 OR is_active IS NULL)
+     AND ${matchClause}`,
+    [...baseArgs, ...matchArgs],
+  );
+  const matchCount = Number(countRows[0]?.c ?? 0);
+  if (matchCount === 0) return 0;
+
+  await execute(
+    `UPDATE ledger_transactions SET is_active = 0
+     WHERE account_type = ? AND account_id = ? ${tenantSql}
+     AND (is_active = 1 OR is_active IS NULL)
+     AND ${matchClause}`,
+    [...baseArgs, ...matchArgs],
+  );
+  return matchCount;
+}
+
 /** 确保 batch_id 列存在（迁移用） */
 export async function ensureLedgerBatchIdColumn(): Promise<void> {
   try {

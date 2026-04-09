@@ -7,6 +7,8 @@ export interface MemberPointsResult {
 
 export interface MemberPointsBreakdownResult {
   success: boolean;
+  /** Present when success is false (API / RPC error message) */
+  error?: string;
   balance?: number;
   consumption_points?: number;
   referral_points?: number;

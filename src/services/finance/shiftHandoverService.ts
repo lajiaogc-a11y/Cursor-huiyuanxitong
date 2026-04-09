@@ -1,7 +1,7 @@
 // ============= 交班对账数据存储 =============
 // 管理交班记录和接班人列表
 
-import { apiPost, apiPatch, apiDelete } from '@/api/client';
+import { dataTableApi } from '@/api/data';
 import { logOperation } from '@/services/audit/auditLogService';
 import { getCurrentOperatorSync } from '@/services/members/operatorService';
 
@@ -69,7 +69,7 @@ export async function addShiftReceiver(name: string, creatorId?: string): Promis
     if (op?.id) employeeId = op.id;
   }
   
-  const inserted = await apiPost<unknown>(`/api/data/table/shift_receivers`, {
+  const inserted = await dataTableApi.post<unknown>('shift_receivers', {
     data: {
       name: trimmedName,
       creator_id: employeeId,
@@ -91,9 +91,10 @@ export async function updateShiftReceiver(id: string, name: string, oldName?: st
   const trimmedName = name.trim();
   if (!trimmedName) return null;
   
-  const patched = await apiPatch<unknown>(
-    `/api/data/table/shift_receivers?id=eq.${encodeURIComponent(id)}`,
-    { data: { name: trimmedName, updated_at: new Date().toISOString() } }
+  const patched = await dataTableApi.patch<unknown>(
+    'shift_receivers',
+    `id=eq.${encodeURIComponent(id)}`,
+    { data: { name: trimmedName, updated_at: new Date().toISOString() } },
   );
   const data = unwrapSingle<ShiftReceiver>(patched);
   if (!data) {
@@ -109,7 +110,7 @@ export async function updateShiftReceiver(id: string, name: string, oldName?: st
 // 删除接班人
 export async function deleteShiftReceiver(id: string, name?: string): Promise<boolean> {
   try {
-    await apiDelete(`/api/data/table/shift_receivers?id=eq.${encodeURIComponent(id)}`);
+    await dataTableApi.del('shift_receivers', `id=eq.${encodeURIComponent(id)}`);
   } catch (error) {
     console.error('Failed to delete shift receiver:', error);
     return false;
@@ -147,7 +148,7 @@ export async function createShiftHandover(
   paymentProviderData: PaymentProviderHandoverData[],
   remark?: string
 ): Promise<ShiftHandover | null> {
-  const inserted = await apiPost<unknown>(`/api/data/table/shift_handovers`, {
+  const inserted = await dataTableApi.post<unknown>('shift_handovers', {
     data: {
       handover_employee_id: handoverEmployeeId,
       handover_employee_name: handoverEmployeeName,

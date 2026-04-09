@@ -304,7 +304,7 @@ export default function ReportManagement() {
     return orderTypes.map((cardId) => {
       // 按 card_id 统计，不按名称
       const matchedOrders = filteredOrders.filter(
-        (o) => o.order_type === cardId && o.status === "completed"
+        (o) => o.order_type === cardId && String(o.status || '').toLowerCase() !== 'cancelled'
       );
       
       const orderCount = matchedOrders.length;
@@ -1076,8 +1076,8 @@ export default function ReportManagement() {
       case 'activity':
         headers = ['日期', '活动类型', '赠送奈拉', '赠送赛迪', '赠送USDT', '赠送价值(人)', '赠送效果'];
         rows = activityReportData.map(item => [
-          item.date, item.activityTypeLabel, formatNumber(item.giftNgn), formatNumber(item.giftGhs),
-          formatNumber(item.giftUsdt), formatNumber(item.giftValueTotal), item.effectCount
+          item.date, item.activityTypeLabel, formatReportNumber(item.giftNgn), formatReportNumber(item.giftGhs),
+          formatReportNumber(item.giftUsdt), formatReportNumber(item.giftValueTotal), item.effectCount
         ]);
         title = '活动报表';
         break;
@@ -1271,7 +1271,7 @@ export default function ReportManagement() {
                 employeePageSize={employeePageSize}
                 setEmployeePage={setEmployeePage}
                 setEmployeePageSize={setEmployeePageSize}
-                employeeSortConfig={employeeSortConfig}
+                employeeSortConfig={employeeSortConfig ?? undefined}
                 requestEmployeeSort={requestEmployeeSort}
                 employeeSummary={employeeSummary}
                 canEditManualRatio={canEditManualRatio}
@@ -1322,7 +1322,7 @@ export default function ReportManagement() {
                 providerPageSize={providerPageSize}
                 setProviderPage={setProviderPage}
                 setProviderPageSize={setProviderPageSize}
-                providerSortConfig={providerSortConfig}
+                providerSortConfig={providerSortConfig ?? undefined}
                 requestProviderSort={requestProviderSort}
                 providerSummary={providerSummary}
                 resolveVendorOrProviderName={(id) => resolveVendorOrProviderName(id)}

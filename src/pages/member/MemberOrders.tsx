@@ -16,7 +16,7 @@ import { MemberPageLoadingShell } from "@/components/member/MemberPageLoadingShe
 import { memberGetOrdersPage } from "@/services/memberPortal/memberActivityService";
 import { mapDbRowToMemberPortalOrderView, type MemberPortalOrderView } from "@/hooks/orders/utils";
 import { memberQueryKeys } from "@/lib/memberQueryKeys";
-import { resolveCardName, tryRecoverMisdecodedUtf8 } from "@/services/members/nameResolver";
+import { resolveCardName, tryRecoverMisdecodedUtf8, extractEnglishName } from "@/services/members/nameResolver";
 import { cn } from "@/lib/utils";
 import { MemberEmptyStateCta } from "@/components/member/MemberEmptyStateCta";
 import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
@@ -255,12 +255,13 @@ export default function MemberOrders() {
 
           <div className="space-y-2.5 px-5">
             {filtered.map((order) => {
-              const cardLabel = tryRecoverMisdecodedUtf8(
+              const rawCardLabel = tryRecoverMisdecodedUtf8(
                 (order.cardDisplayName && order.cardDisplayName.trim()) ||
                   resolveCardName(order.cardTypeId) ||
                   order.cardTypeId ||
                   "-",
               );
+              const cardLabel = extractEnglishName(rawCardLabel);
               const paidLabel = order.isUsdt
                 ? `${Number(order.actualPaid || 0).toLocaleString()} USDT`
                 : `${Number(order.actualPaid || 0).toLocaleString()} ${order.currency || ""}`.trim();

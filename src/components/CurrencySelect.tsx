@@ -37,9 +37,10 @@ export function useCurrencies() {
     async function fetchCurrencies() {
       try {
         const all = await getCurrenciesApi();
-        const list = all.filter(
-          (c) => c.is_active === true || c.is_active === 1 || String(c.is_active) === "1",
-        );
+        const list = all.filter((c) => {
+          const raw = c.is_active as unknown;
+          return raw === true || Number(raw) === 1 || String(raw) === "1";
+        });
         if (list.length === 0) {
           setCurrencies([
             { code: 'NGN', name_zh: '奈拉', name_en: 'Naira', symbol: '₦' },
@@ -47,7 +48,14 @@ export function useCurrencies() {
             { code: 'USDT', name_zh: 'USDT', name_en: 'USDT', symbol: '$' },
           ]);
         } else {
-          setCurrencies(list);
+          setCurrencies(
+            list.map((c) => ({
+              ...c,
+              name_en: c.name_en ?? "",
+              symbol: c.symbol ?? undefined,
+              badge_color: c.badge_color ?? undefined,
+            })),
+          );
         }
       } catch (err) {
         console.error('Error fetching currencies:', err);

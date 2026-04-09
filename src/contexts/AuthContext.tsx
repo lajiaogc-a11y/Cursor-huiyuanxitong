@@ -15,9 +15,13 @@ import { hardRedirectToStaff, shouldHardRedirectToStaffPortal } from '@/lib/cros
 import { fetchCardsFromDb, fetchVendorsFromDb, fetchPaymentProvidersFromDb } from '@/hooks/useMerchantConfig';
 import { fetchActivityTypesFromDb } from '@/hooks/useActivityTypes';
 import { checkApiRateLimitResult } from '@/services/rateLimitService';
-import { loginApi, logoutApi, getCurrentUserApi, getPlatformTenantId } from '@/services/auth/authApiService';
-import { hasAuthToken, clearAuthToken, API_ACCESS_TOKEN_KEY } from '@/api/client';
-import { AUTH_UNAUTHORIZED_EVENT } from '@/api/init';
+import {
+  loginApi, logoutApi, getCurrentUserApi, getPlatformTenantId,
+  hasAuthToken, clearAuthToken, API_ACCESS_TOKEN_KEY,
+  AUTH_UNAUTHORIZED_EVENT,
+  getClientIpApi, checkIpAccessApi,
+  type IpValidationResult,
+} from '@/services/auth/authApiService';
 import { getRolePermissions } from '@/services/staff/dataApi';
 import { logger } from '@/lib/logger';
 
@@ -41,65 +45,8 @@ function isProductionEnvironment(): boolean {
   return !devPatterns.some(pattern => pattern.test(hostname));
 }
 
-// 获取客户端 IP（走后端 /api/auth/client-ip）
-async function getClientIp(): Promise<string | null> {
-  try {
-    const res = await fetch('/api/auth/client-ip', { cache: 'no-store' });
-    const data = await res.json();
-    return data.ip || null;
-  } catch (err) {
-    logger.warn('[AuthContext] getClientIp failed:', err);
-    return null;
-  }
-}
-
-// IP 国家校验结果接口
-interface IpValidationResult {
-  valid: boolean;
-  skipped?: boolean;
-  reason?: string;
-  source?: string;
-  ip?: string;
-  country_code?: string;
-  country_name?: string;
-  city?: string;
-  error?: string;
-  message?: string;
-}
-
-/** 走后端公开接口，按平台「IP 访问控制」中的国家/地区策略校验 */
-async function checkIpAccess(): Promise<IpValidationResult> {
-  try {
-    const base = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
-    const path = '/api/data/settings/ip-country-check';
-    const url = base ? `${base}${path}` : path;
-    const response = await fetch(url, { credentials: 'include', cache: 'no-store' });
-    const json = (await response.json()) as { data?: IpValidationResult; success?: boolean };
-    const data = json?.data ?? (json as unknown as IpValidationResult);
-    if (data?.skipped) {
-      return { valid: true, skipped: true, ...data };
-    }
-    if (data?.valid === false) {
-      return {
-        valid: false,
-        skipped: false,
-        ip: data.ip,
-        country_code: data.country_code,
-        country_name: data.country_name,
-        error: data.error,
-        message: data.message || _t('您的IP地址不符合登录地区策略', 'Your IP does not meet the login region policy'),
-      };
-    }
-    return { valid: true, skipped: false, ip: data?.ip, country_code: data?.country_code, country_name: data?.country_name };
-  } catch (error) {
-    logger.warn('[AuthContext] IP country check failed:', error);
-    return {
-      valid: true,
-      skipped: true,
-      reason: 'NETWORK_ERROR',
-    };
-  }
-}
+const getClientIp = getClientIpApi;
+const checkIpAccess = checkIpAccessApi;
 
 // 登录日志由后端 login API 记录，此处不再单独调用
 
@@ -463,7 +410,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshEmployee = useCallback(async () => {
     const authUser = await getCurrentUserApi();
     if (authUser) {
-      const tenantId = authUser.is_platform_super_admin ? (authUser.tenant_id || getPlatformTenantId() || authUser.tenant_id) : (authUser.tenant_id ?? null);
+      const tenantId =
+        (authUser.is_platform_super_admin
+          ? authUser.tenant_id || getPlatformTenantId() || authUser.tenant_id
+          : authUser.tenant_id ?? null) ?? null;
       setSharedDataTenantId(tenantId);
       const empInfo: EmployeeInfo = {
         id: authUser.id,
@@ -517,7 +467,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!isMounted) return;
         if (authUser) {
           // 平台总管理 ≠ 租户账号：tenant_id 强制为 null，严格区分
-          const tenantId = authUser.is_platform_super_admin ? (authUser.tenant_id || getPlatformTenantId() || authUser.tenant_id) : (authUser.tenant_id ?? null);
+          const tenantId =
+            (authUser.is_platform_super_admin
+              ? authUser.tenant_id || getPlatformTenantId() || authUser.tenant_id
+              : authUser.tenant_id ?? null) ?? null;
           setSharedDataTenantId(tenantId);
           const empInfo: EmployeeInfo = {
             id: authUser.id,
@@ -669,7 +622,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const authUser = result.user!;
-      const tenantId = authUser.is_platform_super_admin ? (authUser.tenant_id || getPlatformTenantId() || authUser.tenant_id) : (authUser.tenant_id ?? null);
+      const tenantId =
+        (authUser.is_platform_super_admin
+          ? authUser.tenant_id || getPlatformTenantId() || authUser.tenant_id
+          : authUser.tenant_id ?? null) ?? null;
       setSharedDataTenantId(tenantId);
       const empInfo: EmployeeInfo = {
         id: authUser.id,

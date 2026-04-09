@@ -1,10 +1,5 @@
-import {
-  apiGet,
-  apiGetAsStaff,
-  apiPutAsStaff,
-  apiPostAsStaff,
-  apiDeleteAsStaff,
-} from '@/api/client';
+import { authApi } from '@/api/auth';
+import { platformApi } from '@/api/platform';
 
 export type StaffDeviceWhitelistStatus = {
   enabled: boolean;
@@ -13,7 +8,7 @@ export type StaffDeviceWhitelistStatus = {
 
 export async function fetchStaffDeviceWhitelistStatus(): Promise<StaffDeviceWhitelistStatus> {
   try {
-    const data = await apiGet<StaffDeviceWhitelistStatus>('/api/auth/device-whitelist/status');
+    const data = (await authApi.deviceWhitelistStatus()) as StaffDeviceWhitelistStatus;
     if (data && typeof data === 'object' && typeof data.enabled === 'boolean') return data;
   } catch {
     /* ignore */
@@ -35,9 +30,7 @@ export type EmployeeDeviceDto = {
 };
 
 export async function fetchPlatformDeviceWhitelistConfig(): Promise<StaffDeviceWhitelistStatus> {
-  const data = await apiGetAsStaff<Partial<StaffDeviceWhitelistStatus>>(
-    '/api/platform/device-whitelist/config',
-  );
+  const data = (await platformApi.deviceWhitelist.getConfig()) as Partial<StaffDeviceWhitelistStatus>;
   return {
     enabled: typeof data?.enabled === 'boolean' ? data.enabled : false,
     max_devices_per_employee:
@@ -50,13 +43,14 @@ export async function fetchPlatformDeviceWhitelistConfig(): Promise<StaffDeviceW
 export async function savePlatformDeviceWhitelistConfig(
   patch: Partial<StaffDeviceWhitelistStatus>
 ): Promise<StaffDeviceWhitelistStatus> {
-  return apiPutAsStaff<StaffDeviceWhitelistStatus>('/api/platform/device-whitelist/config', patch);
+  return platformApi.deviceWhitelist.saveConfig(patch) as Promise<StaffDeviceWhitelistStatus>;
 }
 
 export async function listPlatformEmployeeDevices(limit = 100, offset = 0): Promise<EmployeeDeviceDto[]> {
-  const raw = await apiGetAsStaff<unknown>(
-    `/api/platform/device-whitelist/devices?limit=${encodeURIComponent(String(limit))}&offset=${encodeURIComponent(String(offset))}`,
-  );
+  const raw = await platformApi.deviceWhitelist.listDevices({
+    limit,
+    offset,
+  });
   if (Array.isArray(raw)) return raw as EmployeeDeviceDto[];
   return [];
 }
@@ -66,20 +60,20 @@ export async function adminAddEmployeeDevice(body: {
   device_id: string;
   device_name?: string;
 }): Promise<{ id: string }> {
-  return apiPostAsStaff<{ id: string }>('/api/platform/device-whitelist/devices', body);
+  return platformApi.deviceWhitelist.addDevice(body) as Promise<{ id: string }>;
 }
 
 export async function adminDeleteEmployeeDevice(id: string): Promise<void> {
-  await apiDeleteAsStaff(`/api/platform/device-whitelist/devices/${encodeURIComponent(id)}`);
+  await platformApi.deviceWhitelist.deleteDevice(id);
 }
 
 export async function bindCurrentStaffDevice(body: {
   device_id: string;
   device_name?: string;
 }): Promise<{ id: string; token: string | null }> {
-  return apiPost<{ id: string; token: string | null }>('/api/auth/devices/bind', body);
+  return authApi.bindDevice(body) as Promise<{ id: string; token: string | null }>;
 }
 
 export async function listMyStaffDevices(): Promise<EmployeeDeviceDto[]> {
-  return apiGet<EmployeeDeviceDto[]>('/api/auth/devices/me');
+  return authApi.listMyDevices() as Promise<EmployeeDeviceDto[]>;
 }

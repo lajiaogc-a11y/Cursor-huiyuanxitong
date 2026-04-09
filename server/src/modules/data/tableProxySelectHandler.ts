@@ -39,7 +39,7 @@ export async function tableSelectController(req: AuthenticatedRequest, res: Resp
   const selectCols = params.select || '*';
   const reverseAlias = getReverseAliasMap(table);
 
-  // 对于 select 中的 Supabase 关联查询语法（如 "*, tenant:tenants(tenant_code)"），简化为 *
+  // 对于 select 中的关联查询语法（如 "*, tenant:tenants(tenant_code)"），简化为 *
   const safeCols = selectCols.includes('(') ? '*' : selectCols.split(',').map(c => {
     const col = c.trim();
     if (col === '*') return '*';

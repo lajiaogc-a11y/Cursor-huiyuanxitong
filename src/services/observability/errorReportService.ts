@@ -2,9 +2,7 @@
  * 前端异常上报（error_reports 表代理，经 /api/data/table/error_reports）
  */
 import { fetchTableSelectRaw } from "@/api/tableProxyRaw";
-import { apiGet, apiPost, apiDelete } from "@/api/client";
-
-const TABLE_PATH = "/api/data/table/error_reports";
+import { dataTableApi } from "@/api/data";
 
 export type ErrorReportPayload = {
   error_id: string;
@@ -133,7 +131,7 @@ export async function submitErrorReport(payload: ErrorReportPayload): Promise<vo
   dedupeLastSent.set(fp, now);
   pruneDedupeMap(now);
 
-  await apiPost(TABLE_PATH, { data: payload });
+  await dataTableApi.post("error_reports", { data: payload });
 }
 
 /** PostgREST 风格 count：limit=0 只取 total，避免拉全表 */
@@ -155,16 +153,16 @@ export async function listErrorReports(limit = DEFAULT_LIST_LIMIT): Promise<Erro
     order: "created_at.desc",
     limit: String(limit),
   });
-  const rows = await apiGet<unknown>(`${TABLE_PATH}?${qs.toString()}`);
+  const rows = await dataTableApi.get<unknown>("error_reports", qs.toString());
   return normalizeErrorReportRows(rows);
 }
 
 export async function deleteErrorReport(id: string): Promise<void> {
-  await apiDelete(`${TABLE_PATH}?id=eq.${encodeURIComponent(id)}`);
+  await dataTableApi.del("error_reports", `id=eq.${encodeURIComponent(id)}`);
 }
 
 export async function deleteErrorReportsByIds(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   const inList = ids.map((x) => encodeURIComponent(x)).join(",");
-  await apiDelete(`${TABLE_PATH}?id=in.(${inList})`);
+  await dataTableApi.del("error_reports", `id=in.(${inList})`);
 }

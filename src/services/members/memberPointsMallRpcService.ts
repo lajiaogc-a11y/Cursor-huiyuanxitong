@@ -1,7 +1,7 @@
 /**
  * 积分商城相关 RPC（/api/data/rpc/*）
  */
-import { apiPost } from "@/api/client";
+import { dataRpcApi } from "@/api/data";
 
 export interface PointsMallCategory {
   id: string;
@@ -33,7 +33,7 @@ export interface PointsMallItem {
 }
 
 export async function listMyPointsMallItems(tenantId?: string | null): Promise<PointsMallItem[]> {
-  const data = await apiPost<unknown>("/api/data/rpc/list_my_member_points_mall_items", {
+  const data = await dataRpcApi.call<unknown>("list_my_member_points_mall_items", {
     ...(tenantId ? { p_tenant_id: tenantId } : {}),
   });
   const r = (data || {}) as { success?: boolean; error?: string; items?: PointsMallItem[] };
@@ -47,7 +47,7 @@ export async function upsertMyPointsMallItems(
 ): Promise<void> {
   const uuidRe = /^[0-9a-f-]{36}$/i;
   const payload = items.map((x, idx) => {
-    const rawId = x.id != null ? String(x.id).trim() : "";
+    const rawId = "id" in x && x.id != null ? String(x.id).trim() : "";
     const rawCat = x.mall_category_id != null ? String(x.mall_category_id).trim() : "";
     return {
       ...(uuidRe.test(rawId) ? { id: rawId } : {}),
@@ -65,7 +65,7 @@ export async function upsertMyPointsMallItems(
     };
   });
 
-  const data = await apiPost<unknown>("/api/data/rpc/upsert_my_member_points_mall_items", {
+  const data = await dataRpcApi.call<unknown>("upsert_my_member_points_mall_items", {
     p_items: payload,
     ...(tenantId ? { p_tenant_id: tenantId } : {}),
   });
@@ -74,7 +74,7 @@ export async function upsertMyPointsMallItems(
 }
 
 export async function listMemberPointsMallItems(memberId: string): Promise<PointsMallItem[]> {
-  const data = await apiPost<unknown>("/api/data/rpc/member_list_points_mall_items", {
+  const data = await dataRpcApi.call<unknown>("member_list_points_mall_items", {
     p_member_id: memberId,
   });
   const r = (data || {}) as { success?: boolean; error?: string; items?: PointsMallItem[] };
@@ -83,7 +83,7 @@ export async function listMemberPointsMallItems(memberId: string): Promise<Point
 }
 
 export async function listMemberPointsMallCategories(memberId: string): Promise<PointsMallCategory[]> {
-  const data = await apiPost<unknown>("/api/data/rpc/member_list_points_mall_categories", {
+  const data = await dataRpcApi.call<unknown>("member_list_points_mall_categories", {
     p_member_id: memberId,
   });
   const r = (data || {}) as { success?: boolean; error?: string; categories?: PointsMallCategory[] };
@@ -92,7 +92,7 @@ export async function listMemberPointsMallCategories(memberId: string): Promise<
 }
 
 export async function listMyPointsMallCategories(tenantId?: string | null): Promise<PointsMallCategory[]> {
-  const data = await apiPost<unknown>("/api/data/rpc/list_my_member_points_mall_categories", {
+  const data = await dataRpcApi.call<unknown>("list_my_member_points_mall_categories", {
     ...(tenantId ? { p_tenant_id: tenantId } : {}),
   });
   const r = (data || {}) as { success?: boolean; error?: string; categories?: PointsMallCategory[] };
@@ -104,7 +104,7 @@ export async function saveMyPointsMallCategories(
   categories: { id?: string; name_zh: string; name_en?: string }[],
   tenantId?: string | null,
 ): Promise<void> {
-  const data = await apiPost<unknown>("/api/data/rpc/save_my_member_points_mall_categories", {
+  const data = await dataRpcApi.call<unknown>("save_my_member_points_mall_categories", {
     p_categories: categories,
     ...(tenantId ? { p_tenant_id: tenantId } : {}),
   });
@@ -126,7 +126,7 @@ export async function listMemberPointsMallRedemptionsForPortal(
   memberId: string,
   limit = 20,
 ): Promise<MemberPortalRedemptionRpcRow[]> {
-  const data = await apiPost<unknown>("/api/data/rpc/member_list_points_mall_redemptions", {
+  const data = await dataRpcApi.call<unknown>("member_list_points_mall_redemptions", {
     p_member_id: memberId,
     p_limit: limit,
   });
@@ -190,7 +190,7 @@ export async function redeemPointsMallItem(
   /** 8–64 位 [a-zA-Z0-9_-]，同一键重复请求返回首次兑换结果（需 DB 迁移 client_request_id） */
   clientRequestId?: string,
 ): Promise<RedeemPointsMallItemResult> {
-  const data = await apiPost<unknown>("/api/data/rpc/member_redeem_points_mall_item", {
+  const data = await dataRpcApi.call<unknown>("member_redeem_points_mall_item", {
     p_member_id: memberId,
     p_item_id: itemId,
     p_quantity: quantity,
@@ -249,7 +249,7 @@ export async function listMyPointsMallRedemptionOrders(
   limit = 50,
   tenantId?: string | null,
 ): Promise<PointsMallRedemptionOrder[]> {
-  const data = await apiPost<unknown>("/api/data/rpc/list_my_member_points_mall_redemptions", {
+  const data = await dataRpcApi.call<unknown>("list_my_member_points_mall_redemptions", {
     p_status: status || null,
     p_limit: limit,
     ...(tenantId ? { p_tenant_id: tenantId } : {}),
@@ -265,7 +265,7 @@ export async function processMyPointsMallRedemptionOrder(
   action: "complete" | "reject" | "cancel",
   note?: string,
 ): Promise<{ success: boolean; status: string }> {
-  const data = await apiPost<unknown>("/api/data/rpc/process_my_member_points_mall_redemption", {
+  const data = await dataRpcApi.call<unknown>("process_my_member_points_mall_redemption", {
     p_redemption_id: orderId,
     p_action: action,
     p_note: note || null,

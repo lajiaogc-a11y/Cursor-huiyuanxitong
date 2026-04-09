@@ -1,7 +1,7 @@
 /**
  * Webhook 表代理：列表、投递日志、增删改（/api/data/table/*，MySQL 列名）
  */
-import { apiDelete, apiGet, apiPatch, apiPost } from "@/api/client";
+import { dataTableApi } from "@/api/data";
 import { getSharedDataTenantId } from "@/services/finance/sharedDataService";
 
 export interface Webhook {
@@ -79,23 +79,24 @@ export async function listWebhooks(): Promise<Webhook[]> {
   if (!tid) {
     return [];
   }
-  const data = await apiGet<unknown[]>(
-    `/api/data/table/webhooks?select=*&tenant_id=eq.${encodeURIComponent(tid)}&order=created_at.desc`,
+  const data = await dataTableApi.get<unknown[]>(
+    "webhooks",
+    `select=*&tenant_id=eq.${encodeURIComponent(tid)}&order=created_at.desc`,
   );
   return (data || []).map((w) => mapWebhookRow(w as Record<string, unknown>));
 }
 
 export async function listWebhookDeliveryLogs(webhookId?: string, limit = 50): Promise<WebhookDeliveryLog[]> {
-  let url = `/api/data/table/webhook_delivery_logs?select=*&order=created_at.desc&limit=${limit}`;
+  let q = `select=*&order=created_at.desc&limit=${limit}`;
   if (webhookId) {
-    url += `&webhook_id=eq.${encodeURIComponent(webhookId)}`;
+    q += `&webhook_id=eq.${encodeURIComponent(webhookId)}`;
   } else {
     const hooks = await listWebhooks();
     if (hooks.length === 0) return [];
     const orClause = hooks.map((h) => `webhook_id.eq.${h.id}`).join(",");
-    url += `&or=${encodeURIComponent(orClause)}`;
+    q += `&or=${encodeURIComponent(orClause)}`;
   }
-  const data = await apiGet<unknown[]>(url);
+  const data = await dataTableApi.get<unknown[]>("webhook_delivery_logs", q);
   return (data || []).map((l) => {
     const row = l as Record<string, unknown>;
     const ok = row.success === 1 || row.success === true;
@@ -141,7 +142,7 @@ export async function createWebhookRecord(body: {
     timeout_ms: body.timeout_ms ?? 5000,
     remark: body.remark || null,
   };
-  await apiPost("/api/data/table/webhooks", { data });
+  await dataTableApi.post("webhooks", { data });
 }
 
 export async function patchWebhookRecord(
@@ -161,9 +162,9 @@ export async function patchWebhookRecord(
   if (body.timeout_ms !== undefined) data.timeout_ms = body.timeout_ms;
   if (body.remark !== undefined) data.remark = body.remark;
   if (Object.keys(data).length === 0) return;
-  await apiPatch(`/api/data/table/webhooks?id=eq.${encodeURIComponent(webhookId)}`, { data });
+  await dataTableApi.patch("webhooks", `id=eq.${encodeURIComponent(webhookId)}`, { data });
 }
 
 export async function deleteWebhookRecord(webhookId: string): Promise<void> {
-  await apiDelete(`/api/data/table/webhooks?id=eq.${encodeURIComponent(webhookId)}`);
+  await dataTableApi.del("webhooks", `id=eq.${encodeURIComponent(webhookId)}`);
 }

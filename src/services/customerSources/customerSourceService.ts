@@ -1,9 +1,7 @@
 // Customer Source Store - 客户来源管理
 // 使用数据库作为唯一数据源
 
-import { useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiPost, apiPatch, apiDelete } from '@/api/client';
+import { dataTableApi } from '@/api/data';
 import { getCustomerSourcesApi } from '@/services/staff/dataApi';
 import { logOperation } from '@/services/audit/auditLogService';
 
@@ -60,33 +58,9 @@ function mapRowToSource(s: CustomerSourceRow): CustomerSource {
 
 export const CUSTOMER_SOURCES_QUERY_KEY = ['customer-sources'] as const;
 
-async function fetchCustomerSources(): Promise<CustomerSource[]> {
+export async function fetchCustomerSources(): Promise<CustomerSource[]> {
   const data = await getCustomerSourcesApi();
   return (data || []).map(mapRowToSource);
-}
-
-// ============= React Hook (React Query cached) =============
-export function useCustomerSources() {
-  const queryClient = useQueryClient();
-
-  const { data: sources = [], isLoading: loading } = useQuery({
-    queryKey: CUSTOMER_SOURCES_QUERY_KEY,
-    queryFn: fetchCustomerSources,
-  });
-
-  const activeSources = useMemo(
-    () => sources.filter(s => s.isActive).sort((a, b) => a.sortOrder - b.sortOrder),
-    [sources],
-  );
-
-  const refetch = () => queryClient.invalidateQueries({ queryKey: CUSTOMER_SOURCES_QUERY_KEY });
-
-  return {
-    sources,
-    activeSources,
-    loading,
-    refetch,
-  };
 }
 
 // ============= 内存缓存 (兼容旧代码) =============
@@ -176,7 +150,7 @@ export async function addCustomerSource(name: string): Promise<CustomerSource | 
     const sources = getCustomerSources();
     const maxOrder = sources.length > 0 ? Math.max(...sources.map(s => s.sortOrder)) : 0;
     
-    const inserted = await apiPost<unknown>(`/api/data/table/customer_sources`, {
+    const inserted = await dataTableApi.post<unknown>("customer_sources", {
       data: {
         name,
         sort_order: maxOrder + 1,
@@ -216,9 +190,10 @@ export async function updateCustomerSource(id: string, updates: Partial<Customer
     if (updates.sortOrder !== undefined) updateData.sort_order = updates.sortOrder;
     if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
     
-    const patched = await apiPatch<unknown>(
-      `/api/data/table/customer_sources?id=eq.${encodeURIComponent(id)}`,
-      { data: updateData }
+    const patched = await dataTableApi.patch<unknown>(
+      "customer_sources",
+      `id=eq.${encodeURIComponent(id)}`,
+      { data: updateData },
     );
     const data = unwrapInsertedRow(patched);
     if (!data) throw new Error('Update returned no row');
@@ -248,7 +223,7 @@ export async function deleteCustomerSource(id: string): Promise<boolean> {
     // 获取删除前的数据
     const sourceToDelete = sourcesCache.find(s => s.id === id);
     
-    await apiDelete(`/api/data/table/customer_sources?id=eq.${encodeURIComponent(id)}`);
+    await dataTableApi.del("customer_sources", `id=eq.${encodeURIComponent(id)}`);
     
     // 记录操作日志
     if (sourceToDelete) {
@@ -268,7 +243,7 @@ export async function reorderCustomerSources(sourceIds: string[]): Promise<void>
     // 批量更新排序
     await Promise.all(
       sourceIds.map((id, index) =>
-        apiPatch(`/api/data/table/customer_sources?id=eq.${encodeURIComponent(id)}`, {
+        dataTableApi.patch("customer_sources", `id=eq.${encodeURIComponent(id)}`, {
           data: { sort_order: index + 1 },
         })
       )

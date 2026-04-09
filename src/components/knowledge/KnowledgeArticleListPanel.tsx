@@ -9,9 +9,15 @@ import { cn } from "@/lib/utils";
 import { ResolvableMediaThumb } from "@/components/ResolvableMediaThumb";
 import type { KnowledgeArticle, KnowledgeCategory } from "@/hooks/useKnowledge";
 
-function cellDash(v: string | null | undefined) {
+function cellDash(v: unknown) {
   const s = v != null ? String(v).trim() : "";
   return s ? s : "—";
+}
+
+function safeContentStr(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "string") return v.trim();
+  return String(v).trim();
 }
 
 function getContentTypeLabel(
@@ -144,7 +150,7 @@ function ArticleTableRow({
         {cellDash(article.title_en)}
       </div>
       <div className="min-w-0 pt-0.5 text-sm text-muted-foreground leading-snug line-clamp-2">
-        {contentType === "image" && !article.content?.trim() ? "—" : contentText}
+        {contentType === "image" && !safeContentStr(article.content) ? "—" : contentText}
       </div>
       <div className="min-w-0 pt-0.5">
         <div className="flex items-start gap-2">
@@ -165,7 +171,7 @@ function ArticleTableRow({
         {formatBeijingMonthDayShort(article.created_at, locale)}
       </div>
       <div className="flex flex-wrap items-center justify-end gap-1 pt-0.5" onClick={(e) => e.stopPropagation()}>
-        {(contentType === "text" || contentType === "phrase") && article.content?.trim() ? (
+        {(contentType === "text" || contentType === "phrase") && safeContentStr(article.content) ? (
           <Button
             variant="outline"
             size="sm"
@@ -357,7 +363,7 @@ export function KnowledgeArticleListPanel({
                 const sequenceNumber = (currentPage - 1) * pageSize + index + 1;
                 const unread = isArticleUnread(article);
                 const contentPreview =
-                  contentType === "image" && !article.content?.trim() ? null : article.content?.trim() || null;
+                  contentType === "image" && !safeContentStr(article.content) ? null : safeContentStr(article.content) || null;
                 return (
                   <div
                     key={article.id}
@@ -442,7 +448,7 @@ export function KnowledgeArticleListPanel({
                       className="flex flex-wrap items-center justify-end gap-1 px-3 pb-2 pt-0"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {(contentType === "text" || contentType === "phrase") && article.content?.trim() ? (
+                      {(contentType === "text" || contentType === "phrase") && safeContentStr(article.content) ? (
                         <Button
                           variant="outline"
                           size="sm"

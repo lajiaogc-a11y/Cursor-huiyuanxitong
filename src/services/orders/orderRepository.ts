@@ -1,4 +1,4 @@
-import { apiGet, apiPatch } from '@/api/client';
+import { dataTableApi } from '@/api/data';
 import { createOrderApi } from '@/services/orders/ordersApiService';
 
 export type OrderInsertPayload = Record<string, unknown>;
@@ -17,9 +17,10 @@ function notFoundError() {
 }
 
 export async function updateOrderRecord(orderId: string, updates: Record<string, unknown>) {
-  const data = await apiPatch<Record<string, unknown> | Record<string, unknown>[]>(
-    `/api/data/table/orders?id=eq.${encodeURIComponent(orderId)}`,
-    { data: updates }
+  const data = await dataTableApi.patch<Record<string, unknown> | Record<string, unknown>[]>(
+    "orders",
+    `id=eq.${encodeURIComponent(orderId)}`,
+    { data: updates },
   );
   if (data == null || (Array.isArray(data) && data.length === 0)) {
     throw notFoundError();
@@ -28,15 +29,17 @@ export async function updateOrderRecord(orderId: string, updates: Record<string,
 }
 
 export async function patchOrderRecord(orderId: string, updates: Record<string, unknown>) {
-  await apiPatch(
-    `/api/data/table/orders?id=eq.${encodeURIComponent(orderId)}`,
-    { data: updates }
+  await dataTableApi.patch(
+    "orders",
+    `id=eq.${encodeURIComponent(orderId)}`,
+    { data: updates },
   );
 }
 
 export async function getOrderDeleteState(orderId: string) {
-  const row = await apiGet<{ is_deleted?: unknown } | null>(
-    `/api/data/table/orders?select=is_deleted&id=eq.${encodeURIComponent(orderId)}&single=true`
+  const row = await dataTableApi.get<{ is_deleted?: unknown } | null>(
+    "orders",
+    `select=is_deleted&id=eq.${encodeURIComponent(orderId)}&single=true`,
   );
   if (!row) throw notFoundError();
   return row;

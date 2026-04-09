@@ -1,6 +1,6 @@
 /**
  * Orders Repository - 唯一可操作 orders 表的层
- * 使用 MySQL (mysql2/promise) 替代 Supabase
+ * 使用 MySQL (mysql2/promise)
  */
 import { randomUUID } from 'node:crypto';
 import { query, queryOne, execute } from '../../database/index.js';

@@ -2,6 +2,7 @@
  * 认证 API - hooks 仅通过此层调用
  */
 import { apiClient, setAuthToken, clearAuthToken } from '@/lib/apiClient';
+import { apiPost, apiGet } from './client';
 
 export interface AuthUser {
   id: string;
@@ -57,3 +58,22 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     return null;
   }
 }
+
+export const authApi = {
+  login: (body: { username: string; password: string; device_id?: string }) =>
+    apiPost<unknown>('/api/auth/login', body),
+  logout: () => apiPost<void>('/api/auth/logout', {}),
+  verifyPassword: (body: { password: string }) =>
+    apiPost<{ success?: boolean; valid?: boolean }>('/api/auth/verify-password', body),
+  register: (body: Record<string, unknown>) =>
+    apiPost<unknown>('/api/auth/register', body),
+  syncPassword: (body: { username: string; password: string }) =>
+    apiPost<unknown>('/api/auth/sync-password', body),
+  me: () => apiGet<unknown>('/api/auth/me'),
+  deviceWhitelistStatus: () => apiGet<unknown>('/api/auth/device-whitelist/status'),
+  bindDevice: (body: Record<string, unknown>) =>
+    apiPost<unknown>('/api/auth/devices/bind', body),
+  listMyDevices: () => apiGet<unknown>('/api/auth/devices/me'),
+  clientIp: () => apiGet<{ ip?: string }>('/api/auth/client-ip'),
+  resolveLoginLogLocations: () => apiPost<void>('/api/logs/login/resolve-locations', {}),
+};

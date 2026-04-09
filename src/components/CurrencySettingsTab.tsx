@@ -114,7 +114,7 @@ export default function CurrencySettingsTab() {
         });
         
         // 记录操作日志
-        logOperation('currency_settings', 'create', insertedRow?.id || null, null, formData, `新增币种: ${codeUpper}`);
+        logOperation('currency_settings', 'create', insertedRow?.id ?? '', null, formData, `新增币种: ${codeUpper}`);
         
         notify.success(t("币种已添加", "Currency added"));
       }

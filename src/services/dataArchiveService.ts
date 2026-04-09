@@ -2,7 +2,7 @@
 // 管理冷热数据分离 - 将历史数据归档到归档表
 
 import { fetchTableSelectRaw } from "@/api/tableProxyRaw";
-import { apiGet, apiPatch, apiPost } from "@/api/client";
+import { dataOpsApi, dataTableApi } from "@/api/data";
 
 export interface ArchiveRun {
   id: string;
@@ -46,18 +46,17 @@ export async function runArchive(retentionDays: number = 90): Promise<{
   const startTime = Date.now();
 
   try {
-    const data = await apiPost<Record<string, unknown>>("/api/data/rpc/archive_old_data", {
-      retention_days: retentionDays,
-    });
+    const data = await dataOpsApi.rpcArchiveOldData(retentionDays);
 
     const duration = Date.now() - startTime;
 
     try {
-      const latest = await apiGet<{ id: string } | null>(
-        `/api/data/table/archive_runs?select=id&order=run_at.desc&limit=1&single=true`,
+      const latest = await dataTableApi.get<{ id: string } | null>(
+        "archive_runs",
+        "select=id&order=run_at.desc&limit=1&single=true",
       );
       if (latest?.id) {
-        await apiPatch(`/api/data/table/archive_runs?id=eq.${encodeURIComponent(latest.id)}`, {
+        await dataTableApi.patch("archive_runs", `id=eq.${encodeURIComponent(latest.id)}`, {
           data: { duration_ms: duration },
         });
       }
@@ -77,8 +76,9 @@ export async function runArchive(retentionDays: number = 90): Promise<{
  */
 export async function getArchiveHistory(limit: number = 20): Promise<ArchiveRun[]> {
   try {
-    const rows = await apiGet<ArchiveRun[]>(
-      `/api/data/table/archive_runs?select=*&order=run_at.desc&limit=${limit}`,
+    const rows = await dataTableApi.get<ArchiveRun[]>(
+      "archive_runs",
+      `select=*&order=run_at.desc&limit=${limit}`,
     );
     return Array.isArray(rows) ? rows : [];
   } catch (e) {

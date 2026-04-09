@@ -59,7 +59,7 @@ import {
 import { SortableMerchantTableRow } from "@/pages/merchants/SortableMerchantTableRow";
 
 export function CardTab() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const useCompactLayout = isMobile || isTablet;
@@ -227,7 +227,13 @@ export function CardTab() {
           <Input placeholder={t('merchants.searchCards')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-9" />
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" size="icon" className="h-9 w-9" title={t('导出', 'Export')} onClick={() => exportConfirm.requestExport(() => exportTable('cards', 'xlsx'))}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            title={t('导出', 'Export')}
+            onClick={() => exportConfirm.requestExport(() => void exportTable("cards", language === "en", "xlsx"))}
+          >
             <Download className="h-4 w-4" />
           </Button>
           <TableImportButton tableName="cards" onImportComplete={() => refetch()} />

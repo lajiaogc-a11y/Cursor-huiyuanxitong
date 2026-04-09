@@ -3,7 +3,7 @@
  */
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
-import { queryOne } from '../../database/index.js';
+import { getMemberTenantIdById } from '../members/repository.js';
 import { logger } from '../../lib/logger.js';
 import {
   createPointOrder,
@@ -216,8 +216,8 @@ export async function getMemberFrozenPointsController(req: AuthenticatedRequest,
     if (req.user?.type === 'member') {
       if (req.user.id !== memberId) { res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'No access to this member' } }); return; }
     } else if (!req.user?.is_platform_super_admin && req.user?.tenant_id) {
-      const row = await queryOne<{ tenant_id: string | null }>('SELECT tenant_id FROM members WHERE id = ? LIMIT 1', [memberId]);
-      if (row?.tenant_id !== req.user.tenant_id) { res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'No access to this member' } }); return; }
+      const memberTenant = await getMemberTenantIdById(memberId);
+      if (memberTenant !== req.user.tenant_id) { res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'No access to this member' } }); return; }
     }
     const frozen = await getMemberFrozenPoints(memberId);
     res.json({ success: true, data: { frozen_points: frozen } });

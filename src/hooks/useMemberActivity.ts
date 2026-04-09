@@ -1,7 +1,14 @@
 // ============= Member Activity Hook - 活动数据永久累积管理 =============
 // 管理 member_activity 表的永久累积字段
 
-import { apiGet, apiPost, apiPatch } from '@/api/client';
+import {
+  getMemberActivityByMemberIdSingle,
+  getMemberActivityByPhoneSingle,
+  getMemberActivityPermanentTotalsSingle,
+  postMemberActivity,
+  rpcMemberActivityApplyDeltas,
+  type MemberActivityRow,
+} from '@/services/data/tableQueryService';
 import { logger } from '@/lib/logger';
 
 async function applyActivityDeltasViaRpc(
@@ -10,7 +17,7 @@ async function applyActivityDeltasViaRpc(
   deltas: Record<string, number>,
 ): Promise<boolean> {
   try {
-    const res = await apiPost<{ success?: boolean }>('/api/data/rpc/member_activity_apply_deltas', {
+    const res = await rpcMemberActivityApplyDeltas({
       p_member_id: memberId,
       p_phone: phoneNumber,
       ...Object.fromEntries(Object.entries(deltas).map(([k, v]) => [`p_${k}`, v])),
@@ -28,26 +35,7 @@ function unwrapSingle<T>(data: unknown): T | null {
   return data as T;
 }
 
-export interface MemberActivityData {
-  id: string;
-  member_id: string;
-  phone_number: string;
-  accumulated_points: number;
-  remaining_points: number;
-  referral_count: number;
-  referral_points: number;
-  last_reset_time: string | null;
-  // 永久累积字段
-  total_accumulated_ngn: number;
-  total_accumulated_ghs: number;
-  total_accumulated_usdt: number;
-  total_gift_ngn: number;
-  total_gift_ghs: number;
-  total_gift_usdt: number;
-  accumulated_profit: number; // 累积利润（人民币，来自NGN/GHS订单）
-  accumulated_profit_usdt: number; // 累积利润（USDT，来自USDT订单）
-  order_count: number; // 订单累积次数（永久存储，订单删除后不减少）
-}
+export type MemberActivityData = MemberActivityRow;
 
 // 获取或创建会员活动记录
 export async function getOrCreateMemberActivity(
@@ -55,15 +43,13 @@ export async function getOrCreateMemberActivity(
   phoneNumber: string
 ): Promise<MemberActivityData | null> {
   try {
-    const existing = await apiGet<MemberActivityData | null>(
-      `/api/data/table/member_activity?select=*&member_id=eq.${encodeURIComponent(memberId)}&single=true`
-    );
+    const existing = await getMemberActivityByMemberIdSingle(memberId);
 
     if (existing) {
       return existing;
     }
 
-    const createdRaw = await apiPost<unknown>(`/api/data/table/member_activity`, {
+    const createdRaw = await postMemberActivity({
       data: {
         member_id: memberId,
         phone_number: phoneNumber,
@@ -98,9 +84,7 @@ export async function getMemberActivityByPhone(
   phoneNumber: string
 ): Promise<MemberActivityData | null> {
   try {
-    return await apiGet<MemberActivityData | null>(
-      `/api/data/table/member_activity?select=*&phone_number=eq.${encodeURIComponent(phoneNumber)}&single=true`
-    );
+    return await getMemberActivityByPhoneSingle(phoneNumber);
   } catch (error) {
     logger.error('Error in getMemberActivityByPhone:', error);
     return null;
@@ -189,9 +173,7 @@ export async function getPermanentActivityData(
   accumulatedProfitUsdt: number;
 } | null> {
   try {
-    const data = await apiGet<Record<string, number | null | undefined> | null>(
-      `/api/data/table/member_activity?select=total_accumulated_ngn,total_accumulated_ghs,total_accumulated_usdt,total_gift_ngn,total_gift_ghs,total_gift_usdt,accumulated_profit,accumulated_profit_usdt&member_id=eq.${encodeURIComponent(memberId)}&single=true`
-    );
+    const data = await getMemberActivityPermanentTotalsSingle(memberId);
 
     if (!data) {
       return null;

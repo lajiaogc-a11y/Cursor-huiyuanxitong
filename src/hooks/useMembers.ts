@@ -10,6 +10,7 @@ import {
   updateMemberApi,
   updateMemberByPhoneApi,
   deleteMemberApi,
+  type CreateMemberBody,
 } from '@/services/members/membersApiService';
 import { logOperation } from '@/services/audit/auditLogService';
 import { getEmployeeNameSync } from '@/services/employees/employeeHelpers';
@@ -25,7 +26,7 @@ import { checkMyTenantQuotaResult, getQuotaExceededText, getQuotaSoftExceededTex
 import { useLanguage } from '@/contexts/LanguageContext';
 import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
 import { generateMemberCode } from '@/lib/memberCode';
-import { ApiError } from '@/lib/apiClient';
+import { ApiError } from '@/services/auth/authApiService';
 
 export interface Member {
   id: string;
@@ -168,25 +169,14 @@ export function useMembers() {
       }
 
       const memberCode = memberData.memberCode || generateMemberCode();
-      const body = {
-        ...mapMemberToDb({ ...memberData, memberCode }),
+      const body: CreateMemberBody = {
+        ...(mapMemberToDb({ ...memberData, memberCode }) as unknown as CreateMemberBody),
         creator_id: memberData.recorderId || null,
         recorder_id: memberData.recorderId || null,
-      };
-      
-      const data = await createMemberApi({
-        phone_number: body.phone_number,
-        member_code: body.member_code,
-        currency_preferences: body.currency_preferences,
-        remark: body.remark,
-        customer_feature: body.customer_feature,
-        source_id: body.source_id,
-        creator_id: body.creator_id,
-        recorder_id: body.recorder_id,
-        common_cards: body.common_cards,
-        bank_card: body.bank_card,
         tenant_id: effectiveTenantId,
-      });
+      };
+
+      const data = await createMemberApi(body);
 
       if (!data) throw new Error(t('创建会员失败', 'Failed to create member'));
 

@@ -138,7 +138,7 @@ export function Lottery({
             spinning={spinning}
             remaining={remaining}
             showResult={showResult}
-            result={result}
+            result={result ?? null}
             onSpin={onSpin}
             t={t}
           />

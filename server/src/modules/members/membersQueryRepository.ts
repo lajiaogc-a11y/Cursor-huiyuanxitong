@@ -170,3 +170,9 @@ export async function lookupMemberForReferralRepository(
   console.warn(`[lookupMember] no match for q="${q}" (digits="${digits}", code="${codeCleaned}") in tenant="${tenantId}"`);
   return null;
 }
+
+/** Lightweight tenant-id lookup by member id — shared across controllers that need tenant isolation checks. */
+export async function getMemberTenantIdById(memberId: string): Promise<string | null> {
+  const row = await queryOne<{ tenant_id: string | null }>('SELECT tenant_id FROM members WHERE id = ? LIMIT 1', [memberId]);
+  return row?.tenant_id ?? null;
+}

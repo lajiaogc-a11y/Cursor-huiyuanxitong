@@ -64,7 +64,7 @@ export interface SpinCreditsDetailResult {
 
 export async function getSpinCreditsDetailApi(memberId: string): Promise<SpinCreditsDetailResult> {
   const res = await apiClient.get<SpinCreditsDetailResult>(`/api/data/spin-credits-detail/${encodeURIComponent(memberId)}`);
-  const raw = res as Record<string, unknown>;
+  const raw = res as unknown as Record<string, unknown>;
   const data = (raw?.data && typeof raw.data === "object" ? raw.data : raw) as Record<string, unknown>;
   return {
     credits: Array.isArray(data?.credits) ? data.credits as SpinCreditDetailRow[] : [],

@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { config } from '../../config/index.js';
-import { execute } from '../../database/index.js';
+import { auditLogService } from '../data/operationLogsService.js';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
 
 const lastDumpByUser = new Map<string, number>();
@@ -25,11 +25,15 @@ function auditLog(req: AuthenticatedRequest, mode: string, ok: boolean, detail: 
   const u = req.user!;
   const desc = JSON.stringify({ mode, ok, detail: detail.slice(0, 2000), path: '/api/admin/database/mysql-dump' });
   const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || '';
-  execute(
-    `INSERT INTO operation_logs (operator_id, operator_account, operator_role, module, operation_type, object_description, ip_address)
-     VALUES (?, ?, ?, 'system_settings', 'mysql_mysqldump', ?, ?)`,
-    [u.id, u.username || null, u.role || null, desc, ip || null],
-  ).catch(() => {
+  auditLogService({
+    operator_id: u.id,
+    operator_account: u.username || '',
+    operator_role: u.role || '',
+    module: 'system_settings',
+    operation_type: 'mysql_mysqldump',
+    object_description: desc,
+    ip_address: ip || null,
+  }).catch(() => {
     console.warn('[databaseDump] operation_logs insert skipped:', detail.slice(0, 200));
   });
 }

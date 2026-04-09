@@ -4,14 +4,9 @@ import { Badge } from '@/components/ui/badge';
 import { RefreshCw, TrendingUp, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GCLogo } from '@/components/GCLogo';
-import { EXTERNAL_API } from '@/config/externalApis';
+import { fetchUsdExchangeRates, type UsdExchangeRates } from '@/services/finance/marketRatesService';
 
-interface Rates {
-  usdToNgn: number;
-  usdToGhs: number;
-  usdtRate: number;
-  lastUpdated: string;
-}
+type Rates = UsdExchangeRates;
 
 let _ratesCache: Rates | null = null;
 
@@ -22,19 +17,8 @@ export default function PublicRates() {
   const fetchRates = async () => {
     setLoading(true);
     try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 10_000);
-      const res = await fetch(EXTERNAL_API.EXCHANGE_RATE_USD_ER_API, { signal: ctrl.signal });
-      clearTimeout(timer);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if (data.result === 'success' && data.rates) {
-        const r: Rates = {
-          usdToNgn: data.rates.NGN || 0,
-          usdToGhs: data.rates.GHS || 0,
-          usdtRate: 0.98,
-          lastUpdated: new Date().toISOString(),
-        };
+      const r = await fetchUsdExchangeRates();
+      if (r) {
         setRates(r);
         _ratesCache = r;
       }

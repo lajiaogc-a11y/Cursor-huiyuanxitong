@@ -43,7 +43,7 @@ import {
   MobileCardRow,
 } from "@/components/ui/mobile-data-card";
 import { cn } from "@/lib/utils";
-import { ApiError } from "@/api/client";
+import { ApiError } from "@/services/auth/authApiService";
 
 /** 周期结束时刻（用于展示），与后端 DATE_ADD(start, INTERVAL h HOUR) 语义一致 */
 function computeCycleEndDate(settings: InviteLeaderboardGrowthSettings): Date | null {

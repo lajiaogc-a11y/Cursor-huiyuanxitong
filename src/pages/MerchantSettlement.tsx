@@ -58,7 +58,7 @@ import {
   fetchMerchantPaymentProviders,
   fetchMerchantVendors,
 } from "@/services/finance/merchantConfigReadService";
-import { listEmployeesApi } from "@/api/employees";
+import { getEmployees } from "@/services/employees/employeeCrudService";
 import { getActivityDataApi } from "@/services/staff/dataApi";
 import { verifyAuthPasswordApi } from "@/services/auth/authApiService";
 import { useMerchantNameResolver } from "@/hooks/useNameResolver";
@@ -333,7 +333,7 @@ export default function MerchantSettlement() {
 
   const loadEmployees = async () => {
     try {
-      const list = await listEmployeesApi(effectiveTenantId ? { tenant_id: effectiveTenantId } : undefined);
+      const list = await getEmployees(effectiveTenantId);
       const data = (list || []).map((e) => ({ id: e.id, real_name: e.real_name }));
       setEmployees(data);
       const c = getMsCache(); if (c) { c.employees = data; setMsCache(c); }

@@ -114,34 +114,34 @@ export function EmployeeProfitReportTab({
             <Table className="text-xs">
               <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
                 <TableRow>
-                  <SortableTableHead sortKey="employeeName" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">
+                  <SortableTableHead sortKey="employeeName" currentSort={employeeSortConfig ?? null} onSort={requestEmployeeSort} className="text-center px-1.5">
                     {t("员工姓名", "Employee")}
                   </SortableTableHead>
-                  <SortableTableHead sortKey="orderCount" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">
+                  <SortableTableHead sortKey="orderCount" currentSort={employeeSortConfig ?? null} onSort={requestEmployeeSort} className="text-center px-1.5">
                     {t("订单总数", "Orders")}
                   </SortableTableHead>
-                  <SortableTableHead sortKey="profitNgn" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">
+                  <SortableTableHead sortKey="profitNgn" currentSort={employeeSortConfig ?? null} onSort={requestEmployeeSort} className="text-center px-1.5">
                     {t("利润(NGN/GHS)", "Profit NGN/GHS")}
                   </SortableTableHead>
-                  <SortableTableHead sortKey="profitUsdt" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">
+                  <SortableTableHead sortKey="profitUsdt" currentSort={employeeSortConfig ?? null} onSort={requestEmployeeSort} className="text-center px-1.5">
                     {t("利润(USDT)", "Profit USDT")}
                   </SortableTableHead>
-                  <SortableTableHead sortKey="errorProfitNgn" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">
+                  <SortableTableHead sortKey="errorProfitNgn" currentSort={employeeSortConfig ?? null} onSort={requestEmployeeSort} className="text-center px-1.5">
                     {t("错单(NGN/GHS)", "Loss NGN/GHS")}
                   </SortableTableHead>
-                  <SortableTableHead sortKey="errorProfitUsdt" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">
+                  <SortableTableHead sortKey="errorProfitUsdt" currentSort={employeeSortConfig ?? null} onSort={requestEmployeeSort} className="text-center px-1.5">
                     {t("错单(USDT)", "Loss USDT")}
                   </SortableTableHead>
-                  <SortableTableHead sortKey="activityGiftRatio" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">
+                  <SortableTableHead sortKey="activityGiftRatio" currentSort={employeeSortConfig ?? null} onSort={requestEmployeeSort} className="text-center px-1.5">
                     {t("活动赠送占比", "Gift Ratio")}
                   </SortableTableHead>
-                  <SortableTableHead sortKey="activityGiftAmount" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">
+                  <SortableTableHead sortKey="activityGiftAmount" currentSort={employeeSortConfig ?? null} onSort={requestEmployeeSort} className="text-center px-1.5">
                     {t("活动赠送金额", "Gift Amount")}
                   </SortableTableHead>
-                  <SortableTableHead sortKey="manualGiftRatio" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">
+                  <SortableTableHead sortKey="manualGiftRatio" currentSort={employeeSortConfig ?? null} onSort={requestEmployeeSort} className="text-center px-1.5">
                     {t("手动设置占比", "Manual Ratio")}
                   </SortableTableHead>
-                  <SortableTableHead sortKey="manualGiftAmount" currentSort={employeeSortConfig} onSort={requestEmployeeSort} className="text-center px-1.5">
+                  <SortableTableHead sortKey="manualGiftAmount" currentSort={employeeSortConfig ?? null} onSort={requestEmployeeSort} className="text-center px-1.5">
                     {t("承担活动金额", "Manual Amount")}
                   </SortableTableHead>
                 </TableRow>

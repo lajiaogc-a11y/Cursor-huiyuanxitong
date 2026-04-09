@@ -8,9 +8,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
 import { getLoginLogs } from '@/services/staff/dataApi';
-import { apiClient } from '@/lib/apiClient';
+import { resolveLoginLogLocationsApi } from '@/services/auth/authApiService';
 
-const PAGE_SIZE = 100;
+const DEFAULT_LOGIN_LOG_PAGE_SIZE = 100;
 
 export interface LoginLog {
   id: string;
@@ -32,7 +32,7 @@ function normalizeIp(ip: string | null | undefined): string | null {
   return trimmed;
 }
 
-async function fetchLoginLogs(tenantId?: string | null, page = 1, pageSize = PAGE_SIZE) {
+async function fetchLoginLogs(tenantId?: string | null, page = 1, pageSize = DEFAULT_LOGIN_LOG_PAGE_SIZE) {
   const result = await getLoginLogs(pageSize, tenantId, page);
   const logs: LoginLog[] = result.rows.map((log) => ({
     id: log.id,
@@ -56,6 +56,11 @@ export function useLoginLogs(
   const queryClient = useQueryClient();
   const backfillTriggeredRef = useRef(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSizeState] = useState(DEFAULT_LOGIN_LOG_PAGE_SIZE);
+  const setPageSize = useCallback((size: number) => {
+    setPageSizeState(size);
+    setCurrentPage(1);
+  }, []);
   const { employee } = useAuth();
   const { viewingTenantId, viewingTenantName } = useTenantView() || {};
   /**
@@ -67,7 +72,7 @@ export function useLoginLogs(
   const effectiveTenantId = employee?.is_platform_super_admin
     ? (viewingTenantName?.trim() ? viewingTenantId : null)
     : (viewingTenantId || employee?.tenant_id || null);
-  const queryKey = ['login-logs', effectiveTenantId ?? '', currentPage] as const;
+  const queryKey = ['login-logs', effectiveTenantId ?? '', currentPage, pageSize] as const;
 
   // 切换租户 / 查看租户变化时若仍停留在高页码，服务端会返回空列表（OFFSET 超出），表现为「数据消失」
   useEffect(() => {
@@ -77,7 +82,7 @@ export function useLoginLogs(
 
   const { data, isLoading: isLoadingLogs, isError: isErrorLogs, refetch: refetchLogs } = useQuery({
     queryKey,
-    queryFn: () => fetchLoginLogs(effectiveTenantId, currentPage, PAGE_SIZE),
+    queryFn: () => fetchLoginLogs(effectiveTenantId, currentPage, pageSize),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 3,
@@ -86,7 +91,7 @@ export function useLoginLogs(
 
   const logs = useMemo(() => data?.logs ?? [], [data?.logs]);
   const totalLogs = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalLogs / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalLogs / pageSize));
 
   // 总条数减少后（删库、筛选变化、invalidate 后）把页码收回到末页，避免空白页
   useEffect(() => {
@@ -94,9 +99,9 @@ export function useLoginLogs(
       if (currentPage !== 1) setCurrentPage(1);
       return;
     }
-    const maxPage = Math.max(1, Math.ceil(totalLogs / PAGE_SIZE));
+    const maxPage = Math.max(1, Math.ceil(totalLogs / pageSize));
     if (currentPage > maxPage) setCurrentPage(maxPage);
-  }, [totalLogs, currentPage]);
+  }, [totalLogs, currentPage, pageSize]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -104,7 +109,7 @@ export function useLoginLogs(
     const hasMissing = logs.some(l => l.ip_address && !l.ip_location);
     if (!hasMissing) return;
     backfillTriggeredRef.current = true;
-    apiClient.post('/api/logs/login/resolve-locations', {})
+    resolveLoginLogLocationsApi()
       .then(() => {
         setTimeout(() => refetchLogs(), 2000);
       })
@@ -133,7 +138,8 @@ export function useLoginLogs(
     setCurrentPage,
     totalLogs,
     totalPages,
-    pageSize: PAGE_SIZE,
+    pageSize,
+    setPageSize,
     /** 传给后端的 tenant_id；平台超管未「进入租户」时为 null（全站） */
     effectiveTenantId,
   };

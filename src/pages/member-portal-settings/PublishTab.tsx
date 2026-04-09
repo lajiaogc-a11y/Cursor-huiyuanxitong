@@ -241,7 +241,10 @@ export function PublishTab({
           ) : (
             <div className="space-y-2">
               {versions.map((v) => {
-                const applied = v.is_applied === true || v.is_applied === 1 || String(v.is_applied) === "1";
+                const applied =
+                  v.is_applied === true ||
+                  (v as { is_applied?: boolean | number | string }).is_applied === 1 ||
+                  String((v as { is_applied?: boolean | number | string }).is_applied) === "1";
                 const statusLabel =
                   v.approval_status === "draft"
                     ? { text: t("草稿（未发布）", "Draft (not published)"), cls: "bg-muted text-muted-foreground border-border" }

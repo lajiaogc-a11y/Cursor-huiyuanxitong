@@ -1,7 +1,8 @@
 /**
  * Reports API Service - 报表数据（经后端 API，替代旧版 useReportData 直连）
  */
-import { apiGet, unwrapApiData } from '@/api/client';
+import { reportsApi } from '@/api/reports';
+import { unwrapApiData } from '@/api/client';
 
 export interface DashboardStats {
   tenants: number;
@@ -45,10 +46,9 @@ interface ApiResponse<T> {
   error?: { code: string; message: string };
 }
 
-/** Dashboard 统计（5 秒缓存） */
 export async function getDashboardStatsApi(tenantId?: string | null): Promise<DashboardStats> {
-  const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : '';
-  const res = await apiGet<DashboardStats | ApiResponse<DashboardStats>>(`/api/reports/dashboard${q}`);
+  const params = tenantId ? { tenant_id: tenantId } : undefined;
+  const res = await reportsApi.getDashboard(params);
   const data = unwrapApiData<DashboardStats>(res);
   return data ?? { tenants: 0, activeEmployees: 0, todayOrders: 0, pendingAudits: 0 };
 }
@@ -59,14 +59,10 @@ export async function getDashboardTrendApi(params: {
   salesPerson?: string | null;
   tenantId?: string | null;
 }): Promise<DashboardTrendResult> {
-  const q = new URLSearchParams();
-  q.set('startDate', params.startDate);
-  q.set('endDate', params.endDate);
-  if (params.salesPerson) q.set('salesPerson', params.salesPerson);
-  if (params.tenantId) q.set('tenant_id', params.tenantId);
-  const res = await apiGet<DashboardTrendResult | ApiResponse<DashboardTrendResult>>(
-    `/api/reports/dashboard-trend?${q.toString()}`
-  );
+  const q: Record<string, string> = { startDate: params.startDate, endDate: params.endDate };
+  if (params.salesPerson) q.salesPerson = params.salesPerson;
+  if (params.tenantId) q.tenant_id = params.tenantId;
+  const res = await reportsApi.getDashboardTrend(q);
   const data = unwrapApiData<DashboardTrendResult>(res);
   return data ?? {
     rows: [],
@@ -83,46 +79,41 @@ export async function getDashboardTrendApi(params: {
   };
 }
 
-/** 订单报表 */
 export async function getOrdersReportApi(params?: {
   startDate?: string;
   endDate?: string;
   creatorId?: string;
   tenantId?: string | null;
 }): Promise<any[]> {
-  const q = new URLSearchParams();
-  if (params?.startDate) q.set('startDate', params.startDate);
-  if (params?.endDate) q.set('endDate', params.endDate);
-  if (params?.creatorId) q.set('creatorId', params.creatorId);
-  if (params?.tenantId) q.set('tenant_id', params.tenantId);
-  const suffix = q.toString() ? `?${q.toString()}` : '';
-  const res = await apiGet<any[] | ApiResponse<any[]>>(`/api/reports/orders${suffix}`);
+  const q: Record<string, string> = {};
+  if (params?.startDate) q.startDate = params.startDate;
+  if (params?.endDate) q.endDate = params.endDate;
+  if (params?.creatorId) q.creatorId = params.creatorId;
+  if (params?.tenantId) q.tenant_id = params.tenantId;
+  const res = await reportsApi.getOrdersReport(Object.keys(q).length ? q : undefined);
   const data = unwrapApiData<any[]>(res);
   return Array.isArray(data) ? data : [];
 }
 
-/** 活动赠送报表 */
 export async function getActivityGiftsReportApi(params?: {
   startDate?: string;
   endDate?: string;
   creatorId?: string;
   tenantId?: string | null;
 }): Promise<any[]> {
-  const q = new URLSearchParams();
-  if (params?.startDate) q.set('startDate', params.startDate);
-  if (params?.endDate) q.set('endDate', params.endDate);
-  if (params?.creatorId) q.set('creatorId', params.creatorId);
-  if (params?.tenantId) q.set('tenant_id', params.tenantId);
-  const suffix = q.toString() ? `?${q.toString()}` : '';
-  const res = await apiGet<any[] | ApiResponse<any[]>>(`/api/reports/activity-gifts${suffix}`);
+  const q: Record<string, string> = {};
+  if (params?.startDate) q.startDate = params.startDate;
+  if (params?.endDate) q.endDate = params.endDate;
+  if (params?.creatorId) q.creatorId = params.creatorId;
+  if (params?.tenantId) q.tenant_id = params.tenantId;
+  const res = await reportsApi.getActivityGiftsReport(Object.keys(q).length ? q : undefined);
   const data = unwrapApiData<any[]>(res);
   return Array.isArray(data) ? data : [];
 }
 
-/** 报表基础数据（员工列表） */
 export async function getReportBaseDataApi(tenantId?: string | null): Promise<{ employees: any[] }> {
-  const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : '';
-  const res = await apiGet<{ employees: any[] } | ApiResponse<{ employees: any[] }>>(`/api/reports/base-data${q}`);
+  const params = tenantId ? { tenant_id: tenantId } : undefined;
+  const res = await reportsApi.getBaseData(params);
   const data = unwrapApiData<{ employees: any[] }>(res);
   return data ?? { employees: [] };
 }

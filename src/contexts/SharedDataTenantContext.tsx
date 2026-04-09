@@ -11,7 +11,8 @@ import { getPlatformTenantId } from '@/services/auth/authApiService';
 export function SharedDataTenantProvider({ children }: { children: ReactNode }) {
   const { employee } = useAuth();
   const { viewingTenantId } = useTenantView() || {};
-  const effectiveTenantId = viewingTenantId || employee?.tenant_id || getPlatformTenantId() || employee?.tenant_id;
+  const effectiveTenantId =
+    (viewingTenantId || employee?.tenant_id || getPlatformTenantId() || employee?.tenant_id) ?? null;
   const prevRef = useRef<string | null>(undefined as unknown as string | null);
 
   // 同步设置 tenant，确保子组件（含 data sync）能立即使用

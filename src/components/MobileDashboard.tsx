@@ -33,7 +33,7 @@ const EmployeeLeaderboard = lazy(() => import("@/components/EmployeeLeaderboard"
 const TIME_RANGES: { label: string; labelEn: string; value: TimeRangeType }[] = [
   { label: "今日", labelEn: "Today", value: "今日" },
   { label: "昨日", labelEn: "Yesterday", value: "昨日" },
-  { label: "本周", labelEn: "Week", value: "本周" },
+  { label: "本周", labelEn: "Week", value: "近7天" },
   { label: "本月", labelEn: "Month", value: "本月" },
   { label: "全部", labelEn: "All", value: "全部" },
 ];

@@ -76,9 +76,9 @@ function bilingualFromItem(o: Record<string, unknown>): {
   displayBody: string;
 } {
   const titleZh = String(o.title_zh ?? o.title ?? o.subject ?? '').trim();
-  const titleEn = String(o.title_en ?? '').trim();
+  const titleEn = String(o.title_en ?? '').trim() || titleZh;
   const bodyZh = String(o.body_zh ?? o.content ?? o.body ?? o.message ?? o.text ?? '').trim();
-  const bodyEn = String(o.body_en ?? '').trim();
+  const bodyEn = String(o.body_en ?? '').trim() || bodyZh;
   const displayTitle = titleEn || titleZh || 'Announcement';
   const displayBody = bodyEn || bodyZh || '';
   return { titleZh, titleEn, bodyZh, bodyEn, displayTitle, displayBody };

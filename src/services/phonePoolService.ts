@@ -238,22 +238,16 @@ export async function checkPhoneExtractHealth(tenantId: string): Promise<PhoneEx
   }
   items.push({ key: "tenant", ok: true, message: "OK" });
 
-  const base = (import.meta.env.VITE_API_BASE ?? "").replace(/\/+$/, "");
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const { apiClient } = await import("@/lib/apiClient");
 
   async function probe(path: string): Promise<{ ok: boolean; message: string }> {
     try {
-      const r = await fetch(`${base}${path}`, { headers, cache: 'no-store' });
-      const j = (await r.json().catch(() => ({}))) as {
+      const j = await apiClient.get<{
         success?: boolean;
         message?: string;
         code?: string;
         error?: { message?: string; code?: string };
-      };
-      if (!r.ok) {
-        return { ok: false, message: j.message || j.error?.message || `HTTP ${r.status}` };
-      }
+      }>(path);
       if (j.success === false) {
         return {
           ok: false,
@@ -278,13 +272,12 @@ export async function checkPhoneExtractHealth(tenantId: string): Promise<PhoneEx
   items.push({ key: "extract_records_api", ok: rec.ok, message: rec.message });
 
   try {
-    const hr = await fetch(`${base}/api/phone-pool/health`, { headers, cache: 'no-store' });
-    const hj = (await hr.json().catch(() => ({}))) as {
+    const hj = await apiClient.get<{
       success?: boolean;
       data?: { tableExists?: boolean; phoneColumn?: string; missingColumns?: string[] };
-    };
-    if (!hr.ok || !hj.success) {
-      items.push({ key: "phone_pool_table", ok: false, message: `HTTP ${hr.status}` });
+    }>('/api/phone-pool/health');
+    if (!hj.success) {
+      items.push({ key: "phone_pool_table", ok: false, message: "API_FAIL" });
     } else if (!hj.data?.tableExists) {
       items.push({ key: "phone_pool_table", ok: false, message: "TABLE_NOT_FOUND" });
     } else if (hj.data.missingColumns && hj.data.missingColumns.length > 0) {

@@ -3,7 +3,12 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
-import { apiGet, apiPost, apiDelete } from '@/api/client';
+import {
+  deleteReferralRelationByRefereePhone,
+  getReferralRelationIdByRefereePhone,
+  getReferralRelationsList,
+  postReferralRelation,
+} from '@/services/data/tableQueryService';
 import { notify } from "@/lib/notifyHub";
 import { logOperation } from '@/services/audit/auditLogService';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -38,9 +43,7 @@ function mapDbRelationToRelation(dbRelation: any): ReferralRelation {
 
 // Standalone fetch function
 export async function fetchReferralsFromDb(): Promise<ReferralRelation[]> {
-  const data = await apiGet<unknown>(
-    `/api/data/table/referral_relations?select=*&order=created_at.desc`
-  );
+  const data = await getReferralRelationsList();
   return (Array.isArray(data) ? data : []).map(mapDbRelationToRelation);
 }
 
@@ -73,9 +76,7 @@ export function useReferrals() {
     refereeId?: string,
   ): Promise<ReferralRelation | null> => {
     try {
-      const existingRecord = await apiGet<{ id: string } | null>(
-        `/api/data/table/referral_relations?select=id&referee_phone=eq.${encodeURIComponent(refereePhone)}&single=true`
-      );
+      const existingRecord = await getReferralRelationIdByRefereePhone(refereePhone);
 
       if (existingRecord) {
         notify.error(t('该电话号码已被其他人推荐', 'This phone number has already been referred'));
@@ -92,7 +93,7 @@ export function useReferrals() {
       if (referrerId) insertData.referrer_id = referrerId;
       if (refereeId) insertData.referee_id = refereeId;
 
-      const inserted = await apiPost<unknown>(`/api/data/table/referral_relations`, {
+      const inserted = await postReferralRelation({
         data: insertData,
       });
       const row = unwrapSingle<Record<string, unknown>>(inserted);
@@ -134,9 +135,7 @@ export function useReferrals() {
     try {
       const relationToDelete = relations.find(r => r.refereePhone === refereePhone);
       
-      await apiDelete(
-        `/api/data/table/referral_relations?referee_phone=eq.${encodeURIComponent(refereePhone)}`
-      );
+      await deleteReferralRelationByRefereePhone(refereePhone);
       
       if (relationToDelete) {
         logOperation(

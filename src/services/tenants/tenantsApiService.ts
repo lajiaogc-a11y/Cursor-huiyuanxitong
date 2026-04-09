@@ -1,7 +1,8 @@
 /**
  * Tenants API Service - 通过 Backend API 获取租户列表
  */
-import { apiGet, apiPatch, apiPost, unwrapApiData } from '@/api/client';
+import { tenantsApi } from '@/api/tenants';
+import { unwrapApiData } from '@/api/client';
 
 export interface ApiTenant {
   id: string;
@@ -18,7 +19,7 @@ export interface ApiTenant {
 
 /** 获取租户列表（仅平台总管理员） */
 export async function listTenantsApi(): Promise<ApiTenant[]> {
-  const res = await apiGet<ApiTenant[] | { success?: boolean; data?: ApiTenant[] }>('/api/tenants');
+  const res = await tenantsApi.list();
   const data = unwrapApiData<ApiTenant[]>(res);
   return Array.isArray(data) ? data : [];
 }
@@ -35,12 +36,7 @@ export async function createTenantApi(params: {
   authSyncSuccess?: boolean;
   authSyncMessage?: string;
 }> {
-  const res = await apiPost<{
-    tenantId?: string;
-    adminEmployeeId?: string;
-    authSyncSuccess?: boolean;
-    authSyncMessage?: string;
-  } | { success?: boolean; data?: any }>('/api/tenants', params);
+  const res = await tenantsApi.create(params as any);
   return unwrapApiData<any>(res) ?? {};
 }
 
@@ -49,7 +45,7 @@ export async function updateTenantApi(tenantId: string, params: {
   tenantName: string;
   status: string;
 }): Promise<void> {
-  await apiPatch(`/api/tenants/${encodeURIComponent(tenantId)}`, params);
+  await tenantsApi.update(tenantId, params as any);
 }
 
 export async function resetTenantAdminPasswordApi(tenantId: string, params: {
@@ -62,16 +58,7 @@ export async function resetTenantAdminPasswordApi(tenantId: string, params: {
   authSyncSuccess?: boolean;
   authSyncMessage?: string;
 }> {
-  const res = await apiPost<{
-    adminEmployeeId?: string;
-    adminUsername?: string;
-    adminRealName?: string;
-    authSyncSuccess?: boolean;
-    authSyncMessage?: string;
-  } | { success?: boolean; data?: any }>(
-    `/api/tenants/${encodeURIComponent(tenantId)}/reset-admin-password`,
-    params
-  );
+  const res = await tenantsApi.resetAdminPassword(tenantId, params as any);
   return unwrapApiData<any>(res) ?? {};
 }
 
@@ -79,13 +66,10 @@ export async function deleteTenantApi(tenantId: string, params: {
   force?: boolean;
   password: string;
 }): Promise<{ detail?: string }> {
-  const res = await apiPost<{ detail?: string } | { success?: boolean; data?: { detail?: string } }>(
-    `/api/tenants/${encodeURIComponent(tenantId)}/delete`,
-    params
-  );
+  const res = await tenantsApi.delete(tenantId, params);
   return unwrapApiData<{ detail?: string }>(res) ?? {};
 }
 
 export async function setTenantSuperAdminApi(employeeId: string): Promise<void> {
-  await apiPost('/api/tenants/super-admin', { employeeId });
+  await tenantsApi.setSuperAdmin({ tenant_id: '', user_id: employeeId });
 }

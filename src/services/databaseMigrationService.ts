@@ -8,7 +8,7 @@
  * 适用于历史兼容/演示，**不能替代** mysqldump 对 MySQL 的完整约束与例程导出。
  */
 
-import { apiPost } from '@/api/client';
+import { migrationApi } from '@/api/migration';
 import JSZip from 'jszip';
 import { pickBilingual } from '@/lib/appLocale';
 import {
@@ -113,9 +113,7 @@ const EXPORT_TABLES = [
 // 批量获取表数据 — 通过后端 API
 async function fetchTableData(tableName: string): Promise<any[]> {
   try {
-    const data = await apiPost<any[]>('/api/migration/table-data', {
-      table: tableName,
-    });
+    const data = (await migrationApi.fetchTableData(tableName)) as any[];
     return data || [];
   } catch (err) {
     console.error(`Error fetching ${tableName}:`, err);
@@ -355,9 +353,10 @@ export async function getDatabaseStats(): Promise<{
   tables: { name: string; count: number }[];
 }> {
   try {
-    const result = await apiPost<{ tableCount: number; tables: { name: string; count: number }[] }>('/api/migration/db-stats', {
-      tables: EXPORT_TABLES.filter(t => TABLE_SCHEMAS[t]),
-    });
+    const result = await migrationApi.getDbStats(EXPORT_TABLES.filter(t => TABLE_SCHEMAS[t])) as {
+      tableCount: number;
+      tables: { name: string; count: number }[];
+    };
     return result || { tableCount: 0, tables: [] };
   } catch (err) {
     console.error('getDatabaseStats error:', err);

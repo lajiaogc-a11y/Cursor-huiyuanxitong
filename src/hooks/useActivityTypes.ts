@@ -4,7 +4,11 @@
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE_TIME_LIST_MS } from '@/lib/reactQueryPolicy';
-import { apiPost, apiPatch, apiDelete } from '@/api/client';
+import {
+  deleteActivityTypeById,
+  patchActivityTypeById,
+  postActivityType,
+} from '@/services/data/tableQueryService';
 import { logOperation } from '@/services/audit/auditLogService';
 import { getActivityTypesApi } from '@/services/staff/dataApi';
 import { pickBilingual } from '@/lib/appLocale';
@@ -59,7 +63,7 @@ export function useActivityTypes() {
     try {
       const maxOrder = activityTypes.reduce((max, t) => Math.max(max, t.sortOrder), 0);
       
-      const inserted = await apiPost<unknown>(`/api/data/table/activity_types`, {
+      const inserted = await postActivityType({
         data: {
           value,
           label,
@@ -91,7 +95,7 @@ export function useActivityTypes() {
       if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
       if (updates.sortOrder !== undefined) updateData.sort_order = updates.sortOrder;
 
-      await apiPatch(`/api/data/table/activity_types?id=eq.${encodeURIComponent(id)}`, { data: updateData });
+      await patchActivityTypeById(id, { data: updateData });
       
       logOperation('activity_type', 'update', id, beforeData, { ...beforeData, ...updates }, pickBilingual(`更新活动类型: ${updates.label || beforeData?.label}`, `Update activity type: ${updates.label || beforeData?.label}`));
       
@@ -107,7 +111,7 @@ export function useActivityTypes() {
     try {
       await Promise.all(
         items.map((item) =>
-          apiPatch(`/api/data/table/activity_types?id=eq.${encodeURIComponent(item.id)}`, {
+          patchActivityTypeById(item.id, {
             data: { sort_order: item.sortOrder },
           })
         )
@@ -125,7 +129,7 @@ export function useActivityTypes() {
     try {
       const typeToDelete = activityTypes.find(t => t.id === id);
       
-      await apiDelete(`/api/data/table/activity_types?id=eq.${encodeURIComponent(id)}`);
+      await deleteActivityTypeById(id);
       
       if (typeToDelete) {
         logOperation('activity_type', 'delete', id, typeToDelete, null, pickBilingual(`删除活动类型: ${typeToDelete.label}`, `Delete activity type: ${typeToDelete.label}`));

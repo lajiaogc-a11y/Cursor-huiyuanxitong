@@ -17,8 +17,7 @@ import { notify } from "@/lib/notifyHub";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { loadSharedData, saveSharedData, subscribeToSharedData } from "@/services/finance/sharedDataService";
-import { fetchBtcPriceViaApi } from "@/services/finance/marketRatesService";
-import { EXTERNAL_API } from "@/config/externalApis";
+import { fetchRealTimeBtcPrice } from "@/services/finance/marketRatesService";
 
 // BTC配置类型
 export interface BtcPriceConfig {
@@ -39,36 +38,7 @@ const DEFAULT_CONFIG: BtcPriceConfig = {
   lastUpdated: '',          // 空字符串表示从未更新
 };
 
-// BTC 价格采集 — 优先走后端代理（绕过 CSP），失败后直连外部 API
-const fetchRealTimeBtcRate = async (): Promise<number> => {
-  // 1. 后端代理（不受 CSP 限制）
-  try {
-    const r = await fetchBtcPriceViaApi(AbortSignal.timeout(12000));
-    if (r.success && r.price != null && r.price > 0) return r.price;
-  } catch { /* try direct */ }
-
-  // 2. CoinGecko 直连
-  try {
-    const res = await fetch(EXTERNAL_API.COINGECKO_BTC_USD, { signal: AbortSignal.timeout(8000) });
-    if (res.ok) {
-      const data = await res.json();
-      const price = data?.bitcoin?.usd;
-      if (price && price > 0) return price;
-    }
-  } catch { /* try fallback */ }
-
-  // 3. Binance 直连
-  try {
-    const res = await fetch(EXTERNAL_API.BINANCE_BTC_USDT_TICKER, { signal: AbortSignal.timeout(8000) });
-    if (res.ok) {
-      const data = await res.json();
-      const price = parseFloat(data?.price);
-      if (price && price > 0) return price;
-    }
-  } catch { /* skip */ }
-
-  throw new Error('BTC price unavailable from all sources');
-};
+const fetchRealTimeBtcRate = fetchRealTimeBtcPrice;
 
 // 🔧 修复：基于时间戳计算剩余秒数，而不是依赖组件内存
 const calculateRemainingSeconds = (lastUpdated: string | undefined, intervalSeconds: number): number => {

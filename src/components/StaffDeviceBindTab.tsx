@@ -8,7 +8,7 @@ import {
   bindCurrentStaffDevice,
   type EmployeeDeviceDto,
 } from "@/services/staff/staffDeviceWhitelistService";
-import { setAuthToken } from "@/api/client";
+import { setAuthToken } from "@/services/auth/authApiService";
 import { showServiceErrorToast } from "@/services/serviceErrorToast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

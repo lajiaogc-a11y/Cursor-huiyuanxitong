@@ -1,71 +1,30 @@
 /**
  * Giftcards API Service - 通过 Backend API 操作 cards / vendors / payment_providers（须传 tenant_id）
  */
-import { apiGet, apiPost, apiPut, apiDelete, unwrapApiData } from '@/api/client';
+import { unwrapApiData } from '@/api/client';
+import {
+  giftcardsApi,
+  type ApiCard,
+  type ApiVendor,
+  type ApiPaymentProvider,
+} from '@/api/giftcards';
 
-export interface ApiCard {
-  id: string;
-  name: string;
-  type?: string;
-  status: string;
-  remark?: string;
-  card_vendors?: string[];
-  sort_order?: number;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface ApiVendor {
-  id: string;
-  name: string;
-  status: string;
-  remark?: string;
-  payment_providers?: string[];
-  sort_order?: number;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface ApiPaymentProvider {
-  id: string;
-  name: string;
-  status: string;
-  remark?: string;
-  sort_order?: number;
-  created_at?: string;
-  updated_at?: string;
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: { code: string; message: string };
-}
+export type { ApiCard, ApiVendor, ApiPaymentProvider };
 
 function toDateOnly(value: string | null | undefined): string {
   if (!value) return '';
   return value.split('T')[0] || '';
 }
 
-/** 所有 giftcards 请求附加 tenant_id，与平台代管「查看租户」一致 */
-function withTenant(path: string, tenantId: string): string {
-  const sep = path.includes('?') ? '&' : '?';
-  return `${path}${sep}tenant_id=${encodeURIComponent(tenantId)}`;
-}
-
 // ============= Cards =============
 export async function listCardsApi(tenantId: string, status?: string): Promise<ApiCard[]> {
-  let path = '/api/giftcards/cards';
-  if (status) path += `?status=${encodeURIComponent(status)}`;
-  const res = await apiGet<ApiCard[] | ApiResponse<ApiCard[]>>(withTenant(path, tenantId));
+  const res = await giftcardsApi.cards.list(tenantId, status);
   const data = unwrapApiData<ApiCard[]>(res);
   return Array.isArray(data) ? data : [];
 }
 
 export async function getCardByIdApi(tenantId: string, id: string): Promise<ApiCard | null> {
-  const res = await apiGet<ApiCard | ApiResponse<ApiCard>>(
-    withTenant(`/api/giftcards/cards/${encodeURIComponent(id)}`, tenantId),
-  );
+  const res = await giftcardsApi.cards.getById(tenantId, id);
   const data = unwrapApiData<ApiCard>(res);
   return data && typeof data === 'object' ? data : null;
 }
@@ -74,37 +33,31 @@ export async function createCardApi(
   tenantId: string,
   body: { name: string; type?: string; status?: string; remark?: string; card_vendors?: string[] },
 ): Promise<ApiCard | null> {
-  const res = await apiPost<ApiCard | ApiResponse<ApiCard>>(withTenant('/api/giftcards/cards', tenantId), body);
+  const res = await giftcardsApi.cards.create(tenantId, body);
   const data = unwrapApiData<ApiCard>(res);
   return data && typeof data === 'object' ? data : null;
 }
 
 export async function updateCardApi(tenantId: string, id: string, body: Partial<ApiCard>): Promise<ApiCard | null> {
-  const res = await apiPut<ApiCard | ApiResponse<ApiCard>>(
-    withTenant(`/api/giftcards/cards/${encodeURIComponent(id)}`, tenantId),
-    body,
-  );
+  const res = await giftcardsApi.cards.update(tenantId, id, body);
   const data = unwrapApiData<ApiCard>(res);
   return data && typeof data === 'object' ? data : null;
 }
 
 export async function deleteCardApi(tenantId: string, id: string): Promise<boolean> {
-  await apiDelete(withTenant(`/api/giftcards/cards/${encodeURIComponent(id)}`, tenantId));
+  await giftcardsApi.cards.delete(tenantId, id);
   return true;
 }
 
 // ============= Vendors =============
 export async function listVendorsApi(tenantId: string, status?: string): Promise<ApiVendor[]> {
-  const base = status ? `/api/giftcards/vendors?status=${encodeURIComponent(status)}` : '/api/giftcards/vendors';
-  const res = await apiGet<ApiVendor[] | ApiResponse<ApiVendor[]>>(withTenant(base, tenantId));
+  const res = await giftcardsApi.vendors.list(tenantId, status);
   const data = unwrapApiData<ApiVendor[]>(res);
   return Array.isArray(data) ? data : [];
 }
 
 export async function getVendorByIdApi(tenantId: string, id: string): Promise<ApiVendor | null> {
-  const res = await apiGet<ApiVendor | ApiResponse<ApiVendor>>(
-    withTenant(`/api/giftcards/vendors/${encodeURIComponent(id)}`, tenantId),
-  );
+  const res = await giftcardsApi.vendors.getById(tenantId, id);
   const data = unwrapApiData<ApiVendor>(res);
   return data && typeof data === 'object' ? data : null;
 }
@@ -113,39 +66,31 @@ export async function createVendorApi(
   tenantId: string,
   body: { name: string; status?: string; remark?: string; payment_providers?: string[] },
 ): Promise<ApiVendor | null> {
-  const res = await apiPost<ApiVendor | ApiResponse<ApiVendor>>(withTenant('/api/giftcards/vendors', tenantId), body);
+  const res = await giftcardsApi.vendors.create(tenantId, body);
   const data = unwrapApiData<ApiVendor>(res);
   return data && typeof data === 'object' ? data : null;
 }
 
 export async function updateVendorApi(tenantId: string, id: string, body: Partial<ApiVendor>): Promise<ApiVendor | null> {
-  const res = await apiPut<ApiVendor | ApiResponse<ApiVendor>>(
-    withTenant(`/api/giftcards/vendors/${encodeURIComponent(id)}`, tenantId),
-    body,
-  );
+  const res = await giftcardsApi.vendors.update(tenantId, id, body);
   const data = unwrapApiData<ApiVendor>(res);
   return data && typeof data === 'object' ? data : null;
 }
 
 export async function deleteVendorApi(tenantId: string, id: string): Promise<boolean> {
-  await apiDelete(withTenant(`/api/giftcards/vendors/${encodeURIComponent(id)}`, tenantId));
+  await giftcardsApi.vendors.delete(tenantId, id);
   return true;
 }
 
 // ============= Payment Providers =============
 export async function listPaymentProvidersApi(tenantId: string, status?: string): Promise<ApiPaymentProvider[]> {
-  const base = status
-    ? `/api/giftcards/providers?status=${encodeURIComponent(status)}`
-    : '/api/giftcards/providers';
-  const res = await apiGet<ApiPaymentProvider[] | ApiResponse<ApiPaymentProvider[]>>(withTenant(base, tenantId));
+  const res = await giftcardsApi.providers.list(tenantId, status);
   const data = unwrapApiData<ApiPaymentProvider[]>(res);
   return Array.isArray(data) ? data : [];
 }
 
 export async function getPaymentProviderByIdApi(tenantId: string, id: string): Promise<ApiPaymentProvider | null> {
-  const res = await apiGet<ApiPaymentProvider | ApiResponse<ApiPaymentProvider>>(
-    withTenant(`/api/giftcards/providers/${encodeURIComponent(id)}`, tenantId),
-  );
+  const res = await giftcardsApi.providers.getById(tenantId, id);
   const data = unwrapApiData<ApiPaymentProvider>(res);
   return data && typeof data === 'object' ? data : null;
 }
@@ -154,10 +99,7 @@ export async function createPaymentProviderApi(
   tenantId: string,
   body: { name: string; status?: string; remark?: string },
 ): Promise<ApiPaymentProvider | null> {
-  const res = await apiPost<ApiPaymentProvider | ApiResponse<ApiPaymentProvider>>(
-    withTenant('/api/giftcards/providers', tenantId),
-    body,
-  );
+  const res = await giftcardsApi.providers.create(tenantId, body);
   const data = unwrapApiData<ApiPaymentProvider>(res);
   return data && typeof data === 'object' ? data : null;
 }
@@ -167,16 +109,13 @@ export async function updatePaymentProviderApi(
   id: string,
   body: Partial<ApiPaymentProvider>,
 ): Promise<ApiPaymentProvider | null> {
-  const res = await apiPut<ApiPaymentProvider | ApiResponse<ApiPaymentProvider>>(
-    withTenant(`/api/giftcards/providers/${encodeURIComponent(id)}`, tenantId),
-    body,
-  );
+  const res = await giftcardsApi.providers.update(tenantId, id, body);
   const data = unwrapApiData<ApiPaymentProvider>(res);
   return data && typeof data === 'object' ? data : null;
 }
 
 export async function deletePaymentProviderApi(tenantId: string, id: string): Promise<boolean> {
-  await apiDelete(withTenant(`/api/giftcards/providers/${encodeURIComponent(id)}`, tenantId));
+  await giftcardsApi.providers.delete(tenantId, id);
   return true;
 }
 

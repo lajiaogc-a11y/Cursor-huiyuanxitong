@@ -52,6 +52,10 @@ export interface OrderUsdtTableProps {
   onJumpToPageChange: (v: string) => void;
   onJumpToPage: () => void;
   t: (zh: string, en: string) => string;
+  selectedDbIds?: Set<string>;
+  onToggleSelectDbId?: (dbId: string) => void;
+  onToggleSelectAllPage?: () => void;
+  batchActionBar?: ReactNode;
 }
 
 export function OrderUsdtTable(props: OrderUsdtTableProps) {

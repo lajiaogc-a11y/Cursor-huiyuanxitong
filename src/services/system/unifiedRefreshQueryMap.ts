@@ -14,10 +14,12 @@ export type DataTable =
   | 'tasks'
   | 'task_items'
   | 'task_item_logs'
+  | 'task_posters'
   | 'notifications'
   | 'shared_data_store'
   | 'audit_records'
-  | 'operation_logs';
+  | 'operation_logs'
+  | 'redemptions';
 
 export const TABLE_QUERY_KEYS: Record<DataTable, string[][]> = {
   orders: [
@@ -80,6 +82,7 @@ export const TABLE_QUERY_KEYS: Record<DataTable, string[][]> = {
   tasks: [['task-progress'], ['open-tasks']],
   task_items: [['task-progress'], ['open-tasks']],
   task_item_logs: [['task-progress'], ['open-tasks']],
+  task_posters: [['task-posters'], ['task-posters-employees']],
   notifications: [['notifications'], ['pending-count']],
   shared_data_store: [
     ['shared-config'],
@@ -89,6 +92,7 @@ export const TABLE_QUERY_KEYS: Record<DataTable, string[][]> = {
   ],
   audit_records: [['audit-records'], ['audit-pending-count']],
   operation_logs: [['operation-logs']],
+  redemptions: [['activity-data-content'], ['member-activity-page-data']],
 };
 
 export const TABLE_LEGACY_EVENTS: Record<DataTable, string[]> = {
@@ -107,9 +111,11 @@ export const TABLE_LEGACY_EVENTS: Record<DataTable, string[]> = {
   tasks: ['tasks-updated'],
   task_items: ['tasks-updated'],
   task_item_logs: ['tasks-updated'],
+  task_posters: ['tasks-updated'],
   notifications: ['notifications-updated'],
   shared_data_store: ['shared-data-updated', 'report-cache-invalidate'],
   audit_records: ['audit-records-updated'],
   operation_logs: [],
+  redemptions: ['points-updated'],
 };
 

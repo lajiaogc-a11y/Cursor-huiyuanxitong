@@ -3,7 +3,6 @@
  */
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
-import { queryOne } from '../../database/index.js';
 import { draw, getQuota } from './service.js';
 import {
   listPrizes,
@@ -23,7 +22,9 @@ import {
   countLotteryRiskBlockedToday,
   getTodayEffectiveBudgetUsedFromLogs,
   listOperationalCostBreakdown,
-} from './repository.js';
+  getLotteryLogTenantId,
+  getTodayConsumptionPointsTotal,
+} from './lotteryAdminService.js';
 import { resolveTenantIdForActivityDataList } from '../memberPortalSettings/activityDataTenant.js';
 import {
   listPendingRewards,
@@ -147,7 +148,6 @@ export async function memberPrizesController(req: AuthenticatedRequest, res: Res
     return;
   }
   const tenantId = await getMemberTenantId(memberId);
-  const { listEnabledPrizes } = await import('./repository.js');
   const allPrizes = await listEnabledPrizes(tenantId);
   const prizes = allPrizes.slice(0, 8);
   const settings = await getLotterySettings(tenantId);
@@ -420,9 +420,9 @@ export async function adminConfirmRewardController(req: AuthenticatedRequest, re
   if (!logId) { res.status(400).json({ success: false, error: 'MISSING_LOG_ID' }); return; }
   const callerTenant = req.user?.tenant_id ?? null;
   if (callerTenant && !req.user?.is_platform_super_admin) {
-    const logRow = await queryOne<{ tenant_id: string | null }>('SELECT tenant_id FROM lottery_logs WHERE id = ?', [logId]);
-    if (!logRow) { res.status(404).json({ success: false, error: 'LOG_NOT_FOUND' }); return; }
-    if (logRow.tenant_id !== callerTenant) { res.status(403).json({ success: false, error: 'FORBIDDEN' }); return; }
+    const logInfo = await getLotteryLogTenantId(logId);
+    if (!logInfo.exists) { res.status(404).json({ success: false, error: 'LOG_NOT_FOUND' }); return; }
+    if (logInfo.tenant_id !== callerTenant) { res.status(403).json({ success: false, error: 'FORBIDDEN' }); return; }
   }
   const action = req.body?.action === 'failed' ? 'failed' as const : 'done' as const;
   const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : undefined;
@@ -437,9 +437,9 @@ export async function adminManualRetryRewardController(req: AuthenticatedRequest
   if (!logId) { res.status(400).json({ success: false, error: 'MISSING_LOG_ID' }); return; }
   const callerTenant = req.user?.tenant_id ?? null;
   if (callerTenant && !req.user?.is_platform_super_admin) {
-    const logRow = await queryOne<{ tenant_id: string | null }>('SELECT tenant_id FROM lottery_logs WHERE id = ?', [logId]);
-    if (!logRow) { res.status(404).json({ success: false, error: 'LOG_NOT_FOUND' }); return; }
-    if (logRow.tenant_id !== callerTenant) { res.status(403).json({ success: false, error: 'FORBIDDEN' }); return; }
+    const logInfo = await getLotteryLogTenantId(logId);
+    if (!logInfo.exists) { res.status(404).json({ success: false, error: 'LOG_NOT_FOUND' }); return; }
+    if (logInfo.tenant_id !== callerTenant) { res.status(403).json({ success: false, error: 'FORBIDDEN' }); return; }
   }
   const result = await manualRetryReward(logId);
   if (!result.ok) { res.status(400).json({ success: false, error: result.error }); return; }
@@ -564,8 +564,6 @@ export async function adminOperationalStatsController(req: AuthenticatedRequest,
   const today = getToday();
   const dayStart = `${today} 00:00:00`;
 
-  const { query: dbQuery } = await import('../../database/index.js');
-
   const [settings, prizes, todayStats, riskStats, riskBlockedCount, costBreakdown] = await Promise.all([
     getLotterySettings(tenantId),
     listEnabledPrizes(tenantId),
@@ -582,17 +580,7 @@ export async function adminOperationalStatsController(req: AuthenticatedRequest,
   let effectiveCap = budgetCap;
   if (targetRtp > 0) {
     try {
-      const rows = await dbQuery(
-        `SELECT COALESCE(SUM(amount), 0) AS total
-         FROM points_ledger
-         WHERE tenant_id <=> ?
-           AND amount > 0
-           AND (type = 'consumption' OR transaction_type = 'consumption')
-           AND created_at >= ?
-           AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
-        [tenantId, dayStart, dayStart],
-      ) as { total: number }[];
-      todayOrderPoints = Number(rows[0]?.total ?? 0);
+      todayOrderPoints = await getTodayConsumptionPointsTotal(tenantId, dayStart);
     } catch { /* fallback 0 */ }
     const rtpBudget = Math.floor(todayOrderPoints * targetRtp / 100);
     effectiveCap = budgetCap > 0 ? Math.min(budgetCap, rtpBudget) : rtpBudget;

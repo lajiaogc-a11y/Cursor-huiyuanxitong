@@ -1,4 +1,4 @@
-import { apiPost } from "@/api/client";
+import { dataRpcApi } from "@/api/data";
 import { ApiError } from "@/lib/apiClient";
 import { fail, getErrorMessage, ok, type ServiceResult } from "@/services/serviceResult";
 
@@ -26,7 +26,7 @@ export async function publishSystemAnnouncementResult(params: {
   link?: string | null;
 }): Promise<ServiceResult<{ announcementId: string; recipientCount: number }>> {
   try {
-    const data = await apiPost<Record<string, unknown>>("/api/data/rpc/publish_system_announcement", {
+    const data = await dataRpcApi.call<Record<string, unknown>>("publish_system_announcement", {
       p_scope: params.scope,
       p_tenant_id: params.tenantId ?? null,
       p_title: params.title,
@@ -63,7 +63,7 @@ export async function publishSystemAnnouncementResult(params: {
 
 export async function listSystemAnnouncementsResult(limit = 50): Promise<ServiceResult<SystemAnnouncement[]>> {
   try {
-    const data = await apiPost<SystemAnnouncement[]>("/api/data/rpc/list_system_announcements", {
+    const data = await dataRpcApi.call<SystemAnnouncement[]>("list_system_announcements", {
       p_limit: limit,
     });
     return ok((Array.isArray(data) ? data : []) as SystemAnnouncement[]);

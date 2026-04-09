@@ -9,7 +9,7 @@ import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMembers, Member } from "@/hooks/useMembers";
 import { useTenantView } from "@/contexts/TenantViewContext";
-import { lookupMemberForReferral, type ApiMember } from "@/api/members";
+import { lookupMemberForReferral, type ApiMember } from "@/services/members/memberLookupService";
 import { useOrders, useUsdtOrders } from "@/hooks/useOrders";
 import { useReferrals } from "@/hooks/useReferrals";
 import { useAuth } from "@/contexts/AuthContext";
