@@ -547,7 +547,6 @@ export default function MemberPortalSettingsPage() {
       lotteryPrizes,
       lotterySettings,
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mallItems, mallCategories, lotteryPrizes, lotterySettings, workingDraftKey, loading, tenantId]);
 
   // ── Logo 上传 ─────────────────────────────────────────────────────────────

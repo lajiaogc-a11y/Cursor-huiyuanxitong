@@ -324,7 +324,7 @@ export function PullToRefresh({ children, themeColor = "#4d8cff", scrollContaine
         moveRafRef.current = null;
       }
     };
-  }, [androidMode, scrollContainer, scrollNode, doRefresh]);
+  }, [androidMode, scrollContainer, scrollNode, doRefresh, pullConfig]);
 
   useEffect(() => {
     setPulling(false);

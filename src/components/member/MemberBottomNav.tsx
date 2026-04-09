@@ -46,7 +46,7 @@ export function MemberBottomNav() {
   const [pendingPath, setPendingPath] = useState<string | null>(null);
 
   useEffect(() => {
-    if (pendingPath) setPendingPath(null);
+    setPendingPath(null);
   }, [location.pathname]);
 
   const filteredItems = navItems.filter((item) => {

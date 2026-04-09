@@ -191,7 +191,7 @@ export function useOperationLogsTable({
     requestExport(handleExport);
   }, [requestExport, handleExport]);
 
-  const filteredLogs = auditLogsPage?.logs ?? [];
+  const filteredLogs = useMemo(() => auditLogsPage?.logs ?? [], [auditLogsPage]);
   const totalCount = auditLogsPage?.totalCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const paginatedLogs = filteredLogs;

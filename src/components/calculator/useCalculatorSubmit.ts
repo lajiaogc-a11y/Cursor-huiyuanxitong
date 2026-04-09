@@ -465,7 +465,7 @@ Payment (this order): ${amount.toLocaleString()} ${currency}`;
     }
 
     await performSubmitOrder();
-  }, [isSubmitting, formData, nairaRate, performSubmitOrder]);
+  }, [isSubmitting, formData, nairaRate, performSubmitOrder, t]);
 
   return {
     isSubmitting,
