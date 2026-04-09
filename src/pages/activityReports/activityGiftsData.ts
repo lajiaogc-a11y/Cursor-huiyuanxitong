@@ -1,7 +1,7 @@
 import { calculateTransactionFee } from "@/lib/feeCalculation";
 import { safeNumber } from "@/lib/safeCalc";
 import { formatBeijingTime } from "@/lib/beijingTime";
-import { getActivityDataApi, patchActivityGiftApi } from "@/services/staff/dataApi";
+import { getActivityDataApi, patchActivityGiftApi } from "@/services/staff/staffDataService";
 import { getEmployeeNameById } from "@/services/members/nameResolver";
 
 export interface ActivityRecord {

@@ -2,7 +2,6 @@
  * 会员门户设置服务 - MySQL 版本
  */
 import { randomUUID } from 'crypto';
-import { query, queryOne, execute } from '../../database/index.js';
 import { toMySqlDatetime } from '../../lib/shanghaiTime.js';
 import {
   DEFAULT_PRIVACY_EN,
@@ -11,6 +10,35 @@ import {
   DEFAULT_TERMS_ZH,
 } from './legalDefaults.js';
 import { parseMemberInboxCopyTemplatesFromDb, fillMemberInboxCopyDefaults } from '../memberInboxNotifications/copyTemplates.js';
+import {
+  queryEmployeeWithTenant,
+  selectMemberTenantIdByMemberId,
+  selectMemberTenantByAccount,
+  selectTenantsByInviteCode,
+  selectPortalSettingsWithTenant,
+  selectFirstPortalSettingsWithTenant,
+  checkPortalSettingsExist,
+  selectAnnouncementFields,
+  updatePortalSettingsDynamic,
+  insertPortalSettingsDynamic,
+  getNextVersionNo,
+  insertVersionRecord,
+  selectAppliedVersionNo,
+  clearAppliedVersions,
+  markVersionApplied,
+  listVersions,
+  selectVersionPayload,
+  selectLatestDraftId,
+  updateDraftVersion,
+  selectLatestDraftFull,
+  selectLatestDraftForPublish,
+  approveDraft,
+  deleteDrafts,
+  listSpinWheelPrizes,
+  listSpinWheelPrizesOrdered,
+  deleteSpinWheelPrizes,
+  insertSpinWheelPrize,
+} from './repository.js';
 
 export interface CreateVersionResult {
   success: boolean;
@@ -45,15 +73,8 @@ export interface VersionItem {
 }
 
 async function resolveEmployee(employeeId: string) {
-  const rows = await query<{ tenant_id: string; role: string; is_super_admin: number; tenant_code: string }>(
-    `SELECT e.tenant_id, e.role, COALESCE(e.is_super_admin, 0) as is_super_admin,
-            COALESCE(t.tenant_code, '') as tenant_code
-     FROM employees e LEFT JOIN tenants t ON t.id = e.tenant_id
-     WHERE e.id = ? LIMIT 1`,
-    [employeeId]
-  );
-  if (!rows.length) return null;
-  const r = rows[0];
+  const r = await queryEmployeeWithTenant(employeeId);
+  if (!r) return null;
   return { ...r, is_super_admin: !!r.is_super_admin };
 }
 
@@ -271,29 +292,19 @@ export async function createMemberPortalSettingsVersion(
   if (!tenantId) return { success: false, error: 'TENANT_NOT_FOUND' };
   if (emp.role !== 'admin' && !emp.is_super_admin) return { success: false, error: 'NO_PERMISSION' };
 
-  const vRow = await queryOne<{ next: number }>(
-    `SELECT COALESCE(MAX(version_no), 0) + 1 as next FROM member_portal_settings_versions WHERE tenant_id = ?`,
-    [tenantId]
-  );
-  const nextVersion = vRow?.next ?? 1;
+  const nextVersion = await getNextVersionNo(tenantId);
   const effectiveAtVal = effectiveAt || null;
   const applyNow = !effectiveAtVal || new Date(effectiveAtVal) <= new Date();
   const payloadJson = JSON.stringify(payload || {});
   const now = toMySqlDatetime(new Date());
   const newId = randomUUID();
 
-  await execute(
-    `INSERT INTO member_portal_settings_versions (
-      id, tenant_id, version_no, payload, note, effective_at, is_applied, created_by, applied_at,
-      approval_status, submitted_by, submitted_at, approved_by, approved_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?, ?)`,
-    [
-      newId, tenantId, nextVersion, payloadJson, note || null,
-      // is_applied / applied_at 由 applySettingsPayload 在落库后统一标记，避免先置 1 再被清零
-      effectiveAtVal, 0, employeeId, null,
-      employeeId, now, employeeId, now,
-    ]
-  );
+  await insertVersionRecord({
+    id: newId, tenantId, versionNo: nextVersion, payloadJson, note: note || null,
+    effectiveAt: effectiveAtVal, isApplied: 0, createdBy: employeeId, appliedAt: null,
+    approvalStatus: 'approved', submittedBy: employeeId, submittedAt: now,
+    approvedBy: employeeId, approvedAt: now,
+  });
 
   if (applyNow) {
     await applySettingsPayload(tenantId, payload, employeeId, newId);
@@ -331,37 +342,22 @@ export async function saveDraftSettings(
   const payloadJson = JSON.stringify(payload || {});
   const now = toMySqlDatetime(new Date());
 
-  const existing = await queryOne<{ id: string }>(
-    `SELECT id FROM member_portal_settings_versions
-     WHERE tenant_id = ? AND approval_status = 'draft' AND is_applied = 0
-     ORDER BY created_at DESC LIMIT 1`,
-    [tenantId]
-  );
+  const existing = await selectLatestDraftId(tenantId);
 
   if (existing) {
-    await execute(
-      `UPDATE member_portal_settings_versions
-       SET payload = ?, note = ?, submitted_by = ?, submitted_at = ?
-       WHERE id = ?`,
-      [payloadJson, note || null, employeeId, now, existing.id]
-    );
+    await updateDraftVersion(existing.id, payloadJson, note || null, employeeId, now);
     return { success: true, draft_id: existing.id };
   }
 
   const newId = randomUUID();
-  const vRow = await queryOne<{ next: number }>(
-    `SELECT COALESCE(MAX(version_no), 0) + 1 as next FROM member_portal_settings_versions WHERE tenant_id = ?`,
-    [tenantId]
-  );
-  const nextVersion = vRow?.next ?? 1;
+  const nextVersion = await getNextVersionNo(tenantId);
 
-  await execute(
-    `INSERT INTO member_portal_settings_versions (
-      id, tenant_id, version_no, payload, note, effective_at, is_applied, created_by, applied_at,
-      approval_status, submitted_by, submitted_at, approved_by, approved_at
-    ) VALUES (?, ?, ?, ?, ?, NULL, 0, ?, NULL, 'draft', ?, ?, NULL, NULL)`,
-    [newId, tenantId, nextVersion, payloadJson, note || null, employeeId, employeeId, now]
-  );
+  await insertVersionRecord({
+    id: newId, tenantId, versionNo: nextVersion, payloadJson, note: note || null,
+    effectiveAt: null, isApplied: 0, createdBy: employeeId, appliedAt: null,
+    approvalStatus: 'draft', submittedBy: employeeId, submittedAt: now,
+    approvedBy: null, approvedAt: null,
+  });
 
   return { success: true, draft_id: newId };
 }
@@ -378,13 +374,7 @@ export async function getLatestDraft(
   const tenantId = resolveTenantId(emp, tenantIdOverride);
   if (!tenantId) return { success: false, error: 'TENANT_NOT_FOUND' };
 
-  const row = await queryOne<{ id: string; payload: string; note: string | null; submitted_at: string }>(
-    `SELECT id, payload, note, submitted_at
-     FROM member_portal_settings_versions
-     WHERE tenant_id = ? AND approval_status = 'draft' AND is_applied = 0
-     ORDER BY created_at DESC LIMIT 1`,
-    [tenantId]
-  );
+  const row = await selectLatestDraftFull(tenantId);
 
   if (!row) return { success: true, draft: null };
 
@@ -415,13 +405,7 @@ export async function publishDraft(
   if (!tenantId) return { success: false, error: 'TENANT_NOT_FOUND' };
   if (emp.role !== 'admin' && !emp.is_super_admin) return { success: false, error: 'NO_PERMISSION' };
 
-  const draftRow = await queryOne<{ id: string; payload: string; version_no: number }>(
-    `SELECT id, payload, version_no
-     FROM member_portal_settings_versions
-     WHERE tenant_id = ? AND approval_status = 'draft' AND is_applied = 0
-     ORDER BY created_at DESC LIMIT 1`,
-    [tenantId]
-  );
+  const draftRow = await selectLatestDraftForPublish(tenantId);
 
   if (!draftRow) return { success: false, error: 'NO_DRAFT' };
 
@@ -433,13 +417,7 @@ export async function publishDraft(
 
   const now = toMySqlDatetime(new Date());
 
-  await execute(
-    `UPDATE member_portal_settings_versions
-     SET approval_status = 'approved',
-         approved_by = ?, approved_at = ?, note = COALESCE(?, note)
-     WHERE id = ?`,
-    [employeeId, now, note || null, draftRow.id]
-  );
+  await approveDraft(draftRow.id, employeeId, now, note || null);
 
   await applySettingsPayload(tenantId, payload, employeeId, draftRow.id);
 
@@ -458,11 +436,7 @@ export async function discardDraft(
   const tenantId = resolveTenantId(emp, tenantIdOverride);
   if (!tenantId) return { success: false, error: 'TENANT_NOT_FOUND' };
 
-  await execute(
-    `DELETE FROM member_portal_settings_versions
-     WHERE tenant_id = ? AND approval_status = 'draft' AND is_applied = 0`,
-    [tenantId]
-  );
+  await deleteDrafts(tenantId);
   return { success: true };
 }
 
@@ -555,14 +529,8 @@ async function applySettingsPayload(
     }
   }
 
-  const existing = await queryOne('SELECT id FROM member_portal_settings WHERE tenant_id = ?', [tenantId]);
-  const prevAnnouncementRow =
-    existing
-      ? await queryOne<Record<string, unknown>>(
-          `SELECT announcements, announcement FROM member_portal_settings WHERE tenant_id = ?`,
-          [tenantId],
-        )
-      : null;
+  const existing = await checkPortalSettingsExist(tenantId);
+  const prevAnnouncementRow = existing ? await selectAnnouncementFields(tenantId) : null;
   const cols = Object.keys(filtered);
   if (existing) {
     if (cols.length > 0) {
@@ -573,7 +541,7 @@ async function applySettingsPayload(
         if (typeof v === 'object') return JSON.stringify(v);
         return v;
       });
-      await execute(`UPDATE member_portal_settings SET ${setClauses} WHERE tenant_id = ?`, [...vals, tenantId]);
+      await updatePortalSettingsDynamic(tenantId, setClauses, vals);
     }
   } else if (cols.length > 0) {
     const id = randomUUID();
@@ -586,22 +554,16 @@ async function applySettingsPayload(
     })];
     const placeholders = allCols.map(() => '?').join(', ');
     const colNames = allCols.map(c => `\`${c}\``).join(', ');
-    await execute(`INSERT INTO member_portal_settings (${colNames}) VALUES (${placeholders})`, allVals);
+    await insertPortalSettingsDynamic(colNames, placeholders, allVals);
   }
 
   const markNow = toMySqlDatetime(new Date());
-  await execute(`UPDATE member_portal_settings_versions SET is_applied = 0 WHERE tenant_id = ?`, [tenantId]);
+  await clearAppliedVersions(tenantId);
   if (appliedVersionId) {
-    await execute(
-      `UPDATE member_portal_settings_versions SET is_applied = 1, applied_at = ? WHERE id = ? AND tenant_id = ?`,
-      [markNow, appliedVersionId, tenantId]
-    );
+    await markVersionApplied(appliedVersionId, tenantId, markNow);
   }
 
-  const nextAnnouncementRow = await queryOne<Record<string, unknown>>(
-    `SELECT announcements, announcement FROM member_portal_settings WHERE tenant_id = ?`,
-    [tenantId],
-  );
+  const nextAnnouncementRow = await selectAnnouncementFields(tenantId);
   if (nextAnnouncementRow) {
     try {
       const { syncMemberInboxAfterPortalAnnouncementsChange } = await import('../memberInboxNotifications/portalSync.js');
@@ -630,20 +592,9 @@ export async function getMemberPortalSettingsForEmployee(
   const tenantId = resolveTenantId(emp, tenantIdOverride);
   if (!tenantId) return { success: false, error: 'TENANT_NOT_FOUND' };
 
-  const row = await queryOne<Record<string, unknown>>(
-    `SELECT s.*, t.tenant_name
-     FROM member_portal_settings s
-     LEFT JOIN tenants t ON t.id = s.tenant_id
-     WHERE s.tenant_id = ? LIMIT 1`,
-    [tenantId]
-  );
+  const row = await selectPortalSettingsWithTenant(tenantId);
 
-  const appliedVer = await queryOne<{ version_no: number }>(
-    `SELECT version_no FROM member_portal_settings_versions
-     WHERE tenant_id = ? AND is_applied = 1
-     ORDER BY COALESCE(applied_at, created_at) DESC LIMIT 1`,
-    [tenantId]
-  );
+  const appliedVer = await selectAppliedVersionNo(tenantId);
   const published_version_no = appliedVer?.version_no ?? null;
 
   if (!row) {
@@ -743,16 +694,7 @@ export async function listMemberPortalSettingsVersions(
   const tenantId = resolveTenantId(emp, tenantIdOverride);
   if (!tenantId) return { success: false, error: 'TENANT_NOT_FOUND' };
 
-  const safeLimit = Math.min(Number(limit) || 50, 100);
-  const versions = await query<VersionItem>(
-    `SELECT id, version_no, note, effective_at, is_applied,
-            approval_status, review_note, created_at, applied_at
-     FROM member_portal_settings_versions
-     WHERE tenant_id = ?
-     ORDER BY version_no DESC
-     LIMIT ${safeLimit}`,
-    [tenantId]
-  );
+  const versions = (await listVersions(tenantId, limit)) as unknown as VersionItem[];
   return { success: true, versions };
 }
 
@@ -843,12 +785,7 @@ function buildPublicSettings(row: Record<string, unknown>): Record<string, unkno
 }
 
 export async function getDefaultPortalSettingsPublic(): Promise<GetSettingsResult> {
-  const row = await queryOne<Record<string, unknown>>(
-    `SELECT s.*, t.tenant_name
-     FROM member_portal_settings s
-     LEFT JOIN tenants t ON t.id = s.tenant_id
-     ORDER BY s.created_at ASC LIMIT 1`
-  );
+  const row = await selectFirstPortalSettingsWithTenant();
 
   const defaultSettings: Record<string, unknown> = {
     company_name: 'Spin & Win',
@@ -910,21 +847,12 @@ export async function getDefaultPortalSettingsPublic(): Promise<GetSettingsResul
 }
 
 export async function getPortalSettingsByAccount(account: string): Promise<GetSettingsResult> {
-  const member = await queryOne<{ tenant_id: string }>(
-    `SELECT tenant_id FROM members WHERE (phone_number = ? OR member_code = ?) AND tenant_id IS NOT NULL ORDER BY created_at DESC LIMIT 1`,
-    [account, account]
-  );
+  const member = await selectMemberTenantByAccount(account);
   if (!member?.tenant_id) {
     return getDefaultPortalSettingsPublic();
   }
 
-  const row = await queryOne<Record<string, unknown>>(
-    `SELECT s.*, t.tenant_name
-     FROM member_portal_settings s
-     LEFT JOIN tenants t ON t.id = s.tenant_id
-     WHERE s.tenant_id = ? LIMIT 1`,
-    [member.tenant_id]
-  );
+  const row = await selectPortalSettingsWithTenant(member.tenant_id);
   if (!row) {
     return getDefaultPortalSettingsPublic();
   }
@@ -938,19 +866,10 @@ export async function getPortalSettingsByAccount(account: string): Promise<GetSe
 }
 
 export async function getPortalSettingsByMember(memberId: string): Promise<GetSettingsResult> {
-  const member = await queryOne<{ tenant_id: string }>(
-    `SELECT tenant_id FROM members WHERE id = ? LIMIT 1`,
-    [memberId]
-  );
+  const member = await selectMemberTenantIdByMemberId(memberId);
   if (!member?.tenant_id) return getDefaultPortalSettingsPublic();
 
-  const row = await queryOne<Record<string, unknown>>(
-    `SELECT s.*, t.tenant_name
-     FROM member_portal_settings s
-     LEFT JOIN tenants t ON t.id = s.tenant_id
-     WHERE s.tenant_id = ? LIMIT 1`,
-    [member.tenant_id]
-  );
+  const row = await selectPortalSettingsWithTenant(member.tenant_id);
   if (!row) return getDefaultPortalSettingsPublic();
 
   return {
@@ -966,24 +885,13 @@ export async function getPortalSettingsByInviteToken(token: string): Promise<Get
   if (!code) {
     return getDefaultPortalSettingsPublic();
   }
-  const tenants = await query<{ tenant_id: string }>(
-    `SELECT DISTINCT tenant_id FROM members
-     WHERE tenant_id IS NOT NULL
-       AND (BINARY invite_token = ? OR (referral_code IS NOT NULL AND referral_code <> '' AND BINARY referral_code = ?))`,
-    [code, code],
-  );
+  const tenants = await selectTenantsByInviteCode(code);
   if (tenants.length !== 1 || !tenants[0]?.tenant_id) {
     return getDefaultPortalSettingsPublic();
   }
   const tenantId = tenants[0].tenant_id;
 
-  const row = await queryOne<Record<string, unknown>>(
-    `SELECT s.*, t.tenant_name
-     FROM member_portal_settings s
-     LEFT JOIN tenants t ON t.id = s.tenant_id
-     WHERE s.tenant_id = ? LIMIT 1`,
-    [tenantId]
-  );
+  const row = await selectPortalSettingsWithTenant(tenantId);
   if (!row) return getDefaultPortalSettingsPublic();
 
   return {
@@ -1004,19 +912,16 @@ export async function listSpinWheelPrizesForEmployee(
   if (!emp) return { success: false, error: 'EMPLOYEE_NOT_FOUND' };
   const tenantId = resolveTenantId(emp, tenantIdOverride);
 
-  const items = await query<Record<string, unknown>>(
-    `SELECT * FROM member_spin_wheel_prizes WHERE tenant_id = ? ORDER BY sort_order ASC, created_at DESC`,
-    [tenantId]
-  );
+  const items = await listSpinWheelPrizes(tenantId);
   return { success: true, items };
 }
 
 export async function listSpinWheelPrizesForMember(memberId: string) {
-  const member = await queryOne<{ tenant_id: string }>('SELECT tenant_id FROM members WHERE id = ? LIMIT 1', [memberId]);
+  const member = await selectMemberTenantIdByMemberId(memberId);
   const tenantId = member?.tenant_id;
 
   if (!tenantId) return { success: true, items: [] };
-  const items = await query('SELECT * FROM member_spin_wheel_prizes WHERE tenant_id = ? ORDER BY sort_order ASC', [tenantId]);
+  const items = await listSpinWheelPrizesOrdered(tenantId);
   return { success: true, items };
 }
 
@@ -1039,17 +944,18 @@ export async function upsertSpinWheelPrizes(
   const rateSum = enabled.reduce((s, i) => s + Number(i.hit_rate || 0), 0);
   if (Math.abs(rateSum - 100) > 0.5) return { success: false, error: 'RATE_SUM_NOT_100' };
 
-  await execute('DELETE FROM member_spin_wheel_prizes WHERE tenant_id = ?', [tenantId]);
-
-  const genId = () => randomUUID();
+  await deleteSpinWheelPrizes(tenantId);
 
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
-    await execute(
-      `INSERT INTO member_spin_wheel_prizes (id, tenant_id, name, prize_type, hit_rate, sort_order, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-      [genId(), tenantId, it.name || '', it.prize_type || 'custom', Number(it.hit_rate || 0), Number(it.sort_order ?? i)]
-    );
+    await insertSpinWheelPrize({
+      id: randomUUID(),
+      tenantId,
+      name: String(it.name || ''),
+      prizeType: String(it.prize_type || 'custom'),
+      hitRate: Number(it.hit_rate || 0),
+      sortOrder: Number(it.sort_order ?? i),
+    });
   }
   return { success: true };
 }
@@ -1065,18 +971,13 @@ export async function rollbackMemberPortalSettingsVersion(
   if (!tenantId) return { success: false, error: 'TENANT_NOT_FOUND' };
   if (emp.role !== 'admin' && !emp.is_super_admin) return { success: false, error: 'NO_PERMISSION' };
 
-  const ver = await queryOne<{ tenant_id: string; payload: string }>(
-    `SELECT tenant_id, payload FROM member_portal_settings_versions WHERE id = ? AND tenant_id = ? LIMIT 1`,
-    [versionId, tenantId]
-  );
+  const ver = await selectVersionPayload(versionId, tenantId);
   if (!ver) return { success: false, error: 'VERSION_NOT_FOUND' };
 
   const payload = typeof ver.payload === 'string' ? JSON.parse(ver.payload) : ver.payload;
   await applySettingsPayload(tenantId, payload, employeeId, versionId);
   return { success: true };
 }
-
-import { selectMemberTenantIdByMemberId } from './repository.js';
 
 /** 根据会员 ID 获取所属租户 ID（供 Controller 层权限校验使用） */
 export async function getMemberTenantIdForPortalService(

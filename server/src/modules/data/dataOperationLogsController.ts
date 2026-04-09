@@ -3,7 +3,7 @@
  */
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
-import { insertOperationLogRepository, markOperationLogRestoredRepository } from './repository.js';
+import { insertOperationLog as insertOperationLogRepository, markOperationLogRestored as markOperationLogRestoredRepository } from './operationLogsService.js';
 import { getOperationLogsListPayload } from '../logs/service.js';
 
 export async function getOperationLogsController(req: AuthenticatedRequest, res: Response): Promise<void> {

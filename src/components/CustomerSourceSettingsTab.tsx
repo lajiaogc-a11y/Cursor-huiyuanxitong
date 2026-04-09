@@ -28,7 +28,7 @@ import {
 import { UserPlus, Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
+import { useIsMobile, useIsTablet } from "@/hooks/ui/use-mobile";
 import {
   getCustomerSources,
   initializeCustomerSourceCache,
@@ -37,7 +37,7 @@ import {
   updateCustomerSource,
   deleteCustomerSource,
   CustomerSource,
-} from "@/hooks/useCustomerSources";
+} from "@/hooks/crm/useCustomerSources";
 import { logOperation } from "@/services/audit/auditLogService";
 
 export default function CustomerSourceSettingsTab() {

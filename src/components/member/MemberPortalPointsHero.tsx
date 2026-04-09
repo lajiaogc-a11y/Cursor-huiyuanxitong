@@ -1,5 +1,5 @@
 import { Lock } from "lucide-react";
-import { useMemberAnimatedCount } from "@/hooks/useMemberAnimatedCount";
+import { useMemberAnimatedCount } from "@/hooks/members/useMemberAnimatedCount";
 import { MemberPointsValueSkeleton } from "@/components/member/MemberPageLoadingShell";
 import { cn } from "@/lib/utils";
 

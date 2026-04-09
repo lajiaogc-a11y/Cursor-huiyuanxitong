@@ -35,4 +35,8 @@ export const financeApi = {
     const q = new URLSearchParams(params).toString();
     return apiDelete<{ success: boolean }>(`/api/finance/ledger?${q}`);
   },
+  fetchUsdtRates: (body: Record<string, unknown>) =>
+    apiPost<unknown>('/api/data/fetch-usdt-rates', body),
+  syncCardTypes: (types: string[]) =>
+    apiPost<unknown>('/api/data/rpc/sync_card_types', { types }),
 };

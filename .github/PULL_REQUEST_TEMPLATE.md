@@ -2,13 +2,30 @@
 
 （简要描述本次 PR 的目的与行为变化）
 
-## 架构与权限自检（方案 E）
+## 架构自检
 
-- [ ] **是否新增或变更数据入口**（新表、新 RPC、新导出 API、绕过 tableProxy 的直连 SQL 等）
-- [ ] **是否影响权限 / 租户边界**（JWT、平台总管理、租户切换、`tableProxy` 白名单、会员/员工路由）
-- [ ] **是否已跑本地校验**：`cd server && npm run build`、`npm run build`、`node scripts/architecture-gate.mjs`
-- [ ] **增量 ESLint**：`npm run lint:staged` 或通过 CI 的 `lint-incremental`（约定见根目录 `CONTRIBUTING.md`）
+### 业务域
+- [ ] 本次改动属于哪个业务域：______
+- [ ] 是否新增 API 接口
+- [ ] 是否修改 Service 层
+- [ ] 是否修改 Repository / 数据访问层
 
-## 其他
+### 架构合规
+- [ ] 是否触碰历史兼容层 (`dataTableApi` / `dataRpcApi` / `tableProxyRaw`)
+- [ ] 是否新增 `direct fetch` / `direct table proxy`（新代码禁止）
+- [ ] 是否通过 architecture gate：`npm run arch:gate`
+- [ ] 是否通过 TypeScript 检查：`npx tsc --noEmit`
+- [ ] 是否通过 ESLint：`npm run lint`
 
+### 分层检查（12 条门禁规则）
+- [ ] pages/ 未直接 import `@/api/*` 或 `@/lib/apiClient` (R5)
+- [ ] components/ 未直接 import `@/api/*` 或 `@/lib/apiClient` (R6)
+- [ ] services/ 未反向依赖 pages/ 或 components/ (R7)
+- [ ] hooks/ 未新增直接 import `@/api/*`（历史白名单除外）(R9)
+- [ ] 后端 service 未新增直接 import database（历史白名单除外）(R10)
+- [ ] 后端 routes 通过 controller 分发（历史白名单除外）(R11)
+- [ ] services/ 未新增 notify/DOM 操作（历史白名单除外）(R12)
+
+### 其他
+- [ ] 是否补充/更新架构文档
 - 关联 issue / 文档：（可选）

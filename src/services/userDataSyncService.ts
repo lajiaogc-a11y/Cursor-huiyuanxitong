@@ -3,7 +3,7 @@
 // 注意：大部分业务数据已迁移到专用数据库表
 // 此服务主要用于用户级别的个人偏好设置同步
 
-import { dataTableApi } from "@/api/data";
+import { getUserDataStoreRow, upsertUserDataStoreRow } from "@/api/userDataStoreData";
 import { getCurrentUserApi } from "@/services/auth/authApiService";
 
 // 定义需要同步的用户个人数据键
@@ -43,8 +43,7 @@ export async function loadFromDatabase(dataKey: SyncKey): Promise<any | null> {
     const userId = await getCurrentUserId();
     if (!userId) return null;
 
-    const row = await dataTableApi.getAsStaff<{ data_value?: unknown } | null>(
-      "user_data_store",
+    const row = await getUserDataStoreRow<{ data_value?: unknown } | null>(
       `select=data_value&user_id=eq.${encodeURIComponent(userId)}&data_key=eq.${encodeURIComponent(dataKey)}&single=true`,
     );
 
@@ -61,7 +60,7 @@ export async function saveToDatabase(dataKey: SyncKey, value: any): Promise<bool
     const userId = await getCurrentUserId();
     if (!userId) return false;
     
-    await dataTableApi.postAsStaff("user_data_store", {
+    await upsertUserDataStoreRow({
       data: {
         user_id: userId,
         data_key: dataKey,

@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { usePermissionChangeLogs, type PermissionChangeLog } from '@/hooks/usePermissionChangeLogs';
+import { usePermissionChangeLogs, type PermissionChangeLog } from '@/hooks/audit/usePermissionChangeLogs';
 
 const ACTION_TYPE_LABELS = {
   update: { zh: '手动更新', en: 'Manual Update', color: 'default' as const },

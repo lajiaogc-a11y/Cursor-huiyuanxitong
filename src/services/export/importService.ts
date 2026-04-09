@@ -2,8 +2,8 @@
  * 数据导入服务
  */
 
-import { dataTableApi } from '@/api/data';
-import { fetchTableCountExact } from '@/lib/tableProxyCount';
+import { upsertImportBatch, insertImportBatch, upsertImportRecord, insertImportRecord } from '@/api/importData';
+import { fetchTableCounts } from '@/api/adminStatsApi';
 import { EXPORTABLE_TABLES } from './tableConfig';
 import { parseCSV, escapeCSVField, createUtf8CsvBlob } from './utils';
 import { validateImportData } from './validation';
@@ -12,19 +12,19 @@ import { batchImportOrders } from './orderImportService';
 import type { ExportFormat } from './types';
 
 async function tableUpsertBatch(tableName: string, batch: Record<string, unknown>[], onConflict: string) {
-  await dataTableApi.post(encodeURIComponent(tableName), { data: batch, upsert: true, onConflict });
+  await upsertImportBatch(tableName, batch, onConflict);
 }
 
 async function tableInsertBatch(tableName: string, batch: Record<string, unknown>[]) {
-  await dataTableApi.post(encodeURIComponent(tableName), { data: batch });
+  await insertImportBatch(tableName, batch);
 }
 
 async function tableUpsertOne(tableName: string, record: Record<string, unknown>, onConflict: string) {
-  await dataTableApi.post(encodeURIComponent(tableName), { data: record, upsert: true, onConflict });
+  await upsertImportRecord(tableName, record, onConflict);
 }
 
 async function tableInsertOne(tableName: string, record: Record<string, unknown>) {
-  await dataTableApi.post(encodeURIComponent(tableName), { data: record });
+  await insertImportRecord(tableName, record);
 }
 
 /**
@@ -490,14 +490,8 @@ export async function downloadImportTemplate(
       const BOM = '\uFEFF';
       const csvContent = BOM + csvHeaders.join(',');
       const blob = createUtf8CsvBlob(csvContent);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${displayName}_模板.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const { triggerBlobDownload } = await import('@/lib/downloadBlob');
+      triggerBlobDownload(blob, `${displayName}_模板.csv`);
     }
 
     return { success: true };
@@ -510,7 +504,8 @@ export async function downloadImportTemplate(
  * 获取表的当前记录数
  */
 export async function getTableRecordCount(tableName: string): Promise<number> {
-  return fetchTableCountExact(tableName);
+  const counts = await fetchTableCounts([tableName]);
+  return counts[tableName] ?? 0;
 }
 
 /**

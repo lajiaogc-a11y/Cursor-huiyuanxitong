@@ -5,7 +5,7 @@
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useState, useEffect, useRef, useCallback, type CSSProperties } from "react";
 import { Zap } from "lucide-react";
-import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
+import { useMemberResolvableMedia } from "@/hooks/members/useMemberResolvableMedia";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const DEFAULT_ACCENT = "#4d8cff";

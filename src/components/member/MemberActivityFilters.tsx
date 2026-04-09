@@ -9,7 +9,7 @@ import {
 import { Search } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import ColumnVisibilityDropdown from "@/components/ColumnVisibilityDropdown";
-import type { ColumnConfig } from "@/hooks/useColumnVisibility";
+import type { ColumnConfig } from "@/hooks/ui/useColumnVisibility";
 
 export type TimeRange = "all" | "today" | "yesterday" | "thisMonth" | "lastMonth" | "custom";
 

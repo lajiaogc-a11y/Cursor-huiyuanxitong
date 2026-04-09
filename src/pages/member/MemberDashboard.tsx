@@ -5,16 +5,16 @@ import { Button } from "@/components/ui/button";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useMemberPointsBreakdown } from "@/hooks/useMemberPointsBreakdown";
-import { useMemberSpinQuota } from "@/hooks/useMemberSpinQuota";
-import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
-import { useMemberDashboardDailyTasks } from "@/hooks/useMemberDashboardDailyTasks";
+import { useMemberPointsBreakdown } from "@/hooks/members/useMemberPointsBreakdown";
+import { useMemberSpinQuota } from "@/hooks/members/useMemberSpinQuota";
+import { useMemberPortalSettings } from "@/hooks/members/useMemberPortalSettings";
+import { useMemberDashboardDailyTasks } from "@/hooks/members/useMemberDashboardDailyTasks";
 import { fetchMemberInviteToken } from "@/services/memberPortal/memberInvitePortalService";
 import { fetchMemberInboxUnreadCount } from "@/services/memberPortal/memberInboxService";
 import { ROUTES } from "@/routes/constants";
 import { stashPointsHashBeforeInviteNavigation } from "@/lib/memberPortalInviteReturn";
 import type { AnnouncementItem, AnnouncementPopupFrequency } from "@/services/members/memberPortalSettingsService";
-import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
+import { useMemberResolvableMedia } from "@/hooks/members/useMemberResolvableMedia";
 import "@/styles/member-portal.css";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
 import { MemberDashboardBannerSection } from "@/components/member/dashboard/MemberDashboardBannerSection";
@@ -23,15 +23,15 @@ import { MemberDashboardPointsStatGrid } from "@/components/member/dashboard/Mem
 import { MemberDashboardPortalOverlays } from "@/components/member/dashboard/MemberDashboardPortalOverlays";
 import { MemberDashboardProfileBar } from "@/components/member/dashboard/MemberDashboardProfileBar";
 import { MemberDashboardQuickActions } from "@/components/member/dashboard/MemberDashboardQuickActions";
-import { useMemberSkeletonGate } from "@/hooks/useMemberSkeletonGate";
+import { useMemberSkeletonGate } from "@/hooks/members/useMemberSkeletonGate";
 import { resolveHomePointsBalanceFooter } from "@/lib/memberPortalBilingualHint";
-import { useMemberLocalAvatar } from "@/hooks/useMemberLocalAvatar";
+import { useMemberLocalAvatar } from "@/hooks/members/useMemberLocalAvatar";
 import { getMemberPortalDisplayName } from "@/lib/memberDisplayName";
 import { displayMemberLevelLabel } from "@/lib/memberLevelDisplay";
 import { getMemberTodayEarnedRpc } from "@/services/points/memberPointsRpcService";
 import { formatAnnouncementPublishedAt } from "@/lib/memberPortalAnnouncementDate";
-import { useMemberAnimatedCount } from "@/hooks/useMemberAnimatedCount";
-import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
+import { useMemberAnimatedCount } from "@/hooks/members/useMemberAnimatedCount";
+import { useMemberPullRefreshSignal } from "@/hooks/members/useMemberPullRefreshSignal";
 import {
   getMemberInboxUnreadCount,
   setMemberInboxUnreadCount,

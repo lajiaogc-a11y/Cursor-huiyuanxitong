@@ -1,7 +1,8 @@
 // Points Account Store - 积分账户（使用数据库作为唯一数据源，经表代理）
 
 import { logOperation } from '@/services/audit/auditLogService';
-import { dataTableApi, dataRpcApi } from '@/api/data';
+import { apiGet } from '@/api/client';
+import { pointsApi } from '@/api/points';
 import { notifyDataMutation } from '@/services/system/dataRefreshManager';
 import { pickBilingual } from '@/lib/appLocale';
 
@@ -42,17 +43,15 @@ async function resolveMemberForPoints(
   const ph = String(phone || '').trim();
   const code = String(member_code || '').trim();
   if (ph) {
-    const byPhone = await dataTableApi.get<Record<string, unknown> | null>(
-      'members',
-      `phone_number=eq.${encodeURIComponent(ph)}&select=id,phone_number,member_code&single=true`,
+    const byPhone = await apiGet<Record<string, unknown> | null>(
+      `/api/data/table/members?phone_number=eq.${encodeURIComponent(ph)}&select=id,phone_number,member_code&single=true`,
     );
     if (byPhone && typeof byPhone.id === 'string') return byPhone as { id: string; phone_number?: string | null; member_code?: string | null };
   }
   if (code) {
     try {
-      const byCode = await dataTableApi.get<Record<string, unknown> | null>(
-        'members',
-        `member_code=eq.${encodeURIComponent(code)}&select=id,phone_number,member_code&single=true`,
+      const byCode = await apiGet<Record<string, unknown> | null>(
+        `/api/data/table/members?member_code=eq.${encodeURIComponent(code)}&select=id,phone_number,member_code&single=true`,
       );
       if (byCode && typeof byCode.id === 'string') return byCode as { id: string; phone_number?: string | null; member_code?: string | null };
     } catch {
@@ -67,7 +66,7 @@ export async function initializePointsAccountCache(): Promise<void> {
   if (cacheInitialized) return;
 
   try {
-    const data = await dataTableApi.get<unknown>('points_accounts', 'select=*&limit=5000');
+    const data = await apiGet<unknown>('/api/data/table/points_accounts?select=*&limit=5000');
     const rows = Array.isArray(data) ? data : [];
 
     rows.forEach((row: Record<string, any>) => {
@@ -93,25 +92,22 @@ export async function getPointsAccountFromDb(member_code: string): Promise<Point
     const code = String(member_code || '').trim();
     if (!code) return null;
 
-    let row = await dataTableApi.get<Record<string, any> | null>(
-      'points_accounts',
-      `select=*&member_code=eq.${encodeURIComponent(code)}&single=true`,
+    let row = await apiGet<Record<string, any> | null>(
+      `/api/data/table/points_accounts?select=*&member_code=eq.${encodeURIComponent(code)}&single=true`,
     );
     if (row) return mapRowToAccount(row, code);
 
     let mem: { id: string } | null = null;
     try {
-      mem = await dataTableApi.get<{ id: string } | null>(
-        'members',
-        `member_code=eq.${encodeURIComponent(code)}&select=id&single=true`,
+      mem = await apiGet<{ id: string } | null>(
+        `/api/data/table/members?member_code=eq.${encodeURIComponent(code)}&select=id&single=true`,
       );
     } catch {
       mem = null;
     }
     if (mem?.id) {
-      row = await dataTableApi.get<Record<string, any> | null>(
-        'points_accounts',
-        `select=*&member_id=eq.${encodeURIComponent(mem.id)}&single=true`,
+      row = await apiGet<Record<string, any> | null>(
+        `/api/data/table/points_accounts?select=*&member_id=eq.${encodeURIComponent(mem.id)}&single=true`,
       );
       if (row) return mapRowToAccount(row, code);
     }
@@ -167,17 +163,14 @@ export async function redeemPoints(
       };
     }
 
-    const rpcResult = await dataRpcApi.call<{
+    const rpcResult = await pointsApi.redeemAllPoints(member_code, phone) as {
       success: boolean;
       error?: string;
       redeemedPoints?: number;
       oldCycleId?: string | null;
       newCycleId?: string | null;
       resetTime?: string | null;
-    }>('redeem_all_points', {
-      p_member_code: member_code,
-      p_phone: phone,
-    });
+    };
 
     if (!rpcResult?.success) {
       const errCode = rpcResult?.error || 'REDEEM_FAILED';

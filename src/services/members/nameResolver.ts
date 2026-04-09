@@ -2,7 +2,7 @@
 // 统一名称解析服务 - 合并了 useNameResolvers 和 useMerchantNameResolver
 // 提供 ID 到名称的统一解析功能，配合 CacheManager 使用
 
-import { dataTableApi } from '@/api/data';
+import { apiGet } from '@/api/client';
 import { 
   getCache, 
   setCache, 
@@ -11,7 +11,7 @@ import {
   CACHE_KEYS,
   subscribeTableChanges,
 } from '@/services/cacheManager';
-import { getActivityTypesApi } from '@/services/staff/dataApi';
+import { getActivityTypesApi } from '@/api/staffData';
 import { listCardsApi, listVendorsApi, listPaymentProvidersApi } from '@/services/shared/entityLookupService';
 import { listEmployeesApi, getEmployeeApi } from '@/api/employees';
 import { logger } from '@/lib/logger';
@@ -210,8 +210,7 @@ async function loadCards(): Promise<void> {
       logger.warn('[NameResolver] API load cards failed, fallback to table proxy:', apiErr);
     }
     const raw = asRows(
-      await dataTableApi
-        .get<Record<string, unknown>>("gift_cards", "select=id,name,card_number,status&limit=5000")
+      await apiGet<Record<string, unknown>>("/api/data/table/gift_cards?select=id,name,card_number,status&limit=5000")
         .catch((err) => {
           logger.warn('[nameResolver] gift_cards fallback fetch failed silently:', err);
           return [];
@@ -259,8 +258,7 @@ async function loadVendors(): Promise<void> {
       logger.warn('[NameResolver] API load vendors failed, fallback to table proxy:', apiErr);
     }
     const raw = asRows(
-      await dataTableApi
-        .get<Record<string, unknown>>("vendors", "select=id,name,status&limit=5000")
+      await apiGet<Record<string, unknown>>("/api/data/table/vendors?select=id,name,status&limit=5000")
         .catch((err) => {
           logger.warn('[nameResolver] vendors fallback fetch failed silently:', err);
           return [];
@@ -307,8 +305,7 @@ async function loadPaymentProviders(): Promise<void> {
       logger.warn('[NameResolver] API load providers failed, fallback to table proxy:', apiErr);
     }
     const raw = asRows(
-      await dataTableApi
-        .get<{ id: string; name: string; status?: string }>("payment_providers", "select=id,name,status&limit=5000")
+      await apiGet<{ id: string; name: string; status?: string }>("/api/data/table/payment_providers?select=id,name,status&limit=5000")
         .catch((err) => {
           logger.warn('[nameResolver] payment_providers fallback fetch failed silently:', err);
           return [];

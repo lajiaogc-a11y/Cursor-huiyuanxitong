@@ -1,7 +1,7 @@
 /**
  * 员工端：会员管理相关 RPC
  */
-import { dataRpcApi } from "@/api/data";
+import { memberAdminApi } from "@/api/memberAdmin";
 
 export type AdminSetMemberPasswordResult = {
   success?: boolean;
@@ -9,12 +9,9 @@ export type AdminSetMemberPasswordResult = {
 };
 
 export async function adminSetMemberInitialPassword(memberId: string, newPassword: string): Promise<AdminSetMemberPasswordResult> {
-  return dataRpcApi.call<AdminSetMemberPasswordResult>("admin_set_member_initial_password", {
-    p_member_id: memberId,
-    p_new_password: newPassword,
-  });
+  return memberAdminApi.setInitialPassword(memberId, newPassword) as Promise<AdminSetMemberPasswordResult>;
 }
 
 export async function adminGetMemberReferrals(memberId: string): Promise<{ success?: boolean; referrals?: unknown[] }> {
-  return dataRpcApi.call("admin_get_member_referrals", { p_member_id: memberId });
+  return memberAdminApi.getReferrals(memberId) as Promise<{ success?: boolean; referrals?: unknown[] }>;
 }

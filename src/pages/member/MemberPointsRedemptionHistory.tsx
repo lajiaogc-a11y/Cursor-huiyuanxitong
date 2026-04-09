@@ -10,8 +10,8 @@ import {
   listMemberPointsMallRedemptionsForPortal,
   type MemberPortalRedemptionRpcRow,
 } from "@/services/members/memberPointsMallRpcService";
-import { useMemberSkeletonGate } from "@/hooks/useMemberSkeletonGate";
-import { useMemberAnimatedCount } from "@/hooks/useMemberAnimatedCount";
+import { useMemberSkeletonGate } from "@/hooks/members/useMemberSkeletonGate";
+import { useMemberAnimatedCount } from "@/hooks/members/useMemberAnimatedCount";
 import { formatMemberLedgerRowOrderDisplay } from "@/lib/memberLedgerIdDisplay";
 import type { MemberPointsLedgerRow } from "@/services/points/memberPointsRpcService";
 import { cn } from "@/lib/utils";

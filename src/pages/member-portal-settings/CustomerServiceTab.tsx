@@ -24,7 +24,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { DrawerDetail } from '@/components/shell/DrawerDetail';
 import { verifyAdminPasswordApi } from '@/services/admin/adminApiService';
 import { SectionTitle } from './shared';
-import { useMemberResolvableMedia } from '@/hooks/useMemberResolvableMedia';
+import { useMemberResolvableMedia } from '@/hooks/members/useMemberResolvableMedia';
 
 function CustomerServiceTabAgentAvatar({ agent, idx }: { agent: CustomerServiceAgent; idx: number }) {
   const raw = String(agent.avatar_url ?? '').trim();

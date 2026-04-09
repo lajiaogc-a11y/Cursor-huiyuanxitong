@@ -2,3 +2,4 @@
 # Skip lint-staged: SKIP_LINT_STAGED=1 git commit …  (PowerShell: $env:SKIP_LINT_STAGED="1"; git commit …)
 [ -n "$SKIP_LINT_STAGED" ] && exit 0
 npx lint-staged
+node scripts/architecture-gate.mjs

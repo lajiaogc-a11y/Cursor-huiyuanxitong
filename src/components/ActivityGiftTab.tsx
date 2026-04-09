@@ -29,14 +29,14 @@ import { calculateTransactionFee } from "@/lib/feeCalculation";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDisplayPhone } from "@/lib/phoneMask";
 import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
-import { useMembers } from "@/hooks/useMembers";
-import { usePaymentProviders } from "@/hooks/useMerchantConfig";
-import { useActivityGifts } from "@/hooks/useActivityGifts";
-import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
+import { useMembers } from "@/hooks/members/useMembers";
+import { usePaymentProviders } from "@/hooks/finance/useMerchantConfig";
+import { useActivityGifts } from "@/hooks/activity/useActivityGifts";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/auth/useIsPlatformAdminViewingTenant";
 import { markInputActive } from "@/lib/performanceUtils";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { getActivityTypesApi } from "@/services/staff/dataApi";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
+import { getActivityTypesApi } from "@/services/staff/staffDataService";
 import { loadSharedData, saveSharedData } from "@/services/finance/sharedDataService";
 
 interface ActivityGift {

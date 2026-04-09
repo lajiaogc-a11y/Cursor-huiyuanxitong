@@ -53,12 +53,17 @@ export async function getLedgerAll(req: AuthenticatedRequest, res: Response) {
 export async function postLedger(req: AuthenticatedRequest, res: Response) {
   if (!requireEmployee(req, res)) return;
   const b = req.body as Record<string, unknown>;
+  const parsedAmount = Number(b.amount);
+  if (!Number.isFinite(parsedAmount)) {
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'amount must be a finite number' } });
+    return;
+  }
   const row = await ledger.createLedgerEntry({
     account_type: String(b.account_type || ''),
     account_id: String(b.account_id || ''),
     source_type: String(b.source_type || 'order'),
     source_id: b.source_id != null ? String(b.source_id) : null,
-    amount: Number(b.amount),
+    amount: parsedAmount,
     note: b.note != null ? String(b.note) : null,
     operator_id: b.operator_id != null ? String(b.operator_id) : null,
     operator_name: b.operator_name != null ? String(b.operator_name) : null,

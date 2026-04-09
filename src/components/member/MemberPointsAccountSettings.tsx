@@ -10,7 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
+import { useMemberResolvableMedia } from "@/hooks/members/useMemberResolvableMedia";
 import { notify } from "@/lib/notifyHub";
 
 export interface MemberPointsAccountSettingsProps {

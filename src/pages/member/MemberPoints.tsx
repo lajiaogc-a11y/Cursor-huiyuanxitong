@@ -5,8 +5,8 @@ import { getMallCache, clearMallCatalogCache } from "@/lib/mallCatalogCache";
 export { clearMallCatalogCache };
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
-import { useMemberPoints } from "@/hooks/useMemberPoints";
+import { useMemberPortalSettings } from "@/hooks/members/useMemberPortalSettings";
+import { useMemberPoints } from "@/hooks/members/useMemberPoints";
 import { useActionGuard } from "@/lib/actionGuard";
 import {
   loadMemberPointsMallCatalog,
@@ -20,16 +20,16 @@ import { notify } from "@/lib/notifyHub";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
 import { memberQueryKeys } from "@/lib/memberQueryKeys";
-import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
+import { useMemberResolvableMedia } from "@/hooks/members/useMemberResolvableMedia";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
-import { useMemberSkeletonGate } from "@/hooks/useMemberSkeletonGate";
+import { useMemberSkeletonGate } from "@/hooks/members/useMemberSkeletonGate";
 import { memberPortalNetworkToastMessage } from "@/lib/memberPortalUx";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { getMemberTodayEarnedRpc } from "@/services/points/memberPointsRpcService";
 import { MemberPortalPointsHero } from "@/components/member/MemberPortalPointsHero";
 import { pickBilingualPortalField } from "@/lib/memberPortalBilingualHint";
 import "@/styles/member-portal.css";
-import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
+import { useMemberPullRefreshSignal } from "@/hooks/members/useMemberPullRefreshSignal";
 import { num, redeemableMaxQty } from "@/pages/member/memberPointsShared";
 import { REDEMPTION_HISTORY_LIMIT, MemberRedemptionHistoryFeed } from "@/pages/member/MemberPointsRedemptionHistory";
 import {

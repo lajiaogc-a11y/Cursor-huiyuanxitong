@@ -34,4 +34,14 @@ export const ordersApi = {
   create: (data: Record<string, unknown>) => apiPost<unknown>('/api/orders', data),
   updatePoints: (id: string, data: Record<string, unknown>) =>
     apiPatch<unknown>(`/api/orders/${encodeURIComponent(id)}/points`, data),
+
+  patchById: (id: string, data: Record<string, unknown>) =>
+    apiPatch<Record<string, unknown> | Record<string, unknown>[]>(
+      `/api/data/table/orders?id=eq.${encodeURIComponent(id)}`,
+      { data },
+    ),
+  getDeleteState: (id: string) =>
+    apiGet<{ is_deleted?: unknown } | null>(
+      `/api/data/table/orders?select=is_deleted&id=eq.${encodeURIComponent(id)}&single=true`,
+    ),
 };

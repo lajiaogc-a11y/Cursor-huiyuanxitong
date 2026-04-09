@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, RefreshCw, Download } from "lucide-react";
 import { exportToCSV, formatNumberForExport } from "@/lib/exportUtils";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
-import { useExportConfirm } from "@/hooks/useExportConfirm";
+import { useExportConfirm } from "@/hooks/ui/useExportConfirm";
 import { notify } from "@/lib/notifyHub";
 import { showSubmissionError } from "@/services/submissionErrorService";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -50,16 +50,16 @@ import ProviderManagementDialog from "@/components/ProviderManagementDialog";
 import { MerchantType } from "@/services/finance/merchantSettlementService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
-import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/auth/useIsPlatformAdminViewingTenant";
 import { getMyTenantOrdersFull, getMyTenantUsdtOrdersFull, getTenantOrdersFull, getTenantUsdtOrdersFull } from "@/services/tenantService";
-import { useFieldPermissions } from "@/hooks/useFieldPermissions";
+import { useFieldPermissions } from "@/hooks/staff/useFieldPermissions";
 import {
   fetchMerchantCards,
   fetchMerchantPaymentProviders,
   fetchMerchantVendors,
 } from "@/services/finance/merchantConfigReadService";
 import { getEmployees } from "@/services/employees/employeeCrudService";
-import { getActivityDataApi } from "@/services/staff/dataApi";
+import { getActivityDataApi } from "@/services/staff/staffDataService";
 import { verifyAuthPasswordApi } from "@/services/auth/authApiService";
 import { useMerchantNameResolver } from "@/hooks/useNameResolver";
 import ShiftHandoverHistoryTab from "@/components/ShiftHandoverHistoryTab";
@@ -87,7 +87,7 @@ import {
   getMerchantSettlementPageSizes,
   setMerchantSettlementPageSizes,
 } from "@/services/userPreferencesService";
-import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
+import { useIsMobile, useIsTablet } from "@/hooks/ui/use-mobile";
 import { subscribeToSharedData } from "@/services/finance/sharedDataService";
 
 export default function MerchantSettlement() {

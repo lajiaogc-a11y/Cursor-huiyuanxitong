@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { trackRender } from "@/lib/performanceUtils";
-import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
+import { useIsMobile, useIsTablet } from "@/hooks/ui/use-mobile";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { BookOpen, RefreshCw, FolderPlus } from "lucide-react";
@@ -8,7 +8,7 @@ import { notify } from "@/lib/notifyHub";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
-import { useExportConfirm } from "@/hooks/useExportConfirm";
+import { useExportConfirm } from "@/hooks/ui/useExportConfirm";
 import { exportTable } from "@/services/export";
 import {
   useKnowledgeCategories,
@@ -17,8 +17,8 @@ import {
   useArticleReadStatus,
   type KnowledgeCategory,
   type KnowledgeArticle,
-} from "@/hooks/useKnowledge";
-import { seedKnowledgeCategories } from "@/services/staff/dataApi";
+} from "@/hooks/staff/useKnowledge";
+import { seedKnowledgeCategories } from "@/services/staff/staffDataService";
 import {
   KnowledgeBaseDrawers,
   type CategoryFormState,

@@ -1,8 +1,8 @@
 /**
  * 前端异常上报（error_reports 表代理，经 /api/data/table/error_reports）
  */
-import { fetchTableSelectRaw } from "@/api/tableProxyRaw";
-import { dataTableApi } from "@/api/data";
+import { fetchFilteredCount } from "@/api/adminStatsApi";
+import { submitErrorReportData, listErrorReportsData, deleteErrorReportData, deleteErrorReportsByIdsData } from "@/api/errorReportData";
 
 export type ErrorReportPayload = {
   error_id: string;
@@ -131,18 +131,13 @@ export async function submitErrorReport(payload: ErrorReportPayload): Promise<vo
   dedupeLastSent.set(fp, now);
   pruneDedupeMap(now);
 
-  await dataTableApi.post("error_reports", { data: payload });
+  await submitErrorReportData(payload as Record<string, unknown>);
 }
 
-/** PostgREST 风格 count：limit=0 只取 total，避免拉全表 */
 export async function countErrorReportsSince(isoTimestamp: string): Promise<number> {
-  const { count } = await fetchTableSelectRaw("error_reports", {
-    select: "*",
-    count: "exact",
-    limit: "0",
-    created_at: `gte.${isoTimestamp}`,
-  });
-  return Number(count) || 0;
+  return fetchFilteredCount('error_reports', [
+    { column: 'created_at', op: 'gte', value: isoTimestamp },
+  ]);
 }
 
 const DEFAULT_LIST_LIMIT = 100;
@@ -153,16 +148,16 @@ export async function listErrorReports(limit = DEFAULT_LIST_LIMIT): Promise<Erro
     order: "created_at.desc",
     limit: String(limit),
   });
-  const rows = await dataTableApi.get<unknown>("error_reports", qs.toString());
+  const rows = await listErrorReportsData(qs.toString());
   return normalizeErrorReportRows(rows);
 }
 
 export async function deleteErrorReport(id: string): Promise<void> {
-  await dataTableApi.del("error_reports", `id=eq.${encodeURIComponent(id)}`);
+  await deleteErrorReportData(id);
 }
 
 export async function deleteErrorReportsByIds(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   const inList = ids.map((x) => encodeURIComponent(x)).join(",");
-  await dataTableApi.del("error_reports", `id=in.(${inList})`);
+  await deleteErrorReportsByIdsData(inList);
 }

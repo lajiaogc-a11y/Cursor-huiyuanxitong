@@ -21,8 +21,8 @@ import { Calendar, Copy, FolderPlus, ImageOff, Loader2, Pencil, Plus, Settings2 
 import { notify } from "@/lib/notifyHub";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { ResolvableMediaThumb } from "@/components/ResolvableMediaThumb";
-import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
-import type { KnowledgeCategory, KnowledgeArticle } from "@/hooks/useKnowledge";
+import { useMemberResolvableMedia } from "@/hooks/members/useMemberResolvableMedia";
+import type { KnowledgeCategory, KnowledgeArticle } from "@/hooks/staff/useKnowledge";
 
 function KnowledgeArticleDrawerImage({
   article,

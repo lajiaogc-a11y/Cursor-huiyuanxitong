@@ -1,7 +1,8 @@
 /**
  * 服务端代理的行情拉取（USDT/CNY、BTC/USD），统一走鉴权与 base URL
  */
-import { apiClient, getBearerTokenStaffThenMember } from "@/lib/apiClient";
+import { getBearerTokenStaffThenMember } from "@/lib/apiClient";
+import { financeApi } from "@/api/finance";
 import { EXTERNAL_API } from "@/config/externalApis";
 import { externalGet, internalAuthGet } from "@/lib/externalHttpClient";
 
@@ -9,7 +10,7 @@ export async function fetchUsdtRatesViaApi(body: {
   lastConfirmedMid?: number;
   anomalyThresholdPercent?: number;
 }): Promise<unknown> {
-  return apiClient.post<unknown>("/api/data/fetch-usdt-rates", body);
+  return financeApi.fetchUsdtRates(body);
 }
 
 export type FetchBtcPriceApiResult = { success: boolean; price?: number; source?: string };

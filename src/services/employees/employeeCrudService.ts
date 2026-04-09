@@ -13,8 +13,6 @@ import {
   updateEmployeeApi,
   type ApiEmployee,
 } from '@/api/employees';
-import { notify } from "@/lib/notifyHub";
-
 export type AppRole = 'admin' | 'manager' | 'staff';
 
 // Bilingual role labels
@@ -319,14 +317,9 @@ export async function deleteEmployee(
 }
 
 // 切换员工状态
-export async function toggleEmployeeStatus(id: string, lang: 'zh' | 'en' = 'zh'): Promise<boolean> {
-  try {
-    const result = await toggleEmployeeStatusApi(id);
-    return !!result;
-  } catch (error) {
-    notify.error(getEmployeeErrorMessage('UPDATE_STATUS_FAILED', lang));
-    return false;
-  }
+export async function toggleEmployeeStatus(id: string, _lang: 'zh' | 'en' = 'zh'): Promise<boolean> {
+  const result = await toggleEmployeeStatusApi(id);
+  return !!result;
 }
 
 // 获取员工详情

@@ -1,6 +1,6 @@
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
-import { selectEmployeeTenantIdById } from './repository.js';
+import { getEmployeeTenantId } from './service.js';
 import { insertWebhookQueueEvent, scheduleProcessWebhookQueueInBackground } from './processor.js';
 
 const ALLOWED_EVENT_TYPES = new Set([
@@ -35,7 +35,7 @@ export async function postEnqueueWebhookEventController(req: AuthenticatedReques
 
   let tenantId = req.user?.tenant_id ?? undefined;
   if (!tenantId && req.user?.id) {
-    tenantId = (await selectEmployeeTenantIdById(req.user.id)) ?? undefined;
+    tenantId = (await getEmployeeTenantId(req.user.id)) ?? undefined;
   }
 
   if (!tenantId && req.user?.is_platform_super_admin && typeof body.tenant_id === 'string' && body.tenant_id.trim()) {

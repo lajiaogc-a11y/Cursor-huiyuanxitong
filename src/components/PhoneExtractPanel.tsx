@@ -14,7 +14,7 @@ import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { notify } from "@/lib/notifyHub";
-import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/auth/useIsPlatformAdminViewingTenant";
 import { verifyEmployeeLoginDetailedApi } from "@/services/auth/authApiService";
 import {
   extractPhonesResult,
@@ -26,8 +26,8 @@ import {
   type ExtractedPhone,
   type PhoneStats,
 } from "@/services/phonePoolService";
-import { showServiceErrorToast } from "@/services/serviceErrorToast";
-import { useTenantFeatureFlag } from "@/hooks/useTenantFeatureFlag";
+import { showServiceErrorToast } from "@/lib/serviceErrorToast";
+import { useTenantFeatureFlag } from "@/hooks/system/useTenantFeatureFlag";
 import { FEATURE_FLAGS } from "@/services/featureFlagService";
 
 const _phoneExtractCache = new Map<string, { stats: PhoneStats | null; extractedList: ExtractedPhone[]; settings: { per_extract_limit: number; per_user_daily_limit: number } }>();

@@ -4,106 +4,19 @@
 import { Router, type Response } from 'express';
 import { memberAuthMiddleware, type MemberAuthenticatedRequest } from '../memberAuth/middleware.js';
 import {
-  listMemberInboxService,
-  countUnreadMemberInboxService,
-  markMemberInboxReadService,
-  markAllMemberInboxReadService,
-  deleteMemberInboxRowService,
-} from './service.js';
+  listNotificationsController,
+  unreadCountController,
+  markReadController,
+  markAllReadController,
+  deleteNotificationController,
+} from './controller.js';
 
 const router = Router();
 
-function tenantOr400(req: MemberAuthenticatedRequest, res: Response): string | null {
-  const tid = req.member?.tenant_id != null ? String(req.member.tenant_id).trim() : '';
-  if (!tid) {
-    res.status(400).json({ success: false, error: { code: 'NO_TENANT', message: 'Member has no tenant' } });
-    return null;
-  }
-  return tid;
-}
-
-router.get('/notifications', memberAuthMiddleware, async (req: MemberAuthenticatedRequest, res: Response) => {
-  const tenantId = tenantOr400(req, res);
-  if (!tenantId) return;
-  const memberId = String(req.member?.id || '').trim();
-  if (!memberId) {
-    res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid member' } });
-    return;
-  }
-  const lim = Math.min(200, Math.max(1, parseInt(String(req.query.limit || '80'), 10) || 80));
-  const off = Math.max(0, parseInt(String(req.query.offset || '0'), 10) || 0);
-  try {
-    const { items, total } = await listMemberInboxService(memberId, tenantId, lim, off);
-    res.json({ success: true, items, total });
-  } catch (e) {
-    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: (e as Error).message || 'LIST_FAILED' } });
-  }
-});
-
-router.get('/unread-count', memberAuthMiddleware, async (req: MemberAuthenticatedRequest, res: Response) => {
-  const tenantId = tenantOr400(req, res);
-  if (!tenantId) return;
-  const memberId = String(req.member?.id || '').trim();
-  if (!memberId) {
-    res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid member' } });
-    return;
-  }
-  try {
-    const unread = await countUnreadMemberInboxService(memberId, tenantId);
-    res.json({ success: true, unread });
-  } catch (e) {
-    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: (e as Error).message || 'COUNT_FAILED' } });
-  }
-});
-
-router.post('/notifications/:id/read', memberAuthMiddleware, async (req: MemberAuthenticatedRequest, res: Response) => {
-  const tenantId = tenantOr400(req, res);
-  if (!tenantId) return;
-  const memberId = String(req.member?.id || '').trim();
-  const id = String(req.params.id || '').trim();
-  if (!memberId || !id) {
-    res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Invalid id' } });
-    return;
-  }
-  try {
-    const ok = await markMemberInboxReadService(memberId, tenantId, id);
-    res.json({ success: true, updated: ok });
-  } catch (e) {
-    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: (e as Error).message || 'UPDATE_FAILED' } });
-  }
-});
-
-router.post('/notifications/read-all', memberAuthMiddleware, async (req: MemberAuthenticatedRequest, res: Response) => {
-  const tenantId = tenantOr400(req, res);
-  if (!tenantId) return;
-  const memberId = String(req.member?.id || '').trim();
-  if (!memberId) {
-    res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid member' } });
-    return;
-  }
-  try {
-    const n = await markAllMemberInboxReadService(memberId, tenantId);
-    res.json({ success: true, updated: n });
-  } catch (e) {
-    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: (e as Error).message || 'UPDATE_FAILED' } });
-  }
-});
-
-router.delete('/notifications/:id', memberAuthMiddleware, async (req: MemberAuthenticatedRequest, res: Response) => {
-  const tenantId = tenantOr400(req, res);
-  if (!tenantId) return;
-  const memberId = String(req.member?.id || '').trim();
-  const id = String(req.params.id || '').trim();
-  if (!memberId || !id) {
-    res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Invalid id' } });
-    return;
-  }
-  try {
-    const ok = await deleteMemberInboxRowService(memberId, tenantId, id);
-    res.json({ success: true, deleted: ok });
-  } catch (e) {
-    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: (e as Error).message || 'DELETE_FAILED' } });
-  }
-});
+router.get('/notifications', memberAuthMiddleware, (req: MemberAuthenticatedRequest, res: Response) => listNotificationsController(req, res));
+router.get('/unread-count', memberAuthMiddleware, (req: MemberAuthenticatedRequest, res: Response) => unreadCountController(req, res));
+router.post('/notifications/:id/read', memberAuthMiddleware, (req: MemberAuthenticatedRequest, res: Response) => markReadController(req, res));
+router.post('/notifications/read-all', memberAuthMiddleware, (req: MemberAuthenticatedRequest, res: Response) => markAllReadController(req, res));
+router.delete('/notifications/:id', memberAuthMiddleware, (req: MemberAuthenticatedRequest, res: Response) => deleteNotificationController(req, res));
 
 export default router;

@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StickyScrollTableContainer } from "@/components/ui/sticky-scroll-table";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobileCardActions, MobilePagination, MobileEmptyState } from "@/components/ui/mobile-data-card";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import {
@@ -40,18 +40,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Pencil, Trash2, KeyRound, Copy } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
-import { useMembers, Member } from "@/hooks/useMembers";
+import { useMembers, Member } from "@/hooks/members/useMembers";
 import { logOperation } from "@/services/audit/auditLogService";
 import { getCurrencyBadgeColor, normalizeCurrencyCode } from "@/config/currencies";
-import { useCustomerSources } from "@/hooks/useCustomerSources";
-import { useCards } from "@/hooks/useMerchantConfig";
+import { useCustomerSources } from "@/hooks/crm/useCustomerSources";
+import { useCards } from "@/hooks/finance/useMerchantConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatBeijingDateHM } from "@/lib/beijingTime";
 import { getDisplayPhone } from "@/lib/phoneMask";
 import { adminSetMemberInitialPassword } from "@/services/members/memberAdminRpcService";
-import { useAuditWorkflow } from "@/hooks/useAuditWorkflow";
-import { useModulePermissions } from "@/hooks/useFieldPermissions";
+import { useAuditWorkflow } from "@/hooks/audit/useAuditWorkflow";
+import { useModulePermissions } from "@/hooks/staff/useFieldPermissions";
 import {
   Popover,
   PopoverContent,
@@ -64,7 +64,7 @@ import { getMemberPortalDisplayName } from "@/lib/memberDisplayName";
 import { loadSharedData } from "@/services/finance/sharedDataService";
 import { mergeAuditSettings } from "@/lib/auditSettingsTypes";
 import { useTenantView } from "@/contexts/TenantViewContext";
-import { fetchMemberLevelsApi } from "@/services/members/memberLevelsApi";
+import { fetchMemberLevelsApi } from "@/services/members/memberLevelsService";
 import { displayMemberLevelLabel } from "@/lib/memberLevelDisplay";
 
 /** 与 handleSaveEdit 中变更检测一致，供「提交审核 / 确认修改」按钮按当前实际改动判断 */

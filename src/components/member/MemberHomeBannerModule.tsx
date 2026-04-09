@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode, type TouchEv
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { resolveMemberMediaUrl } from "@/lib/memberMediaUrl";
-import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
+import { useMemberResolvableMedia } from "@/hooks/members/useMemberResolvableMedia";
 import type { MemberPortalSettings } from "@/services/members/memberPortalSettingsService";
 import { getHomeBannerPresetById, type HomeBannerTone } from "@/lib/memberPortalHomeBannerPresets";
 import {

@@ -235,19 +235,18 @@ export async function listActivityDataRepository(tenantId: string | null): Promi
 }
 
 export async function getSpinCreditsDetailRepository(memberId: string) {
-  const credits = await query(
-    `SELECT id, member_id, source, amount, used, created_at
-     FROM spin_credits
-     WHERE member_id = ?
-     ORDER BY created_at ASC, id ASC`,
-    [memberId],
-  );
+  const { reconcileSpinBalance } = await import('../lottery/spinBalanceAccount.js');
 
-  const activityRow = await queryOne<{ lottery_spin_balance?: number }>(
-    'SELECT lottery_spin_balance FROM member_activity WHERE member_id = ? LIMIT 1',
-    [memberId],
-  );
-  const remaining = Math.max(0, Math.floor(Number(activityRow?.lottery_spin_balance ?? 0)));
+  const [credits, remaining] = await Promise.all([
+    query(
+      `SELECT id, member_id, source, amount, used, created_at
+       FROM spin_credits
+       WHERE member_id = ?
+       ORDER BY created_at ASC, id ASC`,
+      [memberId],
+    ),
+    reconcileSpinBalance(memberId),
+  ]);
 
   const rawRows = (credits as { id: string; source: string; amount: number; used: number; created_at: string }[]);
   let runningBalance = 0;
@@ -266,4 +265,17 @@ export async function getSpinCreditsDetailRepository(memberId: string) {
 
   rows.reverse();
   return { credits: rows, remaining, totalEarned: runningBalance };
+}
+
+export async function getDataDebugCountsRepository() {
+  const [opRes, loginRes, catRes] = await Promise.all([
+    query<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM operation_logs'),
+    query<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM employee_login_logs'),
+    query<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM knowledge_categories'),
+  ]);
+  return {
+    operationLogsCount: Number(opRes[0]?.cnt ?? 0),
+    loginLogsCount: Number(loginRes[0]?.cnt ?? 0),
+    knowledgeCategoriesCount: Number(catRes[0]?.cnt ?? 0),
+  };
 }

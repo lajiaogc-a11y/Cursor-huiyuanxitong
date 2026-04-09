@@ -7,7 +7,7 @@ import TableImportButton from "@/components/TableImportButton";
 import { formatBeijingMonthDayShort } from "@/lib/beijingTime";
 import { cn } from "@/lib/utils";
 import { ResolvableMediaThumb } from "@/components/ResolvableMediaThumb";
-import type { KnowledgeArticle, KnowledgeCategory } from "@/hooks/useKnowledge";
+import type { KnowledgeArticle, KnowledgeCategory } from "@/hooks/staff/useKnowledge";
 
 function cellDash(v: unknown) {
   const s = v != null ? String(v).trim() : "";

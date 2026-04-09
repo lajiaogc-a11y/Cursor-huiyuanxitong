@@ -7,7 +7,7 @@
  * 进而造成「变动后余额（最新）」与「实时余额」不一致。
  */
 
-import { dataTableApi } from "@/api/data";
+import { queryTable, deleteTableRows as apiDeleteTableRows, insertTableRows as apiInsertTableRows } from "@/api/financeTableData";
 import { safeNumber, safeMultiply } from "@/lib/safeCalc";
 import { calculatePaymentValue } from "@/lib/orderCalculations";
 import { listVendorsApi, listPaymentProvidersApi } from "@/services/shared/entityLookupService";
@@ -23,7 +23,7 @@ function chunk<T>(arr: T[], size: number): T[][] {
 /** 表代理 GET：query 对象为 PostgREST 风格参数名 → 值（已含 eq./in./not. 等前缀） */
 async function tableGet<T>(table: string, query: Record<string, string>): Promise<T> {
   const qs = new URLSearchParams(query).toString();
-  return dataTableApi.get<T>(table, qs);
+  return queryTable<T>(table, qs);
 }
 
 async function tableSelectMaybeSingle<T>(table: string, select: string, filters: Record<string, string>): Promise<T | null> {
@@ -69,12 +69,12 @@ async function tableSelectWhereIn<T>(
 async function tableDeleteWhereIdIn(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   const inList = ids.map((id) => encodeURIComponent(id)).join(",");
-  await dataTableApi.del("balance_change_logs", `id=in.(${inList})`);
+  await apiDeleteTableRows("balance_change_logs", `id=in.(${inList})`);
 }
 
 async function tableInsertRows(table: string, rows: Record<string, unknown>[]): Promise<void> {
   if (rows.length === 0) return;
-  await dataTableApi.post(table, { data: rows });
+  await apiInsertTableRows(table, rows);
 }
 
 export interface MisattributedRepairResult {

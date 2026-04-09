@@ -16,12 +16,12 @@ import { Download, Image as ImageIcon, Loader2, Save } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
 import { getRateSettingEntries, getPosterTableColumns, type RateSettingEntry, type PosterColumnKey } from "@/services/system/systemSettingsService";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { savePosterToLibrary } from "@/services/taskService";
 import { formatBeijingDate, formatBeijingDateLongEnglish } from "@/lib/beijingTime";
-import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
+import { useMemberResolvableMedia } from "@/hooks/members/useMemberResolvableMedia";
 
 interface RatePosterGeneratorProps {
   onGenerate?: () => void;

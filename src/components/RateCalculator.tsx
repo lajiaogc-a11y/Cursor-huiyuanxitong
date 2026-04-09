@@ -1,7 +1,7 @@
 // 汇率计算器组件 - 优化布局设计
 // 核心策略：面值汇率放大 + 利润分析对齐 + 备注直接显示
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
 import { trackRender } from "@/lib/performanceUtils";
 import { Input } from "@/components/ui/input";
@@ -29,9 +29,9 @@ import { notify } from "@/lib/notifyHub";
 import { getMemberByPhoneForMyTenant, isMemberInTenant } from "@/services/members/memberLookupService";
 import { showSubmissionError } from "@/services/submissionErrorService";
 import { CURRENCIES } from "@/config/currencies";
-import { useCalculatorForm, CalculatorId } from "@/hooks/useCalculatorStore";
-import { useOrders, useUsdtOrders } from "@/hooks/useOrders";
-import { useMembers } from "@/hooks/useMembers";
+import { useCalculatorForm, CalculatorId } from "@/hooks/finance/useCalculatorStore";
+import { useOrders, useUsdtOrders } from "@/hooks/orders";
+import { useMembers } from "@/hooks/members/useMembers";
 
 import {
   generateMemberId,

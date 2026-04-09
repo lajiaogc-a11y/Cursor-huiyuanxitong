@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useMemo } from "react";
-import { useNavigationVisibility } from "@/hooks/useNavigationVisibility";
+import { useNavigationVisibility } from "@/hooks/staff/useNavigationVisibility";
 import { prefetchStaffMemberPortalPage, STAFF_MEMBER_PORTAL_PATH } from "@/lib/prefetchStaffMemberPortalPage";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -37,8 +37,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useUnreadCount } from "@/hooks/useKnowledge";
-import { usePendingAuditCount } from "@/hooks/usePendingAuditCount";
+import { useUnreadCount } from "@/hooks/staff/useKnowledge";
+import { usePendingAuditCount } from "@/hooks/audit/usePendingAuditCount";
 import { canonicalStaffMembersNavPath } from "@/lib/staffMembersNav";
 
 interface MobileMenuProps {

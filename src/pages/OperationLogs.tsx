@@ -53,12 +53,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
-import { useExportConfirm } from "@/hooks/useExportConfirm";
-import { useOperationLogsTable } from "@/hooks/useOperationLogsTable";
-import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
+import { useExportConfirm } from "@/hooks/ui/useExportConfirm";
+import { useOperationLogsTable } from "@/hooks/audit/useOperationLogsTable";
+import { useIsMobile, useIsTablet } from "@/hooks/ui/use-mobile";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 import { formatBeijingTime } from "@/lib/beijingTime";
-import { saveSharedData, loadSharedData } from "@/services/finance/sharedDataService";
+import { saveSharedData, loadSharedData, type SharedDataKey } from "@/services/finance/sharedDataService";
 import { PageHeader, KPIGrid, ErrorState } from "@/components/common";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { AdminOperationLogsTab } from "@/pages/member-portal/AdminOperationLogsTab";
@@ -76,15 +76,15 @@ export interface OperationLog {
   action: string;
   details: string;
   ip?: string;
-  oldData?: any;
-  newData?: any;
+  oldData?: Record<string, unknown> | null;
+  newData?: Record<string, unknown> | null;
   targetId?: string;
   targetType?: string;
 }
 
 // Legacy addOperationLog - 使用数据库版本
 export const addOperationLog = async (log: Omit<OperationLog, 'id' | 'timestamp'>) => {
-  const { logOperationToDb } = await import('@/hooks/useOperationLogs');
+  const { logOperationToDb } = await import('@/hooks/audit/useOperationLogs');
   return logOperationToDb(
     log.module,
     log.action,
@@ -191,9 +191,9 @@ export default function OperationLogs() {
           const currentMember = await getMemberRow(String(log.objectId ?? ""));
           
           // 🔧 转换前端 camelCase 字段名到数据库 snake_case 字段名
-          const mapMemberDataToDb = (data: any) => {
+          const mapMemberDataToDb = (data: Record<string, unknown> | null | undefined) => {
             if (!data) return data;
-            const dbData: any = {};
+            const dbData: Record<string, unknown> = {};
             if (data.phone_number !== undefined) dbData.phone_number = data.phone_number;
             else if (data.phoneNumber !== undefined) dbData.phone_number = data.phoneNumber;
             
@@ -324,8 +324,8 @@ export default function OperationLogs() {
           break;
         }
         case 'system_settings': {
-          const currentData = await loadSharedData(log.objectId as any);
-          await saveSharedData(log.objectId as any, log.beforeData);
+          const currentData = await loadSharedData(log.objectId as SharedDataKey);
+          await saveSharedData(log.objectId as SharedDataKey, log.beforeData);
           
           void table.queryClient.invalidateQueries({ queryKey: ['shared-config'] });
           logOperation('system_settings', 'restore', log.objectId, currentData, log.beforeData,
@@ -473,7 +473,7 @@ export default function OperationLogs() {
                   
                   // Find records that were modified (same id, different settlementTotal)
                   for (const bw of beforeWithdrawals) {
-                    const cw = currentWithdrawals.find((w: any) => w.id === bw.id);
+                    const cw = currentWithdrawals.find((w: Record<string, unknown>) => w.id === bw.id);
                     if (cw && Math.abs(cw.settlementTotal - bw.settlementTotal) > 0.01) {
                       // Reverse existing entries for this record, then create new one with restored value
                       await reverseAllEntriesForSource({
@@ -548,7 +548,7 @@ export default function OperationLogs() {
                   const currentRecharges = currentSettlement.recharges || [];
                   
                   for (const br of beforeRecharges) {
-                    const cr = currentRecharges.find((r: any) => r.id === br.id);
+                    const cr = currentRecharges.find((r: Record<string, unknown>) => r.id === br.id);
                     if (cr && Math.abs(cr.settlementTotal - br.settlementTotal) > 0.01) {
                       // Reverse existing entries for this record, then create new one with restored value
                       await reverseAllEntriesForSource({
@@ -626,9 +626,10 @@ export default function OperationLogs() {
       }
       setRestoreConfirm(null);
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('恢复失败:', error);
-      notify.error(t(`恢复失败: ${error?.message || '未知错误'}`, `Restore failed: ${error?.message || 'Unknown error'}`));
+      const msg = error instanceof Error ? error.message : '未知错误';
+      notify.error(t(`恢复失败: ${msg}`, `Restore failed: ${msg}`));
       return false;
     } finally {
       setIsRestoring(false);
@@ -669,7 +670,7 @@ export default function OperationLogs() {
     await table.queryClient.invalidateQueries({ queryKey: ['operation-logs'] });
   };
 
-  const formatValue = (value: any, fieldKey?: string): string => {
+  const formatValue = (value: unknown, fieldKey?: string): string => {
     if (fieldKey) return formatLogFieldValue(fieldKey, value, language as 'zh' | 'en');
     return formatDisplayValue(value, language as 'zh' | 'en');
   };

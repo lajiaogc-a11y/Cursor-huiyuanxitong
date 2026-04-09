@@ -9,10 +9,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useMembers } from "@/hooks/useMembers";
-import { useOrders, useUsdtOrders } from "@/hooks/useOrders";
-import { useDashboardTrend } from "@/hooks/useDashboardTrend";
-import { useFieldPermissions } from "@/hooks/useFieldPermissions";
+import { useMembers } from "@/hooks/members/useMembers";
+import { useOrders, useUsdtOrders } from "@/hooks/orders";
+import { useDashboardTrend } from "@/hooks/dashboard/useDashboardTrend";
+import { useFieldPermissions } from "@/hooks/staff/useFieldPermissions";
 import { safeToFixed } from "@/lib/safeCalc";
 import { trackRender } from "@/lib/performanceUtils";
 import {

@@ -5,18 +5,18 @@ import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
 import { logger } from '../../lib/logger.js';
 import {
-  listKnowledgeReadStatusRepository,
-  getKnowledgeUnreadCountRepository,
-  getKnowledgeUnreadCountsRepository,
-  markKnowledgeArticleReadRepository,
-  markAllKnowledgeArticlesReadRepository,
-  createKnowledgeCategoryRepository,
-  updateKnowledgeCategoryRepository,
-  deleteKnowledgeCategoryRepository,
-  createKnowledgeArticleRepository,
-  updateKnowledgeArticleRepository,
-  deleteKnowledgeArticleRepository,
-} from './repository.js';
+  listKnowledgeReadStatus as listKnowledgeReadStatusRepository,
+  getKnowledgeUnreadCount as getKnowledgeUnreadCountRepository,
+  getKnowledgeUnreadCounts as getKnowledgeUnreadCountsRepository,
+  markKnowledgeArticleRead as markKnowledgeArticleReadRepository,
+  markAllKnowledgeArticlesRead as markAllKnowledgeArticlesReadRepository,
+  createKnowledgeCategory as createKnowledgeCategoryRepository,
+  updateKnowledgeCategory as updateKnowledgeCategoryRepository,
+  deleteKnowledgeCategory as deleteKnowledgeCategoryRepository,
+  createKnowledgeArticle as createKnowledgeArticleRepository,
+  updateKnowledgeArticle as updateKnowledgeArticleRepository,
+  deleteKnowledgeArticle as deleteKnowledgeArticleRepository,
+} from './knowledgeDataService.js';
 import { listKnowledgeCategories, listKnowledgeArticles } from '../knowledge/service.js';
 import {
   resolveTenantId,

@@ -9,7 +9,7 @@ import {
   type EmployeeDeviceDto,
 } from "@/services/staff/staffDeviceWhitelistService";
 import { setAuthToken } from "@/services/auth/authApiService";
-import { showServiceErrorToast } from "@/services/serviceErrorToast";
+import { showServiceErrorToast } from "@/lib/serviceErrorToast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

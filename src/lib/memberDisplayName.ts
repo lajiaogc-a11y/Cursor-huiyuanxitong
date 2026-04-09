@@ -1,4 +1,4 @@
-import type { Member } from "@/hooks/useMembers";
+import type { Member } from "@/hooks/members/useMembers";
 
 /**
  * 与会员端设置页（MemberSettings）展示一致：昵称优先，否则会员编号、电话。

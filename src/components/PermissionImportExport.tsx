@@ -15,10 +15,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { listRolePermissions, upsertRolePermissions } from '@/services/staff/rolePermissionsTableService';
-import { usePermissionChangeLogs } from '@/hooks/usePermissionChangeLogs';
+import { usePermissionChangeLogs } from '@/hooks/audit/usePermissionChangeLogs';
 import { useAuth } from '@/contexts/AuthContext';
 import { ExportConfirmDialog } from '@/components/ExportConfirmDialog';
-import { useExportConfirm } from '@/hooks/useExportConfirm';
+import { useExportConfirm } from '@/hooks/ui/useExportConfirm';
 
 type AppRole = 'admin' | 'manager' | 'staff';
 

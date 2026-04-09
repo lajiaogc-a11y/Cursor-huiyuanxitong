@@ -12,7 +12,7 @@ import {
 import { Pencil, X, Trash2, RotateCcw } from "lucide-react";
 import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
 import { notify } from "@/lib/notifyHub";
-import type { Order } from "@/hooks/useOrders";
+import type { Order } from "@/hooks/orders";
 
 export interface OrderRowActionsProps {
   order: Order;

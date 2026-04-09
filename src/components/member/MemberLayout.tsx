@@ -15,7 +15,7 @@ import { CustomerServiceWidget } from "./CustomerServiceWidget";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
+import { useMemberPortalSettings } from "@/hooks/members/useMemberPortalSettings";
 import { PullToRefresh } from "@/components/member/PullToRefresh";
 import PageTransition from "@/components/member/PageTransition";
 import SplashScreen from "@/components/member/SplashScreen";

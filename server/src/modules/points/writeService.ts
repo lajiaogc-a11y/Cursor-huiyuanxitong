@@ -2,7 +2,6 @@
  * 积分写入业务：供 POST 路由调用
  */
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
-import { queryOne } from '../../database/index.js';
 import { reverseActivityDataForOrder } from '../admin/orderReversal.js';
 import {
   type LedgerInsertBody,
@@ -11,6 +10,7 @@ import {
   insertPointsLedgerRow,
   addConsumptionToMemberActivity,
   addReferralToMemberActivity,
+  selectOrderTenantIdRepository,
 } from './writeRepository.js';
 
 export async function resolveTenantIdForPoints(
@@ -19,11 +19,7 @@ export async function resolveTenantIdForPoints(
 ): Promise<string | null> {
   if (req.user?.tenant_id) return req.user.tenant_id;
   if (orderId) {
-    const row = await queryOne<{ tenant_id: string | null }>(
-      `SELECT tenant_id FROM orders WHERE id = ? LIMIT 1`,
-      [orderId]
-    );
-    return row?.tenant_id ?? null;
+    return selectOrderTenantIdRepository(orderId);
   }
   return null;
 }

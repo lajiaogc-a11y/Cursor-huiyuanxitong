@@ -8,3 +8,4 @@ export * from './memberPointsRedeemRpcService';
 export * from './customerDetailService';
 export * from './operatorService';
 export * from './nameResolver';
+export * from './memberActivityDeltaService';

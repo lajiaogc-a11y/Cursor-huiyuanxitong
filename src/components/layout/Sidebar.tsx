@@ -27,9 +27,9 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLayout } from "@/contexts/LayoutContext";
-import { useIsLgUp } from "@/hooks/use-mobile";
-import { useUnreadCount } from "@/hooks/useKnowledge";
-import { usePendingAuditCount } from "@/hooks/usePendingAuditCount";
+import { useIsLgUp } from "@/hooks/ui/use-mobile";
+import { useUnreadCount } from "@/hooks/staff/useKnowledge";
+import { usePendingAuditCount } from "@/hooks/audit/usePendingAuditCount";
 import {
   Tooltip,
   TooltipContent,
@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/tooltip";
 import { StaffChromeLogo } from "@/components/layout/StaffChromeLogo";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useNavigationVisibility } from "@/hooks/useNavigationVisibility";
+import { useNavigationVisibility } from "@/hooks/staff/useNavigationVisibility";
 import { prefetchStaffMemberPortalPage, STAFF_MEMBER_PORTAL_PATH } from "@/lib/prefetchStaffMemberPortalPage";
 import { ROUTES } from "@/routes/constants";
 import { useLanguage } from "@/contexts/LanguageContext";

@@ -11,14 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Star, Gift, FileDown, RefreshCw, Dices } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import {
   MobileCardList, MobileCard, MobileCardHeader, MobileCardRow,
 } from "@/components/ui/mobile-data-card";
 import { adminListSpins } from "@/services/memberPortal/memberPortalDiagnosticsRpcService";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
-import { useExportConfirm } from "@/hooks/useExportConfirm";
+import { useExportConfirm } from "@/hooks/ui/useExportConfirm";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { DATE_RANGES, type DateRangeKey, getDateRangeSql } from "@/lib/dateFilter";
 import { formatSpinSource, formatSpinStatus, spinStatusBadgeVariant, type PortalT } from "@/lib/spinFormatters";
@@ -56,7 +56,11 @@ export function AdminSpinHistoryTab({ t }: { t: PortalT }) {
       });
       setSpins((r?.spins as any[]) || []);
       setTotal(r?.total ?? 0);
-    } catch { setSpins([]); setTotal(0); }
+    } catch (e) {
+      console.error('[AdminSpinHistory] load failed:', e);
+      notify.error(t("加载抽奖记录失败", "Failed to load spin history"));
+      setSpins([]); setTotal(0);
+    }
     setLoading(false);
   }, [search, sourceFilter, statusFilter, dateRange, page]);
 

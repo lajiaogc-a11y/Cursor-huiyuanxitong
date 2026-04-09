@@ -18,7 +18,7 @@ import { saveInvitePosterPngBlob } from "@/lib/memberInvitePosterSave";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
-import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
+import { useMemberPortalSettings } from "@/hooks/members/useMemberPortalSettings";
 import { getPosterFrame, drawInvitePoster } from "@/lib/invitePosterFrames";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { MemberInviteHero } from "@/components/member/MemberInviteHero";
@@ -30,7 +30,7 @@ import { fireMemberInviteCopyConfetti } from "@/lib/memberPortalConfetti";
 import "@/styles/member-portal.css";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
 import { MemberInviteLeaderboard } from "@/components/member/MemberInviteLeaderboard";
-import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
+import { useMemberPullRefreshSignal } from "@/hooks/members/useMemberPullRefreshSignal";
 
 export default function MemberInvite() {
   const { member, refreshMember } = useMemberAuth();

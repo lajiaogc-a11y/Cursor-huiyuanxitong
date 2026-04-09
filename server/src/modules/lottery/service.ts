@@ -13,16 +13,22 @@
  *
  * 不变项：事务边界、MySQL GET_LOCK 用户锁、加权随机算法（prizePick.ts）。
  */
-import { withTransaction } from '../../database/index.js';
 import { randomUUID } from 'crypto';
 import type { PoolConnection } from 'mysql2/promise';
 import type { ResultSetHeader } from 'mysql2';
 import { buildMysqlUserLockName, mysqlGetLock, mysqlReleaseLock } from '../../lib/mysqlUserLock.js';
 import { addPoints } from '../points/pointsService.js';
-import { getLotterySettings, listEnabledPrizes } from './repository.js';
+import {
+  getLotterySettings,
+  listEnabledPrizes,
+  getMemberTenantId,
+  getMemberSpinBalance,
+  getSpinsUsedToday,
+  runInTransaction,
+} from './repository.js';
 import { pickLotteryPrizeByConfiguredProbability, budgetAwarePrizePick, type BudgetPolicy } from './prizePick.js';
 import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
-import { ensureMemberActivityRowForLotteryConn, addSpinConn } from './spinBalanceAccount.js';
+import { ensureMemberActivityRowForLotteryConn, addSpinConn, reconcileSpinBalanceConn } from './spinBalanceAccount.js';
 import { evaluateDrawRisk, loadRiskThresholds, recordDrawBurst, checkHardBehavioralLimit, type RiskResult } from './riskControl.js';
 import {
   resolvePrizeBudgetCost,
@@ -143,11 +149,7 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
   // ── Phase 3: 风控前置评估（在事务之外，不持锁） ──
   let riskResult: RiskResult | null = null;
   try {
-    const { queryOne: qo } = await import('../../database/index.js');
-    const memberTenantRow = await qo<{ tenant_id: string | null }>(
-      'SELECT tenant_id FROM members WHERE id = ?', [memberId],
-    );
-    const preflightTenantId = memberTenantRow?.tenant_id ?? null;
+    const preflightTenantId = await getMemberTenantId(memberId);
     const thresholds = await loadRiskThresholds(preflightTenantId);
     if (thresholds.enabled) {
       riskResult = await evaluateDrawRisk(
@@ -163,7 +165,7 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
   }
   const riskDowngrade = riskResult?.verdict === 'downgrade';
 
-  const result = await withTransaction(async (conn) => {
+  const result = await runInTransaction(async (conn) => {
     const drawLock = buildMysqlUserLockName('lottery_draw', memberId);
     const gotDrawLock = await mysqlGetLock(conn, drawLock, 8);
     if (!gotDrawLock) {
@@ -184,16 +186,11 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
         [requestId, memberId],
       );
       if (dup) {
-        const quotaRow = await queryOneConn<{ remaining: number }>(
-          conn,
-          `SELECT COALESCE(lottery_spin_balance, 0) AS remaining
-           FROM member_activity WHERE member_id = ?`,
-          [memberId],
-        );
+        const replayBal = await reconcileSpinBalanceConn(conn, memberId);
         return {
           success: true,
           prize: { id: dup.prize_id ?? dup.id, name: dup.prize_name, type: dup.prize_type, value: dup.prize_value, description: null },
-          remaining: quotaRow?.remaining ?? 0,
+          remaining: replayBal,
           reward_status: (dup.reward_status as DrawResult['reward_status']) ?? 'done',
           reward_points: Number(dup.reward_points ?? 0),
           idempotent_replay: true,
@@ -211,15 +208,11 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
       [memberId, BEHAVIORAL_IDEMPOTENT_SECONDS],
     );
     if (recentLog) {
-      const quotaRow2 = await queryOneConn<{ remaining: number }>(
-        conn,
-        'SELECT COALESCE(lottery_spin_balance, 0) AS remaining FROM member_activity WHERE member_id = ?',
-        [memberId],
-      );
+      const replayBal2 = await reconcileSpinBalanceConn(conn, memberId);
       return {
         success: true,
         prize: { id: recentLog.prize_id ?? recentLog.id, name: recentLog.prize_name, type: recentLog.prize_type, value: recentLog.prize_value, description: null },
-        remaining: quotaRow2?.remaining ?? 0,
+        remaining: replayBal2,
         reward_status: (recentLog.reward_status as DrawResult['reward_status']) ?? 'done',
         reward_points: Number(recentLog.reward_points ?? 0),
         idempotent_replay: true,
@@ -309,14 +302,9 @@ export async function draw(memberId: string, requestIdOrOpts?: string | DrawOpti
       // 确保 prize_cost = 0 的配置不被误拦截。
     }
 
-    // ── 5. 次数配额（仅余额，无每日免费） ──
+    // ── 5. 次数配额（仅余额，无每日免费；先对账修正漂移） ──
     await ensureMemberActivityRowForLotteryConn(conn, memberId);
-    const balRow = await queryOneConn<{ lottery_spin_balance: number | string | null }>(
-      conn,
-      'SELECT lottery_spin_balance FROM member_activity WHERE member_id = ? FOR UPDATE',
-      [memberId],
-    );
-    const currentBalance = Math.max(0, Math.floor(Number(balRow?.lottery_spin_balance ?? 0)));
+    const currentBalance = await reconcileSpinBalanceConn(conn, memberId);
     if (currentBalance <= 0) {
       return { success: false, error: 'NO_SPIN_QUOTA', remaining: 0 };
     }
@@ -684,30 +672,13 @@ export async function writeAuditTrail(conn: PoolConnection, entry: AuditTrailEnt
 }
 
 export async function getQuota(memberId: string) {
-  const { queryOne } = await import('../../database/index.js');
-  const tenantRow = await queryOne<{ tenant_id: string | null }>('SELECT tenant_id FROM members WHERE id = ?', [memberId]);
-  const tenantId = tenantRow?.tenant_id ?? null;
+  const tenantId = await getMemberTenantId(memberId);
 
   const settings = await getLotterySettings(tenantId);
   const enabled = !settings || settings.enabled !== 0;
 
-  const today = getShanghaiDateString();
-  const dayStart = `${today} 00:00:00`;
-
-  const balRow = await queryOne<{ lottery_spin_balance: number | string | null }>(
-    'SELECT COALESCE(lottery_spin_balance, 0) AS lottery_spin_balance FROM member_activity WHERE member_id = ?',
-    [memberId],
-  );
-  const balance = Math.max(0, Math.floor(Number(balRow?.lottery_spin_balance ?? 0)));
-
-  const usedRow = await queryOne<{ cnt: number }>(
-    `SELECT COUNT(*) as cnt FROM lottery_logs
-     WHERE member_id = ?
-       AND created_at >= ?
-       AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
-    [memberId, dayStart, dayStart],
-  );
-  const usedToday = usedRow?.cnt ?? 0;
+  const balance = await getMemberSpinBalance(memberId);
+  const usedToday = await getSpinsUsedToday(memberId);
 
   return { remaining: balance, daily_free: 0, credits: balance, used_today: usedToday, enabled };
 }

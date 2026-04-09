@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Pencil, Trash2, ChevronDown } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/ui/use-mobile';
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardActions, MobileEmptyState } from '@/components/ui/mobile-data-card';
 import { WithdrawalRecord, ArchivedWithdrawals } from '@/services/finance/merchantSettlementService';
 import { getEmployeeNameById } from '@/hooks/useNameResolver';

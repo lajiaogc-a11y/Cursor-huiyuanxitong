@@ -1,5 +1,5 @@
-import { ColumnConfig } from "@/hooks/useColumnVisibility";
-import { Order, UsdtOrder } from "@/hooks/useOrders";
+import { ColumnConfig } from "@/hooks/ui/useColumnVisibility";
+import { Order, UsdtOrder } from "@/hooks/orders";
 
 // UUID 校验函数 - 防止把姓名字符串写入 uuid 字段
 const isUuid = (str: string): boolean => {

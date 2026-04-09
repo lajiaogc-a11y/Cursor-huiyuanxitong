@@ -3,12 +3,30 @@
  * 不依赖前端传入 tenant_id，避免伪造租户绕过校验。
  */
 import { createHash, randomBytes, randomUUID } from 'crypto';
-import type { ResultSetHeader, RowDataPacket } from 'mysql2';
-import { query, execute, withTransaction } from '../../database/index.js';
 import { config } from '../../config/index.js';
 import { ensureDefaultMemberLevelRulesRepository } from '../memberLevels/repository.js';
-// Spin balance is now managed at first-login time (see memberAuth/controller.ts)
 import { generateMemberCode } from '../../utils/memberCode.js';
+import {
+  queryTenantsByInviteCode,
+  queryReferrersByInviteCode,
+  queryInviteEnabledForTenant,
+  insertInviteRegisterToken,
+  insertInviteRegisterAudit,
+  runInTransaction,
+  selectTokenForUpdateOnConn,
+  selectReferrerOnConn,
+  consumeTokenOnConn,
+  checkPhoneExistsOnConn,
+  checkMemberCodeExistsOnConn,
+  insertMemberOnConn,
+  assignLowestLevelOnConn,
+  insertReferralOnConn,
+  incrementReferrerInviteCountOnConn,
+  insertReferralRelationOnConn,
+  insertReferralEventOnConn,
+  insertMemberOperationLogOnConn,
+  consumeTokenFinalOnConn,
+} from './repository.js';
 
 type ReferrerResolved = {
   tenantId: string;
@@ -24,23 +42,13 @@ export async function resolveReferrerForInviteCode(rawCode: string): Promise<
   const inviteCode = String(rawCode || '').trim();
   if (!inviteCode) return { ok: false, error: 'INVALID_CODE' };
 
-  const tenants = await query<{ tenant_id: string }>(
-    `SELECT DISTINCT tenant_id FROM members
-     WHERE tenant_id IS NOT NULL
-       AND (BINARY invite_token = ? OR (referral_code IS NOT NULL AND referral_code <> '' AND BINARY referral_code = ?))`,
-    [inviteCode, inviteCode],
-  );
+  const tenants = await queryTenantsByInviteCode(inviteCode);
   if (tenants.length !== 1 || !tenants[0]?.tenant_id) {
     return { ok: false, error: 'INVALID_CODE' };
   }
   const tenantId = tenants[0].tenant_id;
 
-  const referrers = await query<{ id: string; member_code: string | null; phone_number: string | null }>(
-    `SELECT id, member_code, phone_number FROM members
-     WHERE tenant_id = ? AND tenant_id IS NOT NULL
-       AND (BINARY referral_code = ? OR BINARY invite_token = ?)`,
-    [tenantId, inviteCode, inviteCode],
-  );
+  const referrers = await queryReferrersByInviteCode(tenantId, inviteCode);
   if (referrers.length !== 1) {
     return { ok: false, error: 'INVALID_CODE' };
   }
@@ -53,17 +61,6 @@ export async function resolveReferrerForInviteCode(rawCode: string): Promise<
     refPhone: r.phone_number,
     inviteCode,
   };
-}
-
-async function isInviteEnabledForTenant(tenantId: string): Promise<boolean> {
-  const rows = await query<{ enable_invite: number | boolean | string | null }>(
-    `SELECT enable_invite FROM member_portal_settings WHERE tenant_id = ? LIMIT 1`,
-    [tenantId],
-  );
-  if (!rows.length) return true;
-  const v = rows[0].enable_invite;
-  if (v === false || v === 0 || v === '0') return false;
-  return true;
 }
 
 export function hashRegisterToken(plain: string): string {
@@ -84,24 +81,7 @@ export async function writeInviteRegisterAudit(params: {
   clientIp?: string | null;
   userAgent?: string | null;
 }): Promise<void> {
-  try {
-    await execute(
-      `INSERT INTO invite_register_audit (id, action, invite_code, tenant_id, token_id, error_code, client_ip, user_agent, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(3))`,
-      [
-        randomUUID(),
-        params.action,
-        params.inviteCode ?? null,
-        params.tenantId ?? null,
-        params.tokenId ?? null,
-        params.errorCode ?? null,
-        params.clientIp ?? null,
-        params.userAgent ?? null,
-      ],
-    );
-  } catch {
-    /* best-effort */
-  }
+  await insertInviteRegisterAudit(params);
 }
 
 export type InitInviteRegisterResult =
@@ -124,7 +104,7 @@ export async function initInviteRegisterToken(
     return { success: false, error: 'INVALID_CODE' };
   }
 
-  const enabled = await isInviteEnabledForTenant(resolved.tenantId);
+  const enabled = await queryInviteEnabledForTenant(resolved.tenantId);
   if (!enabled) {
     await writeInviteRegisterAudit({
       action: 'init_fail',
@@ -142,11 +122,15 @@ export async function initInviteRegisterToken(
   const id = randomUUID();
   const ttl = config.inviteRegisterTokenTtlSec;
   try {
-    await execute(
-      `INSERT INTO invite_register_tokens (id, token_hash, invite_code, tenant_id, referrer_id, expires_at, created_ip, created_at)
-       VALUES (?, ?, ?, ?, ?, DATE_ADD(NOW(3), INTERVAL ? SECOND), ?, NOW(3))`,
-      [id, tokenHash, resolved.inviteCode, resolved.tenantId, resolved.referrerId, ttl, opts.clientIp ?? null],
-    );
+    await insertInviteRegisterToken({
+      id,
+      tokenHash,
+      inviteCode: resolved.inviteCode,
+      tenantId: resolved.tenantId,
+      referrerId: resolved.referrerId,
+      ttlSec: ttl,
+      clientIp: opts.clientIp ?? null,
+    });
   } catch (e) {
     console.error('[inviteRegister] init insert', e);
     return { success: false, error: 'INIT_FAILED' };
@@ -197,22 +181,8 @@ export async function completeInviteRegister(params: {
   const tokenHash = hashRegisterToken(plain);
 
   try {
-    const out = await withTransaction(async (conn): Promise<InviteRegTxOk | InviteRegTxFail> => {
-      const [tokRows] = await conn.query<RowDataPacket[]>(
-        `SELECT id, invite_code, tenant_id, referrer_id, expires_at, used_at
-         FROM invite_register_tokens WHERE token_hash = ? FOR UPDATE`,
-        [tokenHash],
-      );
-      const tokenRow = tokRows[0] as
-        | {
-            id: string;
-            invite_code: string;
-            tenant_id: string;
-            referrer_id: string;
-            expires_at: Date;
-            used_at: Date | null;
-          }
-        | undefined;
+    const out = await runInTransaction(async (conn): Promise<InviteRegTxOk | InviteRegTxFail> => {
+      const tokenRow = await selectTokenForUpdateOnConn(conn, tokenHash);
 
       if (!tokenRow) {
         return { ok: false, error: 'INVALID_TOKEN', audit: { errorCode: 'INVALID_TOKEN' } };
@@ -233,18 +203,10 @@ export async function completeInviteRegister(params: {
         };
       }
 
-      const [refRows] = await conn.query<RowDataPacket[]>(
-        `SELECT id, tenant_id, member_code, phone_number FROM members WHERE id = ? LIMIT 1`,
-        [tokenRow.referrer_id],
-      );
-      const referrer = refRows[0] as
-        | { id: string; tenant_id: string; member_code: string | null; phone_number: string | null }
-        | undefined;
+      const referrer = await selectReferrerOnConn(conn, tokenRow.referrer_id);
 
       if (!referrer || referrer.tenant_id !== tokenRow.tenant_id) {
-        await conn.query(`UPDATE invite_register_tokens SET used_at = NOW(3) WHERE id = ? AND used_at IS NULL`, [
-          tokenRow.id,
-        ]);
+        await consumeTokenOnConn(conn, tokenRow.id);
         return {
           ok: false,
           error: 'INVALID_REFERRER',
@@ -260,10 +222,8 @@ export async function completeInviteRegister(params: {
         };
       }
 
-      const [exRows] = await conn.query<RowDataPacket[]>(`SELECT id FROM members WHERE phone_number = ? LIMIT 1`, [
-        inviteePhone,
-      ]);
-      if (exRows.length > 0) {
+      const phoneExists = await checkPhoneExistsOnConn(conn, inviteePhone);
+      if (phoneExists) {
         return {
           ok: false,
           error: 'PHONE_ALREADY_REGISTERED',
@@ -273,15 +233,12 @@ export async function completeInviteRegister(params: {
 
       const bcrypt = await import('bcryptjs');
       const passwordHash = rawPassword ? await bcrypt.hash(rawPassword, 10) : null;
-      // 与后台录入、订单开单等统一为 7 位大写字母+数字（server/utils/memberCode）；旧逻辑为 `M`+时间戳 base36+随机段，偏长且易与「双 M」混淆
+
       let newMemberCode = '';
       for (let attempt = 0; attempt < 48; attempt++) {
         const candidate = generateMemberCode();
-        const [codeRows] = await conn.query<RowDataPacket[]>(
-          `SELECT id FROM members WHERE member_code = ? LIMIT 1`,
-          [candidate],
-        );
-        if (codeRows.length === 0) {
+        const exists = await checkMemberCodeExistsOnConn(conn, candidate);
+        if (!exists) {
           newMemberCode = candidate;
           break;
         }
@@ -302,85 +259,41 @@ export async function completeInviteRegister(params: {
 
       await ensureDefaultMemberLevelRulesRepository(referrer.tenant_id);
 
-      await conn.query(
-        `INSERT INTO members (id, phone_number, member_code, invite_token, referral_code, password_hash, tenant_id, referrer_id, referrer_bound_at, referral_source, registration_source, status, member_portal_first_login_done, nickname, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(3), 'link', 'invite_register', 'active', 1, ?, NOW(3), NOW(3))`,
-        [
-          newId,
-          inviteePhone,
-          newMemberCode,
-          newToken,
-          newToken,
-          passwordHash,
-          referrer.tenant_id,
-          referrer.id,
-          nickname,
-        ],
-      );
+      await insertMemberOnConn(conn, {
+        id: newId,
+        phone: inviteePhone,
+        memberCode: newMemberCode,
+        inviteToken: newToken,
+        passwordHash,
+        tenantId: referrer.tenant_id,
+        referrerId: referrer.id,
+        nickname,
+      });
 
-      const [lowRows] = await conn.query<RowDataPacket[]>(
-        `SELECT id, level_name FROM member_level_rules WHERE tenant_id = ? ORDER BY level_order ASC, required_points ASC, id ASC LIMIT 1`,
-        [referrer.tenant_id],
-      );
-      const low = lowRows[0] as { id: string; level_name: string } | undefined;
-      if (low) {
-        await conn.query(
-          `UPDATE members SET member_level = ?, current_level_id = ?, total_points = 0 WHERE id = ?`,
-          [low.level_name, low.id, newId],
-        );
-      }
+      await assignLowestLevelOnConn(conn, referrer.tenant_id, newId);
 
-      await conn.query(
-        `INSERT INTO referrals (id, tenant_id, referrer_id, referee_id, created_at) VALUES (?, ?, ?, ?, NOW(3))`,
-        [randomUUID(), referrer.tenant_id, referrer.id, newId],
-      );
+      await insertReferralOnConn(conn, referrer.tenant_id, referrer.id, newId);
 
-      await conn.query(
-        `UPDATE members SET invite_count = invite_count + 1,
-            invite_success_lifetime_count = invite_success_lifetime_count + 1,
-            updated_at = NOW(3) WHERE id = ?`,
-        [referrer.id],
-      );
+      await incrementReferrerInviteCountOnConn(conn, referrer.id);
 
-      try {
-        await conn.query(
-          `INSERT IGNORE INTO referral_relations (id, referrer_id, referee_id, level, referrer_phone, referrer_member_code, referee_phone, referee_member_code, source, created_at)
-           VALUES (UUID(), ?, ?, 1, ?, ?, ?, ?, 'link', NOW(3))`,
-          [referrer.id, newId, referrer.phone_number || null, referrer.member_code || null, inviteePhone, newMemberCode],
-        );
-      } catch {
-        /* best-effort */
-      }
+      await insertReferralRelationOnConn(conn, {
+        referrerId: referrer.id,
+        refereeId: newId,
+        referrerPhone: referrer.phone_number || null,
+        referrerMemberCode: referrer.member_code || null,
+        refereePhone: inviteePhone,
+        refereeMemberCode: newMemberCode,
+      });
 
-      const evId = randomUUID();
-      let eventInserted = false;
-      try {
-        const [insEv] = await conn.query(
-          `INSERT INTO referral_events (id, tenant_id, referrer_id, referee_id, event_type, event_value, created_at)
-           VALUES (?, ?, ?, ?, 'register', NULL, NOW(3))`,
-          [evId, referrer.tenant_id, referrer.id, newId],
-        );
-        eventInserted = (insEv as ResultSetHeader).affectedRows === 1;
-      } catch {
-        eventInserted = false;
-      }
+      await insertReferralEventOnConn(conn, referrer.tenant_id, referrer.id, newId);
 
       // Spin credits are NOT granted at registration time.
       // They are granted on the referee's FIRST LOGIN (see memberAuth/controller.ts → grantReferralSpinsOnFirstLogin).
 
-      try {
-        await conn.query(
-          `INSERT INTO member_operation_logs (id, member_id, tenant_id, action, detail, created_at) VALUES (UUID(), ?, ?, 'register_via_invite', ?, NOW(3))`,
-          [newId, referrer.tenant_id, `Referred by ${referrer.member_code || referrer.id}`],
-        );
-      } catch {
-        /* optional */
-      }
+      await insertMemberOperationLogOnConn(conn, newId, referrer.tenant_id, `Referred by ${referrer.member_code || referrer.id}`);
 
-      const [upd] = await conn.query(`UPDATE invite_register_tokens SET used_at = NOW(3) WHERE id = ? AND used_at IS NULL`, [
-        tokenRow.id,
-      ]);
-      if ((upd as ResultSetHeader).affectedRows !== 1) {
+      const affected = await consumeTokenFinalOnConn(conn, tokenRow.id);
+      if (affected !== 1) {
         throw new Error('TOKEN_CONSUME_RACE');
       }
 

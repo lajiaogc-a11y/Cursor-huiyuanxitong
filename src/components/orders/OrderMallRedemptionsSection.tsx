@@ -33,7 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { notify } from "@/lib/notifyHub";
-import { showServiceErrorToast } from "@/services/serviceErrorToast";
+import { showServiceErrorToast } from "@/lib/serviceErrorToast";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 import { ResolvableMediaThumb } from "@/components/ResolvableMediaThumb";
 import {

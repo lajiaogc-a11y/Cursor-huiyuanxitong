@@ -7,14 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { UserPlus, Search, CheckCircle, XCircle, Users, ShoppingCart, AlertCircle } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useMembers, Member } from "@/hooks/useMembers";
+import { useMembers, Member } from "@/hooks/members/useMembers";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { lookupMemberForReferral, type ApiMember } from "@/services/members/memberLookupService";
-import { useOrders, useUsdtOrders } from "@/hooks/useOrders";
-import { useReferrals } from "@/hooks/useReferrals";
+import { useOrders, useUsdtOrders } from "@/hooks/orders";
+import { useReferrals } from "@/hooks/crm/useReferrals";
 import { useAuth } from "@/contexts/AuthContext";
 import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
-import { useReferralFormPersistence } from "@/hooks/useReferralFormPersistence";
+import { useReferralFormPersistence } from "@/hooks/crm/useReferralFormPersistence";
 import { findMemberByPhoneOrCode } from "@/lib/memberLookup";
 import { mapDbMemberToMember } from "@/lib/mappers/memberMapper";
 

@@ -7,7 +7,7 @@ import { formatMemberLocalTime } from "@/lib/memberLocalTime";
 import { formatMemberLedgerRowOrderDisplay } from "@/lib/memberLedgerIdDisplay";
 import { ledgerActivityTypeLabel } from "@/lib/memberLedgerTypeLabel";
 import { translatePointsLedgerDescription } from "@/lib/pointsLedgerDescriptionI18n";
-import { useMemberAnimatedCount } from "@/hooks/useMemberAnimatedCount";
+import { useMemberAnimatedCount } from "@/hooks/members/useMemberAnimatedCount";
 import type { MemberLedgerCategory, MemberPointsLedgerRow } from "@/services/points/memberPointsRpcService";
 
 function fmtSettingsLedgerPts(n: number) {

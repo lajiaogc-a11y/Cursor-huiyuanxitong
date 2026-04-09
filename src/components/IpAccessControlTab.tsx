@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Shield, Plus, Trash2, Save, Globe, AlertTriangle, MapPin, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { upsertDataSetting, getIpAccessControlConfig, type IpAccessControlNormalized } from "@/services/staff/dataApi/permissionsAndSettings";
+import { upsertDataSetting, getIpAccessControlConfig, type IpAccessControlNormalized } from "@/services/staff/staffDataService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { notify } from "@/lib/notifyHub";
 import { Skeleton } from "@/components/ui/skeleton";

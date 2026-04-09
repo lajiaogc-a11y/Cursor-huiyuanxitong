@@ -34,7 +34,7 @@ import { SortableTableRow } from "@/components/ui/sortable-item";
 import { Plus, Edit, Trash2, Activity, Save } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useActivityTypes, ActivityType } from "@/hooks/useActivityTypes";
+import { useActivityTypes, ActivityType } from "@/hooks/activity/useActivityTypes";
 import { logOperation } from "@/services/audit/auditLogService";
 
 export default function ActivityTypeSettingsTab() {

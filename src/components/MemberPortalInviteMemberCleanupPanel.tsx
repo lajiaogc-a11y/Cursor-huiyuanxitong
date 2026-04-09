@@ -20,8 +20,8 @@ import { Loader2, RefreshCw, Info } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
-import { showServiceErrorToast } from "@/services/serviceErrorToast";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/auth/useIsPlatformAdminViewingTenant";
+import { showServiceErrorToast } from "@/lib/serviceErrorToast";
 import {
   getMemberPortalDataCleanupSettings,
   putMemberPortalDataCleanupSettings,

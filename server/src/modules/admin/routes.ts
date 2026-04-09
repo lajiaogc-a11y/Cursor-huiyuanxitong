@@ -15,6 +15,11 @@ import {
   deleteMemberController,
   cleanupWebhookEventQueueController,
 } from './controller.js';
+import {
+  tableCountsController,
+  filteredCountController,
+  apiLogStatsController,
+} from './statsController.js';
 import backupRoutes from '../backup/routes.js';
 
 // ─── Zod schemas ───────────────────────────────────────
@@ -108,6 +113,9 @@ router.post('/archive-members', validate({ body: archiveBody }), archiveMembersC
 router.delete('/orders/:id', validate({ params: idParam }), deleteOrderController);
 router.delete('/members/:id', validate({ params: idParam }), deleteMemberController);
 router.post('/webhooks/cleanup-event-queue', cleanupWebhookEventQueueController);
+router.get('/stats/table-counts', (req, res) => tableCountsController(req, res));
+router.get('/stats/filtered-count', (req, res) => filteredCountController(req, res));
+router.get('/stats/api-log-stats', (req, res) => apiLogStatsController(req, res));
 router.use('/backup', backupRoutes);
 
 export default router;

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RefreshCw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { showServiceErrorToast } from "@/services/serviceErrorToast";
+import { showServiceErrorToast } from "@/lib/serviceErrorToast";
 import {
   getMemberPortalWebsiteStats,
   type MemberPortalWebsiteStats,

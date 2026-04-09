@@ -1,5 +1,5 @@
 import { Megaphone } from "lucide-react";
-import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
+import { useMemberResolvableMedia } from "@/hooks/members/useMemberResolvableMedia";
 
 export interface MemberAnnouncementDrawerImageProps {
   stableKey: string;

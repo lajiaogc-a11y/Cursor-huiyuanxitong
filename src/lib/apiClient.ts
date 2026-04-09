@@ -231,8 +231,8 @@ function handleResponseError(res: Response, body: unknown, requestPath: string):
     throw new ApiError(message || '未登录', 401, code);
   }
   if (res.status === 403) {
-    // 会员 JWT 禁止扫 /api/data/table/*（tableProxy blockMemberTableProxy），此处 403 为预期行为；
-    // 若仍调全局 onForbidden，会导致会员端频繁误报「权限不足」（如 nameResolver 回退表代理）。
+    // 会员 JWT 禁止访问 /api/data/table/*，此处 403 为预期行为；
+    // 若仍调全局 onForbidden，会导致会员端频繁误报「权限不足」（如 nameResolver 回退通用表查询）。
     const loc = typeof window !== 'undefined' ? getSpaPathname() : '';
     const memberRealm =
       loc.startsWith('/member') || loc.startsWith('/invite/') || loc === '/invite' || loc === '/';

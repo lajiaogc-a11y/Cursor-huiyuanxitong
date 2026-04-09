@@ -58,8 +58,8 @@ function describeAutoFetchInterval(
   const label = Number.isInteger(hours) ? String(hours) : hours.toFixed(1).replace(/\.0$/, "");
   return t(`每 ${label} 小时自动采集国际汇率`, `Auto-fetch rates every ${label} hours`);
 }
-import { usePointsSettingsData } from "@/hooks/usePointsSettingsData";
-import { useMembers } from "@/hooks/useMembers";
+import { usePointsSettingsData } from "@/hooks/finance/usePointsSettingsData";
+import { useMembers } from "@/hooks/members/useMembers";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CURRENCIES } from "@/config/currencies";
 import { formatBeijingTime } from "@/lib/beijingTime";

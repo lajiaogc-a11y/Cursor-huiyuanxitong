@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
-import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
+import { useMaintenanceMode } from "@/hooks/system/useMaintenanceMode";
 import { MaintenanceBlockedView } from "@/components/MaintenanceBlockedView";
 import { ROUTES } from "@/routes/constants";
 

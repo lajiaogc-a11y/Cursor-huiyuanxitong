@@ -2,7 +2,8 @@
  * Task Service — customer maintenance & poster distribution.
  */
 import { fail, getErrorMessage, ok, ServiceResult } from "@/services/serviceResult";
-import { apiClient } from "@/lib/apiClient";
+import { tasksApi } from "@/api/tasks";
+import { taskPostersApi } from "@/api/taskPosters";
 import { notifyDataMutation } from "@/services/system/dataRefreshManager";
 import { dispatchWorkTasksRefresh } from "@/lib/workTasksRefresh";
 
@@ -126,14 +127,11 @@ export async function generateCustomerList(params?: {
   if (!params?.tenantId || !params.start_date || !params.end_date) {
     return empty;
   }
-  const raw = await apiClient.post<unknown>(
-    "/api/tasks/generate-customer-list",
-    {
-      tenant_id: params.tenantId,
-      start_date: params.start_date,
-      end_date: params.end_date,
-    }
-  );
+  const raw = await tasksApi.generateCustomerList({
+    tenant_id: params.tenantId,
+    start_date: params.start_date,
+    end_date: params.end_date,
+  });
   const res = (raw && typeof raw === 'object' ? raw : null) as Record<string, unknown> | null;
   if (!res) return empty;
   const phones = Array.isArray(res.phones) ? res.phones
@@ -158,16 +156,13 @@ export async function createCustomerMaintenanceTask(params: {
   createdBy: string;
   tenantId: string;
 }): Promise<{ task_id: string; distributed: Record<string, number> }> {
-  const raw = await apiClient.post<unknown>(
-    "/api/tasks/create",
-    {
-      tenant_id: params.tenantId,
-      title: params.title,
-      phones: params.phones,
-      assign_to: params.assignTo,
-      distribute: params.distribute,
-    }
-  );
+  const raw = await tasksApi.create({
+    tenant_id: params.tenantId,
+    title: params.title,
+    phones: params.phones,
+    assign_to: params.assignTo,
+    distribute: params.distribute,
+  });
   const res = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const taskId = res.task_id ?? (res as any).data?.task_id;
   const distributed = res.distributed ?? (res as any).data?.distributed ?? {};
@@ -185,9 +180,7 @@ export async function getMyTaskItems(
   tenantId: string | null | undefined,
 ): Promise<{ task: Task; items: TaskItemWithPoster[]; doneCount: number }[]> {
   if (!tenantId) return [];
-  const raw = await apiClient.get<unknown>(
-    `/api/tasks/my-items?tenant_id=${encodeURIComponent(tenantId)}&_=${Date.now()}`,
-  );
+  const raw = await tasksApi.getMyItems({ tenant_id: tenantId, _: String(Date.now()) });
   if (Array.isArray(raw)) return raw;
   if (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) return (raw as any).data;
   return [];
@@ -200,10 +193,7 @@ export async function updateTaskItemRemark(
   tenantId: string | null | undefined,
 ): Promise<void> {
   if (!tenantId) throw new Error("TENANT_REQUIRED");
-  await apiClient.patch<unknown>(`/api/tasks/items/${encodeURIComponent(itemId)}/remark`, {
-    tenant_id: tenantId,
-    remark,
-  });
+  await tasksApi.updateItemRemark(itemId, { tenant_id: tenantId, remark });
 }
 
 export async function markTaskItemDone(
@@ -213,10 +203,7 @@ export async function markTaskItemDone(
   tenantId?: string | null,
 ): Promise<void> {
   if (!tenantId) throw new Error("TENANT_REQUIRED");
-  await apiClient.post<unknown>(`/api/tasks/items/${encodeURIComponent(itemId)}/done`, {
-    tenant_id: tenantId,
-    remark: remark ?? null,
-  });
+  await tasksApi.markItemDone(itemId, { tenant_id: tenantId, remark: remark ?? null });
 }
 
 export async function logTaskItemCopy(
@@ -226,9 +213,7 @@ export async function logTaskItemCopy(
 ): Promise<void> {
   if (!tenantId) return;
   try {
-    await apiClient.post<unknown>(`/api/tasks/items/${encodeURIComponent(itemId)}/log-copy`, {
-      tenant_id: tenantId,
-    });
+    await tasksApi.logCopy(itemId, { tenant_id: tenantId });
   } catch {
     /* 非关键 */
   }
@@ -287,19 +272,14 @@ export async function getMaintenanceHistory(_params: {
 }
 
 export async function getOpenTasks(tenantId: string): Promise<{ id: string; title: string; created_at: string; total_items: number }[]> {
-  const raw = await apiClient.get<unknown>(
-    `/api/tasks/open?tenant_id=${encodeURIComponent(tenantId)}`
-  );
+  const raw = await tasksApi.getOpen({ tenant_id: tenantId });
   if (Array.isArray(raw)) return raw;
   if (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) return (raw as any).data;
   return [];
 }
 
 export async function closeTask(taskId: string, tenantId: string): Promise<void> {
-  await apiClient.post<unknown>(
-    `/api/tasks/${encodeURIComponent(taskId)}/close`,
-    { tenant_id: tenantId }
-  );
+  await tasksApi.close(taskId, { tenant_id: tenantId });
 }
 
 export async function getTaskProgressList(params: {
@@ -315,8 +295,10 @@ export async function getTaskProgressList(params: {
   }
   if (params.startDate) q.set("start_date", params.startDate);
   if (params.endDate) q.set("end_date", params.endDate);
-  const data = await apiClient.get<TaskProgressOverview[]>(`/api/tasks/progress-list?${q.toString()}`);
-  return Array.isArray(data) ? data : [];
+  const paramsObj: Record<string, string> = {};
+  q.forEach((v, k) => { paramsObj[k] = v; });
+  const data = await tasksApi.getProgressList(paramsObj);
+  return Array.isArray(data) ? data as TaskProgressOverview[] : [];
 }
 
 export async function savePosterToLibrary(params: {
@@ -325,14 +307,11 @@ export async function savePosterToLibrary(params: {
   dataUrl: string;
   title?: string;
 }): Promise<{ id: string }> {
-  const raw = await apiClient.post<unknown>(
-    "/api/task-posters",
-    {
-      tenant_id: params.tenantId,
-      data_url: params.dataUrl,
-      title: params.title || null,
-    }
-  );
+  const raw = await taskPostersApi.save({
+    tenant_id: params.tenantId,
+    data_url: params.dataUrl,
+    title: params.title || null,
+  });
   const res = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const posterId = res.id ?? (res as any).data?.id;
   if (posterId) {
@@ -343,9 +322,7 @@ export async function savePosterToLibrary(params: {
 }
 
 export async function getTaskPosters(tenantId: string): Promise<TaskPoster[]> {
-  const raw = await apiClient.get<unknown>(
-    `/api/task-posters?tenant_id=${encodeURIComponent(tenantId)}`
-  );
+  const raw = await taskPostersApi.list({ tenant_id: tenantId });
   if (Array.isArray(raw)) return raw;
   if (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) return (raw as any).data;
   return [];
@@ -356,16 +333,11 @@ export async function updateTaskPoster(
   tenantId: string,
   updates: { title?: string }
 ): Promise<void> {
-  await apiClient.put<unknown>(
-    `/api/task-posters/${encodeURIComponent(posterId)}`,
-    { tenant_id: tenantId, title: updates.title }
-  );
+  await taskPostersApi.update(posterId, { tenant_id: tenantId, title: updates.title });
 }
 
 export async function deleteTaskPoster(posterId: string, tenantId: string): Promise<void> {
-  await apiClient.delete<unknown>(
-    `/api/task-posters/${encodeURIComponent(posterId)}?tenant_id=${encodeURIComponent(tenantId)}`
-  );
+  await taskPostersApi.delete(posterId, { tenant_id: tenantId });
 }
 
 export async function createPosterTask(params: {
@@ -377,16 +349,13 @@ export async function createPosterTask(params: {
   createdBy: string;
   tenantId: string;
 }): Promise<{ task_id: string; distributed: Record<string, number> }> {
-  const raw = await apiClient.post<unknown>(
-    "/api/tasks/create-poster",
-    {
-      tenant_id: params.tenantId,
-      title: params.title,
-      poster_ids: params.posterIds,
-      assign_to: params.assignTo,
-      distribute: params.distribute,
-    }
-  );
+  const raw = await tasksApi.createPoster({
+    tenant_id: params.tenantId,
+    title: params.title,
+    poster_ids: params.posterIds,
+    assign_to: params.assignTo,
+    distribute: params.distribute,
+  });
   const res = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const taskId = res.task_id ?? (res as any).data?.task_id;
   const distributed = res.distributed ?? (res as any).data?.distributed ?? {};

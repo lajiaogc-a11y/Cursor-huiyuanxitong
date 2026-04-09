@@ -13,7 +13,7 @@ const NotFound = () => {
   const memberHost = getSiteMode() === "member";
 
   useEffect(() => {
-    console.error("404 Error: User attempted to access non-existent route:", location.pathname);
+    console.info("404: non-existent route:", location.pathname);
   }, [location.pathname]);
 
   if (memberHost) {

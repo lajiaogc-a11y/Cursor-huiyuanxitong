@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/mobile-data-card";
 import type { Dispatch, SetStateAction } from "react";
 import { Pencil, Trash2, KeyRound, Copy } from "lucide-react";
-import { Member } from "@/hooks/useMembers";
+import { Member } from "@/hooks/members/useMembers";
 import { getDisplayPhone } from "@/lib/phoneMask";
 import { getMemberPortalDisplayName } from "@/lib/memberDisplayName";
 import { getLevelBadgeColor } from "./memberDisplayHelpers";

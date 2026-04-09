@@ -5,7 +5,7 @@
 //
 // 下方经 cacheManager 的 TTL 内存缓存仅作请求加速；读写的权威来源仍为后端 API / 数据库。
 
-import { dataTableApi } from '@/api/data';
+import { deleteSharedDataRow } from '@/api/financeTableData';
 
 // 当前有效的租户 ID（由 SharedDataTenantProvider 设置）
 let _sharedDataTenantId: string | null = null;
@@ -29,7 +29,7 @@ import {
   CACHE_KEYS,
 } from '@/services/cacheManager';
 import { throttle, isUserTyping } from '@/lib/performanceUtils';
-import { getSharedDataApi, postSharedDataApi, getSharedDataBatchApi } from '@/services/staff/dataApi';
+import { getSharedDataApi, postSharedDataApi, getSharedDataBatchApi } from '@/api/staffData';
 import { DEFAULT_COPY_SETTINGS, normalizeCopySettingsFromStorage } from '@/lib/copySettingsDefaults';
 
 export type SharedDataKey = 
@@ -87,7 +87,9 @@ export type SharedDataKey =
   // 马来西亚林吉特兑奈拉汇率（海报等）
   | 'myrToNgnRate'
   // 海报表格列勾选（勾选=生成海报时显示）
-  | 'posterTableColumns';
+  | 'posterTableColumns'
+  // 利润分析百分比设置
+  | 'profitAnalysisRates';
 
 // 汇率计算器手动输入汇率数据结构
 export interface CalculatorInputRates {
@@ -172,8 +174,7 @@ export async function deleteSharedData(dataKey: SharedDataKey): Promise<boolean>
     const tenantId = getEffectiveTenantId();
     if (!tenantId) return false;
 
-    await dataTableApi.del(
-      'shared_data_store',
+    await deleteSharedDataRow(
       `data_key=eq.${encodeURIComponent(dataKey)}&tenant_id=eq.${encodeURIComponent(tenantId)}`,
     );
     clearCacheKey(getSharedCacheKey(dataKey, tenantId));

@@ -11,14 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, ScrollText, Star, Users, Activity, FileDown, RefreshCw } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import {
   MobileCardList, MobileCard, MobileCardHeader, MobileCardRow,
 } from "@/components/ui/mobile-data-card";
 import { adminListMemberOperationLogs } from "@/services/memberPortal/memberPortalDiagnosticsRpcService";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
-import { useExportConfirm } from "@/hooks/useExportConfirm";
+import { useExportConfirm } from "@/hooks/ui/useExportConfirm";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { DATE_RANGES, type DateRangeKey, getDateRangeSql } from "@/lib/dateFilter";
@@ -53,7 +53,11 @@ export function AdminOperationLogsTab() {
       });
       setLogs((r?.logs as any[]) || []);
       setTotal(r?.total ?? 0);
-    } catch { setLogs([]); setTotal(0); }
+    } catch (e) {
+      console.error('[AdminOperationLogs] load failed:', e);
+      notify.error(t("加载操作日志失败", "Failed to load operation logs"));
+      setLogs([]); setTotal(0);
+    }
     setLoading(false);
   }, [search, actionFilter, dateRange, page]);
 

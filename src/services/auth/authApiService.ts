@@ -7,7 +7,6 @@ import {
   AUTH_UNAUTHORIZED_EVENT,
 } from '@/lib/apiClient';
 import { authApi } from '@/api/auth';
-import { dataRpcApi } from '@/api/data';
 import { pickBilingual } from '@/lib/appLocale';
 
 export {
@@ -151,12 +150,8 @@ export async function verifyEmployeeLoginDetailedApi(
   username: string,
   password: string,
 ): Promise<VerifyEmployeeLoginDetailedRow | null> {
-  const data = await dataRpcApi.call<
-    VerifyEmployeeLoginDetailedRow[] | VerifyEmployeeLoginDetailedRow
-  >("verify_employee_login_detailed", {
-    p_username: username,
-    p_password: password,
-  });
+  const data = await authApi.verifyEmployeeLoginDetailed(username, password) as
+    VerifyEmployeeLoginDetailedRow[] | VerifyEmployeeLoginDetailedRow;
   const row = Array.isArray(data) ? data[0] : data;
   return row && typeof row === 'object' ? row : null;
 }
@@ -201,9 +196,9 @@ export interface IpValidationResult {
 /** 走后端公开接口，按平台「IP 访问控制」中的国家/地区策略校验 */
 export async function checkIpAccessApi(): Promise<IpValidationResult> {
   try {
-    const json = await import('@/lib/apiClient').then(m =>
-      m.apiClient.get<{ data?: IpValidationResult; success?: boolean }>('/api/data/settings/ip-country-check'),
-    );
+    const json = await import('@/api/systemConfig').then(m =>
+      m.ipAccessApi.check(),
+    ) as { data?: IpValidationResult; success?: boolean };
     const data = json?.data ?? (json as unknown as IpValidationResult);
     if (data?.skipped) {
       return { ...data, valid: true, skipped: true };

@@ -3,12 +3,12 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
+import { useIsMobile, useIsTablet } from "@/hooks/ui/use-mobile";
 import { notify } from "@/lib/notifyHub";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMerchantNameResolver } from "@/hooks/useNameResolver";
-import { useActivityTypes } from "@/hooks/useActivityTypes";
-import { useReportBaseData, useReportFilteredData } from "@/hooks/useReportData";
+import { useActivityTypes } from "@/hooks/activity/useActivityTypes";
+import { useReportBaseData, useReportFilteredData } from "@/hooks/dashboard/useReportData";
 import { ReportFilters, ReportTabsList } from "@/components/report";
 import {
   TimeRangeType,
@@ -27,7 +27,7 @@ import {
   sumProfitUsdtForUsdtOrders,
 } from "@/lib/reportProfitAggregates";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
-import { useExportConfirm } from "@/hooks/useExportConfirm";
+import { useExportConfirm } from "@/hooks/ui/useExportConfirm";
 import { exportToCSV, formatNumberForExport, formatPercentForExport } from "@/lib/exportUtils";
 import { useSortableData, SortConfig } from "@/components/ui/sortable-table-head";
 import { printTable } from "@/lib/printUtils";

@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StickyScrollTableContainer } from "@/components/ui/sticky-scroll-table";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobilePagination, MobileEmptyState } from "@/components/ui/mobile-data-card";
 import {
   Select,
@@ -30,15 +30,15 @@ import {
 } from "@/components/ui/tooltip";
 import { Search, RefreshCw, Info, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
-import { usePointsLedger, type PointsLedgerEntry } from "@/hooks/usePointsLedger";
-import { useMembers } from "@/hooks/useMembers";
+import { usePointsLedger, type PointsLedgerEntry } from "@/hooks/finance/usePointsLedger";
+import { useMembers } from "@/hooks/members/useMembers";
 import { CURRENCIES, CURRENCY_LIST, type CurrencyCode } from "@/config/currencies";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { getDisplayPhone } from "@/lib/phoneMask";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
-import { useExportConfirm } from "@/hooks/useExportConfirm";
+import { useExportConfirm } from "@/hooks/ui/useExportConfirm";
 import { exportToCSV, formatNumberForExport, formatDateTimeForExport } from "@/lib/exportUtils";
 import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
 import type { TimeRange } from "@/components/member/MemberActivityFilters";

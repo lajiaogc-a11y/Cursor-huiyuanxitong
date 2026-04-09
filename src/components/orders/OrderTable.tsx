@@ -24,7 +24,7 @@ import { Pencil } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
 import { OrderRowActions } from "./OrderRowActions";
 import { OrderPagination } from "./OrderPagination";
-import type { Order } from "@/hooks/useOrders";
+import type { Order } from "@/hooks/orders";
 import { getDisplayPhone } from "@/lib/phoneMask";
 
 export interface OrderTableProps {

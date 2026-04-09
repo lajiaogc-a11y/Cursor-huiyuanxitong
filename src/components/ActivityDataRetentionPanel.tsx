@@ -20,14 +20,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/auth/useIsPlatformAdminViewingTenant";
 import {
   getActivityDataRetentionApi,
   putActivityDataRetentionApi,
   postActivityDataRetentionRunApi,
   postActivityDataRetentionPurgeAllApi,
   type ActivityDataRetentionLastSummary,
-} from "@/services/staff/dataApi/activityDataRetention";
+} from "@/services/staff/staffDataService";
 import { formatBeijingTime } from "@/lib/beijingTime";
 
 export interface ActivityDataRetentionPanelProps {

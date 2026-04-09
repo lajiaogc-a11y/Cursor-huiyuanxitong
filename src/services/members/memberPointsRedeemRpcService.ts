@@ -1,7 +1,7 @@
 /**
  * 员工端：会员活动数据 — 积分兑换（事务 RPC）
  */
-import { dataRpcApi } from "@/api/data";
+import { pointsApi } from "@/api/points";
 
 export type RedeemPointsAndRecordParams = {
   p_member_code: string;
@@ -34,5 +34,5 @@ export type RedeemPointsAndRecordResult = {
 };
 
 export async function redeemPointsAndRecordRpc(params: RedeemPointsAndRecordParams): Promise<RedeemPointsAndRecordResult> {
-  return dataRpcApi.call<RedeemPointsAndRecordResult>("redeem_points_and_record", params);
+  return pointsApi.redeemPointsAndRecord(params) as Promise<RedeemPointsAndRecordResult>;
 }

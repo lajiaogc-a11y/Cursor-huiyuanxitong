@@ -21,7 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { notify } from "@/lib/notifyHub";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getSharedDataApi, postSharedDataApi } from "@/services/staff/dataApi/sharedDataApi";
+import { getSharedDataApi, postSharedDataApi } from "@/services/staff/staffDataService";
 
 const STORE_KEY = "tenant_staff_login_ip_allowlist";
 

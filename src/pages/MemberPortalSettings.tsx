@@ -13,12 +13,12 @@ import {
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { showServiceErrorToast } from "@/services/serviceErrorToast";
+import { showServiceErrorToast } from "@/lib/serviceErrorToast";
 import { withTimeout } from "@/lib/withTimeout";
 import { fetchRemoteFrontendBuildTime } from "@/lib/frontendVersion";
 import { useTenantView } from "@/contexts/TenantViewContext";
-import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/auth/useIsPlatformAdminViewingTenant";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import {
   approveMyMemberPortalSettingsVersion,
   submitMyMemberPortalSettingsForApproval,

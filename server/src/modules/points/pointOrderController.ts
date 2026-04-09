@@ -3,7 +3,7 @@
  */
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
-import { getMemberTenantIdById } from '../members/repository.js';
+import { getMemberTenantIdService } from '../members/service.js';
 import { logger } from '../../lib/logger.js';
 import {
   createPointOrder,
@@ -13,7 +13,7 @@ import {
   getPointOrder,
   getMemberFrozenPoints,
 } from './pointOrderService.js';
-import { insertOperationLogRepository } from '../data/repository.js';
+import { auditLogService } from '../data/operationLogsService.js';
 
 function validationError(res: Response, message: string): void {
   res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message } });
@@ -87,12 +87,20 @@ export async function approvePointOrderController(req: AuthenticatedRequest, res
   try {
     const { id: orderId } = req.params;
 
+    if (!req.user?.is_platform_super_admin && req.user?.tenant_id) {
+      const existing = await getPointOrder(orderId);
+      if (existing && existing.tenant_id && existing.tenant_id !== req.user.tenant_id) {
+        res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Cross-tenant operation denied' } });
+        return;
+      }
+    }
+
     const order = await approvePointOrder({
       orderId,
       reviewerId: req.user?.id,
     });
 
-    insertOperationLogRepository({
+    auditLogService({
       operator_id: req.user?.id ?? null,
       operator_account: req.user?.username ?? req.user?.real_name ?? 'unknown',
       operator_role: req.user?.role ?? 'employee',
@@ -103,7 +111,7 @@ export async function approvePointOrderController(req: AuthenticatedRequest, res
       before_data: { status: 'pending' },
       after_data: { status: 'success', reviewed_by: req.user?.id },
       ip_address: req.ip ?? null,
-    }).catch(err => logger.error('point-order', 'operation log failed:', err));
+    });
 
     res.json({ success: true, data: order });
   } catch (e: unknown) {
@@ -130,13 +138,21 @@ export async function rejectPointOrderController(req: AuthenticatedRequest, res:
     const { id: orderId } = req.params;
     const reason = String((req.body as { reason?: string }).reason || '').trim() || undefined;
 
+    if (!req.user?.is_platform_super_admin && req.user?.tenant_id) {
+      const existing = await getPointOrder(orderId);
+      if (existing && existing.tenant_id && existing.tenant_id !== req.user.tenant_id) {
+        res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Cross-tenant operation denied' } });
+        return;
+      }
+    }
+
     const order = await rejectPointOrder({
       orderId,
       reviewerId: req.user?.id,
       reason,
     });
 
-    insertOperationLogRepository({
+    auditLogService({
       operator_id: req.user?.id ?? null,
       operator_account: req.user?.username ?? req.user?.real_name ?? 'unknown',
       operator_role: req.user?.role ?? 'employee',
@@ -147,7 +163,7 @@ export async function rejectPointOrderController(req: AuthenticatedRequest, res:
       before_data: { status: 'pending' },
       after_data: { status: 'rejected', reject_reason: reason ?? null, reviewed_by: req.user?.id },
       ip_address: req.ip ?? null,
-    }).catch(err => logger.error('point-order', 'operation log failed:', err));
+    });
 
     res.json({ success: true, data: order });
   } catch (e: unknown) {
@@ -216,7 +232,7 @@ export async function getMemberFrozenPointsController(req: AuthenticatedRequest,
     if (req.user?.type === 'member') {
       if (req.user.id !== memberId) { res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'No access to this member' } }); return; }
     } else if (!req.user?.is_platform_super_admin && req.user?.tenant_id) {
-      const memberTenant = await getMemberTenantIdById(memberId);
+      const memberTenant = await getMemberTenantIdService(memberId);
       if (memberTenant !== req.user.tenant_id) { res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'No access to this member' } }); return; }
     }
     const frozen = await getMemberFrozenPoints(memberId);

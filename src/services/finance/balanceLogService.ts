@@ -4,7 +4,7 @@
  * 🔧 已完成迁移：仅写入 ledger_transactions，旧 balance_change_logs 已废弃
  */
 
-import { dataTableApi } from '@/api/data';
+import { getMemberActivityData, patchMemberActivityData } from '@/api/financeTableData';
 import { createLedgerEntry, createAdjustmentEntry, reverseAllEntriesForSource, AccountType, SourceType } from '@/services/finance/ledgerTransactionService';
 import { 
   getCardMerchantSettlementsAsync, 
@@ -444,14 +444,14 @@ export async function syncMemberActivityOnOrderEdit(params: {
     if (memberId) p.set('member_id', `eq.${memberId}`);
     else p.set('phone_number', `eq.${phoneNumber}`);
 
-    const existingActivity = await dataTableApi.get<{
+    const existingActivity = (await getMemberActivityData(p.toString())) as {
       id: string;
       total_accumulated_ngn?: number | null;
       total_accumulated_ghs?: number | null;
       total_accumulated_usdt?: number | null;
       accumulated_profit?: number | null;
       accumulated_profit_usdt?: number | null;
-    } | null>('member_activity', p.toString());
+    } | null;
 
     if (!existingActivity) {
       logger.warn('[BalanceLogService] No activity record found for member:', memberId || phoneNumber);
@@ -516,11 +516,7 @@ export async function syncMemberActivityOnOrderEdit(params: {
       }
     }
 
-    await dataTableApi.patch(
-      'member_activity',
-      `id=eq.${encodeURIComponent(String(existingActivity.id))}`,
-      { data: updateData },
-    );
+    await patchMemberActivityData(String(existingActivity.id), updateData);
 
     return true;
   } catch (error) {

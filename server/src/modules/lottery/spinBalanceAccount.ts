@@ -119,6 +119,70 @@ export async function addSpin(
   return withTransaction((conn) => addSpinConn(conn, memberId, amount, source));
 }
 
+/**
+ * 读时对账：以 SUM(spin_credits.amount) 为权威来源，
+ * 若与 member_activity.lottery_spin_balance 不一致则自动修正。
+ * 返回修正后的真实余额。
+ */
+export async function reconcileSpinBalance(memberId: string): Promise<number> {
+  const { queryOne: dbQueryOne, execute: dbExec } = await import('../../database/index.js');
+
+  const ledgerRow = await dbQueryOne<{ total: number }>(
+    'SELECT COALESCE(SUM(amount), 0) AS total FROM spin_credits WHERE member_id = ?',
+    [memberId],
+  );
+  const ledgerBalance = Math.max(0, Math.floor(Number(ledgerRow?.total ?? 0)));
+
+  const actRow = await dbQueryOne<{ bal: number }>(
+    'SELECT COALESCE(lottery_spin_balance, 0) AS bal FROM member_activity WHERE member_id = ?',
+    [memberId],
+  );
+  const cachedBalance = Math.max(0, Math.floor(Number(actRow?.bal ?? 0)));
+
+  if (cachedBalance !== ledgerBalance) {
+    console.warn(
+      `[SpinReconcile] member=${memberId} drift detected: cached=${cachedBalance} ledger=${ledgerBalance}, auto-correcting`,
+    );
+    await dbExec(
+      'UPDATE member_activity SET lottery_spin_balance = ?, updated_at = NOW(3) WHERE member_id = ?',
+      [ledgerBalance, memberId],
+    );
+  }
+
+  return ledgerBalance;
+}
+
+/**
+ * 事务内对账（用于 draw 流程等需要行锁的场景）。
+ */
+export async function reconcileSpinBalanceConn(conn: PoolConnection, memberId: string): Promise<number> {
+  const ledgerRow = await queryOneConn<{ total: number }>(
+    conn,
+    'SELECT COALESCE(SUM(amount), 0) AS total FROM spin_credits WHERE member_id = ?',
+    [memberId],
+  );
+  const ledgerBalance = Math.max(0, Math.floor(Number(ledgerRow?.total ?? 0)));
+
+  const actRow = await queryOneConn<{ bal: number }>(
+    conn,
+    'SELECT COALESCE(lottery_spin_balance, 0) AS bal FROM member_activity WHERE member_id = ? FOR UPDATE',
+    [memberId],
+  );
+  const cachedBalance = Math.max(0, Math.floor(Number(actRow?.bal ?? 0)));
+
+  if (cachedBalance !== ledgerBalance) {
+    console.warn(
+      `[SpinReconcile] member=${memberId} drift detected: cached=${cachedBalance} ledger=${ledgerBalance}, auto-correcting (in-tx)`,
+    );
+    await conn.query(
+      'UPDATE member_activity SET lottery_spin_balance = ?, updated_at = NOW(3) WHERE member_id = ?',
+      [ledgerBalance, memberId],
+    );
+  }
+
+  return ledgerBalance;
+}
+
 /** @deprecated Use {@link addSpinConn} for grants/consumes so spin_credits and balance stay in sync. */
 export async function incrementLotterySpinBalanceConn(conn: PoolConnection, memberId: string, delta: number, source?: string): Promise<void> {
   const d = Math.floor(Number(delta) || 0);

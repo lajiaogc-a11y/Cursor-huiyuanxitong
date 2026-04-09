@@ -35,7 +35,7 @@ import {
   type InviteLeaderboardGrowthSettings,
 } from "@/services/staff/inviteLeaderboardAdminService";
 import { formatBeijingTime, parseBackendStoredDatetimeToDate } from "@/lib/beijingTime";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import {
   MobileCardList,
   MobileCard,

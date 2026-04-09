@@ -1,8 +1,8 @@
 /**
  * 系统健康检查用到的 data 表探测（员工端仪表盘）
  */
-import { dataTableApi } from "@/api/data";
-import { fetchTableSelectRaw } from "@/api/tableProxyRaw";
+import { pingEmployeesData, listWebVitalsData } from "@/api/systemHealthData";
+import { fetchTableCounts } from "@/api/adminStatsApi";
 
 const HEALTH_TABLE_NAMES = [
   "orders",
@@ -16,16 +16,12 @@ const HEALTH_TABLE_NAMES = [
 export type HealthDataTableName = (typeof HEALTH_TABLE_NAMES)[number];
 
 export async function pingEmployeesSample(): Promise<void> {
-  await dataTableApi.get("employees", "select=id&limit=1");
+  await pingEmployeesData();
 }
 
 export async function getDataTableHeadCount(tableName: HealthDataTableName): Promise<number> {
-  const { count } = await fetchTableSelectRaw(tableName, {
-    select: "id",
-    count: "exact",
-    limit: "1",
-  });
-  return Number(count) || 0;
+  const counts = await fetchTableCounts([tableName]);
+  return counts[tableName] ?? 0;
 }
 
 export type WebVitalsRow = {
@@ -36,10 +32,9 @@ export type WebVitalsRow = {
 
 export async function listWebVitalsSince(isoTimestamp: string): Promise<WebVitalsRow[]> {
   try {
-    const data = await dataTableApi.get<WebVitalsRow[]>(
-      "web_vitals",
+    const data = (await listWebVitalsData(
       `select=metric_name,metric_value,rating&created_at=gte.${encodeURIComponent(isoTimestamp)}`,
-    );
+    )) as WebVitalsRow[];
     return Array.isArray(data) ? data : [];
   } catch {
     return [];

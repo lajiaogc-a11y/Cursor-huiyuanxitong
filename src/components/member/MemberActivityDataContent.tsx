@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobileCardActions, MobilePagination, MobileEmptyState } from "@/components/ui/mobile-data-card";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import { MemberActivityFilters, type TimeRange } from "./MemberActivityFilters";
 import { notify } from "@/lib/notifyHub";
-import { useColumnVisibility, ColumnConfig } from "@/hooks/useColumnVisibility";
+import { useColumnVisibility, ColumnConfig } from "@/hooks/ui/useColumnVisibility";
 import ColumnVisibilityDropdown from "@/components/ColumnVisibilityDropdown";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { calculateTransactionFee } from "@/lib/feeCalculation";
@@ -53,18 +53,18 @@ import { getExchangePreview, canExchange, getExchangeDisabledMessage, getActiveA
 import { isDateInRange, DateRange } from "@/lib/dateFilter";
 import { redeemPointsAndRecordRpc } from "@/services/members/memberPointsRedeemRpcService";
 import { useTenantView } from "@/contexts/TenantViewContext";
-import { useModulePermissions } from "@/hooks/useFieldPermissions";
-import { addGiftAmount, deductAccumulatedProfit } from "@/hooks/useMemberActivity";
+import { useModulePermissions } from "@/hooks/staff/useFieldPermissions";
+import { addGiftAmount, deductAccumulatedProfit } from "@/services/members/memberActivityDeltaService";
 import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
 import { trackRender } from "@/lib/performanceUtils";
-import { useMembers } from "@/hooks/useMembers";
-import { usePointsLedger, type PointsLedgerEntry } from "@/hooks/usePointsLedger";
-import { useActivityDataContent } from "@/hooks/useActivityDataContent";
+import { useMembers } from "@/hooks/members/useMembers";
+import { usePointsLedger, type PointsLedgerEntry } from "@/hooks/finance/usePointsLedger";
+import { useActivityDataContent } from "@/hooks/activity/useActivityDataContent";
 import { TablePageSkeleton } from "@/components/skeletons/TablePageSkeleton";
 import { generateEnglishCopyText, refreshCopySettings } from "@/components/CopySettingsTab";
 import { getMemberPointsSummary } from "@/services/points/pointsCalculationService";
 import { formatBeijingTime, formatBeijingDate, getNowBeijingISO } from "@/lib/beijingTime";
-import { getSpinCreditsDetailApi, type SpinCreditDetailRow } from "@/services/staff/dataApi/activityData";
+import { getSpinCreditsDetailApi, type SpinCreditDetailRow } from "@/services/staff/staffDataService";
 import { ActivityPointsHistoryDrawer } from "./ActivityPointsHistoryDrawer";
 import { ActivitySpinDetailDrawer } from "./ActivitySpinDetailDrawer";
 import {
@@ -877,7 +877,7 @@ export default function MemberActivityDataContent() {
       
       // 🔧 记录操作日志（兑换积分）- 传递完整操作人信息避免获取失败
       try {
-        const { logOperationToDb } = await import('@/hooks/useOperationLogs');
+        const { logOperationToDb } = await import('@/hooks/audit/useOperationLogs');
         await logOperationToDb(
           'activity',
           'redeem_points',
@@ -1008,7 +1008,7 @@ export default function MemberActivityDataContent() {
 
     // 🔧 记录操作日志（积分手动调整）
     try {
-      const { logOperationToDb } = await import('@/hooks/useOperationLogs');
+      const { logOperationToDb } = await import('@/hooks/audit/useOperationLogs');
       await logOperationToDb(
         'activity',
         adjustment > 0 ? 'add_points' : 'deduct_points',

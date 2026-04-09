@@ -13,7 +13,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { pointsLedgerTransactionLabel } from "@/lib/pointsLedgerTypeLabel";
 import { translatePointsLedgerDescription } from "@/lib/pointsLedgerDescriptionI18n";
-import type { PointsLedgerEntry } from "@/hooks/usePointsLedger";
+import type { PointsLedgerEntry } from "@/hooks/finance/usePointsLedger";
 
 export interface ActivityPointsHistoryMember {
   phone_number: string;

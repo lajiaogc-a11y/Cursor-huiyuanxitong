@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Lock, Trash2, Download, Bell } from "lucide-react";
-import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
+import { useIsMobile, useIsTablet } from "@/hooks/ui/use-mobile";
 import { bulkDeleteApi, verifyAdminPasswordApi } from '@/services/admin/adminApiService';
 import DataExportImportTab from "./DataExportImportTab";
 import MemoSettingsTab from "./MemoSettingsTab";
@@ -32,7 +32,7 @@ import { DataCleanupCenterPanel } from "@/components/dataCleanup/DataCleanupCent
 import { MemberPortalInviteMemberCleanupPanel } from "@/components/MemberPortalInviteMemberCleanupPanel";
 import { ActivityDataRetentionPanel } from "@/components/ActivityDataRetentionPanel";
 import { Separator } from "@/components/ui/separator";
-import { useModulePermissions } from "@/hooks/useFieldPermissions";
+import { useModulePermissions } from "@/hooks/staff/useFieldPermissions";
 
 export default function DataManagementTab() {
   const { t } = useLanguage();

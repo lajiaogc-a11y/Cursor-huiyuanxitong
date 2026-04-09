@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
-import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
+import { useMemberPortalSettings } from "@/hooks/members/useMemberPortalSettings";
 import { ROUTES } from "@/routes/constants";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { MemberRouteSuspenseFallback } from "@/components/member/MemberRouteSuspenseFallback";

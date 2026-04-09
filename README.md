@@ -13,7 +13,7 @@
 
 ## 技术栈（摘要）
 
-- 前端：React、TypeScript、Vite、TanStack Query、React Router、Ant Design、Tailwind/shadcn 等。
+- 前端：React、TypeScript、Vite、TanStack Query、React Router、Radix UI、Tailwind/shadcn 等。
 - 后端：`server/` — Express、MySQL（`mysql2`）、JWT 鉴权。
 - 数据访问：前端通过 `/api/*` 与后端交互；部分历史能力兼容表/RPC 代理（见服务端 `tableProxy`）。
 
@@ -83,7 +83,7 @@ cd server && npm run build && npm start
 
 ## 国际化
 
-界面文案以 **`src/locales/translations.ts`** 为准（`LanguageContext`）。`src/lib/translations.ts` 为遗留占位，请勿新增业务内容。
+界面文案以 **`src/locales/translations.ts`** 为准（`LanguageContext`）。
 
 ## 许可与版本
 

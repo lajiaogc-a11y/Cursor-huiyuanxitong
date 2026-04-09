@@ -16,7 +16,7 @@ export interface OperationLog {
 export const addOperationLog = async (
   log: Omit<OperationLog, "id" | "timestamp">,
 ) => {
-  const { logOperationToDb } = await import("@/hooks/useOperationLogs");
+  const { logOperationToDb } = await import("@/hooks/audit/useOperationLogs");
   return logOperationToDb(
     log.module,
     log.action,

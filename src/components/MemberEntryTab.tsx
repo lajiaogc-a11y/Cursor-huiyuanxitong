@@ -20,7 +20,7 @@ import {
 import { UserPlus, RefreshCw, Copy, Check, Loader2, UserCheck, UserX, Search } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useMembers, Member } from "@/hooks/useMembers";
+import { useMembers, Member } from "@/hooks/members/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { lookupMemberForReferral, type ApiMember } from "@/services/members/memberLookupService";
@@ -29,10 +29,10 @@ import {
   type MemberByPhone,
 } from "@/services/members/memberLookupService";
 import { cleanPhoneNumber, validatePhoneLength } from "@/lib/phoneValidation";
-import { useMemberEntryFormPersistence, generateMemberCode } from "@/hooks/useMemberEntryFormPersistence";
+import { useMemberEntryFormPersistence, generateMemberCode } from "@/hooks/members/useMemberEntryFormPersistence";
 import { findMemberByPhoneOrCode } from "@/lib/memberLookup";
 import { logOperation } from "@/services/audit/auditLogService";
-import { getCustomerSourcesApi } from "@/services/staff/dataApi";
+import { getCustomerSourcesApi } from "@/services/staff/staffDataService";
 import { MEMBER_LEVELS } from "@/config/memberLevels";
 import { mapDbMemberToMember } from "@/lib/mappers/memberMapper";
 

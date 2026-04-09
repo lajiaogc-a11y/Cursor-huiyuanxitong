@@ -1,8 +1,8 @@
 // ============= 数据归档服务 =============
 // 管理冷热数据分离 - 将历史数据归档到归档表
 
-import { fetchTableSelectRaw } from "@/api/tableProxyRaw";
-import { dataOpsApi, dataTableApi } from "@/api/data";
+import { fetchTableCounts } from "@/api/adminStatsApi";
+import { getLatestArchiveRun, patchArchiveRunDuration, listArchiveRuns, rpcArchiveOldData } from "@/api/archiveData";
 
 export interface ArchiveRun {
   id: string;
@@ -22,16 +22,11 @@ export interface ArchiveStats {
   archived_points_ledger: number;
 }
 
-async function countArchivedRows(table: string): Promise<number> {
+async function countArchivedRows(tables: string[]): Promise<Record<string, number>> {
   try {
-    const { count } = await fetchTableSelectRaw(table, {
-      select: "*",
-      count: "exact",
-      limit: "0",
-    });
-    return Number(count) || 0;
+    return await fetchTableCounts(tables);
   } catch {
-    return 0;
+    return Object.fromEntries(tables.map((t) => [t, 0]));
   }
 }
 
@@ -46,19 +41,14 @@ export async function runArchive(retentionDays: number = 90): Promise<{
   const startTime = Date.now();
 
   try {
-    const data = await dataOpsApi.rpcArchiveOldData(retentionDays);
+    const data = await rpcArchiveOldData(retentionDays);
 
     const duration = Date.now() - startTime;
 
     try {
-      const latest = await dataTableApi.get<{ id: string } | null>(
-        "archive_runs",
-        "select=id&order=run_at.desc&limit=1&single=true",
-      );
+      const latest = await getLatestArchiveRun();
       if (latest?.id) {
-        await dataTableApi.patch("archive_runs", `id=eq.${encodeURIComponent(latest.id)}`, {
-          data: { duration_ms: duration },
-        });
+        await patchArchiveRunDuration(latest.id, duration);
       }
     } catch (patchErr) {
       console.warn("[ArchiveService] Failed to patch archive_runs duration:", patchErr);
@@ -76,10 +66,7 @@ export async function runArchive(retentionDays: number = 90): Promise<{
  */
 export async function getArchiveHistory(limit: number = 20): Promise<ArchiveRun[]> {
   try {
-    const rows = await dataTableApi.get<ArchiveRun[]>(
-      "archive_runs",
-      `select=*&order=run_at.desc&limit=${limit}`,
-    );
+    const rows = (await listArchiveRuns(limit)) as ArchiveRun[];
     return Array.isArray(rows) ? rows : [];
   } catch (e) {
     console.error("[ArchiveService] Failed to fetch history:", e);
@@ -91,15 +78,12 @@ export async function getArchiveHistory(limit: number = 20): Promise<ArchiveRun[
  * 获取各归档表的行数统计
  */
 export async function getArchiveStats(): Promise<ArchiveStats> {
-  const [archived_orders, archived_operation_logs, archived_points_ledger] = await Promise.all([
-    countArchivedRows("archived_orders"),
-    countArchivedRows("archived_operation_logs"),
-    countArchivedRows("archived_points_ledger"),
+  const counts = await countArchivedRows([
+    'archived_orders', 'archived_operation_logs', 'archived_points_ledger',
   ]);
-
   return {
-    archived_orders,
-    archived_operation_logs,
-    archived_points_ledger,
+    archived_orders: counts.archived_orders ?? 0,
+    archived_operation_logs: counts.archived_operation_logs ?? 0,
+    archived_points_ledger: counts.archived_points_ledger ?? 0,
   };
 }

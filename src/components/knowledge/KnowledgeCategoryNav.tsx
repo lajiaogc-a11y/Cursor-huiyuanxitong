@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { KnowledgeCategory } from "@/hooks/useKnowledge";
+import type { KnowledgeCategory } from "@/hooks/staff/useKnowledge";
 
 const getCategoryIcon = (name: string | null | undefined, contentType: string) => {
   const lowerName = String(name ?? "").toLowerCase();

@@ -4,6 +4,10 @@
 import { apiGet, apiPost } from './client';
 import type { MemberPoints, MemberPointsBreakdown, MemberSpinQuota, PointOrder, CreatePointOrderPayload } from '@/types/points';
 
+function postRpc(name: string, params: Record<string, unknown>) {
+  return apiPost<unknown>(`/api/data/rpc/${name}`, params);
+}
+
 export const pointsApi = {
   getMemberPoints: (memberId: string) =>
     apiGet<MemberPoints>(`/api/points/member/${encodeURIComponent(memberId)}`),
@@ -49,5 +53,36 @@ export const pointsApi = {
       apiPost<{ success: boolean }>(`/api/points/orders/${encodeURIComponent(id)}/approve`, {}),
     reject: (id: string, reason?: string) =>
       apiPost<{ success: boolean }>(`/api/points/orders/${encodeURIComponent(id)}/reject`, { reason }),
+  },
+
+  memberPortal: {
+    getPoints(memberId: string) {
+      return postRpc('member_get_points', { p_member_id: memberId });
+    },
+    getBreakdown(memberId: string) {
+      return postRpc('member_get_points_breakdown', { p_member_id: memberId });
+    },
+    listLedger(memberId: string, category: string, limit: number, offset: number) {
+      return postRpc('member_list_points_ledger', { p_member_id: memberId, p_category: category, p_limit: limit, p_offset: offset });
+    },
+    todayEarned(memberId: string) {
+      return postRpc('member_sum_today_earned', { p_member_id: memberId }) as Promise<{ success?: boolean; earned?: number }>;
+    },
+    getSpinQuota(memberId: string) {
+      return postRpc('member_get_spin_quota', { p_member_id: memberId });
+    },
+    createOrder(params: Record<string, unknown>) {
+      return postRpc('member_create_point_order', params);
+    },
+    listOrders(memberId: string, limit: number) {
+      return postRpc('member_list_point_orders', { p_member_id: memberId, p_limit: limit });
+    },
+  },
+
+  redeemPointsAndRecord(params: Record<string, unknown>) {
+    return postRpc('redeem_points_and_record', params);
+  },
+  redeemAllPoints(memberCode: string, phone: string) {
+    return postRpc('redeem_all_points', { p_member_code: memberCode, p_phone: phone });
   },
 };

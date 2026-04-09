@@ -78,27 +78,27 @@ export async function checkEmployeeUniqueRepository(params: {
   username?: string;
   realName?: string;
   excludeId?: string;
+  tenantId?: string | null;
 }): Promise<EmployeeUniqueCheckResult> {
   const username = params.username?.trim();
   const realName = params.realName?.trim();
   const excludeId = params.excludeId ?? null;
+  const tenantId = params.tenantId ?? null;
+
+  const buildSql = (col: string) => {
+    const clauses = [`\`${col}\` = ?`];
+    const vals: unknown[] = [col === 'username' ? username : realName];
+    if (excludeId) { clauses.push('id <> ?'); vals.push(excludeId); }
+    if (tenantId) { clauses.push('tenant_id = ?'); vals.push(tenantId); }
+    return { sql: `SELECT COUNT(*) AS cnt FROM employees WHERE ${clauses.join(' AND ')}`, vals };
+  };
 
   const [usernameRows, realNameRows] = await Promise.all([
     username
-      ? query<{ cnt: number }>(
-          excludeId
-            ? `SELECT COUNT(*) AS cnt FROM employees WHERE username = ? AND id <> ?`
-            : `SELECT COUNT(*) AS cnt FROM employees WHERE username = ?`,
-          excludeId ? [username, excludeId] : [username]
-        )
+      ? (() => { const q = buildSql('username'); return query<{ cnt: number }>(q.sql, q.vals); })()
       : Promise.resolve([{ cnt: 0 }]),
     realName
-      ? query<{ cnt: number }>(
-          excludeId
-            ? `SELECT COUNT(*) AS cnt FROM employees WHERE real_name = ? AND id <> ?`
-            : `SELECT COUNT(*) AS cnt FROM employees WHERE real_name = ?`,
-          excludeId ? [realName, excludeId] : [realName]
-        )
+      ? (() => { const q = buildSql('real_name'); return query<{ cnt: number }>(q.sql, q.vals); })()
       : Promise.resolve([{ cnt: 0 }]),
   ]);
 

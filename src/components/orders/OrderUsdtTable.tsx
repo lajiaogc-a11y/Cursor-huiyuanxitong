@@ -24,7 +24,7 @@ import { Pencil } from "lucide-react";
 import { notify } from "@/lib/notifyHub";
 import { UsdtOrderRowActions } from "./UsdtOrderRowActions";
 import { OrderPagination } from "./OrderPagination";
-import type { UsdtOrder } from "@/hooks/useOrders";
+import type { UsdtOrder } from "@/hooks/orders";
 import { getDisplayPhone } from "@/lib/phoneMask";
 
 export interface OrderUsdtTableProps {

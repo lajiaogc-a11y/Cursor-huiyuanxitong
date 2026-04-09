@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Loader2, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchInviteRankingTop5, type InviteRankingEntry } from "@/services/memberPortal/inviteRankingService";
-import { useMemberSkeletonGate } from "@/hooks/useMemberSkeletonGate";
-import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
+import { useMemberSkeletonGate } from "@/hooks/members/useMemberSkeletonGate";
+import { useMemberPullRefreshSignal } from "@/hooks/members/useMemberPullRefreshSignal";
 import { MemberEmptyStateCta } from "@/components/member/MemberEmptyStateCta";
 
 const MEDAL: Record<number, string> = {

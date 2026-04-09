@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Home, Gift, Star, Users, Settings } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
-import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
+import { useMemberPortalSettings } from "@/hooks/members/useMemberPortalSettings";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ROUTES } from "@/routes/constants";
 import { stashPointsHashBeforeInviteNavigation } from "@/lib/memberPortalInviteReturn";

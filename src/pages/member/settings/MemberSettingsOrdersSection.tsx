@@ -3,7 +3,7 @@ import { ROUTES } from "@/routes/constants";
 import { cn } from "@/lib/utils";
 import { MemberStackedRowSkeleton } from "@/components/member/MemberPageLoadingShell";
 import { MemberEmptyStateCta } from "@/components/member/MemberEmptyStateCta";
-import { resolveCardName, tryRecoverMisdecodedUtf8 } from "@/services/members/nameResolver";
+import { resolveCardName, tryRecoverMisdecodedUtf8, extractEnglishName } from "@/services/members/nameResolver";
 import type { MemberPortalOrderView } from "@/hooks/orders/utils";
 
 export function MemberSettingsOrdersSection({
@@ -99,12 +99,12 @@ export function MemberSettingsOrdersSection({
             ) : (
               <div className="member-order-list">
                 {memberOrders.map((order) => {
-                  const cardLabel = tryRecoverMisdecodedUtf8(
+                  const cardLabel = extractEnglishName(tryRecoverMisdecodedUtf8(
                     (order.cardDisplayName && order.cardDisplayName.trim()) ||
                       resolveCardName(order.cardTypeId) ||
                       order.cardTypeId ||
                       "-",
-                  );
+                  ));
                   const paidLabel = order.isUsdt
                     ? `${Number(order.actualPaid || 0).toLocaleString()} USDT`
                     : `${Number(order.actualPaid || 0).toLocaleString()} ${order.currency || ""}`.trim();

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/contexts/LanguageContext";
-import type { Vendor } from "@/hooks/useMerchantConfig";
+import type { Vendor } from "@/hooks/finance/useMerchantConfig";
 
 export interface CardCrudFormProps {
   formName: string;

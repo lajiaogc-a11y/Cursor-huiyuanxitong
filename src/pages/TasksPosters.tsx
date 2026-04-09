@@ -36,13 +36,13 @@ import {
   updateTaskPosterResult,
   type TaskPoster,
 } from "@/services/taskService";
-import { useTaskPosters, useTaskPostersEmployees } from "@/hooks/useTaskPosters";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useTaskPosters, useTaskPostersEmployees } from "@/hooks/tasks/useTaskPosters";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import { cn } from "@/lib/utils";
 import { ResolvableMediaThumb } from "@/components/ResolvableMediaThumb";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { showServiceErrorToast } from "@/services/serviceErrorToast";
+import { showServiceErrorToast } from "@/lib/serviceErrorToast";
 import { formatBeijingTime, formatBeijingDate } from "@/lib/beijingTime";
 
 export default function TasksPosters() {

@@ -1,7 +1,7 @@
 /**
  * Webhook 表代理：列表、投递日志、增删改（/api/data/table/*，MySQL 列名）
  */
-import { dataTableApi } from "@/api/data";
+import { listWebhooksData, listWebhookDeliveryLogsData, createWebhookData, patchWebhookData, deleteWebhookData } from "@/api/webhookData";
 import { getSharedDataTenantId } from "@/services/finance/sharedDataService";
 
 export interface Webhook {
@@ -79,8 +79,7 @@ export async function listWebhooks(): Promise<Webhook[]> {
   if (!tid) {
     return [];
   }
-  const data = await dataTableApi.get<unknown[]>(
-    "webhooks",
+  const data = await listWebhooksData(
     `select=*&tenant_id=eq.${encodeURIComponent(tid)}&order=created_at.desc`,
   );
   return (data || []).map((w) => mapWebhookRow(w as Record<string, unknown>));
@@ -96,7 +95,7 @@ export async function listWebhookDeliveryLogs(webhookId?: string, limit = 50): P
     const orClause = hooks.map((h) => `webhook_id.eq.${h.id}`).join(",");
     q += `&or=${encodeURIComponent(orClause)}`;
   }
-  const data = await dataTableApi.get<unknown[]>("webhook_delivery_logs", q);
+  const data = await listWebhookDeliveryLogsData(q);
   return (data || []).map((l) => {
     const row = l as Record<string, unknown>;
     const ok = row.success === 1 || row.success === true;
@@ -142,7 +141,7 @@ export async function createWebhookRecord(body: {
     timeout_ms: body.timeout_ms ?? 5000,
     remark: body.remark || null,
   };
-  await dataTableApi.post("webhooks", { data });
+  await createWebhookData(data);
 }
 
 export async function patchWebhookRecord(
@@ -162,9 +161,9 @@ export async function patchWebhookRecord(
   if (body.timeout_ms !== undefined) data.timeout_ms = body.timeout_ms;
   if (body.remark !== undefined) data.remark = body.remark;
   if (Object.keys(data).length === 0) return;
-  await dataTableApi.patch("webhooks", `id=eq.${encodeURIComponent(webhookId)}`, { data });
+  await patchWebhookData(webhookId, data);
 }
 
 export async function deleteWebhookRecord(webhookId: string): Promise<void> {
-  await dataTableApi.del("webhooks", `id=eq.${encodeURIComponent(webhookId)}`);
+  await deleteWebhookData(webhookId);
 }

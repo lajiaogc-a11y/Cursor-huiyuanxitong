@@ -5,16 +5,16 @@ import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
 import { logger } from '../../lib/logger.js';
 import {
-  listRolePermissionsRepository,
+  listRolePermissions as listRolePermissionsRepository,
   saveRolePermissionsBatch,
-  listAuditRecordsRepository,
-  countPendingAuditRecordsRepository,
-  listCurrenciesRepository,
-  listActivityTypesRepository,
-  listCustomerSourcesRepository,
-  listShiftReceiversRepository,
-  listShiftHandoversRepository,
-} from './repository.js';
+  listAuditRecords as listAuditRecordsRepository,
+  countPendingAuditRecords as countPendingAuditRecordsRepository,
+  listCurrencies as listCurrenciesRepository,
+  listActivityTypes as listActivityTypesRepository,
+  listCustomerSources as listCustomerSourcesRepository,
+  listShiftReceivers as listShiftReceiversRepository,
+  listShiftHandovers as listShiftHandoversRepository,
+} from './referenceDataService.js';
 import { getLoginLogsListPayload } from '../logs/service.js';
 import { resolveTenantId, errorMessageForResponse } from './dataControllerShared.js';
 

@@ -229,15 +229,9 @@ export async function exportTable(
       const csvContent = BOM + lines.join('\r\n');
 
       const blob = createUtf8CsvBlob(csvContent);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
       const filename = `${displayName}_${formatDateForFilename()}.csv`;
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const { triggerBlobDownload } = await import('@/lib/downloadBlob');
+      triggerBlobDownload(blob, filename);
 
       return { success: true, filename };
     }
@@ -300,27 +294,14 @@ export async function exportAllTables(
       }
     }
 
+    const { triggerBlobDownload: dlBlob } = await import('@/lib/downloadBlob');
     if (csvFiles.length === 1) {
       const blob = createUtf8CsvBlob(csvFiles[0].content);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = csvFiles[0].filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      dlBlob(blob, csvFiles[0].filename);
     } else {
       for (const file of csvFiles) {
         const blob = createUtf8CsvBlob(file.content);
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = file.filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        dlBlob(blob, file.filename);
 
         await new Promise(resolve => setTimeout(resolve, 300));
       }

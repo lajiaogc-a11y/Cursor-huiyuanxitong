@@ -1,6 +1,6 @@
 // ============= API Stats Dashboard Component =============
-import { useApiStats } from '@/hooks/useWebhooks';
-import { useApiKeys } from '@/hooks/useApiKeys';
+import { useApiStats } from '@/hooks/system/useWebhooks';
+import { useApiKeys } from '@/hooks/system/useApiKeys';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Activity, TrendingUp, TrendingDown, Clock, AlertCircle, CheckCircle, Re
 import { format } from 'date-fns';
 import { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useIsMobile, useIsTablet } from '@/hooks/use-mobile';
+import { useIsMobile, useIsTablet } from '@/hooks/ui/use-mobile';
 
 export function ApiStatsDashboard() {
   const { t, language } = useLanguage();

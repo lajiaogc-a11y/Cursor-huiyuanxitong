@@ -4,8 +4,17 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import { query, execute } from '../../database/index.js';
 import { isTableProxyAllowed } from '../data/tableProxy.js';
+import {
+  queryExistingTableNames,
+  deleteBackupRecordById,
+  listBackupsOrderedDesc,
+  listBackupsOlderThan,
+  insertBackupRecord,
+  updateBackupRecordSuccess,
+  updateBackupRecordFailed,
+  selectTableRowsBatch,
+} from './repository.js';
 
 const MAX_BACKUPS = 7;
 const MAX_AGE_DAYS = 3;
@@ -51,17 +60,10 @@ function desiredBackupTables(): string[] {
   return DESIRED_BACKUP_TABLES.filter((t) => isTableProxyAllowed(t));
 }
 
-/** 仅备份当前库中已存在的表，避免缺归档表等导致整次备份失败 */
 async function resolveTablesToBackup(): Promise<string[]> {
   const desired = desiredBackupTables();
   if (desired.length === 0) return [];
-  const ph = desired.map(() => '?').join(', ');
-  const rows = await query<{ TABLE_NAME: string }>(
-    `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
-     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (${ph})`,
-    desired,
-  );
-  const existing = new Set(rows.map((r) => String(r.TABLE_NAME).toLowerCase()));
+  const existing = new Set(await queryExistingTableNames(desired));
   return desired.filter((t) => existing.has(t.toLowerCase()));
 }
 
@@ -85,15 +87,13 @@ export async function deleteBackupFilesAndRecord(backupId: string): Promise<void
   } catch {
     /* 目录不存在时忽略 */
   }
-  await execute('DELETE FROM `data_backups` WHERE `id` = ?', [tid]);
+  await deleteBackupRecordById(tid);
 }
 
 async function cleanupOldBackups(): Promise<void> {
   const root = backupRootDir();
   try {
-    const rows = await query<{ id: string; created_at: Date | string; storage_path: string | null }>(
-      'SELECT id, created_at, storage_path FROM `data_backups` ORDER BY created_at DESC'
-    );
+    const rows = await listBackupsOrderedDesc();
     if (rows.length > MAX_BACKUPS) {
       const toDrop = rows.slice(MAX_BACKUPS);
       for (const old of toDrop) {
@@ -103,15 +103,12 @@ async function cleanupOldBackups(): Promise<void> {
         } catch {
           /* ignore */
         }
-        await execute('DELETE FROM `data_backups` WHERE `id` = ?', [old.id]);
+        await deleteBackupRecordById(old.id);
       }
     }
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - MAX_AGE_DAYS);
-    const oldByAge = await query<{ id: string; storage_path: string | null }>(
-      'SELECT id, storage_path FROM `data_backups` WHERE created_at < ?',
-      [cutoff]
-    );
+    const oldByAge = await listBackupsOlderThan(cutoff);
     for (const old of oldByAge) {
       const sp = old.storage_path || old.id;
       try {
@@ -119,7 +116,7 @@ async function cleanupOldBackups(): Promise<void> {
       } catch {
         /* ignore */
       }
-      await execute('DELETE FROM `data_backups` WHERE `id` = ?', [old.id]);
+      await deleteBackupRecordById(old.id);
     }
   } catch (e) {
     console.warn('[Backup] cleanup non-fatal:', (e as Error).message);
@@ -147,24 +144,20 @@ export async function runDataBackup(input: {
   const recordCounts: Record<string, number> = {};
   let totalSizeBytes = 0;
 
-  await execute(
-    `INSERT INTO \`data_backups\` (\`id\`, \`backup_name\`, \`trigger_type\`, \`status\`, \`tables_backed_up\`, \`record_counts\`, \`total_size_bytes\`, \`created_by\`, \`created_by_name\`)
-     VALUES (?, ?, ?, 'in_progress', CAST(? AS JSON), CAST(? AS JSON), 0, NULL, ?)`,
-    [backupId, backupName, triggerType, JSON.stringify(tables), JSON.stringify({}), input.createdByName]
-  );
+  await insertBackupRecord({
+    id: backupId,
+    backupName,
+    triggerType,
+    tables,
+    createdByName: input.createdByName,
+  });
 
   try {
     for (const table of tables) {
       const allRows: unknown[] = [];
       let offset = 0;
       for (;;) {
-        /** uploaded_images.data 为 MEDIUMBLOB，全量进 JSON 会极大膨胀；备份仅保留元数据 */
-        const selectSql =
-          table === 'uploaded_images'
-            ? `SELECT id, tenant_id, content_type, file_name, size_bytes, created_by, created_at,
-                      NULL AS data_omitted FROM \`${table}\` LIMIT ? OFFSET ?`
-            : `SELECT * FROM \`${table}\` LIMIT ? OFFSET ?`;
-        const chunk = await query<Record<string, unknown>>(selectSql, [BATCH_SIZE, offset]);
+        const chunk = await selectTableRowsBatch(table, BATCH_SIZE, offset);
         if (!chunk.length) break;
         allRows.push(...chunk);
         if (chunk.length < BATCH_SIZE) break;
@@ -176,10 +169,11 @@ export async function runDataBackup(input: {
       totalSizeBytes += Buffer.byteLength(jsonContent, 'utf8');
     }
 
-    await execute(
-      `UPDATE \`data_backups\` SET \`status\` = 'success', \`record_counts\` = CAST(? AS JSON), \`total_size_bytes\` = ?, \`storage_path\` = ?, \`completed_at\` = NOW(3) WHERE \`id\` = ?`,
-      [JSON.stringify(recordCounts), totalSizeBytes, backupId, backupId]
-    );
+    await updateBackupRecordSuccess({
+      id: backupId,
+      recordCounts,
+      totalSizeBytes,
+    });
 
     await cleanupOldBackups();
 
@@ -192,10 +186,11 @@ export async function runDataBackup(input: {
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    await execute(
-      `UPDATE \`data_backups\` SET \`status\` = 'failed', \`error_message\` = ?, \`record_counts\` = CAST(? AS JSON), \`completed_at\` = NOW(3) WHERE \`id\` = ?`,
-      [msg, JSON.stringify(recordCounts), backupId]
-    );
+    await updateBackupRecordFailed({
+      id: backupId,
+      errorMessage: msg,
+      recordCounts,
+    });
     throw err;
   }
 }

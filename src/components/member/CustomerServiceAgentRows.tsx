@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { CustomerServiceAgent } from "@/services/members/memberPortalSettingsService";
-import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
+import { useMemberResolvableMedia } from "@/hooks/members/useMemberResolvableMedia";
 import "@/styles/member-portal.css";
 
 export function CustomerServiceAgentAvatar({

@@ -30,7 +30,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
 import { ExportConfirmDialog } from '@/components/ExportConfirmDialog';
-import { useExportConfirm } from '@/hooks/useExportConfirm';
+import { useExportConfirm } from '@/hooks/ui/useExportConfirm';
 import {
   EXPORTABLE_TABLES,
   validateImportData,

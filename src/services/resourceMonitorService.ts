@@ -1,7 +1,7 @@
 // ============= 资源用量与成本监控服务 =============
 // 表行数：表代理 count；API 日志：api_request_logs（无表或无权时降级为空）
 
-import { fetchTableSelectRaw } from "@/api/tableProxyRaw";
+import { fetchTableCounts, fetchApiLogStats } from "@/api/adminStatsApi";
 
 export interface TableUsageStats {
   table_name: string;
@@ -43,79 +43,28 @@ const MONITORED_TABLES = [
 ];
 
 async function getTableRowCounts(): Promise<TableUsageStats[]> {
-  const results: TableUsageStats[] = [];
-
-  const promises = MONITORED_TABLES.map(async (tableName) => {
-    try {
-      const { count } = await fetchTableSelectRaw(tableName, {
-        select: "*",
-        count: "exact",
-        limit: "0",
-      });
-      const c = Number(count) || 0;
-      return {
-        table_name: tableName,
-        row_count: c,
-        estimated_size_bytes: c * 500,
-      };
-    } catch {
-      return { table_name: tableName, row_count: 0, estimated_size_bytes: 0 };
-    }
-  });
-
-  const settled = await Promise.allSettled(promises);
-  for (const result of settled) {
-    if (result.status === "fulfilled") {
-      results.push(result.value);
-    }
+  try {
+    const counts = await fetchTableCounts([...MONITORED_TABLES]);
+    return MONITORED_TABLES
+      .map((t) => ({
+        table_name: t,
+        row_count: counts[t] ?? 0,
+        estimated_size_bytes: (counts[t] ?? 0) * 500,
+      }))
+      .sort((a, b) => b.row_count - a.row_count);
+  } catch {
+    return MONITORED_TABLES.map((t) => ({
+      table_name: t, row_count: 0, estimated_size_bytes: 0,
+    }));
   }
-
-  return results.sort((a, b) => b.row_count - a.row_count);
 }
 
 async function getEdgeFunctionStats(): Promise<EdgeFunctionStats> {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   try {
-    const { data, count } = await fetchTableSelectRaw("api_request_logs", {
-      select: "path,response_time_ms,status_code",
-      created_at: `gte.${since}`,
-      limit: "10000",
-      count: "exact",
-    });
-    const records = Array.isArray(data) ? data : [];
-    const totalCalls = Number(count) || records.length;
-
-    const totalMs = records.reduce(
-      (sum: number, r: { response_time_ms?: number }) => sum + (Number(r.response_time_ms) || 0),
-      0,
-    );
-    const avgMs = records.length > 0 ? Math.round(totalMs / records.length) : 0;
-
-    const errorCount = records.filter(
-      (r: { status_code?: number }) => Number(r.status_code) >= 400,
-    ).length;
-    const errorRate =
-      records.length > 0 ? Math.round((errorCount / records.length) * 100) : 0;
-
-    const callsByEndpoint: Record<string, number> = {};
-    for (const r of records as { path?: string }[]) {
-      const ep = r.path || "unknown";
-      callsByEndpoint[ep] = (callsByEndpoint[ep] || 0) + 1;
-    }
-
-    return {
-      total_calls: totalCalls,
-      avg_response_ms: avgMs,
-      error_rate: errorRate,
-      calls_by_endpoint: callsByEndpoint,
-    };
+    return await fetchApiLogStats(since);
   } catch {
-    return {
-      total_calls: 0,
-      avg_response_ms: 0,
-      error_rate: 0,
-      calls_by_endpoint: {},
-    };
+    return { total_calls: 0, avg_response_ms: 0, error_rate: 0, calls_by_endpoint: {} };
   }
 }
 

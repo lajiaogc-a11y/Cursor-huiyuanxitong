@@ -1,7 +1,7 @@
 /**
  * Maintenance Mode Service — connected to real backend RPC.
  */
-import { dataRpcApi } from "@/api/data";
+import { maintenanceApi } from "@/api/systemConfig";
 import { fail, ok, type ServiceResult } from "@/services/serviceResult";
 
 export type MaintenanceStatus = {
@@ -25,9 +25,7 @@ export async function getMaintenanceModeStatusResult(
   tenantId?: string | null
 ): Promise<ServiceResult<MaintenanceStatus>> {
   try {
-    const data = await dataRpcApi.call<MaintenanceStatus>("get_maintenance_mode_status", {
-      tenant_id: tenantId || undefined,
-    });
+    const data = await maintenanceApi.getStatus(tenantId) as MaintenanceStatus | null;
     if (!data) {
       return ok({
         globalEnabled: false,
@@ -57,7 +55,7 @@ export async function setGlobalMaintenanceModeResult(
   allowedRoles?: string[]
 ): Promise<ServiceResult<true>> {
   try {
-    await dataRpcApi.call("set_maintenance_mode", {
+    await maintenanceApi.setMode({
       scope: "global",
       enabled,
       message: message ?? "",
@@ -77,7 +75,7 @@ export async function setTenantMaintenanceModeResult(
 ): Promise<ServiceResult<true>> {
   if (!tenantId) return fail("TENANT_REQUIRED", "Tenant id is required", "TENANT");
   try {
-    await dataRpcApi.call("set_maintenance_mode", {
+    await maintenanceApi.setMode({
       scope: "tenant",
       tenant_id: tenantId,
       enabled,
@@ -92,7 +90,7 @@ export async function setTenantMaintenanceModeResult(
 
 export async function getTenantMaintenanceModesResult(): Promise<ServiceResult<TenantMaintenanceMode[]>> {
   try {
-    const data = await dataRpcApi.call<TenantMaintenanceMode[]>("list_tenant_maintenance_modes", {});
+    const data = await maintenanceApi.listTenantModes() as TenantMaintenanceMode[];
     return ok(Array.isArray(data) ? data : []);
   } catch {
     return ok([]);

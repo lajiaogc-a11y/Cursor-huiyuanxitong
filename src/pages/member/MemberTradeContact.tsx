@@ -4,7 +4,7 @@ import { CustomerServiceAgentRows } from "@/components/member/CustomerServiceAge
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
-import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
+import { useMemberPortalSettings } from "@/hooks/members/useMemberPortalSettings";
 import { pickBilingualPortalField } from "@/lib/memberPortalBilingualHint";
 import { getMemberLotteryPrizes } from "@/services/lottery/lotteryService";
 import "@/styles/member-portal.css";

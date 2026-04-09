@@ -8,7 +8,7 @@ import { DrawerDetail } from '@/components/shell/DrawerDetail';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Eye, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/ui/use-mobile';
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardActions, MobilePagination, MobileEmptyState } from '@/components/ui/mobile-data-card';
 import { notify } from "@/lib/notifyHub";
 import { formatBeijingTime } from "@/lib/beijingTime";

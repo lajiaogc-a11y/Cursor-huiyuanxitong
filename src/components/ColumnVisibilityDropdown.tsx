@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Columns3, RotateCcw } from 'lucide-react';
-import { ColumnConfig } from '@/hooks/useColumnVisibility';
+import { ColumnConfig } from '@/hooks/ui/useColumnVisibility';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ColumnVisibilityDropdownProps {

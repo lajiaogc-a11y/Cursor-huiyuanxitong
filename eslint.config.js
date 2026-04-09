@@ -35,17 +35,67 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "off",
     },
   },
+
+  // ── 架构分层边界 ──────────────────────────────────────────────────
+
+  // pages/ 禁止直接 import api 层和 HTTP client
   {
-    files: ["src/hooks/**/*.{ts,tsx}"],
+    files: ["src/pages/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-imports": [
         "error",
         {
           patterns: [
-            {
-              group: ["@/pages/**"],
-              message: "hooks 层禁止反向依赖 pages 层。",
-            },
+            { group: ["@/api/**"], message: "pages 层禁止直接 import api 层 — 通过 services/hooks 间接调用。" },
+            { group: ["@/lib/apiClient", "@/lib/apiClient/**"], message: "pages 层禁止直接 import apiClient — 通过 services 间接调用。" },
+          ],
+        },
+      ],
+    },
+  },
+
+  // components/ 禁止直接 import api 层和 HTTP client
+  {
+    files: ["src/components/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            { group: ["@/api/**"], message: "components 层禁止直接 import api 层 — 通过 services/hooks 间接调用。" },
+            { group: ["@/lib/apiClient", "@/lib/apiClient/**"], message: "components 层禁止直接 import apiClient — 通过 services 间接调用。" },
+          ],
+        },
+      ],
+    },
+  },
+
+  // hooks/ 禁止反向依赖 pages，新代码禁止直接 import api 层
+  {
+    files: ["src/hooks/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "warn",
+        {
+          patterns: [
+            { group: ["@/pages/**"], message: "hooks 层禁止反向依赖 pages 层。" },
+            { group: ["@/api/**"], message: "hooks 层应通过 services 间接调用 api 层（历史代码除外，见白名单）。" },
+          ],
+        },
+      ],
+    },
+  },
+
+  // services/ 禁止反向依赖 pages 和 components
+  {
+    files: ["src/services/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            { group: ["@/pages/**"], message: "services 层禁止反向依赖 pages 层。" },
+            { group: ["@/components/**"], message: "services 层禁止反向依赖 components 层 — 请重构为 components 调用 services。" },
           ],
         },
       ],

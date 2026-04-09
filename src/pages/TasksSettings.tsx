@@ -19,7 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { notify } from "@/lib/notifyHub";
-import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/auth/useIsPlatformAdminViewingTenant";
 import {
   generateCustomerList,
   createCustomerMaintenanceTaskResult,
@@ -28,8 +28,8 @@ import {
   type DateRangePreset,
 } from "@/services/taskService";
 import { formatBeijingTime, formatBeijingDate } from "@/lib/beijingTime";
-import { useOpenTasks, useTaskSettingsEmployees } from "@/hooks/useOpenTasks";
-import { showServiceErrorToast } from "@/services/serviceErrorToast";
+import { useOpenTasks, useTaskSettingsEmployees } from "@/hooks/tasks/useOpenTasks";
+import { showServiceErrorToast } from "@/lib/serviceErrorToast";
 import {
   AlertDialog,
   AlertDialogAction,

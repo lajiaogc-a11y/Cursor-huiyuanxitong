@@ -98,11 +98,13 @@ export async function checkEmployeeUniqueService(params: {
   username?: string;
   real_name?: string;
   exclude_id?: string;
+  tenant_id?: string | null;
 }) {
   return checkEmployeeUniqueRepository({
     username: params.username,
     realName: params.real_name,
     excludeId: params.exclude_id,
+    tenantId: params.tenant_id,
   });
 }
 
@@ -132,6 +134,7 @@ export async function createEmployeeService(
   const unique = await checkEmployeeUniqueRepository({
     username: input.username,
     realName: input.real_name,
+    tenantId,
   });
   if (unique.usernameExists) {
     return { success: false, error_code: 'USERNAME_EXISTS', message: 'Username already exists' };
@@ -187,6 +190,7 @@ export async function updateEmployeeService(
     username: updates.username,
     realName: updates.real_name,
     excludeId: id,
+    tenantId: target.tenant_id ?? actor.tenant_id ?? null,
   });
   if (updates.username && unique.usernameExists) {
     return { success: false, error_code: 'USERNAME_EXISTS', message: 'Username already exists' };

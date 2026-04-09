@@ -4,7 +4,7 @@
 // 🔧 修复：等待持久化数据加载后再执行loadData + 模块级缓存 + 分离余额刷新
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/ui/use-mobile';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,7 +63,7 @@ import {
   VendorBalanceResult,
   ProviderBalanceResult,
 } from '@/services/finance/settlementCalculationService';
-import { useShiftHandoverFormPersistence } from '@/hooks/useShiftHandoverFormPersistence';
+import { useShiftHandoverFormPersistence } from '@/hooks/staff/useShiftHandoverFormPersistence';
 import { listVendorsApi, listPaymentProvidersApi } from '@/services/shared/entityLookupService';
 
 interface VendorBalance {

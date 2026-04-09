@@ -5,7 +5,7 @@ import { LayoutSkeleton } from "@/components/skeletons/LayoutSkeleton";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Loader2, LogOut, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
+import { useMaintenanceMode } from "@/hooks/system/useMaintenanceMode";
 import { MaintenanceBlockedView } from "@/components/MaintenanceBlockedView";
 import { ROUTES } from "@/routes/constants";
 

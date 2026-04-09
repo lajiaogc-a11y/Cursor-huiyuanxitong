@@ -28,16 +28,16 @@ import { CurrencyCode } from "@/config/currencies";
 import { calculateTransactionFee } from "@/lib/feeCalculation";
 import { useAuth } from "@/contexts/AuthContext";
 import { cleanPhoneNumber } from "@/lib/phoneValidation";
-import { useMembers } from "@/hooks/useMembers";
-import { usePaymentProviders } from "@/hooks/useMerchantConfig";
-import { useActivityGifts } from "@/hooks/useActivityGifts";
+import { useMembers } from "@/hooks/members/useMembers";
+import { usePaymentProviders } from "@/hooks/finance/useMerchantConfig";
+import { useActivityGifts } from "@/hooks/activity/useActivityGifts";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
   loadSharedData,
   resolveUsdtRateForActivityGift,
   type CalculatorInputRates,
 } from "@/services/finance/sharedDataService";
-import { getActivityTypesApi } from "@/services/staff/dataApi";
+import { getActivityTypesApi } from "@/services/staff/staffDataService";
 
 interface ActivityGiftDialogProps {
   open: boolean;

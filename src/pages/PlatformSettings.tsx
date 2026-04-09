@@ -5,7 +5,7 @@
 import { lazy, Suspense } from "react";
 import { useParams, Navigate, NavLink } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SETTINGS_TABS } from "./platformSettingsTabConfig";

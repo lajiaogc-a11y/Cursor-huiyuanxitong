@@ -1,7 +1,7 @@
 // ============= 交班对账数据存储 =============
 // 管理交班记录和接班人列表
 
-import { dataTableApi } from '@/api/data';
+import { createShiftReceiverData, patchShiftReceiverData, deleteShiftReceiverData, createShiftHandoverData } from '@/api/shiftHandoverData';
 import { logOperation } from '@/services/audit/auditLogService';
 import { getCurrentOperatorSync } from '@/services/members/operatorService';
 
@@ -10,7 +10,7 @@ function unwrapSingle<T>(data: unknown): T | null {
   if (Array.isArray(data)) return (data[0] as T) ?? null;
   return data as T;
 }
-import { getShiftReceiversApi, getShiftHandoversApi } from '@/services/staff/dataApi';
+import { getShiftReceiversApi, getShiftHandoversApi } from '@/api/staffData';
 
 export interface ShiftReceiver {
   id: string;
@@ -69,11 +69,9 @@ export async function addShiftReceiver(name: string, creatorId?: string): Promis
     if (op?.id) employeeId = op.id;
   }
   
-  const inserted = await dataTableApi.post<unknown>('shift_receivers', {
-    data: {
-      name: trimmedName,
-      creator_id: employeeId,
-    },
+  const inserted = await createShiftReceiverData({
+    name: trimmedName,
+    creator_id: employeeId,
   });
   const data = unwrapSingle<ShiftReceiver>(inserted);
   if (!data) {
@@ -91,11 +89,10 @@ export async function updateShiftReceiver(id: string, name: string, oldName?: st
   const trimmedName = name.trim();
   if (!trimmedName) return null;
   
-  const patched = await dataTableApi.patch<unknown>(
-    'shift_receivers',
-    `id=eq.${encodeURIComponent(id)}`,
-    { data: { name: trimmedName, updated_at: new Date().toISOString() } },
-  );
+  const patched = await patchShiftReceiverData(id, {
+    name: trimmedName,
+    updated_at: new Date().toISOString(),
+  });
   const data = unwrapSingle<ShiftReceiver>(patched);
   if (!data) {
     console.error('Failed to update shift receiver');
@@ -110,7 +107,7 @@ export async function updateShiftReceiver(id: string, name: string, oldName?: st
 // 删除接班人
 export async function deleteShiftReceiver(id: string, name?: string): Promise<boolean> {
   try {
-    await dataTableApi.del('shift_receivers', `id=eq.${encodeURIComponent(id)}`);
+    await deleteShiftReceiverData(id);
   } catch (error) {
     console.error('Failed to delete shift receiver:', error);
     return false;
@@ -148,15 +145,13 @@ export async function createShiftHandover(
   paymentProviderData: PaymentProviderHandoverData[],
   remark?: string
 ): Promise<ShiftHandover | null> {
-  const inserted = await dataTableApi.post<unknown>('shift_handovers', {
-    data: {
-      handover_employee_id: handoverEmployeeId,
-      handover_employee_name: handoverEmployeeName,
-      receiver_name: receiverName,
-      card_merchant_data: cardMerchantData,
-      payment_provider_data: paymentProviderData,
-      remark: remark || null,
-    },
+  const inserted = await createShiftHandoverData({
+    handover_employee_id: handoverEmployeeId,
+    handover_employee_name: handoverEmployeeName,
+    receiver_name: receiverName,
+    card_merchant_data: cardMerchantData,
+    payment_provider_data: paymentProviderData,
+    remark: remark || null,
   });
   const data = unwrapSingle<Record<string, unknown>>(inserted);
   if (!data) {

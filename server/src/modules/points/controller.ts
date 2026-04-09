@@ -69,7 +69,7 @@ export async function postLedgerController(req: AuthenticatedRequest, res: Respo
       return;
     }
     console.error('[points] postLedger', e);
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Operation failed' } });
   }
 }
 
@@ -88,7 +88,7 @@ export async function postMemberActivityAddConsumptionController(
       return;
     }
     console.error('[points] add-consumption', e);
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Operation failed' } });
   }
 }
 
@@ -107,19 +107,27 @@ export async function postMemberActivityAddReferralController(
       return;
     }
     console.error('[points] add-referral', e);
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Operation failed' } });
   }
 }
 
 /** POST /api/points/reverse-on-order-cancel */
 export async function postReverseOnOrderCancelController(req: Request, res: Response): Promise<void> {
+  const authReq = req as AuthenticatedRequest;
+  if (!authReq.user || authReq.user.type === 'member') {
+    res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Staff only' } });
+    return;
+  }
   const { order_id: orderId } = req.body as { order_id: string };
+  if (!orderId || typeof orderId !== 'string') {
+    res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'order_id required' } });
+    return;
+  }
   try {
     const result = await postReverseOnOrderCancelService(orderId);
     res.json({ success: true, data: { success: result.success, error: result.error } });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
     console.error('[points] reverse-on-order-cancel', e);
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: msg } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Operation failed' } });
   }
 }

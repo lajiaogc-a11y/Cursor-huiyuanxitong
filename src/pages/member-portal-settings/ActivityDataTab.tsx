@@ -12,7 +12,7 @@ import type { LucideIcon } from "lucide-react";
 import { RefreshCw, Star, Settings2, ShoppingCart, Share2, UserPlus, CalendarClock } from "lucide-react";
 import { ROUTES } from "@/routes/constants";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import {
   MobileCardList,
   MobileCard,

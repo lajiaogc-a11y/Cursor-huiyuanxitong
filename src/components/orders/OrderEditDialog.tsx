@@ -12,7 +12,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { calculatePaymentValue, reverseCalculateActualPaid } from "@/lib/orderCalculations";
-import type { Order } from "@/hooks/useOrders";
+import type { Order } from "@/hooks/orders";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 

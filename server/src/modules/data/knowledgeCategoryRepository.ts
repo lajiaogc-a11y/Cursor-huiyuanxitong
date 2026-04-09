@@ -221,3 +221,30 @@ export async function deleteKnowledgeCategoryRepository(id: string, tenantId?: s
     return (header.affectedRows ?? 0) > 0;
   });
 }
+
+export async function seedDefaultKnowledgeCategoriesRepository(tenantId: string | null) {
+  const existing = await query('SELECT id FROM knowledge_categories LIMIT 1');
+  if (existing && existing.length > 0) {
+    return { seeded: false, message: 'Categories already exist, skipped' };
+  }
+  const defaults = [
+    { name: 'Company News', content_type: 'text', sort_order: 1, visibility: 'public' },
+    { name: 'Industry Knowledge', content_type: 'text', sort_order: 2, visibility: 'public' },
+    { name: 'Card Guide', content_type: 'image', sort_order: 3, visibility: 'public' },
+    { name: 'Common Phrases', content_type: 'phrase', sort_order: 4, visibility: 'public' },
+  ];
+  for (const row of defaults) {
+    if (tenantId) {
+      await execute(
+        `INSERT INTO knowledge_categories (name, content_type, sort_order, visibility, tenant_id) VALUES (?, ?, ?, ?, ?)`,
+        [row.name, row.content_type, row.sort_order, row.visibility, tenantId],
+      );
+    } else {
+      await execute(
+        `INSERT INTO knowledge_categories (name, content_type, sort_order, visibility) VALUES (?, ?, ?, ?)`,
+        [row.name, row.content_type, row.sort_order, row.visibility],
+      );
+    }
+  }
+  return { seeded: true, count: 4 };
+}

@@ -2,7 +2,7 @@
  * 会员门户：签到、分享领奖、邀请、订单与昵称等 RPC 统一入口（页面只负责展示与触发）。
  */
 import { unwrapApiData } from "@/api/client";
-import { dataRpcApi } from "@/api/data";
+import { memberActivityApi } from "@/api/memberActivity";
 import { memberPortalApi } from "@/api/memberPortal";
 import { ApiError } from "@/lib/apiClient";
 import { safeCall, safeActionCall } from "@/lib/serviceErrorHandler";
@@ -32,7 +32,7 @@ export type MemberDailyStatus = {
 
 export async function fetchMemberDailyStatus(memberId: string): Promise<MemberDailyStatus> {
   return safeCall(
-    () => dataRpcApi.call<MemberDailyStatus>("member_check_in_today", { p_member_id: memberId }),
+    () => memberActivityApi.checkInToday(memberId) as Promise<MemberDailyStatus>,
     { checked_in_today: false, share_claimed_today: false },
     "fetchMemberDailyStatus",
   );
@@ -51,7 +51,7 @@ export type MemberCheckInResult = {
 
 export async function memberCheckIn(memberId: string): Promise<MemberCheckInResult> {
   return safeActionCall(
-    () => dataRpcApi.call<MemberCheckInResult>("member_check_in", { p_member_id: memberId }),
+    () => memberActivityApi.checkIn(memberId) as Promise<MemberCheckInResult>,
     "memberCheckIn",
   );
 }
@@ -72,9 +72,7 @@ export type ShareRewardResult = {
  */
 export async function requestShareNonce(memberId: string): Promise<{ success: boolean; nonce?: string; error?: string }> {
   return safeActionCall(
-    () => dataRpcApi.call<{ success: boolean; nonce?: string; error?: string }>("member_request_share_nonce", {
-      p_member_id: memberId,
-    }),
+    () => memberActivityApi.requestShareNonce(memberId),
     "requestShareNonce",
   );
 }
@@ -85,10 +83,7 @@ export async function requestShareNonce(memberId: string): Promise<{ success: bo
 export async function memberClaimShareReward(memberId: string, shareNonce: string): Promise<ShareRewardResult> {
   return safeActionCall(
     async () => {
-      const r = await dataRpcApi.call<ShareRewardResult>("member_grant_spin_for_share", {
-        p_member_id: memberId,
-        p_share_nonce: shareNonce,
-      });
+      const r = await memberActivityApi.claimShareReward(memberId, shareNonce) as ShareRewardResult;
       return { ...r, success: r.success ?? false };
     },
     "memberClaimShareReward",
@@ -98,9 +93,7 @@ export async function memberClaimShareReward(memberId: string, shareNonce: strin
 export async function fetchMemberInviteToken(memberId: string): Promise<string | null> {
   return safeCall(
     async () => {
-      const r = await dataRpcApi.call<{ success?: boolean; invite_token?: string }>("member_get_invite_token", {
-        p_member_id: memberId,
-      });
+      const r = await memberActivityApi.getInviteToken(memberId);
       return r?.invite_token ?? null;
     },
     null,
@@ -112,11 +105,7 @@ export async function fetchMemberInviteToken(memberId: string): Promise<string |
 export async function memberGetOrdersRows(memberId: string): Promise<unknown[]> {
   return safeCall(
     async () => {
-      const raw = await dataRpcApi.call<unknown>("member_get_orders", {
-        p_member_id: memberId,
-        p_limit: 20,
-        p_offset: 0,
-      });
+      const raw = await memberActivityApi.getOrders(memberId, 20, 0);
       const d = unwrapApiData<unknown>(raw);
       if (d && typeof d === "object" && Array.isArray((d as { rows?: unknown }).rows)) {
         return (d as { rows: unknown[] }).rows;
@@ -133,11 +122,7 @@ export type MemberOrdersPage = { rows: unknown[]; total: number };
 export async function memberGetOrdersPage(memberId: string, limit = 20, offset = 0): Promise<MemberOrdersPage> {
   return safeCall(
     async () => {
-      const raw = await dataRpcApi.call<unknown>("member_get_orders", {
-        p_member_id: memberId,
-        p_limit: limit,
-        p_offset: offset,
-      });
+      const raw = await memberActivityApi.getOrders(memberId, limit, offset);
       const d = unwrapApiData<unknown>(raw);
       if (d && typeof d === "object" && Array.isArray((d as { rows?: unknown }).rows)) {
         const obj = d as { rows: unknown[]; total?: number };
@@ -157,10 +142,7 @@ export async function memberUpdateNickname(
 ): Promise<{ success?: boolean; error?: string }> {
   return safeActionCall(
     () =>
-      dataRpcApi.call("member_update_nickname", {
-        p_member_id: memberId,
-        p_nickname: nickname.trim(),
-      }),
+      memberActivityApi.updateNickname(memberId, nickname.trim()),
     "memberUpdateNickname",
   );
 }
@@ -171,10 +153,7 @@ export async function memberUpdateAvatar(
 ): Promise<{ success?: boolean; error?: string }> {
   return safeActionCall(
     () =>
-      dataRpcApi.call("member_update_avatar", {
-        p_member_id: memberId,
-        p_avatar_url: avatarDataUrl,
-      }),
+      memberActivityApi.updateAvatar(memberId, avatarDataUrl),
     "memberUpdateAvatar",
   );
 }

@@ -1,14 +1,21 @@
 /**
  * Staff points-redemption + activity-gift creation — extracted from RPC handler
  * so it can be shared by the RPC proxy and any future REST endpoint.
+ *
+ * DB 访问统一委托给 repository 层。
  */
-import { queryOne, withTransaction } from '../../database/index.js';
 import { randomUUID } from 'crypto';
 import { applyPointsLedgerDeltaOnConn } from './pointsLedgerAccount.js';
 import { syncPointsLog } from './pointsService.js';
 import { generateUniqueActivityGiftNumber } from '../../lib/giftNumber.js';
 import { buildStaffPointsRedemptionRemark } from '../data/staffPointsRedemptionRemark.js';
 import { applyMemberActivityDeltasOnConn } from '../members/memberActivityAccount.js';
+import {
+  selectMemberTenantIdForRedemption,
+  selectPointsAccountBalance,
+  insertActivityGiftOnConn,
+  runInTransaction,
+} from './repository.js';
 
 export interface StaffRedeemParams {
   memberCode: string;
@@ -23,7 +30,6 @@ export interface StaffRedeemParams {
   giftValue: number;
   paymentAgent: string;
   creatorId: string | null;
-  /** 员工端界面语言，写入 activity_gifts / 积分流水备注，避免中英文错乱 */
   remarkLocale?: 'zh' | 'en';
 }
 
@@ -45,10 +51,7 @@ export async function executeStaffPointsRedemption(
     return { success: false, error: 'INVALID_PARAMS' };
   }
 
-  const memberRow = await queryOne<{ tenant_id: string | null }>(
-    'SELECT tenant_id FROM members WHERE id = ?',
-    [p.memberId],
-  );
+  const memberRow = await selectMemberTenantIdForRedemption(p.memberId);
   if (!memberRow) return { success: false, error: 'MEMBER_NOT_FOUND' };
 
   if (
@@ -60,11 +63,7 @@ export async function executeStaffPointsRedemption(
     return { success: false, error: 'FORBIDDEN' };
   }
 
-  const acctBal = await queryOne<{ balance: number }>(
-    'SELECT balance FROM points_accounts WHERE member_id = ?',
-    [p.memberId],
-  );
-  const curPts = Math.round(Number(acctBal?.balance ?? 0));
+  const curPts = await selectPointsAccountBalance(p.memberId);
 
   if (curPts <= 0) {
     return { success: false, error: 'NO_POINTS', current: curPts, requested: p.pointsToRedeem };
@@ -84,7 +83,7 @@ export async function executeStaffPointsRedemption(
   let giftIdOut = '';
 
   try {
-    await withTransaction(async (conn) => {
+    await runInTransaction(async (conn) => {
       const ledgerId = randomUUID();
       ledgerIdOut = ledgerId;
       await applyPointsLedgerDeltaOnConn(conn, {
@@ -112,17 +111,22 @@ export async function executeStaffPointsRedemption(
       const giftId = randomUUID();
       giftIdOut = giftId;
       const gn = await generateUniqueActivityGiftNumber();
-      await conn.query(
-        `INSERT INTO activity_gifts (
-          id, tenant_id, member_id, phone_number, currency, amount, rate, fee, gift_value, gift_type,
-          payment_agent, creator_id, gift_number, remark, status, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(3))`,
-        [
-          giftId, tenantIdForLedger, p.memberId, p.phone,
-          p.giftCurrency, p.giftAmount, p.giftRate, p.giftFee, p.giftValue, p.activityType,
-          p.paymentAgent, p.creatorId, gn, remark,
-        ],
-      );
+      await insertActivityGiftOnConn(conn, {
+        giftId,
+        tenantId: tenantIdForLedger,
+        memberId: p.memberId,
+        phone: p.phone,
+        currency: p.giftCurrency,
+        amount: p.giftAmount,
+        rate: p.giftRate,
+        fee: p.giftFee,
+        giftValue: p.giftValue,
+        activityType: p.activityType,
+        paymentAgent: p.paymentAgent,
+        creatorId: p.creatorId,
+        giftNumber: gn,
+        remark,
+      });
 
       await applyMemberActivityDeltasOnConn(conn, p.memberId, {
         total_gift_ngn: p.giftCurrency === 'NGN' ? p.giftAmount : 0,

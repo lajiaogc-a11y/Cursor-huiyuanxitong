@@ -25,11 +25,11 @@ import { MerchantCrudRowActions } from "@/components/merchants/MerchantCrudRowAc
 import { CardCrudForm } from "@/components/merchants/CardCrudForm";
 import TableImportButton from "@/components/TableImportButton";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
-import { useExportConfirm } from "@/hooks/useExportConfirm";
+import { useExportConfirm } from "@/hooks/ui/useExportConfirm";
 import { exportTable } from "@/services/export";
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useCards, useVendors, CardItem } from "@/hooks/useMerchantConfig";
+import { useCards, useVendors, CardItem } from "@/hooks/finance/useMerchantConfig";
 import {
   DndContext,
   closestCenter,
@@ -46,7 +46,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { cn } from "@/lib/utils";
-import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
+import { useIsMobile, useIsTablet } from "@/hooks/ui/use-mobile";
 import {
   MobileCardList,
   MobileCard,

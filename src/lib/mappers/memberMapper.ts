@@ -2,7 +2,7 @@
  * 共享 Member 映射工具
  * 统一 snake_case (DB/API) ↔ camelCase (前端 Member) 的转换逻辑
  */
-import type { Member } from '@/hooks/useMembers';
+import type { Member } from '@/hooks/members/useMembers';
 
 // ─── 工具函数 ───────────────────────────────────────────────
 function parseJsonArray<T>(val: unknown, fallback: T[] = []): T[] {

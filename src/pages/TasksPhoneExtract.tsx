@@ -6,7 +6,7 @@ import { PhoneExtractSettingsSection } from "@/components/PhoneExtractSettingsSe
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "react-router-dom";
 import { ExternalLink } from "lucide-react";
-import { useTenantFeatureFlag } from "@/hooks/useTenantFeatureFlag";
+import { useTenantFeatureFlag } from "@/hooks/system/useTenantFeatureFlag";
 import { FEATURE_FLAGS } from "@/services/featureFlagService";
 
 export default function TasksPhoneExtract() {

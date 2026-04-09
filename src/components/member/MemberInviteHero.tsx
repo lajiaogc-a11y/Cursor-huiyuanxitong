@@ -4,7 +4,7 @@
  */
 import { Sparkles, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMemberAnimatedCount } from "@/hooks/useMemberAnimatedCount";
+import { useMemberAnimatedCount } from "@/hooks/members/useMemberAnimatedCount";
 
 export interface MemberInviteHeroProps {
   /** 成功邀请注册人数（后端持久累计） */

@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardActions, MobileEmptyState } from "@/components/ui/mobile-data-card";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import {

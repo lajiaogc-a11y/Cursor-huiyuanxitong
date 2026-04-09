@@ -63,7 +63,7 @@ import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
-import { useFieldPermissions } from '@/hooks/useFieldPermissions';
+import { useFieldPermissions } from '@/hooks/staff/useFieldPermissions';
 import {
   EXPORTABLE_TABLES,
   exportTableToXLSX,
@@ -84,7 +84,7 @@ import {
   type MysqlDumpMode,
 } from '@/services/databaseDumpMysqlService';
 import { ExportConfirmDialog } from '@/components/ExportConfirmDialog';
-import { useExportConfirm } from '@/hooks/useExportConfirm';
+import { useExportConfirm } from '@/hooks/ui/useExportConfirm';
 import { parseCSV, readCsvFileAsUtf8Text } from '@/services/export/utils';
 
 interface TableStats {

@@ -22,15 +22,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RefreshCw, ChevronDown, Download } from "lucide-react";
 import TableImportButton from "@/components/TableImportButton";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
-import { useExportConfirm } from "@/hooks/useExportConfirm";
+import { useExportConfirm } from "@/hooks/ui/useExportConfirm";
 import { exportTableToXLSX } from "@/services/dataExportImportService";
 import { notify } from "@/lib/notifyHub";
-import { useMembers, Member } from "@/hooks/useMembers";
+import { useMembers, Member } from "@/hooks/members/useMembers";
 import { logOperation } from "@/services/audit/auditLogService";
-import { useCustomerSources } from "@/hooks/useCustomerSources";
-import { useCards } from "@/hooks/useMerchantConfig";
+import { useCustomerSources } from "@/hooks/crm/useCustomerSources";
+import { useCards } from "@/hooks/finance/useMerchantConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDisplayPhone } from "@/lib/phoneMask";
 import { adminGetMemberReferrals, adminSetMemberInitialPassword } from "@/services/members/memberAdminRpcService";
@@ -38,7 +38,7 @@ import { MEMBER_LEVELS } from "@/config/memberLevels";
 import { formatBeijingDateHM, formatBeijingDate } from "@/lib/beijingTime";
 import { PageHeader, PageActions, KPIGrid } from "@/components/common";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
-import { useDebouncedValue } from "@/hooks/useDebounce";
+import { useDebouncedValue } from "@/hooks/ui/useDebounce";
 import { MemberManagementFilterSection } from "@/pages/memberManagement/MemberManagementFilterSection";
 import { MemberManagementDesktopTable } from "@/pages/memberManagement/MemberManagementDesktopTable";
 import { MemberManagementMobileList } from "@/pages/memberManagement/MemberManagementMobileList";
@@ -78,7 +78,11 @@ export default function MemberManagement() {
     try {
       const r = await adminGetMemberReferrals(member.id);
       setReferrals(r?.referrals || []);
-    } catch { setReferrals([]); }
+    } catch (e) {
+      console.error('[MemberManagement] load referrals failed:', e);
+      notify.error(t("加载推荐数据失败", "Failed to load referral data"));
+      setReferrals([]);
+    }
     setReferralsLoading(false);
   };
   

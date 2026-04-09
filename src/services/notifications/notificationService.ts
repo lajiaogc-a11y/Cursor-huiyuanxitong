@@ -1,8 +1,14 @@
 /**
  * 员工端通知：表代理 + 全部已读 RPC
  */
-import { fetchTableSelectRaw } from "@/api/tableProxyRaw";
-import { dataTableApi, dataRpcApi } from "@/api/data";
+import { fetchFilteredCount } from "@/api/adminStatsApi";
+import {
+  listNotificationsData,
+  patchNotificationReadData,
+  deleteNotificationData,
+  createNotificationData,
+} from "@/api/notificationData";
+import { notificationsApi } from "@/api/notifications";
 
 export interface Notification {
   id: string;
@@ -18,34 +24,28 @@ export interface Notification {
 }
 
 export async function listNotifications(): Promise<Notification[]> {
-  const data = await dataTableApi.get<Notification[]>("notifications", "select=*&order=created_at.desc&limit=50");
+  const data = await listNotificationsData<Notification[]>();
   return (data || []) as Notification[];
 }
 
-/** 未读条数（表代理 count，与 PendingTasksPanel 行为一致） */
+/** 未读条数 */
 export async function countUnreadNotificationsForRecipient(recipientId: string): Promise<number> {
-  const { count } = await fetchTableSelectRaw("notifications", {
-    select: "*",
-    count: "exact",
-    limit: "0",
-    recipient_id: `eq.${recipientId}`,
-    is_read: "eq.false",
-  });
-  return Number(count) || 0;
+  return fetchFilteredCount('notifications', [
+    { column: 'recipient_id', op: 'eq', value: recipientId },
+    { column: 'is_read', op: 'eq', value: 'false' },
+  ]);
 }
 
 export async function patchNotificationRead(id: string): Promise<void> {
-  await dataTableApi.patch("notifications", `id=eq.${encodeURIComponent(id)}`, {
-    data: { is_read: true },
-  });
+  await patchNotificationReadData(id);
 }
 
 export async function deleteNotificationById(id: string): Promise<void> {
-  await dataTableApi.del("notifications", `id=eq.${encodeURIComponent(id)}`);
+  await deleteNotificationData(id);
 }
 
 export async function markAllNotificationsReadRpc(): Promise<void> {
-  await dataRpcApi.call("mark_all_notifications_read", {});
+  await notificationsApi.markAllRead();
 }
 
 export async function createNotification(params: {
@@ -58,16 +58,14 @@ export async function createNotification(params: {
   metadata?: Record<string, unknown>;
 }): Promise<boolean> {
   try {
-    await dataTableApi.post("notifications", {
-      data: {
-        recipient_id: params.recipientId,
-        title: params.title,
-        message: params.message,
-        type: params.type || "info",
-        category: params.category || "system",
-        link: params.link,
-        metadata: params.metadata || {},
-      },
+    await createNotificationData({
+      recipient_id: params.recipientId,
+      title: params.title,
+      message: params.message,
+      type: params.type || "info",
+      category: params.category || "system",
+      link: params.link,
+      metadata: params.metadata || {},
     });
     return true;
   } catch {

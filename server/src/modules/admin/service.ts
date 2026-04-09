@@ -6,8 +6,8 @@ import {
   bulkDeleteRepository,
   deleteOrderByIdRepository,
   deleteMemberByIdRepository,
+  cleanupWebhookEventQueueRepository,
 } from './repository.js';
-import { execute } from '../../database/index.js';
 import type { BulkDeleteRequest, BulkDeleteResult } from './types.js';
 
 export async function verifyAdminPasswordService(
@@ -57,18 +57,5 @@ export async function cleanupWebhookEventQueueService(input?: {
 }): Promise<number> {
   const pDays = Math.min(3650, Math.max(1, input?.processedRetentionDays ?? 30));
   const fDays = Math.min(3650, Math.max(1, input?.failedRetentionDays ?? 90));
-
-  const r1 = await execute(
-    `DELETE FROM \`webhook_event_queue\`
-     WHERE \`status\` = 'processed' AND \`processed_at\` IS NOT NULL
-       AND \`processed_at\` < DATE_SUB(NOW(3), INTERVAL ? DAY)`,
-    [pDays],
-  );
-  const r2 = await execute(
-    `DELETE FROM \`webhook_event_queue\`
-     WHERE \`status\` = 'failed' AND \`processed_at\` IS NOT NULL
-       AND \`processed_at\` < DATE_SUB(NOW(3), INTERVAL ? DAY)`,
-    [fDays],
-  );
-  return (r1.affectedRows ?? 0) + (r2.affectedRows ?? 0);
+  return cleanupWebhookEventQueueRepository(pDays, fDays);
 }

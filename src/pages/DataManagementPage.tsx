@@ -3,8 +3,8 @@ import { Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/common";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigationVisibility } from "@/hooks/useNavigationVisibility";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useNavigationVisibility } from "@/hooks/staff/useNavigationVisibility";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import { cn } from "@/lib/utils";
 
 const DataManagementTab = lazy(() => import("@/components/DataManagementTab"));

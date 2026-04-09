@@ -1,7 +1,7 @@
 import { ShoppingCart, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
+import { useMemberResolvableMedia } from "@/hooks/members/useMemberResolvableMedia";
 import type { PointsMallItem } from "@/services/members/memberPointsMallRpcService";
 
 export type MemberPointsMallProductCornerTL = "none" | "soldout" | "lowstock";

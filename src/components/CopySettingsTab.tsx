@@ -15,130 +15,17 @@ import {
   DEFAULT_COPY_SETTINGS,
   normalizeCopySettingsFromStorage,
 } from "@/lib/copySettingsDefaults";
+import {
+  generateEnglishCopyText,
+  updateCopySettingsCache,
+  persistCopySettings as saveCopySettingsToServer,
+} from "@/services/copy/copySettingsService";
 
 export type { CopySettings };
-
-// 内存缓存
-let settingsCache: CopySettings | null = null;
-
-// 初始化复制设置缓存（应用启动时调用）
-export async function initializeCopySettings(): Promise<void> {
-  try {
-    const savedSettings = await loadSharedData<CopySettings>('copySettings');
-    settingsCache = normalizeCopySettingsFromStorage(savedSettings);
-  } catch (error) {
-    console.error('[CopySettings] Failed to initialize:', error);
-    settingsCache = DEFAULT_COPY_SETTINGS;
-  }
-}
-
-// 刷新复制设置缓存（每次使用前调用，确保使用最新设置）
-export async function refreshCopySettings(): Promise<CopySettings> {
-  try {
-    const savedSettings = await loadSharedData<CopySettings>('copySettings');
-    settingsCache = normalizeCopySettingsFromStorage(savedSettings);
-    return settingsCache;
-  } catch (error) {
-    console.error('[CopySettings] Failed to refresh:', error);
-    return settingsCache || DEFAULT_COPY_SETTINGS;
-  }
-}
-
-export function getCopySettings(): CopySettings {
-  if (settingsCache) {
-    return settingsCache;
-  }
-  // 缓存为空时，触发异步加载（后台执行）
-  initializeCopySettings().catch(console.error);
-  return DEFAULT_COPY_SETTINGS;
-}
+export { initializeCopySettings, refreshCopySettings, getCopySettings, generateEnglishCopyText } from "@/services/copy/copySettingsService";
 
 export function saveCopySettings(settings: CopySettings): void {
-  settingsCache = settings;
-  saveSharedData('copySettings', settings);
-}
-
-// 生成英文复制文本内容 - 提交订单后使用
-// activityType: 'activity1' | 'activity2' | 'none'
-export function generateEnglishCopyText(data: {
-  phoneNumber: string;
-  memberCode?: string;  // 会员编号（优先使用）
-  earnedPoints: number;
-  totalPoints: number;
-  referralPoints: number;
-  consumptionPoints: number;
-  redeemableAmount: string;
-  currency: string;
-  rewardTiers: Array<{ range: string; ngn: number; ghs: number; usdt: number }>;
-  activityType?: 'activity1' | 'activity2' | 'none';
-  activity2Rates?: { pointsToNGN: number; pointsToGHS: number; pointsToUSDT: number };
-}): string {
-  const settings = getCopySettings();
-  const tiers = data.rewardTiers ?? [];
-  
-  // 未开启活动营销时仍复制完整积分说明（与开启活动时一致的核心字段），不附带阶梯/活动2汇率推广段
-  if (data.activityType === 'none') {
-    return `Your Member ID: ${data.memberCode || data.phoneNumber}
-Points Earned This Order: ${data.earnedPoints}
-Your Total Points: ${data.totalPoints}
-Your Referral Points: ${data.referralPoints}
-Your Spending Points: ${data.consumptionPoints}
-Estimated Redeemable Amount: ${data.redeemableAmount}
-
-${settings.customNoteEnglish}`;
-  }
-  
-  // 使用会员编号替代电话号码
-  let text = `Your Member ID: ${data.memberCode || data.phoneNumber}
-Points Earned This Order: ${data.earnedPoints}
-Your Total Points: ${data.totalPoints}
-Your Referral Points: ${data.referralPoints}
-Your Spending Points: ${data.consumptionPoints}
-Estimated Redeemable Amount: ${data.redeemableAmount}
-
-FastGC Latest Promotions:
-`;
-
-  // 活动2模板 - 固定汇率（使用英文格式）
-  if (data.activityType === 'activity2' && data.activity2Rates) {
-    if (data.currency === 'NGN') {
-      text += `1 Point = ${data.activity2Rates.pointsToNGN} NGN\n`;
-    } else if (data.currency === 'GHS') {
-      text += `1 Point = ${data.activity2Rates.pointsToGHS} GHS\n`;
-    } else if (data.currency === 'USDT') {
-      text += `1 Point = ${data.activity2Rates.pointsToUSDT} USDT\n`;
-    }
-  } else {
-    // 活动1模板 - 阶梯奖励
-    // 根据会员的需求币种只显示对应奖励
-    if (data.currency === 'NGN') {
-      text += `Points Range | Naira Rewards\n`;
-      tiers.forEach(tier => {
-        text += `${tier.range} | ${tier.ngn.toLocaleString()} NGN\n`;
-      });
-    } else if (data.currency === 'GHS') {
-      text += `Points Range | Cedi Rewards\n`;
-      tiers.forEach(tier => {
-        text += `${tier.range} | ${tier.ghs.toLocaleString()} GHS\n`;
-      });
-    } else if (data.currency === 'USDT') {
-      text += `Points Range | USDT Rewards\n`;
-      tiers.forEach(tier => {
-        text += `${tier.range} | ${tier.usdt} USDT\n`;
-      });
-    } else {
-      // 默认显示全部
-      text += `Points Range | Naira Rewards | USDT Rewards | Cedi Rewards\n`;
-      tiers.forEach(tier => {
-        text += `${tier.range} | ${tier.ngn.toLocaleString()} NGN | ${tier.usdt} USDT | ${tier.ghs} GHS\n`;
-      });
-    }
-  }
-
-  text += `
-${settings.customNoteEnglish}`;
-
-  return text;
+  saveCopySettingsToServer(settings);
 }
 
 
@@ -156,7 +43,7 @@ export default function CopySettingsTab() {
         const savedSettings = await loadSharedData<CopySettings>('copySettings');
         const normalized = normalizeCopySettingsFromStorage(savedSettings);
         setSettings(normalized);
-        settingsCache = normalized;
+        updateCopySettingsCache(normalized);
       } catch (error) {
         console.error('Failed to load copy settings:', error);
       } finally {
@@ -169,7 +56,7 @@ export default function CopySettingsTab() {
   const handleSave = async () => {
     const success = await saveSharedData('copySettings', settings);
     if (success) {
-      settingsCache = settings;
+      updateCopySettingsCache(settings);
       setHasChanges(false);
       notify.success(t("复制设置已保存", "Copy settings saved"));
     } else {

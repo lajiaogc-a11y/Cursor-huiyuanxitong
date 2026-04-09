@@ -1050,3 +1050,22 @@ export async function deleteMemberByIdRepository(
   if (errors.length > 0) return { success: false, error: errors.join('; ') };
   return { success: true };
 }
+
+export async function cleanupWebhookEventQueueRepository(
+  processedRetentionDays: number,
+  failedRetentionDays: number,
+): Promise<number> {
+  const r1 = await execute(
+    `DELETE FROM \`webhook_event_queue\`
+     WHERE \`status\` = 'processed' AND \`processed_at\` IS NOT NULL
+       AND \`processed_at\` < DATE_SUB(NOW(3), INTERVAL ? DAY)`,
+    [processedRetentionDays],
+  );
+  const r2 = await execute(
+    `DELETE FROM \`webhook_event_queue\`
+     WHERE \`status\` = 'failed' AND \`processed_at\` IS NOT NULL
+       AND \`processed_at\` < DATE_SUB(NOW(3), INTERVAL ? DAY)`,
+    [failedRetentionDays],
+  );
+  return (r1.affectedRows ?? 0) + (r2.affectedRows ?? 0);
+}

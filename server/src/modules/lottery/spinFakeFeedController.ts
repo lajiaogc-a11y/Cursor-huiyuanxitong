@@ -4,8 +4,7 @@
  */
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
-import { getMemberTenantId } from './repository.js';
-import { query } from '../../database/index.js';
+import { selectRecentRealWins, getMemberTenantId } from './repository.js';
 import {
   getSimulationSettingsRow,
   listSimulationFeedForTenant,
@@ -18,7 +17,6 @@ import {
 
 const FEED_LIMIT = 10;
 
-/** 手机号末四位可见，其余 * 脱敏；无手机号时回退到 member_code 或 User */
 function maskDisplayName(phone: string | null | undefined, memberCode: string | null | undefined): string {
   const p = String(phone ?? '').trim();
   if (p.length >= 4) {
@@ -31,27 +29,8 @@ function maskDisplayName(phone: string | null | undefined, memberCode: string | 
   return 'User';
 }
 
-/** 从 lottery_logs 拉最近 N 条真实中奖（排除感谢参与），格式化为 feed item */
 async function getRealWinFeedItems(tenantId: string, limit = FEED_LIMIT) {
-  const rows = await query<{
-    id: string;
-    prize_name: string;
-    prize_type: string;
-    created_at: Date | string;
-    phone_number?: string | null;
-    member_code?: string | null;
-  }>(
-    `SELECT l.id, l.prize_name, l.prize_type, l.created_at,
-            m.phone_number, m.member_code
-     FROM lottery_logs l
-     LEFT JOIN members m ON m.id = l.member_id
-     WHERE l.tenant_id = ?
-       AND l.prize_type IN ('points', 'custom')
-       AND l.reward_status != 'failed'
-     ORDER BY l.created_at DESC
-     LIMIT ?`,
-    [tenantId, limit],
-  );
+  const rows = await selectRecentRealWins(tenantId, limit);
   return rows.map((r) => {
     const at = r.created_at instanceof Date
       ? r.created_at.getTime()
@@ -85,7 +64,6 @@ export async function spinSimFeedController(req: AuthenticatedRequest, res: Resp
     await purgeSimulationFeedOlderThan(tenantId, settings.retention_days);
     const simItems = await listSimulationFeedForTenant(tenantId, 40);
 
-    // Merge: real wins first, then simulation fill; deduplicate by id; keep newest FEED_LIMIT
     const seen = new Set<string>();
     const merged: { id: string; text: string; at: number }[] = [];
     for (const item of [...realItems, ...simItems]) {

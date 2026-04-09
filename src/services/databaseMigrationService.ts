@@ -331,14 +331,8 @@ export async function exportFullDatabase(
     const blob = await zip.generateAsync({ type: 'blob' });
     const filename = `database_migration_${timestamp}.zip`;
     
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const { triggerBlobDownload } = await import('@/lib/downloadBlob');
+    triggerBlobDownload(blob, filename);
     
     return { success: true, filename, verificationReport };
   } catch (error) {

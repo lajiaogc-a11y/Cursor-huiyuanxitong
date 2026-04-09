@@ -1,6 +1,6 @@
 import { ImageOff, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
+import { useMemberResolvableMedia } from "@/hooks/members/useMemberResolvableMedia";
 
 export type ResolvableMediaThumbTone = "staff" | "memberPreview";
 

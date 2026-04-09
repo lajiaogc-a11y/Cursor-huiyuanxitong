@@ -1,6 +1,6 @@
 // ============= Webhook 管理组件 =============
 import { useState } from 'react';
-import { useWebhooks, Webhook, WEBHOOK_EVENT_TYPES } from '@/hooks/useWebhooks';
+import { useWebhooks, Webhook, WEBHOOK_EVENT_TYPES } from '@/hooks/system/useWebhooks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,7 +26,7 @@ import { Plus, Webhook as WebhookIcon, Settings, FileText, Trash2, Send, CheckCi
 import { format } from 'date-fns';
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useIsMobile, useIsTablet } from '@/hooks/use-mobile';
+import { useIsMobile, useIsTablet } from '@/hooks/ui/use-mobile';
 
 export function WebhookManagementTab() {
   const { t } = useLanguage();

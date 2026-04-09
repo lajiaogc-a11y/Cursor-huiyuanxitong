@@ -1,6 +1,6 @@
 // Data Backup Service — 列表/删除走表代理；执行备份、读快照、删备份走 Node /api/admin/backup/*
 import { adminApi } from '@/api/admin';
-import { dataTableApi } from '@/api/data';
+import { listBackupRecords, getBackupRecordById, upsertTableRows } from '@/api/backupData';
 
 export interface BackupRecord {
   id: string;
@@ -44,10 +44,7 @@ const BACKUP_TABLES = [
 
 // Get backup history from data_backups table
 export async function getBackupHistory(): Promise<BackupRecord[]> {
-  const data = await dataTableApi.get<BackupRecord[]>(
-    'data_backups',
-    'select=*&order=created_at.desc&limit=30',
-  );
+  const data = (await listBackupRecords('select=*&order=created_at.desc&limit=30')) as BackupRecord[];
   return Array.isArray(data) ? data : [];
 }
 
@@ -79,10 +76,7 @@ export async function executeBackup(
   }
 
   const run = data;
-  const record = await dataTableApi.get<BackupRecord | null>(
-    'data_backups',
-    `select=*&id=eq.${encodeURIComponent(run.backup_id)}&single=true`,
-  );
+  const record = (await getBackupRecordById(run.backup_id)) as BackupRecord | null;
 
   return (record as unknown as BackupRecord) || {
     id: run.backup_id,
@@ -132,7 +126,7 @@ export async function restoreBackup(backupId: string): Promise<{
       for (let i = 0; i < rows.length; i += 200) {
         const batch = rows.slice(i, i + 200);
         try {
-          await dataTableApi.post(encodeURIComponent(table), {
+          await upsertTableRows(table, {
             data: batch,
             upsert: true,
             onConflict: 'id',
@@ -172,7 +166,7 @@ export async function restoreEmployeesOnly(backupId: string): Promise<{
       for (let i = 0; i < rows.length; i += 200) {
         const batch = rows.slice(i, i + 200);
         try {
-          await dataTableApi.post(encodeURIComponent(table), {
+          await upsertTableRows(table, {
             data: batch,
             upsert: true,
             onConflict: 'id',

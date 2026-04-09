@@ -1,17 +1,15 @@
 // System Audit Log Store - Immutable operation logging
 // 使用数据库 operation_logs 表作为唯一数据源
 
-import { dataTableApi, dataOpsApi } from '@/api/data';
+import { listOperationLogsData, markLogRestoredData } from '@/api/auditLogData';
 import { getCurrentOperatorSync, OperatorInfo } from '@/services/members/operatorService';
-import { postOperationLog } from '@/services/staff/dataApi';
-import { notify } from "@/lib/notifyHub";
+import { postOperationLog } from '@/api/staffData';
 import {
   parseOperationLogDataField,
   INVALID_OPERATION_LOG_JSON,
   OPERATION_LOG_RAW_PREVIEW,
 } from '@/lib/operationLogPayload';
 import { repairUtf8MisdecodedAsLatin1 } from '@/lib/utf8MojibakeRepair';
-import { pickBilingual } from '@/lib/appLocale';
 export type OperationType =
   | 'create' | 'update' | 'cancel' | 'restore' | 'delete'
   | 'audit' | 'reject'
@@ -175,10 +173,7 @@ export async function initializeAuditLogCache(): Promise<void> {
   if (cacheInitialized) return;
   
   try {
-    const data = await dataTableApi.get<unknown>(
-      'operation_logs',
-      'select=*&order=timestamp.desc&limit=1000',
-    );
+    const data = await listOperationLogsData('select=*&order=timestamp.desc&limit=1000');
     logsCache = mapOperationLogRows(data);
     cacheInitialized = true;
     console.log('[AuditLog] Cache initialized from database');
@@ -190,10 +185,7 @@ export async function initializeAuditLogCache(): Promise<void> {
 // ============= 刷新缓存（公开） =============
 export async function refreshAuditLogCache(): Promise<void> {
   try {
-    const data = await dataTableApi.get<unknown>(
-      'operation_logs',
-      'select=*&order=timestamp.desc&limit=1000',
-    );
+    const data = await listOperationLogsData('select=*&order=timestamp.desc&limit=1000');
     logsCache = mapOperationLogRows(data);
     cacheInitialized = true;
   } catch (error) {
@@ -281,9 +273,6 @@ export async function fetchAuditLogsPage(
       };
     } catch (apiErr) {
       console.warn('[AuditLog] API fetch failed:', apiErr);
-      if (typeof window !== 'undefined') {
-        notify.error(pickBilingual('操作日志加载失败，请确保后端服务已启动（cd server && npm run dev）', 'Failed to load audit logs. Please ensure the backend is running (cd server && npm run dev)'));
-      }
       throw apiErr;
     }
   } catch (error) {
@@ -466,7 +455,7 @@ export async function markLogAsRestored(
   tenantId?: string | null,
 ): Promise<boolean> {
   try {
-    await dataOpsApi.markLogRestored(logId, tenantId || undefined);
+    await markLogRestoredData(logId, tenantId || undefined);
 
     const log = logsCache.find(l => l.id === logId);
     if (log) {

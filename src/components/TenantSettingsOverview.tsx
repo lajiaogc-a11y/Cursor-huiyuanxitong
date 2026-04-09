@@ -18,7 +18,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useIsMobile, useIsTablet } from '@/hooks/use-mobile';
+import { useIsMobile, useIsTablet } from '@/hooks/ui/use-mobile';
 import { loadMultipleSharedData } from '@/services/finance/sharedDataService';
 import { resolveAllRates, invalidateRatesBatch, type ResolvedRatesSummary } from '@/lib/resolveRates';
 import { mergeAuditSettings, type AuditSettings, ORDER_AUDIT_FIELDS, MEMBER_AUDIT_FIELDS, ACTIVITY_AUDIT_FIELDS, ORDER_OPERATION_FIELDS } from '@/lib/auditSettingsTypes';

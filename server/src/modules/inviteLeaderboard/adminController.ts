@@ -4,7 +4,7 @@
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
 import { resolveTenantIdForActivityDataList } from '../memberPortalSettings/activityDataTenant.js';
-import { insertOperationLogRepository } from '../data/repository.js';
+import { auditLogService } from '../data/operationLogsService.js';
 import {
   listInviteLeaderboardFakeUsers,
   patchInviteLeaderboardFakeUser,
@@ -32,7 +32,7 @@ async function audit(
   before: unknown,
   after: unknown,
 ): Promise<void> {
-  await insertOperationLogRepository({
+  await auditLogService({
     operator_id: req.user?.id ?? null,
     operator_account: req.user?.username || req.user?.real_name || 'staff',
     operator_role: req.user?.role || 'staff',

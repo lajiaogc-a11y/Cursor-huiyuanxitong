@@ -1,7 +1,7 @@
 /**
  * Login 2FA Service — connected to real backend RPC.
  */
-import { dataRpcApi } from "@/api/data";
+import { login2faApi } from "@/api/systemConfig";
 import { fail, ok, type ServiceResult } from "@/services/serviceResult";
 
 export type TenantEmployee2faStatus = {
@@ -20,9 +20,7 @@ export async function getLogin2faSettingsResult(
 ): Promise<ServiceResult<Login2faSettings>> {
   if (!tenantId) return fail("TENANT_REQUIRED", "Tenant id is required", "TENANT");
   try {
-    const data = await dataRpcApi.call<Login2faSettings>("get_login_2fa_settings", {
-      tenant_id: tenantId,
-    });
+    const data = await login2faApi.getSettings(tenantId) as Login2faSettings | null;
     return ok(data ?? { enabled: false, method: "email" });
   } catch {
     return ok({ enabled: false, method: "email" });
@@ -36,7 +34,7 @@ export async function setLogin2faSettingsResult(
 ): Promise<ServiceResult<true>> {
   if (!tenantId) return fail("TENANT_REQUIRED", "Tenant id is required", "TENANT");
   try {
-    await dataRpcApi.call("set_login_2fa_settings", {
+    await login2faApi.setSettings({
       tenant_id: tenantId,
       enabled,
       method: method ?? "email",

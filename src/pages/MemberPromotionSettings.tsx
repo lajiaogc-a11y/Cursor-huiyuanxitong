@@ -17,12 +17,12 @@ import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantView } from '@/contexts/TenantViewContext';
-import { useIsPlatformAdminViewingTenant } from '@/hooks/useIsPlatformAdminViewingTenant';
+import { useIsPlatformAdminViewingTenant } from '@/hooks/auth/useIsPlatformAdminViewingTenant';
 import {
   fetchMemberLevelsApi,
   saveMemberLevelsApi,
   type MemberLevelRuleDTO,
-} from '@/services/members/memberLevelsApi';
+} from '@/services/members/memberLevelsService';
 
 type EditableRule = Omit<MemberLevelRuleDTO, 'id' | 'tenant_id'> & { id?: string };
 

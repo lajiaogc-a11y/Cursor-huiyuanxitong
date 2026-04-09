@@ -1,8 +1,8 @@
 /**
  * 会员端认证 API（登录 / 改密 / 拉取资料）— 仅供 MemberAuthContext 与兼容层使用。
  */
-import { ApiError, apiClient } from "@/lib/apiClient";
-import { MEMBER_AUTH_PATHS } from "./routes";
+import { ApiError } from "@/lib/apiClient";
+import { memberAuthApi } from "@/api/memberAuth";
 
 export interface MemberInfo {
   id: string;
@@ -31,7 +31,7 @@ export async function memberSignIn(
   password: string,
 ): Promise<{ success: boolean; member?: MemberInfo; token?: string; message: string; code?: string }> {
   try {
-    const res = await apiClient.post<unknown>(MEMBER_AUTH_PATHS.SIGNIN, { phone: phone.trim(), password });
+    const res = await memberAuthApi.signIn(phone, password);
     const r = res as {
       success?: boolean;
       data?: { member?: MemberInfo; token?: string };
@@ -126,10 +126,7 @@ export async function memberSetPassword(
   member?: MemberInfo;
 }> {
   try {
-    const raw = await apiClient.post<unknown>(MEMBER_AUTH_PATHS.SET_PASSWORD, {
-      old_password: oldPassword,
-      new_password: newPassword,
-    });
+    const raw = await memberAuthApi.setPassword(oldPassword, newPassword);
     const top = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
     const inner =
       top.data && typeof top.data === "object" ? (top.data as Record<string, unknown>) : top;
@@ -161,7 +158,7 @@ export async function memberSetPassword(
 
 export async function memberGetInfo(memberId: string): Promise<MemberInfo | null> {
   try {
-    const res = await apiClient.get<unknown>(MEMBER_AUTH_PATHS.info(memberId));
+    const res = await memberAuthApi.getInfo(memberId);
     const r = res as { success?: boolean; data?: { member?: MemberInfo }; member?: MemberInfo };
     const member = r?.member ?? r?.data?.member;
     if (member?.id) {

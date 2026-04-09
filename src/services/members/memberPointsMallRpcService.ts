@@ -1,7 +1,7 @@
 /**
  * 积分商城相关 RPC（/api/data/rpc/*）
  */
-import { dataRpcApi } from "@/api/data";
+import { pointsMallApi } from "@/api/pointsMall";
 
 export interface PointsMallCategory {
   id: string;
@@ -33,9 +33,7 @@ export interface PointsMallItem {
 }
 
 export async function listMyPointsMallItems(tenantId?: string | null): Promise<PointsMallItem[]> {
-  const data = await dataRpcApi.call<unknown>("list_my_member_points_mall_items", {
-    ...(tenantId ? { p_tenant_id: tenantId } : {}),
-  });
+  const data = await pointsMallApi.listMyItems(tenantId);
   const r = (data || {}) as { success?: boolean; error?: string; items?: PointsMallItem[] };
   if (!r.success) throw new Error(r.error || "Load points mall items failed");
   return (r.items || []) as PointsMallItem[];
@@ -65,36 +63,27 @@ export async function upsertMyPointsMallItems(
     };
   });
 
-  const data = await dataRpcApi.call<unknown>("upsert_my_member_points_mall_items", {
-    p_items: payload,
-    ...(tenantId ? { p_tenant_id: tenantId } : {}),
-  });
+  const data = await pointsMallApi.upsertMyItems(payload, tenantId);
   const r = (data || {}) as { success?: boolean; error?: string };
   if (!r.success) throw new Error(r.error || "Save points mall items failed");
 }
 
 export async function listMemberPointsMallItems(memberId: string): Promise<PointsMallItem[]> {
-  const data = await dataRpcApi.call<unknown>("member_list_points_mall_items", {
-    p_member_id: memberId,
-  });
+  const data = await pointsMallApi.listMemberItems(memberId);
   const r = (data || {}) as { success?: boolean; error?: string; items?: PointsMallItem[] };
   if (!r.success) throw new Error(r.error || "Load member mall items failed");
   return (r.items || []) as PointsMallItem[];
 }
 
 export async function listMemberPointsMallCategories(memberId: string): Promise<PointsMallCategory[]> {
-  const data = await dataRpcApi.call<unknown>("member_list_points_mall_categories", {
-    p_member_id: memberId,
-  });
+  const data = await pointsMallApi.listMemberCategories(memberId);
   const r = (data || {}) as { success?: boolean; error?: string; categories?: PointsMallCategory[] };
   if (!r.success) throw new Error(r.error || "Load mall categories failed");
   return (r.categories || []) as PointsMallCategory[];
 }
 
 export async function listMyPointsMallCategories(tenantId?: string | null): Promise<PointsMallCategory[]> {
-  const data = await dataRpcApi.call<unknown>("list_my_member_points_mall_categories", {
-    ...(tenantId ? { p_tenant_id: tenantId } : {}),
-  });
+  const data = await pointsMallApi.listMyCategories(tenantId);
   const r = (data || {}) as { success?: boolean; error?: string; categories?: PointsMallCategory[] };
   if (!r.success) throw new Error(r.error || "Load mall categories failed");
   return (r.categories || []) as PointsMallCategory[];
@@ -104,10 +93,7 @@ export async function saveMyPointsMallCategories(
   categories: { id?: string; name_zh: string; name_en?: string }[],
   tenantId?: string | null,
 ): Promise<void> {
-  const data = await dataRpcApi.call<unknown>("save_my_member_points_mall_categories", {
-    p_categories: categories,
-    ...(tenantId ? { p_tenant_id: tenantId } : {}),
-  });
+  const data = await pointsMallApi.saveMyCategories(categories, tenantId);
   const r = (data || {}) as { success?: boolean; error?: string };
   if (!r.success) throw new Error(r.error || "Save mall categories failed");
 }
@@ -126,10 +112,7 @@ export async function listMemberPointsMallRedemptionsForPortal(
   memberId: string,
   limit = 20,
 ): Promise<MemberPortalRedemptionRpcRow[]> {
-  const data = await dataRpcApi.call<unknown>("member_list_points_mall_redemptions", {
-    p_member_id: memberId,
-    p_limit: limit,
-  });
+  const data = await pointsMallApi.listMemberRedemptions(memberId, limit);
   const r = (data || {}) as { success?: boolean; error?: string; items?: MemberPortalRedemptionRpcRow[] };
   if (!r.success) throw new Error(r.error || "Load member redemptions failed");
   return (r.items || []) as MemberPortalRedemptionRpcRow[];
@@ -190,7 +173,7 @@ export async function redeemPointsMallItem(
   /** 8–64 位 [a-zA-Z0-9_-]，同一键重复请求返回首次兑换结果（需 DB 迁移 client_request_id） */
   clientRequestId?: string,
 ): Promise<RedeemPointsMallItemResult> {
-  const data = await dataRpcApi.call<unknown>("member_redeem_points_mall_item", {
+  const data = await pointsMallApi.redeemItem({
     p_member_id: memberId,
     p_item_id: itemId,
     p_quantity: quantity,
@@ -249,11 +232,7 @@ export async function listMyPointsMallRedemptionOrders(
   limit = 50,
   tenantId?: string | null,
 ): Promise<PointsMallRedemptionOrder[]> {
-  const data = await dataRpcApi.call<unknown>("list_my_member_points_mall_redemptions", {
-    p_status: status || null,
-    p_limit: limit,
-    ...(tenantId ? { p_tenant_id: tenantId } : {}),
-  });
+  const data = await pointsMallApi.listMyRedemptionOrders(status || null, limit, tenantId);
   const r = (data || {}) as { success?: boolean; error?: string; items?: PointsMallRedemptionOrder[] };
   if (!r.success) throw new Error(r.error || "Load redemption orders failed");
   const items = (r.items || []) as PointsMallRedemptionOrder[];
@@ -265,11 +244,7 @@ export async function processMyPointsMallRedemptionOrder(
   action: "complete" | "reject" | "cancel",
   note?: string,
 ): Promise<{ success: boolean; status: string }> {
-  const data = await dataRpcApi.call<unknown>("process_my_member_points_mall_redemption", {
-    p_redemption_id: orderId,
-    p_action: action,
-    p_note: note || null,
-  });
+  const data = await pointsMallApi.processRedemptionOrder(orderId, action, note || null);
   const r = (data || {}) as { success?: boolean; error?: string; status?: string };
   if (!r.success) throw new Error(r.error || "Process redemption order failed");
   return r as { success: boolean; status: string };

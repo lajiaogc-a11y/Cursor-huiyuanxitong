@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import { cn } from "@/lib/utils";
 import { Building2, ChevronDown, KeyRound, MoreVertical, Pencil, Plus, RefreshCw, Trash2, UserCog } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,7 +30,7 @@ import {
   getTenantEmployeesFull,
   type TenantItem,
 } from "@/services/tenantService";
-import { showServiceErrorToast } from "@/services/serviceErrorToast";
+import { showServiceErrorToast } from "@/lib/serviceErrorToast";
 
 /** 创建租户表单未提交草稿：仅存 sessionStorage（本会话），非已落库业务数据 */
 const TENANT_FORM_DRAFT_KEY = "tenant_management_form_draft_v1";

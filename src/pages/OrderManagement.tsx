@@ -32,10 +32,10 @@ import { Label } from "@/components/ui/label";
 import { Search, RefreshCw, Filter, Upload, Download, X } from "lucide-react";
 import TableImportButton from "@/components/TableImportButton";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
-import { useExportConfirm } from "@/hooks/useExportConfirm";
+import { useExportConfirm } from "@/hooks/ui/useExportConfirm";
 import { exportTableToXLSX } from "@/services/dataExportImportService";
 import { notify } from "@/lib/notifyHub";
-import { showServiceErrorToast } from "@/services/serviceErrorToast";
+import { showServiceErrorToast } from "@/lib/serviceErrorToast";
 import { TimeRangeType, DateRange, getTimeRangeDates, ALL_TIME_DATE_RANGE } from "@/lib/dateFilter";
 import {
   useOrders,
@@ -45,10 +45,10 @@ import {
   useOrderStats,
   Order,
   UsdtOrder,
-} from "@/hooks/useOrders";
+} from "@/hooks/orders";
 import { updateOrderUseCase } from "@/services/orders/orderLifecycleUseCases";
 import { useMerchantNameResolver } from "@/hooks/useNameResolver";
-import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useColumnVisibility } from "@/hooks/ui/useColumnVisibility";
 import ColumnVisibilityDropdown from "@/components/ColumnVisibilityDropdown";
 import {
   computeNormalOrderFieldChanges,
@@ -64,11 +64,11 @@ import { OrderBatchConfirmDialog } from "@/pages/orders/OrderBatchConfirmDialog"
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { getActiveEmployees, getEmployees, Employee } from "@/services/employees/employeeCrudService";
-import { useModulePermissions, useFieldPermissions } from "@/hooks/useFieldPermissions";
+import { useModulePermissions, useFieldPermissions } from "@/hooks/staff/useFieldPermissions";
 import { isUserTyping, trackRender } from "@/lib/performanceUtils";
 import { cn } from "@/lib/utils";
-import { useAuditWorkflow } from "@/hooks/useAuditWorkflow";
-import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
+import { useAuditWorkflow } from "@/hooks/audit/useAuditWorkflow";
+import { useIsMobile, useIsTablet } from "@/hooks/ui/use-mobile";
 import {
   OrderFilters,
   OrderEditDialog,
@@ -85,7 +85,7 @@ import {
   fetchMerchantVendors,
 } from "@/services/finance/merchantConfigReadService";
 import { PageHeader, PageActions, FilterBar, KPIGrid, SectionCard, ErrorState } from "@/components/common";
-import { useDebouncedValue } from "@/hooks/useDebounce";
+import { useDebouncedValue } from "@/hooks/ui/useDebounce";
 import { logger } from "@/lib/logger";
 
 export default function OrderManagement() {
@@ -113,7 +113,6 @@ export default function OrderManagement() {
   
   // 获取订单管理模块的所有字段权限（批量删除/批量处理与单条删除、取消独立）
   const { canEditField, canDeleteField } = useModulePermissions('orders');
-  const canBatchDeleteOrders = canDeleteField('batch_delete');
   const canBatchProcessOrders = canEditField('batch_process');
   
   // 审核工作流
@@ -178,7 +177,7 @@ export default function OrderManagement() {
   const [selectedMeikaFiatDbIds, setSelectedMeikaFiatDbIds] = useState<Set<string>>(() => new Set());
   const [selectedMeikaUsdtDbIds, setSelectedMeikaUsdtDbIds] = useState<Set<string>>(() => new Set());
   const [orderBatchDialog, setOrderBatchDialog] = useState<
-    null | { mode: "delete" | "cancel"; tab: "normal" | "usdt" | "meika-fiat" | "meika-usdt" }
+    null | { mode: "cancel"; tab: "normal" | "usdt" | "meika-fiat" | "meika-usdt" }
   >(null);
 
   // 构建筛选参数（用于服务端分页）
@@ -1405,46 +1404,6 @@ export default function OrderManagement() {
     });
   };
 
-  const runBatchNormalDelete = async () => {
-    if (!canBatchDeleteOrders) {
-      notify.error(t("无批量删除订单权限", "No permission to batch delete orders"));
-      return;
-    }
-    if (!orderBatchDialog) return;
-    const { tab } = orderBatchDialog;
-    setOrderBatchDialog(null);
-    const ids = tab === "meika-fiat" ? [...selectedMeikaFiatDbIds] : [...selectedNormalDbIds];
-    if (ids.length === 0) return;
-    let ok = 0;
-    const failedIds = new Set<string>();
-    for (const id of ids) {
-      const success = tab === "meika-fiat"
-        ? await deleteMeikaFiatOrderRef.current(id)
-        : await deleteOrderRef.current(id);
-      if (success) ok++;
-      else failedIds.add(id);
-    }
-    if (tab === "meika-fiat") setSelectedMeikaFiatDbIds(failedIds);
-    else setSelectedNormalDbIds(failedIds);
-    if (tab === "meika-fiat") await refetchMeikaFiatOrders();
-    else await refetchOrders();
-    if (ok > 0) {
-      queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
-      queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
-      queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
-      notifyDataMutation({ table: "orders", operation: "DELETE", source: "manual" }).catch(logger.error);
-      notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(logger.error);
-      notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(logger.error);
-    }
-    if (failedIds.size === 0) {
-      notify.success(t(`已删除 ${ok} 条订单`, `Deleted ${ok} order(s)`));
-    } else if (ok > 0) {
-      notify.warning(t(`已删除 ${ok} 条，${failedIds.size} 条失败（已保留选中）`, `Deleted ${ok}, ${failedIds.size} failed (kept selected)`));
-    } else {
-      notify.error(t(`删除失败：${failedIds.size} 条均未成功`, `Delete failed: all ${failedIds.size} order(s) failed`));
-    }
-  };
-
   const runBatchNormalCancel = async () => {
     if (!canBatchProcessOrders) {
       notify.error(t("无批量处理订单权限", "No permission for batch order actions"));
@@ -1484,46 +1443,6 @@ export default function OrderManagement() {
       notify.warning(t(`已取消 ${ok} 条，${failedIds.size} 条失败（已保留选中）`, `Cancelled ${ok}, ${failedIds.size} failed (kept selected)`));
     } else {
       notify.error(t(`取消失败：${failedIds.size} 条均未成功`, `Cancel failed: all ${failedIds.size} order(s) failed`));
-    }
-  };
-
-  const runBatchUsdtDelete = async () => {
-    if (!canBatchDeleteOrders) {
-      notify.error(t("无批量删除订单权限", "No permission to batch delete orders"));
-      return;
-    }
-    if (!orderBatchDialog) return;
-    const { tab } = orderBatchDialog;
-    setOrderBatchDialog(null);
-    const ids = tab === "meika-usdt" ? [...selectedMeikaUsdtDbIds] : [...selectedUsdtDbIds];
-    if (ids.length === 0) return;
-    let ok = 0;
-    const failedIds = new Set<string>();
-    for (const id of ids) {
-      const success = tab === "meika-usdt"
-        ? await deleteMeikaUsdtOrderRef.current(id)
-        : await deleteUsdtOrderRef.current(id);
-      if (success) ok++;
-      else failedIds.add(id);
-    }
-    if (tab === "meika-usdt") setSelectedMeikaUsdtDbIds(failedIds);
-    else setSelectedUsdtDbIds(failedIds);
-    if (tab === "meika-usdt") await refetchMeikaUsdtOrders();
-    else await refetchUsdtOrders();
-    if (ok > 0) {
-      queryClient.invalidateQueries({ queryKey: ["dashboard-trend"] });
-      queryClient.invalidateQueries({ queryKey: ["profit-compare-current"] });
-      queryClient.invalidateQueries({ queryKey: ["profit-compare-previous"] });
-      notifyDataMutation({ table: "orders", operation: "DELETE", source: "manual" }).catch(logger.error);
-      notifyDataMutation({ table: "ledger_transactions", operation: "UPDATE", source: "manual" }).catch(logger.error);
-      notifyDataMutation({ table: "points_ledger", operation: "UPDATE", source: "manual" }).catch(logger.error);
-    }
-    if (failedIds.size === 0) {
-      notify.success(t(`已删除 ${ok} 条 USDT 订单`, `Deleted ${ok} USDT order(s)`));
-    } else if (ok > 0) {
-      notify.warning(t(`已删除 ${ok} 条，${failedIds.size} 条失败（已保留选中）`, `Deleted ${ok}, ${failedIds.size} failed (kept selected)`));
-    } else {
-      notify.error(t(`删除失败：${failedIds.size} 条均未成功`, `Delete failed: all ${failedIds.size} USDT order(s) failed`));
     }
   };
 
@@ -1571,11 +1490,11 @@ export default function OrderManagement() {
 
   const confirmOrderBatchAction = () => {
     if (!orderBatchDialog) return;
-    const { mode, tab } = orderBatchDialog;
+    const { tab } = orderBatchDialog;
     if (tab === "normal" || tab === "meika-fiat") {
-      void (mode === "delete" ? runBatchNormalDelete() : runBatchNormalCancel());
+      void runBatchNormalCancel();
     } else {
-      void (mode === "delete" ? runBatchUsdtDelete() : runBatchUsdtCancel());
+      void runBatchUsdtCancel();
     }
   };
 
@@ -1868,20 +1787,6 @@ export default function OrderManagement() {
                                 </TooltipTrigger>
                                 <TooltipContent>{t("取消全部勾选", "Clear all checkboxes")}</TooltipContent>
                               </Tooltip>
-                              {canBatchDeleteOrders ? (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => setOrderBatchDialog({ mode: "delete", tab: "normal" })}
-                                    >
-                                      {t("批量删除", "Batch delete")}
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>{t("删除所选订单", "Delete selected orders")}</TooltipContent>
-                                </Tooltip>
-                              ) : null}
                               {canBatchProcessOrders ? (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -1964,20 +1869,6 @@ export default function OrderManagement() {
                                 </TooltipTrigger>
                                 <TooltipContent>{t("取消全部勾选", "Clear all checkboxes")}</TooltipContent>
                               </Tooltip>
-                              {canBatchDeleteOrders ? (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => setOrderBatchDialog({ mode: "delete", tab: "usdt" })}
-                                    >
-                                      {t("批量删除", "Batch delete")}
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>{t("删除所选订单", "Delete selected orders")}</TooltipContent>
-                                </Tooltip>
-                              ) : null}
                               {canBatchProcessOrders ? (
                                 <Tooltip>
                                   <TooltipTrigger asChild>

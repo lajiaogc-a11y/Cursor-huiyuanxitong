@@ -21,7 +21,7 @@ import {
 } from "@/services/audit/auditLogService";
 import { TimeRangeType, DateRange } from "@/lib/dateFilter";
 import type { AuditLogEntry } from "@/services/audit/auditLogService";
-import { useExportConfirm } from "@/hooks/useExportConfirm";
+import { useExportConfirm } from "@/hooks/ui/useExportConfirm";
 
 type Lang = "zh" | "en";
 type ExportConfirm = ReturnType<typeof useExportConfirm>;

@@ -4,6 +4,8 @@
 import type { PoolConnection } from 'mysql2/promise';
 import { query, queryOne, execute, withTransaction } from '../../database/index.js';
 import { randomUUID } from 'crypto';
+
+export { withTransaction as runInTransaction };
 import { getShanghaiDateString } from '../../lib/shanghaiTime.js';
 import { addSpinConn } from './spinBalanceAccount.js';
 import { SQL_LOTTERY_LOG_EFFECTIVE_BUDGET_COST, SQL_LOTTERY_LOG_POINTS_ISSUED_COST } from './budgetCost.js';
@@ -83,16 +85,15 @@ export async function upsertPrizes(tenantId: string | null, prizes: (LotteryPriz
         p.display_probability == null || !Number.isFinite(Number(p.display_probability))
           ? null
           : Math.max(0, Number(p.display_probability));
-      const stockEnabled = (p as any).stock_enabled ? 1 : 0;
-      const stockTotal = Number.isFinite(Number((p as any).stock_total)) ? Math.floor(Number((p as any).stock_total)) : -1;
-      const dailyStockLimit = Number.isFinite(Number((p as any).daily_stock_limit)) ? Math.floor(Number((p as any).daily_stock_limit)) : -1;
-      const explicitCost = Number((p as any).prize_cost);
+      const stockEnabled = p.stock_enabled ? 1 : 0;
+      const stockTotal = Number.isFinite(Number(p.stock_total)) ? Math.floor(Number(p.stock_total)) : -1;
+      const dailyStockLimit = Number.isFinite(Number(p.daily_stock_limit)) ? Math.floor(Number(p.daily_stock_limit)) : -1;
+      const explicitCost = Number(p.prize_cost);
       const prizeCost = Number.isFinite(explicitCost) && explicitCost > 0
         ? explicitCost
         : p.type === 'points' ? Math.max(0, Number(p.value) || 0) : 0;
-      const prizeEnabled =
-        (p as { enabled?: boolean }).enabled === false || (p as { enabled?: unknown }).enabled === 0 ? 0 : 1;
-      const preservedStockUsed = existing.get(prizeId)?.stock_used ?? Math.max(0, Math.floor(Number((p as any).stock_used) || 0));
+      const prizeEnabled = p.enabled === false || (p.enabled as unknown) === 0 ? 0 : 1;
+      const preservedStockUsed = existing.get(prizeId)?.stock_used ?? Math.max(0, Math.floor(Number(p.stock_used) || 0));
       await conn.query(
         `INSERT INTO lottery_prizes
            (id, tenant_id, name, type, value, description, probability, display_probability,
@@ -752,4 +753,33 @@ export async function getTodayConsumptionPointsTotal(tenantId: string | null, da
     [tenantId, dayStart, dayStart],
   );
   return Number(rows[0]?.total ?? 0);
+}
+
+export interface RealWinFeedRow {
+  id: string;
+  prize_name: string;
+  prize_type: string;
+  created_at: Date | string;
+  phone_number?: string | null;
+  member_code?: string | null;
+}
+
+export async function selectRecentRealWins(tenantId: string, limit: number): Promise<RealWinFeedRow[]> {
+  return query<RealWinFeedRow>(
+    `SELECT l.id, l.prize_name, l.prize_type, l.created_at,
+            m.phone_number, m.member_code
+     FROM lottery_logs l
+     LEFT JOIN members m ON m.id = l.member_id
+     WHERE l.tenant_id = ?
+       AND l.prize_type IN ('points', 'custom')
+       AND l.reward_status != 'failed'
+     ORDER BY l.created_at DESC
+     LIMIT ?`,
+    [tenantId, limit],
+  );
+}
+
+export async function getMemberSpinBalance(memberId: string): Promise<number> {
+  const { reconcileSpinBalance } = await import('./spinBalanceAccount.js');
+  return reconcileSpinBalance(memberId);
 }

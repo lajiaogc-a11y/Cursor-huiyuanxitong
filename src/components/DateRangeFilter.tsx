@@ -27,7 +27,7 @@ import {
   formatDateRangeForDisplay,
 } from "@/lib/dateFilter";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 
 interface DateRangeFilterProps {
   value: TimeRangeType;

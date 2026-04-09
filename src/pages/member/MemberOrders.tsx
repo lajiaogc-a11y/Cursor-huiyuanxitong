@@ -19,7 +19,7 @@ import { memberQueryKeys } from "@/lib/memberQueryKeys";
 import { resolveCardName, tryRecoverMisdecodedUtf8, extractEnglishName } from "@/services/members/nameResolver";
 import { cn } from "@/lib/utils";
 import { MemberEmptyStateCta } from "@/components/member/MemberEmptyStateCta";
-import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
+import { useMemberPullRefreshSignal } from "@/hooks/members/useMemberPullRefreshSignal";
 
 const ORDER_PAGE_SIZE = 20;
 

@@ -9,10 +9,10 @@ import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { listRolePermissionsByModuleOrder } from '@/services/staff/rolePermissionsTableService';
-import { saveRolePermissions } from '@/services/staff/dataApi/permissionsAndSettings';
+import { saveRolePermissions } from '@/services/staff/staffDataService';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
-import { useIsMobile, useIsTablet } from '@/hooks/use-mobile';
+import { useIsMobile, useIsTablet } from '@/hooks/ui/use-mobile';
 import { DATA_FIELD_MODULES, type FieldMeta } from '@/lib/dataFieldPermissionModules';
 import type { PermissionRole } from '@/lib/permissionModels';
 

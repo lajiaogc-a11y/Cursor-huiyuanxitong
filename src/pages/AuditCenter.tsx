@@ -27,15 +27,15 @@ import DateRangeFilter from "@/components/DateRangeFilter";
 import { TimeRangeType, DateRange, getTimeRangeDates, filterByDateRange } from "@/lib/dateFilter";
 import { loadSharedData, saveSharedData } from "@/services/finance/sharedDataService";
 import { useAuth } from "@/contexts/AuthContext";
-import { useFieldPermissions } from "@/hooks/useFieldPermissions";
+import { useFieldPermissions } from "@/hooks/staff/useFieldPermissions";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { logOperation } from "@/services/audit/auditLogService";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useAuditRecords, LegacyAuditItem } from "@/hooks/useAuditRecords";
-import { useDebouncedValue } from "@/hooks/useDebounce";
-import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
+import { useAuditRecords, LegacyAuditItem } from "@/hooks/audit/useAuditRecords";
+import { useDebouncedValue } from "@/hooks/ui/useDebounce";
+import { useIsMobile, useIsTablet } from "@/hooks/ui/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobileCardActions, MobilePagination, MobileEmptyState } from "@/components/ui/mobile-data-card";
 
 import {

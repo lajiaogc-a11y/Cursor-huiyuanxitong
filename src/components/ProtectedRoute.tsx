@@ -9,10 +9,10 @@ import { AlertCircle, RefreshCw, LogOut, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LayoutSkeleton } from '@/components/skeletons/LayoutSkeleton';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { useMaintenanceMode } from '@/hooks/useMaintenanceMode';
+import { useMaintenanceMode } from '@/hooks/system/useMaintenanceMode';
 import { MaintenanceBlockedView } from '@/components/MaintenanceBlockedView';
 import { ROUTES } from '@/routes/constants';
-import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { useAuthGuard } from '@/hooks/auth/useAuthGuard';
 import { hasAuthToken } from '@/services/auth/authApiService';
 
 interface ProtectedRouteProps {

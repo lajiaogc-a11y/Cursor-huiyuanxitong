@@ -48,14 +48,8 @@ export async function downloadMysqlDump(
   if (m) filename = m[1];
   onProgress?.('下载中…');
   const blob = await res.blob();
-  const href = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = href;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(href);
+  const { triggerBlobDownload } = await import('@/lib/downloadBlob');
+  triggerBlobDownload(blob, filename);
   return { ok: true, filename };
 }
 

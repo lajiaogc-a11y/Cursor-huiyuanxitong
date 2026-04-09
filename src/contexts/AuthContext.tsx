@@ -12,8 +12,8 @@ import { resetPointsSettingsCache } from '@/services/points/pointsSettingsServic
 import { queryClient } from '@/lib/queryClient';
 import { spaNavigate } from '@/lib/spaNavigation';
 import { hardRedirectToStaff, shouldHardRedirectToStaffPortal } from '@/lib/crossPortalNavigation';
-import { fetchCardsFromDb, fetchVendorsFromDb, fetchPaymentProvidersFromDb } from '@/hooks/useMerchantConfig';
-import { fetchActivityTypesFromDb } from '@/hooks/useActivityTypes';
+import { fetchCardsFromDb, fetchVendorsFromDb, fetchPaymentProvidersFromDb } from '@/services/giftcards/merchantDataService';
+import { fetchActivityTypesFromDb } from '@/services/activity/activityTypeDataService';
 import { checkApiRateLimitResult } from '@/services/rateLimitService';
 import {
   loginApi, logoutApi, getCurrentUserApi, getPlatformTenantId,
@@ -22,7 +22,7 @@ import {
   getClientIpApi, checkIpAccessApi,
   type IpValidationResult,
 } from '@/services/auth/authApiService';
-import { getRolePermissions } from '@/services/staff/dataApi';
+import { getStaffRolePermissions } from '@/services/staff/staffPermissionsService';
 import { logger } from '@/lib/logger';
 
 // IP 国家校验间隔时间（毫秒）- 每5分钟检查一次
@@ -374,14 +374,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 预热 react-query 缓存（后台并行，不阻塞）
       // 使用 dynamic import 打破 AuthContext ↔ useEmployees / useMembers 循环依赖
       Promise.all([
-        import('@/hooks/useEmployees').then(m =>
+        import('@/hooks/staff/useEmployees').then(m =>
           queryClient.prefetchQuery({ queryKey: ['employees'], queryFn: () => m.fetchEmployeesFromDb(null) })
         ),
         queryClient.prefetchQuery({ queryKey: ['cards'], queryFn: fetchCardsFromDb }),
         queryClient.prefetchQuery({ queryKey: ['vendors'], queryFn: fetchVendorsFromDb }),
         queryClient.prefetchQuery({ queryKey: ['payment-providers'], queryFn: fetchPaymentProvidersFromDb }),
         queryClient.prefetchQuery({ queryKey: ['activity-types'], queryFn: fetchActivityTypesFromDb }),
-        import('@/hooks/useMembers').then(m =>
+        import('@/hooks/members/useMembers').then(m =>
           queryClient.prefetchQuery({ queryKey: ['members', null], queryFn: () => m.fetchMembersFromDb(null, true) })
         ),
       ]).catch(err => logger.error('Prefetch failed:', err));
@@ -396,7 +396,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 加载权限数据 - 通过 API 获取（与上次一致时不 setState，减轻员工端整树重绘）
   const loadPermissions = useCallback(async () => {
     try {
-      const data = await getRolePermissions();
+      const data = await getStaffRolePermissions();
       const next = (data || []) as RolePermissionRecord[];
       setPermissions((prev) => (sameRolePermissions(prev, next) ? prev : next));
       setPermissionsLoaded(true);

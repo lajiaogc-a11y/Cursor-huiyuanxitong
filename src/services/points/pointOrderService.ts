@@ -4,7 +4,6 @@
  * 员工端走 REST /api/points/orders/*
  * 会员端走 RPC /api/data/rpc/member_create_point_order 等
  */
-import { dataRpcApi } from '@/api/data';
 import { pointsApi } from '@/api/points';
 import { hasAuthToken } from '@/lib/apiClient';
 import { isMemberRealmPathname } from '@/lib/memberTokenPathMatrix';
@@ -56,7 +55,7 @@ export async function memberCreatePointOrder(params: {
 }): Promise<{ success: boolean; order?: PointOrder; error?: string }> {
   const clientRequestId = generateClientRequestId();
   if (isMemberPortal()) {
-    const res = await dataRpcApi.call('member_create_point_order', {
+    const res = await pointsApi.memberPortal.createOrder({
       p_member_id: params.memberId,
       p_product_name: params.productName,
       p_product_id: params.productId ?? null,
@@ -79,10 +78,7 @@ export async function memberCreatePointOrder(params: {
 
 export async function memberListPointOrders(memberId: string, limit = 50): Promise<PointOrder[]> {
   if (isMemberPortal()) {
-    const res = await dataRpcApi.call('member_list_point_orders', {
-      p_member_id: memberId,
-      p_limit: limit,
-    });
+    const res = await pointsApi.memberPortal.listOrders(memberId, limit);
     return (res as { orders?: PointOrder[] })?.orders ?? [];
   }
   const res = await pointsApi.orders.list({

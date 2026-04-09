@@ -7,7 +7,7 @@ import {
   getTenantFeatureFlagResult,
   setTenantFeatureFlagResult,
 } from "@/services/featureFlagService";
-import { showServiceErrorToast } from "@/services/serviceErrorToast";
+import { showServiceErrorToast } from "@/lib/serviceErrorToast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";

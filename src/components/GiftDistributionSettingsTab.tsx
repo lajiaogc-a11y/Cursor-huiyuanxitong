@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { saveGiftDistributionSettingsAsync } from "@/services/system/systemSettingsService";
-import { useGiftDistributionSettings } from "@/hooks/useGiftDistributionSettings";
+import { useGiftDistributionSettings } from "@/hooks/activity/useGiftDistributionSettings";
 import { Percent, PieChart, Info, Save, Loader2 } from "lucide-react";
 
 export default function GiftDistributionSettingsTab() {

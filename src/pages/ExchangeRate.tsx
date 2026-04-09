@@ -47,9 +47,9 @@ import ShiftHandoverTab from "@/components/ShiftHandoverTab";
 import TasksQuickPanel from "@/components/TasksQuickPanel";
 import { PhoneExtractPanel } from "@/components/PhoneExtractPanel";
 import { ExchangePaymentInfoPanel } from "@/components/ExchangePaymentInfoPanel";
-import { useOrders, useUsdtOrders } from "@/hooks/useOrders";
-import { useMembers } from "@/hooks/useMembers";
-import { useActivityGifts } from "@/hooks/useActivityGifts";
+import { useOrders, useUsdtOrders } from "@/hooks/orders";
+import { useMembers } from "@/hooks/members/useMembers";
+import { useActivityGifts } from "@/hooks/activity/useActivityGifts";
 import {
   generateMemberId,
   getFeeSettings,
@@ -62,14 +62,14 @@ import { redeemPoints } from "@/services/points/pointsAccountService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CURRENCIES, CurrencyCode, getCurrencyDisplayName, CURRENCY_LIST } from "@/config/currencies";
 import CurrencySelect from "@/components/CurrencySelect";
-import { getActiveCustomerSources, initializeCustomerSourceCache } from "@/hooks/useCustomerSources";
+import { getActiveCustomerSources, initializeCustomerSourceCache } from "@/hooks/crm/useCustomerSources";
 // pointsLedgerStore is deprecated — usePointsLedger hook is the single source of truth
 import { getPointsSettings } from "@/services/points/pointsSettingsService";
 import { getMemberLastResetTime } from "@/services/points/pointsAccountService";
 import { getMemberByPhoneForMyTenant, isMemberInTenant } from "@/services/members/memberLookupService";
 import { getExchangeRateFormDataAsync, saveExchangeRateFormData, ExchangeRateFormData } from "@/services/finance/exchangeRateFormService";
 import RateCalculator from "@/components/RateCalculator";
-import { getCalculatorFormData, CalculatorId, subscribeCalculatorChange } from "@/hooks/useCalculatorStore";
+import { getCalculatorFormData, CalculatorId, subscribeCalculatorChange } from "@/hooks/finance/useCalculatorStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import {
@@ -85,9 +85,9 @@ import {
 
 import { BtcPriceConfig } from "@/components/BtcPriceSettingsCard";
 import BtcPriceSettingsCard from "@/components/BtcPriceSettingsCard";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import UsdtRatePanel, { UsdtLiveRates } from "@/components/UsdtRatePanel";
-import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/auth/useIsPlatformAdminViewingTenant";
 import {
   type CurrencyRates,
   DEFAULT_CURRENCY_RATES,
@@ -99,7 +99,7 @@ import {
   DEFAULT_QUICK_AMOUNTS,
   DEFAULT_QUICK_RATES,
 } from "@/pages/exchangeRate/exchangeRateHelpers";
-import { useMerchantConfig } from "@/hooks/useMerchantConfig";
+import { useMerchantConfig } from "@/hooks/finance/useMerchantConfig";
 import { ExchangeRateRedeemDrawer, type ExchangeRateRedeemPreviewData } from "@/pages/exchangeRate/ExchangeRateRedeemDrawer";
 import { useOrderSubmit } from "@/pages/exchangeRate/useOrderSubmit";
 
@@ -397,7 +397,7 @@ export default function ExchangeRate() {
       return out;
     };
     const loadProfitRates = async () => {
-      const savedRates = await loadSharedData<string[]>('profitAnalysisRates' as any);
+      const savedRates = await loadSharedData<string[]>('profitAnalysisRates');
       if (savedRates && Array.isArray(savedRates) && savedRates.length > 0) {
         setProfitRates(normalizeProfitRates(savedRates));
       }
@@ -409,7 +409,7 @@ export default function ExchangeRate() {
   // 利润分析百分比变化时保存到数据库
   useEffect(() => {
     if (profitRatesInitialized) {
-      saveSharedData('profitAnalysisRates' as any, profitRates);
+      saveSharedData('profitAnalysisRates', profitRates);
     }
   }, [profitRates, profitRatesInitialized]);
 
@@ -485,7 +485,7 @@ export default function ExchangeRate() {
     const loadInputRates = async () => {
       const [savedRates, liveUsdt] = await Promise.all([
         loadSharedData<CalculatorInputRates>('calculatorInputRates'),
-        loadSharedData<UsdtLiveRates>('usdtLiveRates' as any),
+        loadSharedData<UsdtLiveRates>('usdtLiveRates'),
       ]);
       if (savedRates) {
         if (savedRates.nairaRate && savedRates.nairaRate > 0) {

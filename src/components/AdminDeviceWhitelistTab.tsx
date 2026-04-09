@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { showServiceErrorToast } from "@/services/serviceErrorToast";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
+import { showServiceErrorToast } from "@/lib/serviceErrorToast";
 import {
   fetchPlatformDeviceWhitelistConfig,
   savePlatformDeviceWhitelistConfig,

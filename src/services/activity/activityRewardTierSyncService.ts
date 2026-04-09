@@ -1,7 +1,7 @@
 /**
  * 活动累积奖励档位同步到 activity_reward_tiers 表
  */
-import { dataRpcApi } from "@/api/data";
+import { activityRewardsApi } from "@/api/activityRewards";
 
 export type ActivityRewardTierSyncInput = {
   minPoints: number;
@@ -12,8 +12,8 @@ export type ActivityRewardTierSyncInput = {
 };
 
 export async function syncActivityRewardTiersToDatabase(tiers: ActivityRewardTierSyncInput[]): Promise<void> {
-  await dataRpcApi.call("sync_activity_reward_tiers", {
-    tiers: tiers.map((tier, index) => ({
+  await activityRewardsApi.syncTiers(
+    tiers.map((tier, index) => ({
       min_points: tier.minPoints,
       max_points: tier.maxPoints,
       reward_amount_ngn: tier.rewardAmountNGN,
@@ -21,5 +21,5 @@ export async function syncActivityRewardTiersToDatabase(tiers: ActivityRewardTie
       reward_amount_usdt: tier.rewardAmountUSDT,
       sort_order: index,
     })),
-  });
+  );
 }

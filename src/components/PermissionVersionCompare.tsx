@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { type PermissionVersion } from '@/hooks/usePermissionVersions';
+import { type PermissionVersion } from '@/hooks/staff/usePermissionVersions';
 import { formatBeijingTime } from "@/lib/beijingTime";
 
 interface PermissionSnapshot {

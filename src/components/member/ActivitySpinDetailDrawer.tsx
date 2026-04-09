@@ -11,7 +11,7 @@ import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatBeijingTime } from "@/lib/beijingTime";
-import type { SpinCreditDetailRow } from "@/services/staff/dataApi/activityData";
+import type { SpinCreditDetailRow } from "@/services/staff/staffDataService";
 
 export interface ActivitySpinDetailDrawerProps {
   open: boolean;

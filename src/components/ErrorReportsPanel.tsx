@@ -18,7 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { notify } from "@/lib/notifyHub";
 import { classifyError, getSeverityColor } from "@/lib/errorClassifier";
 import { formatBeijingTime } from "@/lib/beijingTime";
-import { useFieldPermissions } from "@/hooks/useFieldPermissions";
+import { useFieldPermissions } from "@/hooks/staff/useFieldPermissions";
 
 function headlineFromErrorMessage(msg: string, maxLen = 220): string {
   const trimmed = (msg || "").trim();

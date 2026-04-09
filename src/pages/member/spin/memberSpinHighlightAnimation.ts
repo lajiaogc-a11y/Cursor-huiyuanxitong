@@ -11,7 +11,12 @@ function prefersReducedMotion(): boolean {
 
 /**
  * 九宫格高亮跑马灯动画；返回 cancel 用于组件卸载或新一轮抽奖前中止。
+ *
+ * 动画结束后高亮会停留在目标格子上 SETTLE_MS 毫秒，让用户清晰看到
+ * 落点再弹出结果。
  */
+const SETTLE_MS = 600;
+
 export function runMemberSpinHighlightAnimation(
   targetIdx: number,
   prizeCount: number,
@@ -20,8 +25,8 @@ export function runMemberSpinHighlightAnimation(
 ): () => void {
   if (prefersReducedMotion()) {
     setActiveIndex(targetIdx);
-    const id = window.requestAnimationFrame(() => onDone());
-    return () => window.cancelAnimationFrame(id);
+    const id = window.setTimeout(() => onDone(), SETTLE_MS) as unknown as number;
+    return () => window.clearTimeout(id);
   }
 
   const count = prizeCount || 8;
@@ -45,8 +50,12 @@ export function runMemberSpinHighlightAnimation(
     step++;
 
     if (step > totalSteps) {
-      setActiveIndex(targetIdx);
-      onDone();
+      // setActiveIndex(targetIdx) 已在本 tick 开头执行（idx = totalSteps % count = targetIdx）。
+      // 延迟 SETTLE_MS 后再回调，让 React 先渲染"高亮停在目标格"，用户能清晰看到落点。
+      timeoutId = window.setTimeout(() => {
+        timeoutId = null;
+        onDone();
+      }, SETTLE_MS) as unknown as number;
       return;
     }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Zap } from "lucide-react";
-import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
+import { useMemberResolvableMedia } from "@/hooks/members/useMemberResolvableMedia";
 import { cn } from "@/lib/utils";
 
 /** 有 logo_url 时仅用金渐变块 + 淡入图，无图时才用闪电，避免与公司 Logo 切换闪烁 */

@@ -13,7 +13,7 @@ import {
   Moon,
 } from "lucide-react";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
-import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
+import { useMemberPortalSettings } from "@/hooks/members/useMemberPortalSettings";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { MemberLegalDrawer } from "@/components/member/MemberLegalDrawer";
@@ -28,7 +28,7 @@ import {
 import { warmupApiHealth } from "@/services/system/apiWarmup";
 import { ROUTES } from "@/routes/constants";
 import { markMemberPostLoginShellTransition } from "@/lib/memberPostLoginTransition";
-import { useMemberLogin } from "@/hooks/useMemberLogin";
+import { useMemberLogin } from "@/hooks/members/useMemberLogin";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
 import SplashScreen from "@/components/member/SplashScreen";
 import { memberPortalLegalBody } from "@/lib/memberPortalLegalBody";

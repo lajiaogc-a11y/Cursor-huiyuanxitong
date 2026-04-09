@@ -4,7 +4,7 @@ import {
   patchOrderRecord,
   updateOrderRecord,
   type OrderInsertPayload,
-} from '@/services/orders/orderRepository';
+} from '@/services/orders/orderWriteGateway';
 
 export async function createOrderUseCase(payload: OrderInsertPayload) {
   return insertOrderRecord(payload);

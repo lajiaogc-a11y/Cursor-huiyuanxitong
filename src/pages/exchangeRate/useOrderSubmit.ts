@@ -13,9 +13,9 @@ import { generateMemberId } from "@/services/system/systemSettingsService";
 import { saveExchangeRateFormData } from "@/services/finance/exchangeRateFormService";
 import type { FeeSettings } from "@/services/system/systemSettingsService";
 import { CURRENCIES } from "@/config/currencies";
-import type { Member } from "@/hooks/useMembers";
+import type { Member } from "@/hooks/members/useMembers";
 import type { AnomalyWarning } from "@/services/orders/orderAnomalyDetection";
-import type { Order, OrderResult, UsdtOrder } from "@/hooks/useOrders";
+import type { Order, OrderResult, UsdtOrder } from "@/hooks/orders";
 
 export type OrderSubmitProfitCalculation = {
   usdtRate: string;

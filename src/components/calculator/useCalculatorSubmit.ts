@@ -12,9 +12,9 @@ import {
   appendExchangePaymentInfoEntry,
   formatExchangePaymentAmountForCopy,
 } from "@/lib/exchangePaymentInfoLedger";
-import type { CalculatorId, CalculatorFormData } from "@/hooks/useCalculatorStore";
-import type { Member } from "@/hooks/useMembers";
-import type { Order, OrderResult } from "@/hooks/useOrders";
+import type { CalculatorId, CalculatorFormData } from "@/hooks/finance/useCalculatorStore";
+import type { Member } from "@/hooks/members/useMembers";
+import type { Order, OrderResult } from "@/hooks/orders";
 import type { MemberPointsSummary } from "@/services/points/pointsCalculationService";
 
 type FeeSettings = ReturnType<typeof getFeeSettings>;

@@ -5,20 +5,18 @@ import type { Request, Response } from 'express';
 import type { AuthenticatedRequest } from '../../middlewares/auth.js';
 import { logger } from '../../lib/logger.js';
 import {
-  getIpAccessControlSettingRepository,
-  getSharedDataRepository,
-  upsertSharedDataRepository,
-  getMultipleSharedDataRepository,
-  listActivityDataRepository,
-  updateActivityGiftRepository,
-  deleteActivityGiftRepository,
-} from './repository.js';
-import {
-  getActivityDataRetentionSettingsRepository,
-  saveActivityDataRetentionSettingsRepository,
-  runManualActivityDataPurgeRepository,
-  purgeAllActivityDataByTenantRepository,
-} from './activityDataRetentionRepository.js';
+  getIpAccessControlSetting as getIpAccessControlSettingRepository,
+  getSharedData as getSharedDataRepository,
+  upsertSharedData as upsertSharedDataRepository,
+  getMultipleSharedData as getMultipleSharedDataRepository,
+  listActivityData as listActivityDataRepository,
+  updateActivityGift as updateActivityGiftRepository,
+  deleteActivityGift as deleteActivityGiftRepository,
+  getActivityDataRetentionSettings as getActivityDataRetentionSettingsRepository,
+  saveActivityDataRetentionSettings as saveActivityDataRetentionSettingsRepository,
+  runManualActivityDataPurge as runManualActivityDataPurgeRepository,
+  purgeAllActivityDataByTenant as purgeAllActivityDataByTenantRepository,
+} from './systemSettingsService.js';
 import { repairKnowledgeFields } from './knowledgeRepair.js';
 import { evaluateCountryLogin, normalizeIpAccessControl } from '../../lib/ipAccessControlConfig.js';
 import { lookupCountryByIp } from '../../lib/ipCountryLookup.js';
@@ -62,33 +60,10 @@ export async function seedKnowledgeCategoriesController(req: AuthenticatedReques
       res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Admin access required' } });
       return;
     }
-    const { query: dbQuery, execute: dbExecute } = await import('../../database/index.js');
-    const existing = await dbQuery('SELECT id FROM knowledge_categories LIMIT 1');
-    if (existing && existing.length > 0) {
-      res.json({ success: true, data: { seeded: false, message: 'Categories already exist, skipped' } });
-      return;
-    }
+    const { seedDefaultKnowledgeCategories } = await import('./knowledgeDataService.js');
     const tenantId = req.user?.tenant_id ?? null;
-    const defaults = [
-      { name: 'Company News', content_type: 'text', sort_order: 1, visibility: 'public' },
-      { name: 'Industry Knowledge', content_type: 'text', sort_order: 2, visibility: 'public' },
-      { name: 'Card Guide', content_type: 'image', sort_order: 3, visibility: 'public' },
-      { name: 'Common Phrases', content_type: 'phrase', sort_order: 4, visibility: 'public' },
-    ];
-    for (const row of defaults) {
-      if (tenantId) {
-        await dbExecute(
-          `INSERT INTO knowledge_categories (name, content_type, sort_order, visibility, tenant_id) VALUES (?, ?, ?, ?, ?)`,
-          [row.name, row.content_type, row.sort_order, row.visibility, tenantId]
-        );
-      } else {
-        await dbExecute(
-          `INSERT INTO knowledge_categories (name, content_type, sort_order, visibility) VALUES (?, ?, ?, ?)`,
-          [row.name, row.content_type, row.sort_order, row.visibility]
-        );
-      }
-    }
-    res.json({ success: true, data: { seeded: true, count: 4 } });
+    const result = await seedDefaultKnowledgeCategories(tenantId);
+    res.json({ success: true, data: result });
   } catch (e) {
     logger.error('Data', 'seedKnowledgeCategories error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: String((e as Error).message) } });
@@ -101,20 +76,9 @@ export async function getDataDebugController(req: AuthenticatedRequest, res: Res
     return;
   }
   try {
-    const { query: dbQuery } = await import('../../database/index.js');
-    const [opRes, loginRes, catRes] = await Promise.all([
-      dbQuery<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM operation_logs'),
-      dbQuery<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM employee_login_logs'),
-      dbQuery<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM knowledge_categories'),
-    ]);
-    res.json({
-      success: true,
-      data: {
-        operationLogsCount: Number(opRes[0]?.cnt ?? 0),
-        loginLogsCount: Number(loginRes[0]?.cnt ?? 0),
-        knowledgeCategoriesCount: Number(catRes[0]?.cnt ?? 0),
-      },
-    });
+    const { getDataDebugCounts } = await import('./systemSettingsService.js');
+    const data = await getDataDebugCounts();
+    res.json({ success: true, data });
   } catch (e) {
     logger.error('Data', 'getDataDebug error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: String((e as Error).message) } });
@@ -330,8 +294,8 @@ export async function getSpinCreditsDetailController(req: AuthenticatedRequest, 
   try {
     const memberId = req.params.memberId;
     if (!memberId) { res.status(400).json({ success: false, error: 'INVALID_PARAMS' }); return; }
-    const { getSpinCreditsDetailRepository } = await import('./repository.js');
-    const data = await getSpinCreditsDetailRepository(memberId);
+    const { getSpinCreditsDetail } = await import('./systemSettingsService.js');
+    const data = await getSpinCreditsDetail(memberId);
     res.json({ success: true, ...data });
   } catch (e) {
     logger.error('Data', 'getSpinCreditsDetail:', e);

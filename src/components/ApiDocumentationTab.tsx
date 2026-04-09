@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Copy, Check, ExternalLink, Shield, Zap, Webhook } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
+import { useIsMobile, useIsTablet } from "@/hooks/ui/use-mobile";
 import { getApiBaseUrl } from "@/lib/apiBase";
 
 interface CodeBlockProps {

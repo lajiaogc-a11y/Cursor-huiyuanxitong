@@ -1,6 +1,6 @@
 // ============= API Key 管理标签页 =============
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import { useApiKeys, ApiKey, API_PERMISSION_GROUPS, API_PERMISSION_OPTIONS } from '@/hooks/useApiKeys';
+import { useApiKeys, ApiKey, API_PERMISSION_GROUPS, API_PERMISSION_OPTIONS } from '@/hooks/system/useApiKeys';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,7 +28,7 @@ import { Plus, Key, Copy, Eye, EyeOff, RefreshCw, Trash2, Settings, FileText, Cl
 import { format } from 'date-fns';
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useIsMobile, useIsTablet } from '@/hooks/use-mobile';
+import { useIsMobile, useIsTablet } from '@/hooks/ui/use-mobile';
 
 export function ApiKeyManagementTab() {
   const { t } = useLanguage();

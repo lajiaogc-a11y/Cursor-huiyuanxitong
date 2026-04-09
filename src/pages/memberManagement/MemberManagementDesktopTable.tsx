@@ -31,7 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Pencil, Trash2, KeyRound, UsersRound, Copy } from "lucide-react";
-import { Member } from "@/hooks/useMembers";
+import { Member } from "@/hooks/members/useMembers";
 import { getDisplayPhone } from "@/lib/phoneMask";
 import { getMemberPortalDisplayName } from "@/lib/memberDisplayName";
 import { getCurrencyBadgeColorLocal, getLevelBadgeColor } from "./memberDisplayHelpers";

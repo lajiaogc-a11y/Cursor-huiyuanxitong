@@ -9,7 +9,7 @@ import { validatePassword, getPasswordStrength } from "@/lib/passwordValidation"
 import { GCLogo } from "@/components/GCLogo";
 import { registerStaffApi } from "@/services/auth/authApiService";
 import { hasAnyEmployeeRecordsForSignup } from "@/services/employees/employeeSignupReadiness";
-import { getCurrenciesApi } from "@/services/staff/dataApi";
+import { getCurrenciesApi } from "@/services/staff/staffDataService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
   DropdownMenu,

@@ -41,7 +41,7 @@ import { notify } from "@/lib/notifyHub";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/auth/useIsPlatformAdminViewingTenant";
 import {
   getEmployees,
   getEmployeesForTenant,
@@ -61,7 +61,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { trackRender } from "@/lib/performanceUtils";
-import { useIsMobile, useIsTablet } from "@/hooks/use-mobile";
+import { useIsMobile, useIsTablet } from "@/hooks/ui/use-mobile";
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobileCardActions, MobilePagination, MobileEmptyState } from "@/components/ui/mobile-data-card";
 import { MobileFilterBar } from "@/components/ui/mobile-filter-bar";
 import { checkMyTenantQuotaResult, getQuotaExceededText, getQuotaSoftExceededText } from "@/services/tenantQuotaService";
@@ -493,22 +493,23 @@ export default function EmployeeManagement() {
     }
     
     const beforeStatus = employee.status;
-    const success = await toggleEmployeeStatus(employee.id);
-    if (success) {
-      const newStatus = beforeStatus === 'active' ? 'inactive' : 'active';
-      
-      // 记录操作日志
-      logOperation(
-        'employee_management',
-        'status_change',
-        employee.id,
-        { status: beforeStatus },
-        { status: newStatus },
-        t(`${employee.real_name} 状态变更: ${beforeStatus} → ${newStatus}`, `${employee.real_name} status change: ${beforeStatus} → ${newStatus}`)
-      );
-      
-      notify.success(t('employees.statusUpdated'));
-      refetch();
+    try {
+      const success = await toggleEmployeeStatus(employee.id);
+      if (success) {
+        const newStatus = beforeStatus === 'active' ? 'inactive' : 'active';
+        logOperation(
+          'employee_management',
+          'status_change',
+          employee.id,
+          { status: beforeStatus },
+          { status: newStatus },
+          t(`${employee.real_name} 状态变更: ${beforeStatus} → ${newStatus}`, `${employee.real_name} status change: ${beforeStatus} → ${newStatus}`)
+        );
+        notify.success(t('employees.statusUpdated'));
+        refetch();
+      }
+    } catch {
+      notify.error(getEmployeeErrorMessage('UPDATE_STATUS_FAILED', language === 'zh' ? 'zh' : 'en'));
     }
   };
 

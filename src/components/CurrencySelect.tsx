@@ -6,7 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getCurrenciesApi } from "@/services/staff/dataApi/referenceLists";
+import { getCurrenciesApi } from "@/services/staff/staffDataService";
 import { CurrencyCode } from "@/config/currencies";
 import { useLanguage } from "@/contexts/LanguageContext";
 

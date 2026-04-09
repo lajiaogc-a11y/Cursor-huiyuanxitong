@@ -31,8 +31,8 @@ import { ROUTES } from "@/routes/constants";
 import { MemberEmptyStateCta } from "@/components/member/MemberEmptyStateCta";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
-import { useMemberPullRefreshSignal } from "@/hooks/useMemberPullRefreshSignal";
-import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
+import { useMemberPullRefreshSignal } from "@/hooks/members/useMemberPullRefreshSignal";
+import { useMemberPortalSettings } from "@/hooks/members/useMemberPortalSettings";
 import { setMemberInboxUnreadCount } from "@/lib/memberInboxUnreadStore";
 import {
   deleteMemberInboxNotification,

@@ -1,7 +1,7 @@
 /**
  * Feature Flag Service — connected to real backend RPC.
  */
-import { dataRpcApi } from "@/api/data";
+import { featureFlagApi } from "@/api/systemConfig";
 import { fail, ok, type ServiceResult } from "@/services/serviceResult";
 
 export const FEATURE_FLAGS = {
@@ -23,10 +23,7 @@ export async function getTenantFeatureFlagResult(
 ): Promise<ServiceResult<boolean>> {
   if (!tenantId) return fail("TENANT_REQUIRED", "Tenant id is required", "TENANT");
   try {
-    const data = await dataRpcApi.call<{ enabled: boolean }>("get_tenant_feature_flag", {
-      tenant_id: tenantId,
-      flag_key: flagKey,
-    });
+    const data = await featureFlagApi.get(tenantId, flagKey);
     return ok(data?.enabled ?? defaultEnabled);
   } catch (e) {
     // M2 fix: fail-closed — API errors should not enable features
@@ -39,9 +36,7 @@ export async function getTenantFeatureFlagsResult(
 ): Promise<ServiceResult<FeatureFlagRow[]>> {
   if (!tenantId) return fail("TENANT_REQUIRED", "Tenant id is required", "TENANT");
   try {
-    const data = await dataRpcApi.call<FeatureFlagRow[]>("list_tenant_feature_flags", {
-      tenant_id: tenantId,
-    });
+    const data = await featureFlagApi.list(tenantId) as FeatureFlagRow[];
     return ok(Array.isArray(data) ? data : []);
   } catch {
     return ok([]);
@@ -55,11 +50,7 @@ export async function setTenantFeatureFlagResult(
 ): Promise<ServiceResult<true>> {
   if (!tenantId) return fail("TENANT_REQUIRED", "Tenant id is required", "TENANT");
   try {
-    await dataRpcApi.call("set_tenant_feature_flag", {
-      tenant_id: tenantId,
-      flag_key: flagKey,
-      enabled,
-    });
+    await featureFlagApi.set(tenantId, flagKey, enabled);
     return ok(true);
   } catch (e) {
     return fail("SET_FLAG_FAILED", (e as Error).message, "TENANT");

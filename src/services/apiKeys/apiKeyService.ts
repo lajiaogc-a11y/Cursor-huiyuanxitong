@@ -1,7 +1,7 @@
 /**
  * 员工端 API Key 表代理与本地生成/哈希（明文 key 仅创建时返回一次）
  */
-import { dataTableApi } from "@/api/data";
+import { listApiKeysData, listApiRequestLogsData, createApiKeyData, patchApiKeyData, deleteApiKeyData } from "@/api/apiKeyData";
 
 export interface ApiKey {
   id: string;
@@ -73,7 +73,7 @@ function parseNullableStringArray(v: unknown): string[] | null {
 }
 
 export async function listApiKeys(): Promise<ApiKey[]> {
-  const data = await dataTableApi.get<unknown[]>("api_keys", "select=*&order=created_at.desc");
+  const data = await listApiKeysData();
   return (data || []).map((k) => {
     const row = k as Record<string, unknown>;
     return {
@@ -100,7 +100,7 @@ export async function listApiRequestLogs(keyId?: string, limit = 100): Promise<A
   if (keyId) {
     q += `&api_key_id=eq.${encodeURIComponent(keyId)}`;
   }
-  const data = await dataTableApi.get<unknown[]>("api_request_logs", q);
+  const data = await listApiRequestLogsData(q);
   return (data || []).map((l) => {
     const row = l as Record<string, unknown>;
     return {
@@ -121,15 +121,15 @@ export async function listApiRequestLogs(keyId?: string, limit = 100): Promise<A
 }
 
 export async function createApiKeyRecord(body: Record<string, unknown>): Promise<void> {
-  await dataTableApi.post("api_keys", { data: body });
+  await createApiKeyData(body);
 }
 
 export async function patchApiKeyRecord(keyId: string, body: Record<string, unknown>): Promise<void> {
   const data = Object.fromEntries(Object.entries(body).filter(([, v]) => v !== undefined));
   if (Object.keys(data).length === 0) return;
-  await dataTableApi.patch("api_keys", `id=eq.${encodeURIComponent(keyId)}`, { data });
+  await patchApiKeyData(keyId, data);
 }
 
 export async function deleteApiKeyRecord(keyId: string): Promise<void> {
-  await dataTableApi.del("api_keys", `id=eq.${encodeURIComponent(keyId)}`);
+  await deleteApiKeyData(keyId);
 }

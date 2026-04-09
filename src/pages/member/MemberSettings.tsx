@@ -4,14 +4,14 @@ import { Camera, ChevronRight, LogOut, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { ROUTES } from "@/routes/constants";
-import { useMemberLocalAvatar } from "@/hooks/useMemberLocalAvatar";
+import { useMemberLocalAvatar } from "@/hooks/members/useMemberLocalAvatar";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { displayMemberLevelLabel } from "@/lib/memberLevelDisplay";
 import { mapDbRowToMemberPortalOrderView, type MemberPortalOrderView } from "@/hooks/orders/utils";
 import { notify } from "@/lib/notifyHub";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { memberQueryKeys } from "@/lib/memberQueryKeys";
-import { useMemberPortalSettings } from "@/hooks/useMemberPortalSettings";
+import { useMemberPortalSettings } from "@/hooks/members/useMemberPortalSettings";
 import { memberGetOrdersRows, memberUpdateNickname } from "@/services/memberPortal/memberActivityService";
 import {
   getMemberPointsLedgerRpc,
@@ -21,15 +21,15 @@ import {
 import { formatMemberLocalTime } from "@/lib/memberLocalTime";
 import { formatMemberLedgerRowOrderDisplay } from "@/lib/memberLedgerIdDisplay";
 import { ledgerActivityTypeLabel } from "@/lib/memberLedgerTypeLabel";
-import { useMemberResolvableMedia } from "@/hooks/useMemberResolvableMedia";
+import { useMemberResolvableMedia } from "@/hooks/members/useMemberResolvableMedia";
 import { broadcastMembersListStale, notifyDataMutation } from "@/services/system/dataRefreshManager";
 import "@/styles/member-portal.css";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import { MemberPageAmbientOrbs } from "@/components/member/MemberPageAmbientOrbs";
 import { MemberPointsValueSkeleton } from "@/components/member/MemberPageLoadingShell";
-import { useMemberPointsBreakdown } from "@/hooks/useMemberPointsBreakdown";
-import { useMemberAnimatedCount } from "@/hooks/useMemberAnimatedCount";
-import { useMemberSkeletonGate } from "@/hooks/useMemberSkeletonGate";
+import { useMemberPointsBreakdown } from "@/hooks/members/useMemberPointsBreakdown";
+import { useMemberAnimatedCount } from "@/hooks/members/useMemberAnimatedCount";
+import { useMemberSkeletonGate } from "@/hooks/members/useMemberSkeletonGate";
 import { MemberSettingsAccountSection } from "@/pages/member/settings/MemberSettingsAccountSection";
 import { MemberSettingsPointsLedgerSection } from "@/pages/member/settings/MemberSettingsPointsLedgerSection";
 import { MemberSettingsOrdersSection } from "@/pages/member/settings/MemberSettingsOrdersSection";

@@ -77,13 +77,10 @@ export async function resolveMemberIdForLedgerInsert(
       if (m) return m.id;
     }
   }
-  if (ph) {
-    const m = await queryOne<{ id: string }>('SELECT id FROM members WHERE phone_number = ? LIMIT 1', [ph]);
-    if (m) return m.id;
-  }
-  if (mc) {
-    const m = await queryOne<{ id: string }>('SELECT id FROM members WHERE member_code = ? LIMIT 1', [mc]);
-    if (m) return m.id;
+  if (!tenantId) {
+    console.warn('[points] resolveMemberIdForLedgerInsert: no tenantId — skipping cross-tenant phone/code fallback');
+  } else {
+    // tenantId was provided but no match found above — do NOT fall back to global search
   }
   return null;
 }
@@ -200,4 +197,12 @@ export async function addReferralToMemberActivity(
   );
 
   return { updated: true };
+}
+
+export async function selectOrderTenantIdRepository(orderId: string): Promise<string | null> {
+  const row = await queryOne<{ tenant_id: string | null }>(
+    `SELECT tenant_id FROM orders WHERE id = ? LIMIT 1`,
+    [orderId],
+  );
+  return row?.tenant_id ?? null;
 }

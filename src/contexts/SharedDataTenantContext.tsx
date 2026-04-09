@@ -12,16 +12,17 @@ export function SharedDataTenantProvider({ children }: { children: ReactNode }) 
   const { employee } = useAuth();
   const { viewingTenantId } = useTenantView() || {};
   const effectiveTenantId =
-    (viewingTenantId || employee?.tenant_id || getPlatformTenantId() || employee?.tenant_id) ?? null;
-  const prevRef = useRef<string | null>(undefined as unknown as string | null);
+    (viewingTenantId || employee?.tenant_id || getPlatformTenantId()) ?? null;
+  const prevRef = useRef<string | null | undefined>(undefined);
 
-  // 同步设置 tenant，确保子组件（含 data sync）能立即使用
-  if (prevRef.current !== effectiveTenantId) {
-    const wasSwitching = prevRef.current !== undefined;
-    prevRef.current = effectiveTenantId;
-    setSharedDataTenantId(effectiveTenantId);
-    if (wasSwitching) clearSharedDataCacheForTenantSwitch();
-  }
+  useEffect(() => {
+    if (prevRef.current !== effectiveTenantId) {
+      const wasSwitching = prevRef.current !== undefined;
+      prevRef.current = effectiveTenantId;
+      setSharedDataTenantId(effectiveTenantId);
+      if (wasSwitching) clearSharedDataCacheForTenantSwitch();
+    }
+  }, [effectiveTenantId]);
 
   return <>{children}</>;
 }

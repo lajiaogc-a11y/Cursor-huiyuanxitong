@@ -10,6 +10,7 @@ import {
   createOrderRepository,
   updateOrderPointsRepository,
   insertMeikaZoneOrderLinkRepository,
+  getMemberOrdersForPortalRepository,
 } from './repository.js';
 import { incrementMemberActivityForNewOrder } from '../members/memberActivityTotals.js';
 import { syncMemberCommonCardsFromOrdersRepository } from '../members/memberCommonCardsFromOrders.js';
@@ -107,43 +108,11 @@ export async function updateOrderPointsService(orderId: string, updates: { point
 
 /**
  * Member-portal facing: paginated orders for a member (by member_id + phone).
- * Used by both the RPC handler and (future) REST endpoint.
+ * DB 访问已委托给 repository 层。
  */
 export async function getMemberOrdersForPortal(
   memberId: string,
   options?: { limit?: number; offset?: number },
 ): Promise<{ rows: unknown[]; total: number }> {
-  const { query, queryOne } = await import('../../database/index.js');
-  const m = await queryOne<{ phone_number: string | null; tenant_id: string | null }>(
-    'SELECT phone_number, tenant_id FROM members WHERE id = ?',
-    [memberId],
-  );
-  const phone = String(m?.phone_number ?? '').trim();
-  const tenantId = m?.tenant_id ?? null;
-  const lim = Math.min(200, Math.max(1, Math.floor(options?.limit || 20)));
-  const off = Math.max(0, Math.floor(options?.offset || 0));
-
-  const countRow = await queryOne<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM orders o
-     WHERE (o.member_id = ? OR (o.phone_number IS NOT NULL AND o.phone_number = ?))
-     AND o.tenant_id <=> ?
-     AND COALESCE(o.is_deleted, 0) = 0`,
-    [memberId, phone, tenantId],
-  );
-  const total = Math.max(0, Number(countRow?.n ?? 0));
-
-  const rows = await query(
-    `SELECT o.*,
-            o.card_type AS order_type,
-            COALESCE(NULLIF(TRIM(gc.name), ''), NULLIF(TRIM(o.card_name), '')) AS gift_card_name
-     FROM orders o
-     LEFT JOIN gift_cards gc ON gc.id = TRIM(o.card_type)
-     WHERE (o.member_id = ? OR (o.phone_number IS NOT NULL AND o.phone_number = ?))
-     AND o.tenant_id <=> ?
-     AND COALESCE(o.is_deleted, 0) = 0
-     ORDER BY o.created_at DESC
-     LIMIT ? OFFSET ?`,
-    [memberId, phone, tenantId, lim, off],
-  );
-  return { rows, total };
+  return getMemberOrdersForPortalRepository(memberId, options);
 }

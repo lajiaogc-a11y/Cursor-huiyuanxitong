@@ -164,12 +164,15 @@ export const TENANT_SCOPED_TABLES = new Set([
   'activity_gifts',
   'announcements',
   'api_keys',
+  'cards',
   'employees',
   'error_reports',
+  'extract_settings',
   'gift_cards',
   'invitation_codes',
   'knowledge_articles',
   'knowledge_categories',
+  'ledger_transactions',
   'login_2fa_settings',
   'lottery_logs',
   'lottery_prizes',
@@ -183,18 +186,24 @@ export const TENANT_SCOPED_TABLES = new Set([
   'members',
   'merchant_configs',
   'orders',
+  'payment_providers',
+  'payment_settlements',
   'phone_pool',
+  'phone_reservations',
   'points_accounts',
   'points_ledger',
-  'phone_reservations',
   'points_log',
   'shared_data_store',
   'site_messages',
   'spin_credits',
+  'system_announcements',
   'task_templates',
   'tasks',
   'tenant_feature_flags',
   'tenant_maintenance_modes',
+  'uploaded_images',
+  'vendor_settlements',
+  'vendors',
   'webhook_event_queue',
   'webhooks',
 ]);
@@ -210,7 +219,12 @@ function mergeEmployeeTenantScope(
   if (scope.principalType !== 'employee') return { where, values };
   if (scope.isPlatformSuperAdmin) return { where, values };
   const tid = scope.tenantId;
-  if (!tid) return { where, values };
+  if (!tid) {
+    // 非平台超管员工无 tenant_id 时，注入恒假条件阻止跨租户数据泄漏
+    const falseClause = '1=0';
+    if (!where?.trim()) return { where: `WHERE ${falseClause}`, values };
+    return { where: `${where} AND (${falseClause})`, values };
+  }
   const clause = '`tenant_id` <=> ?';
   const nextValues = [...values, tid];
   if (!where?.trim()) {

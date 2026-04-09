@@ -238,11 +238,11 @@ export async function checkPhoneExtractHealth(tenantId: string): Promise<PhoneEx
   }
   items.push({ key: "tenant", ok: true, message: "OK" });
 
-  const { apiClient } = await import("@/lib/apiClient");
+  const { apiGet } = await import("@/api/client");
 
   async function probe(path: string): Promise<{ ok: boolean; message: string }> {
     try {
-      const j = await apiClient.get<{
+      const j = await apiGet<{
         success?: boolean;
         message?: string;
         code?: string;
@@ -272,7 +272,7 @@ export async function checkPhoneExtractHealth(tenantId: string): Promise<PhoneEx
   items.push({ key: "extract_records_api", ok: rec.ok, message: rec.message });
 
   try {
-    const hj = await apiClient.get<{
+    const hj = await apiGet<{
       success?: boolean;
       data?: { tableExists?: boolean; phoneColumn?: string; missingColumns?: string[] };
     }>('/api/phone-pool/health');

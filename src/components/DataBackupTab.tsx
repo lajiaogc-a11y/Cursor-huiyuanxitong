@@ -28,7 +28,7 @@ import { Database, Download, Loader2, Trash2, RefreshCw, CheckCircle, XCircle, E
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchTableCountExact } from "@/lib/tableProxyCount";
+import { getTableRecordCount } from "@/services/export/importService";
 import {
   executeBackup,
   getBackupHistory,
@@ -43,7 +43,7 @@ import {
 } from "@/services/dataBackupService";
 import { format } from "date-fns";
 import { ExportConfirmDialog } from "@/components/ExportConfirmDialog";
-import { useExportConfirm } from "@/hooks/useExportConfirm";
+import { useExportConfirm } from "@/hooks/ui/useExportConfirm";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { repairUtf8MisdecodedAsLatin1 } from "@/lib/utf8MojibakeRepair";
 
@@ -258,7 +258,7 @@ export default function DataBackupTab() {
       for (const table of tables) {
         try {
           const backupRows = await getBackupSnapshot(backupId, table);
-          const currentCount = await fetchTableCountExact(table);
+          const currentCount = await getTableRecordCount(table);
           details.push({
             table,
             backup_rows: backupRows.length,

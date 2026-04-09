@@ -1,7 +1,8 @@
 /**
  * 员工邀请码：列表与 RPC 生成（表删除/启停见 invitationCodeTableService）
  */
-import { dataRpcApi, dataTableApi } from '@/api/data';
+import { listInvitationCodesData } from '@/api/invitationCodeData';
+import { invitationCodesApi } from '@/api/invitationCodes';
 
 export interface InvitationCodeRow {
   id: string;
@@ -15,16 +16,10 @@ export interface InvitationCodeRow {
 }
 
 export async function listInvitationCodes(): Promise<InvitationCodeRow[]> {
-  const data = await dataTableApi.get<InvitationCodeRow[]>(
-    "invitation_codes",
-    "select=*&order=created_at.desc",
-  );
+  const data = (await listInvitationCodesData("select=*&order=created_at.desc")) as InvitationCodeRow[];
   return Array.isArray(data) ? data : [];
 }
 
 export async function generateInvitationCodeRpc(maxUses: number, creatorId: string): Promise<string> {
-  return dataRpcApi.call<string>("generate_invitation_code", {
-    p_max_uses: maxUses,
-    p_creator_id: creatorId,
-  });
+  return invitationCodesApi.generate(maxUses, creatorId);
 }

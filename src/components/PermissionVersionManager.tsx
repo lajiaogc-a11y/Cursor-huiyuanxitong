@@ -37,8 +37,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { notify } from "@/lib/notifyHub";
 import { useLanguage } from '@/contexts/LanguageContext';
-import { usePermissionVersions, type PermissionVersion } from '@/hooks/usePermissionVersions';
-import { usePermissionChangeLogs } from '@/hooks/usePermissionChangeLogs';
+import { usePermissionVersions, type PermissionVersion } from '@/hooks/staff/usePermissionVersions';
+import { usePermissionChangeLogs } from '@/hooks/audit/usePermissionChangeLogs';
 import { upsertRolePermissions } from '@/services/staff/rolePermissionsTableService';
 
 const ROLE_LABELS: Record<string, { zh: string; en: string }> = {

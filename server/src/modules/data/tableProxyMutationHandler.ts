@@ -23,7 +23,6 @@ import { generateUniqueActivityGiftNumber } from '../../lib/giftNumber.js';
 import { ensureOrderNumberForInsert } from '../orders/orderNumber.js';
 import { draw, getQuota } from '../lottery/service.js';
 import { grantOrderCompletedSpinCredits } from '../lottery/repository.js';
-import { incrementLotterySpinBalanceConn } from '../lottery/spinBalanceAccount.js';
 import { notifyMemberOrderCompletedSpinReward } from '../memberInboxNotifications/repository.js';
 import { incrementMemberActivityForNewOrder } from '../members/memberActivityTotals.js';
 import { reverseActivityDataForOrder } from '../admin/orderReversal.js';
@@ -173,9 +172,15 @@ export async function tableInsertController(req: AuthenticatedRequest, res: Resp
       if (
         TENANT_SCOPED_TABLES.has(table) &&
         req.user?.type === 'employee' &&
-        !req.user.is_platform_super_admin &&
-        req.user.tenant_id
+        !req.user.is_platform_super_admin
       ) {
+        if (!req.user.tenant_id) {
+          res.status(403).json({
+            success: false,
+            error: 'Employee without tenant_id cannot insert into tenant-scoped table',
+          });
+          return;
+        }
         row.tenant_id = req.user.tenant_id;
       }
 
@@ -247,7 +252,7 @@ export async function tableInsertController(req: AuthenticatedRequest, res: Resp
     res.json({ data: results.length === 1 ? results[0] : results, error: null });
   } catch (e) {
     logger.error('TableProxy', `INSERT ${table} error:`, e);
-    res.status(500).json({ data: null, error: { message: (e as Error).message } });
+    res.status(500).json({ data: null, error: { message: 'Internal server error' } });
   }
 }
 
@@ -325,11 +330,11 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
     });
 
     let whereExec = where;
+    if (!whereExec?.trim()) {
+      res.status(400).json({ data: null, error: { message: 'UPDATE without WHERE is not allowed' } });
+      return;
+    }
     if (table === 'audit_records' && auditCasPending) {
-      if (!whereExec?.trim()) {
-        res.status(400).json({ data: null, error: { message: 'UPDATE audit_records requires a row filter (e.g. id=eq.*)' } });
-        return;
-      }
       whereExec = `${whereExec} AND \`status\` = 'pending'`;
     }
 
@@ -446,7 +451,7 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
     res.json({ data: rows.length === 1 ? rows[0] : rows, error: null });
   } catch (e) {
     console.error(`[TableProxy] UPDATE ${table} error:`, e);
-    res.status(500).json({ data: null, error: { message: (e as Error).message } });
+    res.status(500).json({ data: null, error: { message: 'Internal server error' } });
   }
 }
 
@@ -524,6 +529,6 @@ export async function tableDeleteController(req: AuthenticatedRequest, res: Resp
     res.json({ data: rows, error: null });
   } catch (e) {
     logger.error('TableProxy', `DELETE ${table} error:`, e);
-    res.status(500).json({ data: null, error: { message: (e as Error).message } });
+    res.status(500).json({ data: null, error: { message: 'Internal server error' } });
   }
 }

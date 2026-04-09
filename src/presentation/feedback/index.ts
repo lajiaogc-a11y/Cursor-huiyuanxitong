@@ -1,3 +1,3 @@
-export { showServiceErrorToast } from '@/services/serviceErrorToast';
+export { showServiceErrorToast } from '@/lib/serviceErrorToast';
 export { showSubmissionError } from '@/services/submissionErrorService';
 

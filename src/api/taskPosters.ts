@@ -4,10 +4,16 @@
 import { apiGet, apiPost, apiPut, apiDelete } from './client';
 
 export const taskPostersApi = {
-  list: () => apiGet<unknown[]>('/api/task-posters'),
-  save: (data: Record<string, unknown>) => apiPost<{ success: boolean }>('/api/task-posters', data),
+  list: (params?: Record<string, string>) => {
+    const q = params ? `?${new URLSearchParams(params).toString()}` : '';
+    return apiGet<unknown[]>(`/api/task-posters${q}`);
+  },
+  save: (data: Record<string, unknown>) =>
+    apiPost<Record<string, unknown>>('/api/task-posters', data),
   update: (id: string, data: Record<string, unknown>) =>
     apiPut<{ success: boolean }>(`/api/task-posters/${encodeURIComponent(id)}`, data),
-  delete: (id: string) =>
-    apiDelete<{ success: boolean }>(`/api/task-posters/${encodeURIComponent(id)}`),
+  delete: (id: string, params?: Record<string, string>) => {
+    const q = params ? `?${new URLSearchParams(params).toString()}` : '';
+    return apiDelete<{ success: boolean }>(`/api/task-posters/${encodeURIComponent(id)}${q}`);
+  },
 };

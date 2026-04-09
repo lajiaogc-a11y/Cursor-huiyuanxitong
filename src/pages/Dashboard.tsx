@@ -6,9 +6,9 @@ const MobileDashboard = lazy(() => import("@/components/MobileDashboard"));
 import { Button } from "@/components/ui/button";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { CURRENCIES } from "@/config/currencies";
-import { useMembers, Member } from "@/hooks/useMembers";
-import { useOrders, useUsdtOrders, Order, UsdtOrder } from "@/hooks/useOrders";
-import { useDashboardTrend } from "@/hooks/useDashboardTrend";
+import { useMembers, Member } from "@/hooks/members/useMembers";
+import { useOrders, useUsdtOrders, Order, UsdtOrder } from "@/hooks/orders";
+import { useDashboardTrend } from "@/hooks/dashboard/useDashboardTrend";
 import DateRangeFilter from "@/components/DateRangeFilter";
 import {
   TimeRangeType,
@@ -18,10 +18,10 @@ import {
   getAllTimeRequestRange,
 } from "@/lib/dateFilter";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTenantView } from "@/contexts/TenantViewContext";
-import { useNavigate, useLocation } from "react-router-dom";
+
+import { useLocation } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useFieldPermissions } from "@/hooks/useFieldPermissions";
+import { useFieldPermissions } from "@/hooks/staff/useFieldPermissions";
 import { safeNumber, safeToFixed } from "@/lib/safeCalc";
 import { trackRender } from "@/lib/performanceUtils";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -29,7 +29,7 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, CartesianGrid, BarC
 import { DashboardSummary } from "@/components/DashboardSummary";
 import { DashboardQuickStartCard } from "@/components/DashboardQuickStartCard";
 import { notify } from "@/lib/notifyHub";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import { ElitePageHeader } from "@/design-system/elite";
 
 export default function Dashboard() {
@@ -59,18 +59,10 @@ export default function Dashboard() {
   
   // Get current user info and permissions
   const { employee } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
   const { checkPermission } = useFieldPermissions();
 
-  const { isViewingTenant } = useTenantView() || {};
-
-  useEffect(() => {
-    // 仅平台总管理员跳转到公司管理；租户总管理员（如 002）应看到正常仪表盘
-    if (employee?.is_platform_super_admin && !isViewingTenant) {
-      navigate("/company-management", { replace: true });
-    }
-  }, [employee, isViewingTenant, navigate]);
+  // 平台超管不再自动跳转至租户管理；点击"数据统计"时应能正常查看仪表盘
   
   // Check if only showing own data
   const showOwnDataOnly = useMemo(() => {

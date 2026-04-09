@@ -25,7 +25,7 @@ import { useTenantView } from "@/contexts/TenantViewContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatBeijingTime } from "@/lib/beijingTime";
 import { notify } from "@/lib/notifyHub";
-import { useIsPlatformAdminViewingTenant } from "@/hooks/useIsPlatformAdminViewingTenant";
+import { useIsPlatformAdminViewingTenant } from "@/hooks/auth/useIsPlatformAdminViewingTenant";
 import {
   phoneBulkImportResult,
   getPhoneStatsResult,
@@ -38,7 +38,7 @@ import {
   type ExtractRecord,
   type PhoneExtractHealthItem,
 } from "@/services/phonePoolService";
-import { showServiceErrorToast } from "@/services/serviceErrorToast";
+import { showServiceErrorToast } from "@/lib/serviceErrorToast";
 import { normalizeBulkImportPhoneLines } from "@/lib/phoneValidation";
 import {
   Table,

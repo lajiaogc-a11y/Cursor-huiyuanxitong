@@ -70,6 +70,7 @@ export async function checkEmployeeUniqueController(req: AuthenticatedRequest, r
     username,
     real_name: realName,
     exclude_id: excludeId,
+    tenant_id: req.user?.tenant_id ?? null,
   });
   res.json({ success: true, data });
 }

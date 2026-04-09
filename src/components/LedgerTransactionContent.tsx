@@ -23,11 +23,11 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Download, Loader2, Search, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, AlertTriangle } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/ui/use-mobile';
 import { MobileCardList, MobileCard, MobileCardHeader, MobileCardRow, MobileCardCollapsible, MobilePagination, MobileEmptyState } from '@/components/ui/mobile-data-card';
 import { notify } from "@/lib/notifyHub";
 import { ExportConfirmDialog } from '@/components/ExportConfirmDialog';
-import { useExportConfirm } from '@/hooks/useExportConfirm';
+import { useExportConfirm } from '@/hooks/ui/useExportConfirm';
 import { exportToCSV, formatNumberForExport, formatDateTimeForExport } from '@/lib/exportUtils';
 import { PageSizeSelect } from '@/components/ui/page-size-select';
 import { useLanguage } from '@/contexts/LanguageContext';

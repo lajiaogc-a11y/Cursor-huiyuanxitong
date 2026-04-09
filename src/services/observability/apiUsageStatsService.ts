@@ -1,7 +1,7 @@
 /**
  * API 调用统计（RPC：按日 / 按端点）
  */
-import { dataRpcApi } from "@/api/data";
+import { observabilityApi } from "@/api/observability";
 
 export interface ApiDailyStats {
   statDate: string;
@@ -25,8 +25,8 @@ export async function fetchApiUsageStats(days: number): Promise<{
   endpointStats: ApiEndpointStats[];
 }> {
   const [dailyData, endpointData] = await Promise.all([
-    dataRpcApi.call<unknown>("get_api_daily_stats", { p_days: days }),
-    dataRpcApi.call<unknown>("get_api_endpoint_stats", { p_days: days }),
+    observabilityApi.getDailyStats(days),
+    observabilityApi.getEndpointStats(days),
   ]);
   const dailyRows = Array.isArray(dailyData) ? dailyData : [];
   const endpointRows = Array.isArray(endpointData) ? endpointData : [];
