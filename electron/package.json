@@ -10,8 +10,7 @@
   "dependencies": {
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
     "https-proxy-agent": "^9.0.0",
-    "qrcode": "^1.5.4",
-    "whatsapp-web.js": "^1.26.1"
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

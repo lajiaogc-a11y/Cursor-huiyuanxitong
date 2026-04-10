@@ -369,6 +369,39 @@ export const localWhatsappBridge = {
   },
 
   /**
+   * 查询登录状态详情（独立端点，不含 QR 图片）
+   * 返回 state / phone / displayName / errorMessage
+   */
+  getLoginStatus: async (sessionId: string): Promise<BridgeResult<{
+    state: string;
+    phone: string | null;
+    displayName: string | null;
+    errorMessage: string | null;
+  }>> => {
+    const online = await detectCompanion();
+    if (!online) {
+      return fail('COMPANION_OFFLINE', '本地 PC 客户端未运行');
+    }
+    try {
+      const data = await bridgeGet<{
+        sessionId: string;
+        state: string;
+        phone: string | null;
+        displayName: string | null;
+        errorMessage: string | null;
+      }>(`/sessions/${encodeURIComponent(sessionId)}/status`);
+      return ok({
+        state: data.state,
+        phone: data.phone,
+        displayName: data.displayName,
+        errorMessage: data.errorMessage,
+      });
+    } catch (e: unknown) {
+      return fail('BRIDGE_ERROR', e instanceof Error ? e.message : 'Failed to get login status');
+    }
+  },
+
+  /**
    * 删除账号（断开并移除）
    */
   deleteSession: async (sessionId: string): Promise<BridgeResult<void>> => {

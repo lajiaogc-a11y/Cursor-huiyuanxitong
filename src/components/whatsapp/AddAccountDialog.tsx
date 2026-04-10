@@ -34,6 +34,8 @@ export function AddAccountDialog({ open, onClose, onConnected }: Props) {
     errorMessage: null,
     elapsedSeconds: 0,
     companionOnline: null,
+    phone: null,
+    displayName: null,
   });
 
   const controllerRef = useRef<ReturnType<typeof createLoginController> | null>(null);
@@ -147,12 +149,17 @@ export function AddAccountDialog({ open, onClose, onConnected }: Props) {
 
           {/* ── 登录成功 ── */}
           {state === 'connected' && (
-            <StatusDisplay
-              icon={<CheckCircle2 className="w-10 h-10 text-[#25D366]" />}
-              title="账号登录成功！"
-              subtitle="正在加载会话数据..."
-              className="text-[#25D366]"
-            />
+            <div className="flex flex-col items-center gap-3 py-10">
+              <CheckCircle2 className="w-10 h-10 text-[#25D366]" />
+              <p className="text-base font-semibold text-[#25D366]">账号登录成功！</p>
+              {(session.phone || session.displayName) && (
+                <div className="text-center space-y-0.5">
+                  {session.phone && <p className="text-sm font-mono">{session.phone}</p>}
+                  {session.displayName && <p className="text-xs text-muted-foreground">{session.displayName}</p>}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">正在加载会话数据...</p>
+            </div>
           )}
         </div>
       </div>

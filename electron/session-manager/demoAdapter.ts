@@ -215,6 +215,18 @@ export function createDemoAdapter(): IWhatsAppAdapter {
       return { state: ps.state, qrDataUrl: qrValid ? ps.qrDataUrl : null };
     },
 
+    async getLoginStatus(sessionId) {
+      const ps = pendingSessions.get(sessionId);
+      if (ps) {
+        return { state: ps.state, phone: null, displayName: ps.displayName, errorMessage: null };
+      }
+      const existing = sessions.find(s => s.id === sessionId);
+      if (existing) {
+        return { state: existing.state, phone: existing.phone, displayName: existing.name, errorMessage: null };
+      }
+      return null;
+    },
+
     async removeSession(sessionId) {
       pendingSessions.delete(sessionId);
       const idx = sessions.findIndex(s => s.id === sessionId);

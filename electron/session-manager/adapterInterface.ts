@@ -61,6 +61,12 @@ export interface IWhatsAppAdapter {
   /** 扫码登录相关 */
   addSession(displayName: string, proxyUrl?: string): Promise<{ sessionId: string }>;
   getSessionQr(sessionId: string): Promise<{ state: string; qrDataUrl: string | null } | null>;
+  getLoginStatus(sessionId: string): Promise<{
+    state: string;
+    phone: string | null;
+    displayName: string | null;
+    errorMessage: string | null;
+  } | null>;
   removeSession(sessionId: string): Promise<void>;
 
   /** 清理资源 */

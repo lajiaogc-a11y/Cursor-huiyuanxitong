@@ -28,6 +28,14 @@ export interface QrStatusDto {
   qrDataUrl: string | null;
 }
 
+export interface LoginStatusDto {
+  sessionId: string;
+  state: string;
+  phone: string | null;
+  displayName: string | null;
+  errorMessage: string | null;
+}
+
 // ── 会话列表 ──
 
 export interface ConversationDto {

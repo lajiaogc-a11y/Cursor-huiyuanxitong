@@ -2,62 +2,66 @@
  * WhatsApp Companion 入口
  *
  * 启动策略：
- *   1. 优先尝试加载 whatsapp-web.js 真实适配器（支持扫码登录）
- *   2. 若 whatsapp-web.js 未安装或 Chrome 不可用，自动 fallback 到 DemoAdapter
+ *   1. 默认尝试加载真实 WhatsApp 适配器（@whiskeysockets/baileys）
+ *   2. 若 baileys 未安装，自动 fallback 到 DemoAdapter
+ *   3. 设置 USE_DEMO=1 可强制使用 DemoAdapter
  *
  * 用法：
  *   cd electron
  *   npm install
- *   npm start    # 或 npx tsx start.ts
- *
- * 安装真实 WhatsApp 适配器依赖：
- *   npm install whatsapp-web.js qrcode
+ *   npx tsx start.ts              # 自动检测模式
+ *   USE_DEMO=1 npx tsx start.ts   # 强制演示模式
  */
 
 import { startLocalApi, DEFAULT_PORT, DEFAULT_HOST } from './local-api/index.js';
 import type { IWhatsAppAdapter } from './session-manager/adapterInterface.js';
 
 async function createAdapter(): Promise<{ adapter: IWhatsAppAdapter; mode: string }> {
-  // 通过环境变量 USE_REAL_WHATSAPP=1 启用真实 WhatsApp 适配器
-  // 注意：真实适配器需要能访问 WhatsApp 服务器的网络环境
-  if (process.env.USE_REAL_WHATSAPP === '1') {
-    try {
-      const { WhatsAppAdapter } = await import('./session-manager/whatsappAdapter.js');
-      const adapter = await WhatsAppAdapter.create('./.wwebjs_data');
-      console.log('[Companion] Using real WhatsApp adapter (USE_REAL_WHATSAPP=1)');
-      return { adapter, mode: 'WhatsApp (real)' };
-    } catch (err: unknown) {
-      const reason = err instanceof Error ? err.message : String(err);
-      console.warn(`[Companion] Real adapter failed (${reason.slice(0, 120)}), falling back to Demo`);
-    }
+  // 强制演示模式
+  if (process.env.USE_DEMO === '1') {
+    const { createDemoAdapter } = await import('./session-manager/demoAdapter.js');
+    return { adapter: createDemoAdapter(), mode: 'Demo (mock)' };
   }
 
-  // Demo 适配器：生成真实 QR 码图片，30 秒后自动模拟"连接成功"
-  // 适合功能演示、UI 测试、不能访问 WhatsApp 服务器的环境
+  // 默认尝试真实模式
+  try {
+    const { WhatsAppAdapter } = await import('./session-manager/whatsappAdapter.js');
+    const adapter = await WhatsAppAdapter.create('./.wa_sessions');
+    return { adapter, mode: 'Baileys (real)' };
+  } catch (err: unknown) {
+    const reason = err instanceof Error ? err.message : String(err);
+    console.warn(`[Companion] Real adapter unavailable: ${reason.slice(0, 120)}`);
+    console.warn('[Companion] Falling back to Demo mode. Install baileys: npm install @whiskeysockets/baileys qrcode');
+  }
+
   const { createDemoAdapter } = await import('./session-manager/demoAdapter.js');
-  return { adapter: createDemoAdapter(), mode: 'Demo (mock QR)' };
+  return { adapter: createDemoAdapter(), mode: 'Demo (fallback)' };
 }
 
 async function main() {
   const { adapter, mode } = await createAdapter();
   const { port, close } = await startLocalApi({ adapter });
 
-  const isReal = !mode.includes('Demo');
+  const isReal = mode.startsWith('Baileys');
   console.log('');
   console.log('╔═══════════════════════════════════════════════════════════════╗');
   console.log(`║  WhatsApp Companion  [${mode.padEnd(22)}]  http://${DEFAULT_HOST}:${port}  ║`);
   console.log('╠═══════════════════════════════════════════════════════════════╣');
   if (isReal) {
-    console.log('║  ✅ 真实模式 — 正在监听，等待前端扫码请求                     ║');
+    console.log('║  ✅ 真实模式 — Baileys 已就绪，等待前端扫码请求               ║');
   } else {
-    console.log('║  ⚠️  演示模式 — 生成示例 QR 码，不连接真实 WhatsApp           ║');
-    console.log('║  启用真实登录：USE_REAL_WHATSAPP=1 npx tsx start.ts          ║');
+    console.log('║  ⚠️  演示模式 — QR 非真实，30秒后自动模拟连接                 ║');
+    console.log('║  安装真实依赖：npm install @whiskeysockets/baileys qrcode    ║');
   }
   console.log('║                                                             ║');
-  console.log('║  状态: 运行中 ● | 请保持此窗口打开                           ║');
-  console.log('║  前端工作台将自动检测到本客户端                               ║');
+  console.log('║  接口：                                                      ║');
+  console.log('║    POST /sessions/add       — 创建登录会话                   ║');
+  console.log('║    GET  /sessions/:id/qr    — QR 码 + 状态（轮询）           ║');
+  console.log('║    GET  /sessions/:id/status — 登录状态详情                   ║');
+  console.log('║    DELETE /sessions/:id      — 取消/移除会话                  ║');
+  console.log('║    GET  /health              — 健康检查                      ║');
   console.log('║                                                             ║');
-  console.log('║  Press Ctrl+C to stop                                       ║');
+  console.log('║  状态: 运行中 ● | 请保持此窗口打开                           ║');
   console.log('╚═══════════════════════════════════════════════════════════════╝');
   console.log('');
 

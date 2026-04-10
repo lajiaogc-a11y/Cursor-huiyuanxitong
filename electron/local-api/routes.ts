@@ -99,6 +99,15 @@ export function createRouteHandler(
       return ok(dto);
     }
 
+    // GET /sessions/:id/status  ←  查询登录状态（独立于 QR 码）
+    const statusMatch = path.match(/^\/sessions\/([^/]+)\/status$/);
+    if (method === 'GET' && statusMatch) {
+      const sessionId = decodeURIComponent(statusMatch[1]);
+      const result = await adapter.getLoginStatus(sessionId);
+      if (!result) return fail('NOT_FOUND', `Session ${sessionId} not found`, 404);
+      return ok({ sessionId, ...result });
+    }
+
     // DELETE /sessions/:id  ←  移除账号
     const deleteMatch = path.match(/^\/sessions\/([^/]+)$/);
     if (method === 'DELETE' && deleteMatch) {

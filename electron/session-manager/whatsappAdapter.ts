@@ -1,12 +1,8 @@
 /**
  * WhatsApp 真实适配器（Worker Thread 版）
  *
- * 使用 Node.js Worker Thread 运行 whatsapp-web.js，
- * 避免 Puppeteer/Chrome 初始化阻塞主进程事件循环。
- *
- * 依赖：
- *   npm install whatsapp-web.js qrcode
- *   npm install -D @types/qrcode
+ * 使用 @whiskeysockets/baileys 在 Worker Thread 中运行，
+ * 避免阻塞主进程事件循环。
  */
 
 import { Worker } from 'node:worker_threads';
@@ -23,47 +19,32 @@ import type {
   AdapterSendPayload,
 } from './adapterInterface.js';
 
-// ── Worker Thread 消息类型 ──
-
 interface WorkerMessage {
-  type: 'qr' | 'authenticated' | 'ready' | 'disconnected' | 'error';
+  type: 'qr' | 'scanned' | 'authenticated' | 'ready' | 'disconnected' | 'error';
   sessionId: string;
   qrDataUrl?: string;
+  qrIndex?: number;
   phone?: string;
   displayName?: string;
   reason?: string;
   message?: string;
 }
 
-// ── Chrome 路径搜索 ──
-
-const CHROME_PATHS = [
-  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-  process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'Google\\Chrome\\Application\\chrome.exe') : '',
-].filter(Boolean);
-
-function findChrome(): string | undefined {
-  for (const p of CHROME_PATHS) {
-    if (p && existsSync(p)) return p;
-  }
-  return undefined;
-}
-
-// ── 会话条目 ──
+type SessionState = 'initializing' | 'qr_pending' | 'scanned' | 'authenticated' | 'connected' | 'disconnected' | 'error' | 'destroyed';
 
 interface SessionEntry {
   id: string;
   displayName: string;
   phone: string;
-  state: 'initializing' | 'qr_pending' | 'authenticated' | 'connected' | 'disconnected' | 'destroyed';
+  state: SessionState;
   worker: Worker | null;
   qrDataUrl: string | null;
   qrTimestamp: number;
+  qrIndex: number;
+  errorMessage: string | null;
   createdAt: string;
 }
 
-// ── Worker 脚本路径 ──
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const WORKER_PATH = join(__dirname, 'whatsappWorker.ts');
@@ -76,12 +57,9 @@ export class WhatsAppAdapter implements IWhatsAppAdapter {
     this.dataPath = dataPath;
   }
 
-  /** 验证依赖可以被加载 */
-  static async create(dataPath = './.wwebjs_data'): Promise<WhatsAppAdapter> {
-    // 验证 baileys
+  static async create(dataPath = './.wa_sessions'): Promise<WhatsAppAdapter> {
     await import('@whiskeysockets/baileys');
     await import('qrcode');
-    // 验证 Worker 脚本存在
     if (!existsSync(WORKER_PATH)) {
       throw new Error(`Worker script not found: ${WORKER_PATH}`);
     }
@@ -89,14 +67,16 @@ export class WhatsAppAdapter implements IWhatsAppAdapter {
   }
 
   getSessions(): AdapterSession[] {
-    return Array.from(this.sessions.values()).map(e => ({
-      id: e.id,
-      accountId: e.id,
-      name: e.displayName,
-      phone: e.phone,
-      isConnected: e.state === 'connected',
-      state: e.state,
-    }));
+    return Array.from(this.sessions.values())
+      .filter(e => e.state !== 'destroyed')
+      .map(e => ({
+        id: e.id,
+        accountId: e.id,
+        name: e.displayName,
+        phone: e.phone,
+        isConnected: e.state === 'connected',
+        state: e.state,
+      }));
   }
 
   async addSession(displayName: string, proxyUrl?: string): Promise<{ sessionId: string }> {
@@ -110,60 +90,68 @@ export class WhatsAppAdapter implements IWhatsAppAdapter {
       worker: null,
       qrDataUrl: null,
       qrTimestamp: 0,
+      qrIndex: 0,
+      errorMessage: null,
       createdAt: new Date().toISOString(),
     };
     this.sessions.set(sessionId, entry);
 
-    // 在 Worker Thread 中启动 WhatsApp 客户端（不阻塞主线程）
-    const chromePath = findChrome();
     const worker = new Worker(WORKER_PATH, {
-      workerData: { sessionId, displayName, dataPath: this.dataPath, chromePath, proxyUrl },
+      workerData: { sessionId, displayName, dataPath: this.dataPath, proxyUrl },
     });
     entry.worker = worker;
 
     worker.on('message', (msg: WorkerMessage) => {
       const e = this.sessions.get(msg.sessionId);
-      if (!e) return;
+      if (!e || e.state === 'destroyed') return;
 
       switch (msg.type) {
         case 'qr':
           e.qrDataUrl = msg.qrDataUrl ?? null;
           e.qrTimestamp = Date.now();
+          e.qrIndex = msg.qrIndex ?? (e.qrIndex + 1);
           e.state = 'qr_pending';
-          console.log(`[WhatsApp] QR ready for session ${sessionId}`);
+          e.errorMessage = null;
+          console.log(`[WhatsApp] QR #${e.qrIndex} ready for ${sessionId.slice(0, 8)}`);
+          break;
+        case 'scanned':
+          e.state = 'scanned';
+          console.log(`[WhatsApp] ${sessionId.slice(0, 8)} scanned, waiting confirm`);
           break;
         case 'authenticated':
           e.state = 'authenticated';
-          console.log(`[WhatsApp] Session ${sessionId} authenticated`);
+          console.log(`[WhatsApp] ${sessionId.slice(0, 8)} authenticated`);
           break;
         case 'ready':
           e.state = 'connected';
           if (msg.phone) e.phone = msg.phone;
           if (msg.displayName) e.displayName = msg.displayName;
-          console.log(`[WhatsApp] Session ${sessionId} connected (${e.phone})`);
+          console.log(`[WhatsApp] ${sessionId.slice(0, 8)} connected (${e.phone})`);
           break;
         case 'disconnected':
           e.state = 'disconnected';
-          console.log(`[WhatsApp] Session ${sessionId} disconnected: ${msg.reason}`);
+          e.errorMessage = msg.reason ?? 'disconnected';
+          console.log(`[WhatsApp] ${sessionId.slice(0, 8)} disconnected: ${msg.reason}`);
           break;
         case 'error':
-          e.state = 'disconnected';
-          console.error(`[WhatsApp] Session ${sessionId} error: ${msg.message}`);
+          e.state = 'error';
+          e.errorMessage = msg.message ?? 'unknown error';
+          console.error(`[WhatsApp] ${sessionId.slice(0, 8)} error: ${msg.message}`);
           break;
       }
     });
 
     worker.on('error', (err) => {
-      console.error(`[WhatsApp] Worker error for ${sessionId}:`, err.message);
-      entry.state = 'disconnected';
+      console.error(`[WhatsApp] Worker error for ${sessionId.slice(0, 8)}:`, err.message);
+      entry.state = 'error';
+      entry.errorMessage = err.message;
     });
 
     worker.on('exit', (code) => {
-      if (code !== 0) {
-        console.warn(`[WhatsApp] Worker for ${sessionId} exited with code ${code}`);
-        if (entry.state !== 'connected' && entry.state !== 'destroyed') {
-          entry.state = 'disconnected';
-        }
+      if (code !== 0 && entry.state !== 'connected' && entry.state !== 'destroyed') {
+        console.warn(`[WhatsApp] Worker for ${sessionId.slice(0, 8)} exited with code ${code}`);
+        entry.state = 'error';
+        entry.errorMessage = `Worker exited with code ${code}`;
       }
     });
 
@@ -173,9 +161,24 @@ export class WhatsAppAdapter implements IWhatsAppAdapter {
   async getSessionQr(sessionId: string): Promise<{ state: string; qrDataUrl: string | null } | null> {
     const entry = this.sessions.get(sessionId);
     if (!entry) return null;
-    const QR_TTL = 60_000;
-    const qrValid = entry.qrDataUrl && (Date.now() - entry.qrTimestamp) < QR_TTL;
-    return { state: entry.state, qrDataUrl: qrValid ? entry.qrDataUrl : null };
+    // QR 图片在 Baileys 自动刷新时由 worker 更新，这里始终返回最新的
+    return { state: entry.state, qrDataUrl: entry.qrDataUrl };
+  }
+
+  async getLoginStatus(sessionId: string): Promise<{
+    state: string;
+    phone: string | null;
+    displayName: string | null;
+    errorMessage: string | null;
+  } | null> {
+    const entry = this.sessions.get(sessionId);
+    if (!entry) return null;
+    return {
+      state: entry.state,
+      phone: entry.phone || null,
+      displayName: entry.displayName || null,
+      errorMessage: entry.errorMessage,
+    };
   }
 
   async removeSession(sessionId: string): Promise<void> {
@@ -188,32 +191,18 @@ export class WhatsAppAdapter implements IWhatsAppAdapter {
     this.sessions.delete(sessionId);
   }
 
-  async getConversations(accountId: string): Promise<AdapterConversation[]> {
-    // Worker Thread 不暴露实时会话数据，返回空（需要通过 WebSocket 或轮询实现）
-    void accountId;
-    return [];
-  }
-
-  async getMessages(accountId: string, phone: string): Promise<AdapterMessage[]> {
-    void accountId; void phone;
-    return [];
-  }
-
+  async getConversations(_accountId: string): Promise<AdapterConversation[]> { return []; }
+  async getMessages(_accountId: string, _phone: string): Promise<AdapterMessage[]> { return []; }
   async sendMessage(payload: AdapterSendPayload): Promise<AdapterMessage> {
-    throw new Error(`Session ${payload.accountId} does not support direct message send in worker mode`);
+    throw new Error(`Session ${payload.accountId} direct send not yet supported`);
   }
-
   async markAsRead(_accountId: string, _phone: string): Promise<void> { /* noop */ }
-
   async updateStatus(_accountId: string, _phone: string, _status: string): Promise<void> { /* noop */ }
-
-  async getStats(accountId: string): Promise<AdapterStats> {
-    void accountId;
+  async getStats(_accountId: string): Promise<AdapterStats> {
     return { totalConversations: 0, unreadCount: 0, readNoReplyCount: 0, followUpCount: 0, priorityCount: 0 };
   }
 
   async destroy(): Promise<void> {
-    const ids = Array.from(this.sessions.keys());
-    for (const id of ids) await this.removeSession(id);
+    for (const id of Array.from(this.sessions.keys())) await this.removeSession(id);
   }
 }

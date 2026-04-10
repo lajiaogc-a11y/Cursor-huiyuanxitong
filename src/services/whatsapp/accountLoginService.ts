@@ -34,6 +34,10 @@ export interface LoginSession {
   errorMessage: string | null;
   elapsedSeconds: number;
   companionOnline: boolean | null;
+  /** 登录成功后的手机号 */
+  phone: string | null;
+  /** 登录成功后的显示名 */
+  displayName: string | null;
 }
 
 const QR_TIMEOUT_MS = 90_000;
@@ -49,6 +53,8 @@ export function createLoginController(onStateChange: (session: LoginSession) => 
   let qrDataUrl: string | null = null;
   let errorMessage: string | null = null;
   let companionOnline: boolean | null = null;
+  let phone: string | null = null;
+  let displayName: string | null = null;
   let startTime = 0;
   let elapsedSeconds = 0;
   let pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -64,6 +70,8 @@ export function createLoginController(onStateChange: (session: LoginSession) => 
       errorMessage,
       elapsedSeconds,
       companionOnline,
+      phone,
+      displayName,
     });
   }
 
@@ -103,6 +111,9 @@ export function createLoginController(onStateChange: (session: LoginSession) => 
       const { state: remoteState, qrDataUrl: remoteQr } = result.data;
 
       switch (remoteState) {
+        case 'initializing':
+          // 仍在初始化，等待下一次轮询
+          break;
         case 'qr_pending':
           if (remoteQr) qrDataUrl = remoteQr;
           if (state !== 'qr_ready') setState('qr_ready');
@@ -112,15 +123,25 @@ export function createLoginController(onStateChange: (session: LoginSession) => 
         case 'authenticated':
           setState('scanned');
           break;
-        case 'connected':
+        case 'connected': {
           stopTimers();
+          // 通过 status 端点获取登录成功后的详情
+          const statusResult = await localWhatsappBridge.getLoginStatus(sessionId!);
+          if (statusResult.success) {
+            phone = statusResult.data.phone;
+            displayName = statusResult.data.displayName;
+          }
           setState('connected');
           break;
+        }
         case 'disconnected':
-        case 'error':
+        case 'error': {
           stopTimers();
-          setState('error', '连接失败，请重试');
+          const statusResult = await localWhatsappBridge.getLoginStatus(sessionId!);
+          const msg = statusResult.success ? statusResult.data.errorMessage : null;
+          setState('error', msg || '连接失败，请重试');
           break;
+        }
       }
     } catch {
       // 单次轮询失败不中断，等下次
@@ -129,11 +150,13 @@ export function createLoginController(onStateChange: (session: LoginSession) => 
 
   return {
     /** 检查 companion 并创建登录会话 */
-    async start(displayName: string, proxyUrl?: string) {
+    async start(inputDisplayName: string, proxyUrl?: string) {
       stopTimers();
       sessionId = null;
       qrDataUrl = null;
       errorMessage = null;
+      phone = null;
+      displayName = null;
 
       // 1. 检测 companion
       setState('checking_companion');
@@ -148,7 +171,7 @@ export function createLoginController(onStateChange: (session: LoginSession) => 
 
       // 2. 请求创建登录会话
       setState('requesting_qr');
-      const result = await localWhatsappBridge.addSession(displayName, proxyUrl);
+      const result = await localWhatsappBridge.addSession(inputDisplayName, proxyUrl);
       if (!result.success) {
         setState('error', result.error.message || '创建登录会话失败');
         return;
@@ -164,8 +187,8 @@ export function createLoginController(onStateChange: (session: LoginSession) => 
     },
 
     /** 重试（从 error/expired/companion_offline 恢复） */
-    async retry(displayName: string, proxyUrl?: string) {
-      return this.start(displayName, proxyUrl);
+    async retry(retryDisplayName: string, proxyUrl?: string) {
+      return this.start(retryDisplayName, proxyUrl);
     },
 
     /** 取消并清理 */
@@ -187,7 +210,7 @@ export function createLoginController(onStateChange: (session: LoginSession) => 
     },
 
     getState(): LoginSession {
-      return { state, sessionId, qrDataUrl, errorMessage, elapsedSeconds, companionOnline };
+      return { state, sessionId, qrDataUrl, errorMessage, elapsedSeconds, companionOnline, phone, displayName };
     },
   };
 }
