@@ -173,14 +173,32 @@ export function AddAccountDialog({ open, onClose, onConnected }: Props) {
         {/* Companion 状态条 */}
         {companionOnline !== null && (
           <div className={cn(
-            'mx-5 mb-3 px-3 py-2 rounded-lg text-xs flex items-center gap-2',
+            'mx-5 mb-3 px-3 py-2 rounded-lg text-xs',
             companionOnline
               ? 'bg-green-50 text-green-700 border border-green-200'
               : 'bg-amber-50 text-amber-700 border border-amber-200',
           )}>
             {companionOnline
-              ? <><Wifi className="w-3.5 h-3.5 flex-shrink-0" /> Companion 已连接（localhost:3100）{isDemo ? ' — 演示模式' : ' — 真实模式'}</>
-              : <><WifiOff className="w-3.5 h-3.5 flex-shrink-0" /> Companion 未运行，请先执行：<code className="ml-1 font-mono">cd electron &amp;&amp; npx tsx start.ts</code></>
+              ? (
+                <div className="flex items-center gap-2">
+                  <Wifi className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>Companion 已连接（localhost:3100）{isDemo ? ' — 演示模式' : ' — 真实模式'}</span>
+                </div>
+              )
+              : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <WifiOff className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="font-medium">PC 客户端未启动</span>
+                  </div>
+                  <div className="text-[11px] leading-relaxed space-y-1 pl-5">
+                    <p>需要先下载并安装 <strong>FastGC WhatsApp Companion</strong> 桌面客户端：</p>
+                    <p>1. 点击右上角 <strong>↓ 下载按钮</strong> 获取安装包</p>
+                    <p>2. 安装并启动客户端</p>
+                    <p>3. 返回此页面即可扫码登录</p>
+                  </div>
+                </div>
+              )
             }
           </div>
         )}
@@ -277,12 +295,15 @@ export function AddAccountDialog({ open, onClose, onConnected }: Props) {
 
               {/* 不在线时的提示 */}
               {!companionOnline && (
-                <div className="flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">
-                  <XCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                  <span>
-                    请先启动本地 Companion 服务：<br />
-                    <code className="font-mono">cd electron &amp;&amp; npx tsx start.ts</code>
-                  </span>
+                <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-3 space-y-2">
+                  <div className="flex items-center gap-2 font-medium">
+                    <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                    PC 客户端未检测到
+                  </div>
+                  <p className="pl-5 leading-relaxed">
+                    请先在右上角 <strong>↓ 下载按钮</strong> 下载并安装 PC 客户端，
+                    安装后启动即可自动连接。
+                  </p>
                 </div>
               )}
 
@@ -296,7 +317,7 @@ export function AddAccountDialog({ open, onClose, onConnected }: Props) {
                     : 'bg-muted text-muted-foreground cursor-not-allowed',
                 )}
               >
-                {companionOnline ? '生成二维码' : 'Companion 未启动'}
+                {companionOnline ? '生成二维码' : '请先安装并启动 PC 客户端'}
               </button>
             </div>
           )}

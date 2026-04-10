@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useLocation, useSearchParams, Link } from "react-router-dom";
-import { User, LogOut, Settings, Sun, Moon, Maximize2, Minimize2, Menu, BookOpen } from "lucide-react";
+import { User, LogOut, Settings, Sun, Moon, Maximize2, Minimize2, Menu, BookOpen, Download } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import {
@@ -129,7 +129,11 @@ export function Header() {
   const { unreadCount: knowledgeUnreadTotal } = useUnreadCount();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
-  
+
+  // PC 客户端下载链接（优先读 localStorage，管理员可在平台设置中配置）
+  const pcDownloadUrl = localStorage.getItem('pc_download_url_windows') || '';
+  const macDownloadUrl = localStorage.getItem('pc_download_url_mac') || '';
+
   // Settings form
   const [newName, setNewName] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -363,6 +367,42 @@ export function Header() {
 
           {/* 通知中心 */}
           <NotificationCenter />
+
+          {/* PC 客户端下载 */}
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-9 w-9 p-0 hover:bg-accent">
+                    <Download className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>{t("下载客户端", "Download Client")}</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="end" className="w-64">
+              <div className="px-3 py-2 text-sm font-medium border-b">
+                {t("下载 PC 客户端", "Download PC Client")}
+              </div>
+              <div className="p-1">
+                <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+                  <a href={pcDownloadUrl || "#"} download={!!pcDownloadUrl} onClick={!pcDownloadUrl ? (e) => { e.preventDefault(); notify.info(t("下载地址未配置", "Download URL not configured")); } : undefined}>
+                    <Download className="mr-2 h-4 w-4" />
+                    {t("Windows 客户端", "Windows Client")}
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+                  <a href={macDownloadUrl || "#"} download={!!macDownloadUrl} onClick={!macDownloadUrl ? (e) => { e.preventDefault(); notify.info(t("下载地址未配置", "Download URL not configured")); } : undefined}>
+                    <Download className="mr-2 h-4 w-4" />
+                    {t("macOS 客户端", "macOS Client")}
+                  </a>
+                </DropdownMenuItem>
+              </div>
+              <div className="px-3 py-2 text-[11px] text-muted-foreground border-t">
+                {t("安装后启动 Companion 即可在 WhatsApp 工作台扫码登录", "After installation, start Companion to scan QR in WhatsApp Workbench")}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

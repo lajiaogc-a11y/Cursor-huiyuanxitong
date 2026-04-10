@@ -16,6 +16,7 @@ export const SETTINGS_TABS = [
   { key: "data-migration-tools", zh: "数据迁移工具", en: "Data Migration Tools" },
   { key: "open-api", zh: "开放 API", en: "Open API" },
   { key: "device-whitelist", zh: "设备白名单登录", en: "Device whitelist login" },
+  { key: "client-download", zh: "客户端下载", en: "Client Download" },
 ] as const;
 
 export function getPlatformSettingsSubTabTitle(tabKey: string): { zh: string; en: string } | undefined {

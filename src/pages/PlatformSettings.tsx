@@ -25,6 +25,7 @@ import Login2FATab from "@/components/Login2FATab";
 import TenantQuotaTab from "@/components/TenantQuotaTab";
 import DataMigrationToolsTab from "@/components/DataMigrationToolsTab";
 const AdminDeviceWhitelistTab = lazy(() => import("@/components/AdminDeviceWhitelistTab"));
+const ClientDownloadTab = lazy(() => import("@/components/ClientDownloadTab"));
 const OpenApiManagementTabLazy = lazy(async () => {
   const { ApiManagementTab } = await import("@/components/ApiManagementTab");
   return {
@@ -79,6 +80,7 @@ const tabContentMap: Record<string, React.ReactNode> = {
     </Suspense>
   ),
   "device-whitelist": <Suspense fallback={<TabSkeleton />}><AdminDeviceWhitelistTab /></Suspense>,
+  "client-download": <Suspense fallback={<TabSkeleton />}><ClientDownloadTab /></Suspense>,
 };
 
 const VALID_TABS = new Set(Object.keys(tabContentMap));
