@@ -1,35 +1,62 @@
 /**
  * 平台设置 — 客户端下载地址配置
  *
- * 管理员配置 Windows / macOS 客户端的下载链接，
- * 配置后员工在后台右上角可直接下载。
+ * 下载 URL 存储在后端 shared_data_store（key: companionDownloadUrls），
+ * 所有用户/浏览器共享同一配置。
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { notify } from '@/lib/notifyHub';
-import { Download, Save, ExternalLink } from 'lucide-react';
+import { Download, Save, ExternalLink, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getSharedDataApi, postSharedDataApi } from '@/api/staffData/sharedDataApi';
 
-const LS_KEY_WIN = 'pc_download_url_windows';
-const LS_KEY_MAC = 'pc_download_url_mac';
+const STORE_KEY = 'companionDownloadUrls';
+
+interface DownloadUrls {
+  windows?: string;
+  mac?: string;
+}
 
 export default function ClientDownloadTab() {
   const { t } = useLanguage();
   const [winUrl, setWinUrl] = useState('');
   const [macUrl, setMacUrl] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setWinUrl(localStorage.getItem(LS_KEY_WIN) || '');
-    setMacUrl(localStorage.getItem(LS_KEY_MAC) || '');
+    (async () => {
+      const data = await getSharedDataApi<DownloadUrls>(STORE_KEY);
+      if (data) {
+        setWinUrl(data.windows ?? '');
+        setMacUrl(data.mac ?? '');
+      }
+      setLoading(false);
+    })();
   }, []);
 
-  const handleSave = () => {
-    localStorage.setItem(LS_KEY_WIN, winUrl.trim());
-    localStorage.setItem(LS_KEY_MAC, macUrl.trim());
-    notify.success(t('保存成功', 'Saved successfully'));
-  };
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    const payload: DownloadUrls = { windows: winUrl.trim(), mac: macUrl.trim() };
+    const ok = await postSharedDataApi(STORE_KEY, payload);
+    setSaving(false);
+    if (ok) {
+      notify.success(t('保存成功', 'Saved successfully'));
+    } else {
+      notify.error(t('保存失败，请重试', 'Save failed, please retry'));
+    }
+  }, [winUrl, macUrl, t]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 py-10 justify-center text-muted-foreground">
+        <Loader2 className="w-4 h-4 animate-spin" /> {t('加载中...', 'Loading...')}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -83,13 +110,12 @@ export default function ClientDownloadTab() {
           </div>
         </div>
 
-        <Button onClick={handleSave} className="gap-2">
-          <Save className="w-4 h-4" />
+        <Button onClick={handleSave} disabled={saving} className="gap-2">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {t('保存', 'Save')}
         </Button>
       </div>
 
-      {/* 预览 */}
       {(winUrl || macUrl) && (
         <div className="rounded-lg border p-4 space-y-2">
           <div className="text-sm font-medium">{t('当前配置预览', 'Current Configuration Preview')}</div>

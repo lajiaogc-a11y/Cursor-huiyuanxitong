@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation, useSearchParams, Link } from "react-router-dom";
 import { User, LogOut, Settings, Sun, Moon, Maximize2, Minimize2, Menu, BookOpen, Download } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -130,9 +130,19 @@ export function Header() {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
 
-  // PC 客户端下载链接（优先读 localStorage，管理员可在平台设置中配置）
-  const pcDownloadUrl = localStorage.getItem('pc_download_url_windows') || '';
-  const macDownloadUrl = localStorage.getItem('pc_download_url_mac') || '';
+  // PC 客户端下载链接（从后端 shared_data_store 加载）
+  const [pcDownloadUrl, setPcDownloadUrl] = useState('');
+  const [macDownloadUrl, setMacDownloadUrl] = useState('');
+  useEffect(() => {
+    import('@/api/staffData/sharedDataApi').then(({ getSharedDataApi }) => {
+      getSharedDataApi<{ windows?: string; mac?: string }>('companionDownloadUrls').then(data => {
+        if (data) {
+          setPcDownloadUrl(data.windows ?? '');
+          setMacDownloadUrl(data.mac ?? '');
+        }
+      });
+    });
+  }, []);
 
   // Settings form
   const [newName, setNewName] = useState("");

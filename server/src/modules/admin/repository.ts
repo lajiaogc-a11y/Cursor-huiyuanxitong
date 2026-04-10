@@ -638,8 +638,31 @@ export async function bulkDeleteRepository(
     }
   }
 
-  // 8. 删除订单
+  // 8. 归档 + 删除订单（先 INSERT INTO archived_orders 再 DELETE，防止数据永久丢失）
   if (orderIdsToDelete.length > 0) {
+    let archivedCount = 0;
+    for (let i = 0; i < orderIdsToDelete.length; i += BATCH_SIZE) {
+      const batch = orderIdsToDelete.slice(i, i + BATCH_SIZE);
+      try {
+        const hdr = await execute(
+          `INSERT IGNORE INTO archived_orders (
+            id, original_id, order_number, order_type, phone_number, currency, amount, actual_payment,
+            exchange_rate, fee, profit_ngn, profit_usdt, status, created_at, completed_at, archived_at, original_data
+          )
+          SELECT UUID(), o.id, COALESCE(o.order_number,''), COALESCE(NULLIF(TRIM(o.card_type),''),'order'),
+            o.phone_number, o.currency, COALESCE(o.amount,0), o.actual_payment, o.rate, o.fee,
+            o.profit_ngn, o.profit_usdt, COALESCE(o.status,''), o.created_at, o.updated_at, NOW(3),
+            JSON_OBJECT(
+              'id', o.id, 'order_number', o.order_number, 'member_id', o.member_id, 'tenant_id', o.tenant_id,
+              'status', o.status, 'amount', o.amount, 'currency', o.currency, 'created_at', o.created_at,
+              'is_deleted', o.is_deleted, 'phone_number', o.phone_number, 'profit_ngn', o.profit_ngn, 'profit_usdt', o.profit_usdt
+            )
+          FROM orders o WHERE o.id IN (${batchIn(batch)})`,
+          batch,
+        );
+        archivedCount += hdr.affectedRows ?? 0;
+      } catch (e: unknown) { errors.push(`archive orders batch: ${e instanceof Error ? e.message : String(e)}`); }
+    }
     for (let i = 0; i < orderIdsToDelete.length; i += BATCH_SIZE) {
       const batch = orderIdsToDelete.slice(i, i + BATCH_SIZE);
       try {
@@ -658,7 +681,8 @@ export async function bulkDeleteRepository(
         deletedCount += batch.length;
       } catch (e: unknown) { errors.push(`orders batch: ${e instanceof Error ? e.message : String(e)}`); }
     }
-    if (deletedCount > 0) deletedSummary.push({ table: 'Orders', count: deletedCount });
+    if (archivedCount > 0) deletedSummary.push({ table: 'Orders (archived)', count: archivedCount });
+    if (deletedCount > 0) deletedSummary.push({ table: 'Orders (deleted)', count: deletedCount });
   }
 
   // 9. referral_relations
@@ -959,6 +983,24 @@ export async function deleteOrderByIdRepository(
   try {
     await execute(`DELETE FROM meika_zone_order_links WHERE order_id = ?`, [orderId]);
   } catch { /* table may not exist yet */ }
+
+  // 删除前归档到 archived_orders，防数据永久丢失
+  try {
+    await execute(
+      `INSERT IGNORE INTO archived_orders (
+        id, original_id, order_number, order_type, phone_number, currency, amount, actual_payment,
+        exchange_rate, fee, profit_ngn, profit_usdt, status, created_at, completed_at, archived_at, original_data
+      )
+      SELECT UUID(), o.id, COALESCE(o.order_number,''), COALESCE(NULLIF(TRIM(o.card_type),''),'order'),
+        o.phone_number, o.currency, COALESCE(o.amount,0), o.actual_payment, o.rate, o.fee,
+        o.profit_ngn, o.profit_usdt, COALESCE(o.status,''), o.created_at, o.updated_at, NOW(3),
+        JSON_OBJECT('id', o.id, 'order_number', o.order_number, 'member_id', o.member_id,
+          'tenant_id', o.tenant_id, 'status', o.status, 'amount', o.amount, 'currency', o.currency,
+          'created_at', o.created_at, 'phone_number', o.phone_number)
+      FROM orders o WHERE o.id = ?`,
+      [orderId],
+    );
+  } catch { /* archived_orders may not exist in some envs */ }
 
   try {
     if (tenantId) {

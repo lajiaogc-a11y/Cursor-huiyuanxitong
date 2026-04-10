@@ -42,25 +42,23 @@ async function main() {
   const { adapter, mode } = await createAdapter();
   const { port, close } = await startLocalApi({ adapter });
 
-  const isDemo = mode.includes('Demo');
+  const isReal = !mode.includes('Demo');
   console.log('');
-  console.log('┌─────────────────────────────────────────────────────────────┐');
-  console.log(`│  WhatsApp Companion  [${mode.padEnd(22)}]  http://${DEFAULT_HOST}:${port}  │`);
-  console.log('│                                                             │');
-  if (isDemo) {
-    console.log('│  ⚠️  演示模式 — 生成示例 QR 码，不连接真实 WhatsApp           │');
-    console.log('│  如需真实登录，请配置代理后执行：                             │');
-    console.log('│    USE_REAL_WHATSAPP=1 npx tsx start.ts                     │');
+  console.log('╔═══════════════════════════════════════════════════════════════╗');
+  console.log(`║  WhatsApp Companion  [${mode.padEnd(22)}]  http://${DEFAULT_HOST}:${port}  ║`);
+  console.log('╠═══════════════════════════════════════════════════════════════╣');
+  if (isReal) {
+    console.log('║  ✅ 真实模式 — 正在监听，等待前端扫码请求                     ║');
   } else {
-    console.log('│  ✅ 真实模式 — 使用 Baileys 连接 WhatsApp 服务器              │');
+    console.log('║  ⚠️  演示模式 — 生成示例 QR 码，不连接真实 WhatsApp           ║');
+    console.log('║  启用真实登录：USE_REAL_WHATSAPP=1 npx tsx start.ts          ║');
   }
-  console.log('│                                                             │');
-  console.log('│  端点：POST /sessions/add  {"displayName","proxyUrl?"}      │');
-  console.log('│         GET  /sessions/:id/qr  — 轮询 QR 码状态             │');
-  console.log('│         DELETE /sessions/:id  — 移除账号                    │');
-  console.log('│                                                             │');
-  console.log('│  Press Ctrl+C to stop                                       │');
-  console.log('└─────────────────────────────────────────────────────────────┘');
+  console.log('║                                                             ║');
+  console.log('║  状态: 运行中 ● | 请保持此窗口打开                           ║');
+  console.log('║  前端工作台将自动检测到本客户端                               ║');
+  console.log('║                                                             ║');
+  console.log('║  Press Ctrl+C to stop                                       ║');
+  console.log('╚═══════════════════════════════════════════════════════════════╝');
   console.log('');
 
   const shutdown = async () => {

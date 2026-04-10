@@ -515,7 +515,25 @@ export async function tableDeleteController(req: AuthenticatedRequest, res: Resp
         }
         if (row.id) orderIdsToClean.push(String(row.id));
       }
+      // 删除前归档到 archived_orders，防数据永久丢失
       if (orderIdsToClean.length > 0) {
+        try {
+          const ph = orderIdsToClean.map(() => '?').join(',');
+          await execute(
+            `INSERT IGNORE INTO archived_orders (
+              id, original_id, order_number, order_type, phone_number, currency, amount, actual_payment,
+              exchange_rate, fee, profit_ngn, profit_usdt, status, created_at, completed_at, archived_at, original_data
+            )
+            SELECT UUID(), o.id, COALESCE(o.order_number,''), COALESCE(NULLIF(TRIM(o.card_type),''),'order'),
+              o.phone_number, o.currency, COALESCE(o.amount,0), o.actual_payment, o.rate, o.fee,
+              o.profit_ngn, o.profit_usdt, COALESCE(o.status,''), o.created_at, o.updated_at, NOW(3),
+              JSON_OBJECT('id', o.id, 'order_number', o.order_number, 'member_id', o.member_id,
+                'tenant_id', o.tenant_id, 'status', o.status, 'amount', o.amount, 'currency', o.currency,
+                'created_at', o.created_at, 'phone_number', o.phone_number)
+            FROM orders o WHERE o.id IN (${ph})`,
+            orderIdsToClean,
+          );
+        } catch (archErr) { logger.warn('TableProxy', 'archive before delete failed (non-fatal):', archErr); }
         try {
           await execute(
             `DELETE FROM meika_zone_order_links WHERE order_id IN (${orderIdsToClean.map(() => '?').join(',')})`,
