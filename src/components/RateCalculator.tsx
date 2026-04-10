@@ -167,6 +167,7 @@ export default function RateCalculator({
   const [memberPointsSummary, setMemberPointsSummary] = useState<MemberPointsSummary | null>(null);
   const [isLoadingPoints, setIsLoadingPoints] = useState(false);
   const [matchedMemberId, setMatchedMemberId] = useState<string | null>(null);
+  const [memberRegisteredAt, setMemberRegisteredAt] = useState<string | null>(null);
 
   // 当电话号码或会员编号变化时，从数据库获取积分摘要
   useEffect(() => {
@@ -383,6 +384,17 @@ export default function RateCalculator({
     return prefs.join(", ") || "-";
   }, [formData.currencyPreferenceList, formData.payNaira, formData.payCedi, formData.payUsdt]);
 
+  // 注册时间格式化 + 入网天数计算
+  const registrationDisplay = useMemo(() => {
+    if (!memberRegisteredAt) return { dateStr: '-', days: '-' };
+    const d = new Date(memberRegisteredAt);
+    if (isNaN(d.getTime())) return { dateStr: '-', days: '-' };
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const diffMs = Date.now() - d.getTime();
+    const days = Math.max(0, Math.floor(diffMs / 86_400_000));
+    return { dateStr, days: `${days}` };
+  }, [memberRegisteredAt]);
+
   // 电话号码变化处理
   const phoneSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -402,6 +414,7 @@ export default function RateCalculator({
           if (dbMember && memberLookupTenantId && !isMemberInTenant(dbMember, memberLookupTenantId)) {
             setMemberLevelZhHint(null);
             setMatchedMemberId(null);
+            setMemberRegisteredAt(null);
             const newMemberCode = generateMemberId();
             updateFields({
               memberCode: newMemberCode,
@@ -426,6 +439,7 @@ export default function RateCalculator({
             const z = dbMember.member_level_zh?.trim();
             setMemberLevelZhHint(z || null);
             setMatchedMemberId(dbMember.id);
+            setMemberRegisteredAt(dbMember.created_at || null);
             updateFields({
               memberCode: dbMember.member_code,
               memberLevel: dbMember.member_level || '',
@@ -440,6 +454,7 @@ export default function RateCalculator({
           } else {
             setMemberLevelZhHint(null);
             setMatchedMemberId(null);
+            setMemberRegisteredAt(null);
             const newMemberCode = generateMemberId();
             updateFields({
               memberCode: newMemberCode,
@@ -460,6 +475,7 @@ export default function RateCalculator({
     } else {
       setMemberLevelZhHint(null);
       setMatchedMemberId(null);
+      setMemberRegisteredAt(null);
       updateFields({
         memberCode: "",
         memberLevel: "",
@@ -1224,13 +1240,13 @@ export default function RateCalculator({
 
         {/* 右侧区域 - 8/12 (必填信息 + 会员信息) */}
         <div className={isMobile ? 'space-y-2' : 'xl:col-span-9 min-w-0 space-y-2'}>
-          {/* 必填信息 */}
+          {/* 订单信息（原必填信息 + 客户特点/来源/备注） */}
           <Card className="border-warning/30">
-            <CardContent className="p-2">
+            <CardContent className="p-2 space-y-1.5">
               <div className={`grid gap-x-2 gap-y-1.5 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
                 {/* 卡类型 */}
                 <div className="flex min-w-0 items-center gap-1.5">
-                  <Label className="w-20 shrink-0 text-[10px] leading-tight text-muted-foreground">{t("卡类型", "Card Type")}</Label>
+                  <Label className="w-16 shrink-0 text-[10px] leading-tight text-muted-foreground">{t("卡类型", "Card Type")}</Label>
                   <div className="min-w-0 flex-1">
                     <Select value={formData.cardType} onValueChange={(v) => {
                       updateFields({ cardType: v, cardMerchant: "" });
@@ -1246,10 +1262,9 @@ export default function RateCalculator({
                     </Select>
                   </div>
                 </div>
-                
                 {/* 卡商 */}
                 <div className="flex min-w-0 items-center gap-1.5">
-                  <Label className="w-20 shrink-0 text-[10px] leading-tight text-muted-foreground">{t("卡商名称", "Vendor")}</Label>
+                  <Label className="w-16 shrink-0 text-[10px] leading-tight text-muted-foreground">{t("卡商名称", "Vendor")}</Label>
                   <div className="min-w-0 flex-1">
                     <Select value={formData.cardMerchant} onValueChange={(v) => updateField('cardMerchant', v)}>
                       <SelectTrigger className="h-7 w-full text-xs">
@@ -1272,11 +1287,10 @@ export default function RateCalculator({
                     </Select>
                   </div>
                 </div>
-                
                 {/* 代付商家 */}
                 <div className="flex min-w-0 items-center gap-1.5">
-                  <div className="flex w-20 shrink-0 items-center gap-0.5">
-                    <Label className="text-[10px] leading-tight text-muted-foreground">{t("代付商家", "Payment Agent")}</Label>
+                  <div className="flex w-16 shrink-0 items-center gap-0.5">
+                    <Label className="text-[10px] leading-tight text-muted-foreground">{t("代付商家", "Agent")}</Label>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -1320,10 +1334,9 @@ export default function RateCalculator({
                     </Select>
                   </div>
                 </div>
-                
                 {/* 电话号码 */}
                 <div className="flex min-w-0 items-center gap-1.5">
-                  <Label className="w-20 shrink-0 text-[10px] leading-tight text-muted-foreground">{t("电话号码", "Phone")}</Label>
+                  <Label className="w-16 shrink-0 text-[10px] leading-tight text-muted-foreground">{t("电话号码", "Phone")}</Label>
                   <Input
                     value={formData.phoneNumber}
                     onChange={(e) => handlePhoneNumberChange(e.target.value)}
@@ -1332,13 +1345,12 @@ export default function RateCalculator({
                     className="h-7 min-w-0 flex-1 text-xs"
                   />
                 </div>
-                
                 {/* 银行卡 */}
                 <div className="flex min-w-0 items-center gap-1.5">
-                  <Label className="w-20 shrink-0 text-[10px] leading-tight text-muted-foreground">{t("银行卡", "Bank Card")}</Label>
+                  <Label className="w-16 shrink-0 text-[10px] leading-tight text-muted-foreground">{t("银行卡", "Bank Card")}</Label>
                   <div className="flex min-w-0 flex-1 gap-1">
-                    <Input 
-                      value={formData.bankCard} 
+                    <Input
+                      value={formData.bankCard}
                       onChange={(e) => updateField('bankCard', e.target.value)}
                       onBlur={(e) => validateBankCard(e.target.value)}
                       placeholder={t("卡号 银行", "Card# Bank")}
@@ -1349,188 +1361,181 @@ export default function RateCalculator({
                     </Button>
                   </div>
                 </div>
-                
-                {/* 会员编号 */}
+                {/* 客户特点 */}
                 <div className="flex min-w-0 items-center gap-1.5">
-                  <Label className="w-20 shrink-0 text-[10px] leading-tight text-muted-foreground">{t("会员编号", "Member Code")}</Label>
-                  <Input 
-                    value={formData.memberCode} 
-                    readOnly
-                    placeholder={t("自动生成", "Auto-generated")}
-                    className="h-7 min-w-0 flex-1 bg-muted/50 font-mono text-xs"
+                  <Label className="w-16 shrink-0 text-[10px] leading-tight font-medium text-primary dark:text-primary">{t("客户特点", "Feature")}</Label>
+                  <Input
+                    value={formData.customerFeature}
+                    onChange={(e) => updateField("customerFeature", e.target.value)}
+                    placeholder={t("输入", "Enter")}
+                    className="h-7 min-w-0 flex-1 text-xs border-primary/25 bg-background focus-visible:ring-primary/35"
+                  />
+                </div>
+                {/* 来源 */}
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <Label className="w-16 shrink-0 text-[10px] leading-tight font-medium text-primary dark:text-primary">{t("来源", "Source")}</Label>
+                  <div className="min-w-0 flex-1">
+                    <Select value={formData.customerSource || undefined} onValueChange={(v) => updateField("customerSource", v)}>
+                      <SelectTrigger className="h-7 w-full text-xs border-primary/25 focus:ring-primary/35">
+                        <SelectValue placeholder={t("选择来源", "Select source")}>
+                          {customerSources.find((s) => s.id === formData.customerSource)?.name || t("选择", "Select")}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customerSources.map((source) => (
+                          <SelectItem key={source.id} value={source.id}>{source.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+              {/* 备注区域 */}
+              <div className={`grid gap-2 ${isMobile ? "grid-cols-1" : "grid-cols-2"}`}>
+                <div className={`flex ${isMobile ? "flex-col gap-1" : "items-start gap-1.5"}`}>
+                  <Label className={`text-[10px] shrink-0 font-medium text-primary dark:text-primary ${isMobile ? "" : "w-16 pt-1.5"}`}>
+                    {t("订单备注", "Order Note")}
+                  </Label>
+                  <Textarea
+                    value={formData.remarkOrder}
+                    onChange={(e) => updateField("remarkOrder", e.target.value)}
+                    placeholder={t("提交后同步到订单管理", "Syncs to order management")}
+                    className="flex-1 h-[44px] min-h-[44px] resize-none text-xs border-primary/25 bg-background focus-visible:ring-primary/35"
+                  />
+                </div>
+                <div className={`flex ${isMobile ? "flex-col gap-1" : "items-start gap-1.5"}`}>
+                  <Label className={`text-[10px] shrink-0 font-medium text-primary dark:text-primary ${isMobile ? "" : "w-16 pt-1.5"}`}>
+                    {t("会员备注", "Member Note")}
+                  </Label>
+                  <Textarea
+                    value={formData.remarkMember}
+                    onChange={(e) => updateField("remarkMember", e.target.value)}
+                    placeholder={t("提交后同步到会员管理", "Syncs to member management")}
+                    className="flex-1 h-[44px] min-h-[44px] resize-none text-xs border-primary/25 bg-background focus-visible:ring-primary/35"
                   />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* 会员信息区域 */}
+          {/* 会员信息区域 — 3列×3行 */}
           <Card className="overflow-x-auto overflow-y-visible">
           <div className="bg-muted/50 px-3 py-1 border-b flex items-center justify-between">
             <span className="text-xs font-bold text-foreground">{t("会员信息", "Member Info")}</span>
           </div>
-          <CardContent className="p-2 space-y-2">
-            {/* 上半部分：左右两栏 */}
-            <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
-              {/* 左栏：手填（特点、来源）→ 自动（常交易卡、等级） */}
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5 rounded-md border border-primary/35 bg-primary/[0.08] px-1.5 py-0 dark:border-primary/35 dark:bg-primary/15">
-                  <Label className="text-[10px] w-14 shrink-0 font-medium text-primary dark:text-primary leading-none">
-                    {t("客户特点", "Feature")}
-                  </Label>
-                  <Input
-                    value={formData.customerFeature}
-                    onChange={(e) => updateField("customerFeature", e.target.value)}
-                    placeholder={t("输入", "Enter")}
-                    className="h-6 flex-1 text-[11px] border-primary/25 bg-background/90 shadow-none focus-visible:ring-primary/35 dark:border-primary/30 dark:bg-background/70"
-                  />
-                </div>
-                <div className="flex items-center gap-1.5 rounded-md border border-primary/35 bg-primary/[0.08] px-1.5 py-0 dark:border-primary/35 dark:bg-primary/15">
-                  <Label className="text-[10px] w-14 shrink-0 font-medium text-primary dark:text-primary leading-none">
-                    {t("来源", "Source")}
-                  </Label>
-                  <Select value={formData.customerSource || undefined} onValueChange={(v) => updateField("customerSource", v)}>
-                    <SelectTrigger className="h-6 flex-1 text-[11px] border-primary/25 bg-background/90 focus:ring-primary/35 dark:border-primary/30 dark:bg-background/70">
-                      <SelectValue placeholder={t("选择来源", "Select source")}>
-                        {customerSources.find((s) => s.id === formData.customerSource)?.name || t("选择", "Select")}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customerSources.map((source) => (
-                        <SelectItem key={source.id} value={source.id}>
-                          {source.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Label className="text-[10px] w-14 shrink-0 text-muted-foreground leading-none">{t("常交易卡", "Common Cards")}</Label>
-                  <div className="flex-1 h-6 flex flex-nowrap gap-1 items-center overflow-x-auto overflow-y-hidden rounded-md border border-border/60 bg-muted/30 px-1.5 [scrollbar-width:thin]">
-                    {formData.selectedCommonCards.length === 0 ? (
-                      <span className="text-[11px] text-muted-foreground truncate min-w-0">
-                        {t("暂无（有订单后自动汇总）", "None yet (filled from orders)")}
-                      </span>
-                    ) : (
-                      formData.selectedCommonCards.map((name) => (
-                        <Badge key={name} variant="secondary" className="text-[10px] font-normal shrink-0">
-                          {name}
-                        </Badge>
-                      ))
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Label className="text-[10px] w-14 shrink-0 text-muted-foreground">{t("会员等级", "Level")}</Label>
-                  <Input
-                    readOnly
-                    value={
-                      displayMemberLevelLabel(formData.memberLevel, memberLevelZhHint, language) ||
-                      (formData.phoneNumber.length >= 8 ? t("新会员→最低档", "New → lowest tier") : "")
-                    }
-                    title={t("等级由累计积分自动计算，不可在此修改", "Level is automatic from points; not editable here")}
-                    className="h-6 flex-1 text-[11px] bg-muted/50 border-border/60"
-                  />
+          <CardContent className="p-2">
+            <div className={`grid gap-x-3 gap-y-1.5 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
+              {/* Row 1: 会员编号 | 会员等级 | 累积次数 */}
+              <div className="flex items-center gap-1.5">
+                <Label className="text-[10px] w-16 shrink-0 text-muted-foreground">{t("会员编号", "Member ID")}</Label>
+                <Input
+                  readOnly
+                  value={formData.memberCode}
+                  placeholder={t("自动生成", "Auto")}
+                  className="h-6 flex-1 text-[11px] bg-muted/50 border-border/60 font-mono"
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Label className="text-[10px] w-16 shrink-0 text-muted-foreground">{t("会员等级", "Level")}</Label>
+                <Input
+                  readOnly
+                  value={
+                    displayMemberLevelLabel(formData.memberLevel, memberLevelZhHint, language) ||
+                    (formData.phoneNumber.length >= 8 ? t("新会员→最低档", "New → lowest") : "")
+                  }
+                  title={t("等级由累计积分自动计算", "Level auto-calculated")}
+                  className="h-6 flex-1 text-[11px] bg-muted/50 border-border/60"
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Label
+                  className="text-[10px] w-16 shrink-0 text-muted-foreground"
+                  title={t("有效已完成订单累计", "Completed orders accumulated")}
+                >
+                  {t("累积次数", "Orders")}
+                </Label>
+                <div className="h-6 flex-1 flex items-center justify-end px-2 bg-muted/50 rounded border text-sm font-medium tabular-nums">
+                  {isLoadingPoints ? '...' : (memberPointsSummary?.orderCount || 0)} {t("次", "x")}
                 </div>
               </div>
-              
-              {/* 右栏：系统带出（积分、偏好等） */}
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Label className="text-[10px] w-14 shrink-0 text-muted-foreground">{t("客户积分", "Points")}</Label>
-                  <div className={`h-6 flex-1 flex items-center justify-end px-2 bg-muted/50 rounded border text-sm font-bold tabular-nums ${getCustomerPoints() < 0 ? 'text-destructive' : 'text-foreground'}`}>
-                    {isLoadingPoints ? '...' : getCustomerPoints()}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Label className="text-[10px] w-14 shrink-0 text-muted-foreground">{t("推荐奖励", "Referral")}</Label>
-                  <div className="h-6 flex-1 flex items-center justify-end px-2 bg-muted/50 rounded border text-sm font-medium tabular-nums">
-                    {isLoadingPoints ? '...' : getReferralRewardPoints()}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Label className="text-[10px] w-14 shrink-0 text-muted-foreground">{t("币种偏好", "Currency Pref")}</Label>
-                  <div className="h-6 flex-1 flex items-center px-2 bg-muted/50 rounded border text-[11px] truncate">
-                    {currencyPreference}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Label
-                    className="text-[10px] w-14 shrink-0 text-muted-foreground"
-                    title={t(
-                      "与「会员管理 → 活动数据」中的累积次数相同，均来自 member_activity.order_count（有效已完成订单累计，删除/取消会回滚）。",
-                      "Same as Accumulated count in Member → Activity data: member_activity.order_count (completed orders; reverses on delete/cancel).",
-                    )}
-                  >
-                    {t("累积次数", "Order Count")}
-                  </Label>
-                  <div className="h-6 flex-1 flex items-center justify-end px-2 bg-muted/50 rounded border text-sm font-medium tabular-nums">
-                    {isLoadingPoints ? '...' : (memberPointsSummary?.orderCount || 0)} {t("次", "times")}
-                  </div>
+              {/* Row 2: 推荐奖励 | 客户积分 | 币种偏好 */}
+              <div className="flex items-center gap-1.5">
+                <Label className="text-[10px] w-16 shrink-0 text-muted-foreground">{t("推荐奖励", "Referral")}</Label>
+                <div className="h-6 flex-1 flex items-center justify-end px-2 bg-muted/50 rounded border text-sm font-medium tabular-nums">
+                  {isLoadingPoints ? '...' : getReferralRewardPoints()}
                 </div>
               </div>
-            </div>
-            
-            {/* 下半部分：备注（手填，与特点/来源同色带） */}
-            <div className="rounded-lg border border-primary/35 bg-primary/[0.06] p-2 dark:border-primary/35 dark:bg-primary/12">
-              <div className={`grid gap-3 ${isMobile ? "grid-cols-1" : "grid-cols-2"}`}>
-                <div className={`flex ${isMobile ? "flex-col gap-1" : "items-start gap-1.5"}`}>
-                  <Label
-                    className={`text-[10px] shrink-0 font-medium text-primary dark:text-primary ${isMobile ? "" : "w-14 pt-1.5"}`}
-                  >
-                    {t("订单备注", "Order Remark")}
-                  </Label>
-                  <Textarea
-                    value={formData.remarkOrder}
-                    onChange={(e) => updateField("remarkOrder", e.target.value)}
-                    placeholder={t("提交后同步到订单管理", "Syncs to order management")}
-                    className="flex-1 h-[52px] min-h-[52px] resize-none text-xs border-primary/25 bg-background/90 focus-visible:ring-primary/35 dark:border-primary/30 dark:bg-background/70"
-                  />
-                </div>
-                <div className={`flex ${isMobile ? "flex-col gap-1" : "items-start gap-1.5"}`}>
-                  <Label
-                    className={`text-[10px] shrink-0 font-medium text-primary dark:text-primary ${isMobile ? "" : "w-14 pt-1.5"}`}
-                  >
-                    {t("会员备注", "Member Remark")}
-                  </Label>
-                  <Textarea
-                    value={formData.remarkMember}
-                    onChange={(e) => updateField("remarkMember", e.target.value)}
-                    placeholder={t("提交后同步到会员管理", "Syncs to member management")}
-                    className="flex-1 h-[52px] min-h-[52px] resize-none text-xs border-primary/25 bg-background/90 focus-visible:ring-primary/35 dark:border-primary/30 dark:bg-background/70"
-                  />
+              <div className="flex items-center gap-1.5">
+                <Label className="text-[10px] w-16 shrink-0 text-muted-foreground">{t("客户积分", "Points")}</Label>
+                <div className={`h-6 flex-1 flex items-center justify-end px-2 bg-muted/50 rounded border text-sm font-bold tabular-nums ${getCustomerPoints() < 0 ? 'text-destructive' : 'text-foreground'}`}>
+                  {isLoadingPoints ? '...' : getCustomerPoints()}
                 </div>
               </div>
-            </div>
-            
-            {/* 积分兑换 + 提交订单按钮 */}
-            <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} items-center justify-center gap-3 pt-3`}>
-              <Button
-                type="button"
-                onClick={openRedeemDialog}
-                disabled={!formData.phoneNumber || !formData.memberCode || getCustomerPoints() <= 0 || isLoadingPoints}
-                title={getExchangeDisabledMessage() || (!formData.phoneNumber ? t("请先输入电话号码", "Enter phone number first") : undefined)}
-                className={`${isMobile ? 'w-full' : 'flex-1 max-w-[220px]'} h-11 gap-2 font-semibold text-base bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md hover:shadow-lg border-0`}
-              >
-                <span className="text-lg">🎁</span>
-                {t("积分兑换", "Redeem Points")}
-                {!isLoadingPoints && getCustomerPoints() > 0 && (
-                  <Badge variant="secondary" className="ml-1 bg-white/20 text-white border-0 text-xs">
-                    {getCustomerPoints()} {t("分", "pts")}
-                  </Badge>
-                )}
-              </Button>
-              <Button 
-                onClick={handleSubmitOrder}
-                className={`${isMobile ? 'w-full' : 'flex-1 max-w-[220px]'} h-11 gap-2 font-semibold text-base`}
-                disabled={isSubmitting}
-              >
-                <Send className="h-4 w-4" />
-                {isSubmitting ? t("提交中...", "Submitting...") : t("提交订单", "Submit Order")}
-              </Button>
+              <div className="flex items-center gap-1.5">
+                <Label className="text-[10px] w-16 shrink-0 text-muted-foreground">{t("币种偏好", "Currency")}</Label>
+                <div className="h-6 flex-1 flex items-center px-2 bg-muted/50 rounded border text-[11px] truncate">
+                  {currencyPreference}
+                </div>
+              </div>
+              {/* Row 3: 注册时间 | 入网时长 | 常交易卡 */}
+              <div className="flex items-center gap-1.5">
+                <Label className="text-[10px] w-16 shrink-0 text-muted-foreground">{t("注册时间", "Registered")}</Label>
+                <div className="h-6 flex-1 flex items-center px-2 bg-muted/50 rounded border text-[11px] tabular-nums">
+                  {registrationDisplay.dateStr}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Label className="text-[10px] w-16 shrink-0 text-muted-foreground">{t("入网时长", "Days")}</Label>
+                <div className="h-6 flex-1 flex items-center justify-end px-2 bg-muted/50 rounded border text-sm font-medium tabular-nums">
+                  {registrationDisplay.days !== '-' ? `${registrationDisplay.days} ${t("天", "d")}` : '-'}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Label className="text-[10px] w-16 shrink-0 text-muted-foreground leading-none">{t("常交易卡", "Cards")}</Label>
+                <div className="flex-1 h-6 flex flex-nowrap gap-1 items-center overflow-x-auto overflow-y-hidden rounded-md border border-border/60 bg-muted/30 px-1.5 [scrollbar-width:thin]">
+                  {formData.selectedCommonCards.length === 0 ? (
+                    <span className="text-[11px] text-muted-foreground truncate min-w-0">
+                      {t("暂无", "None")}
+                    </span>
+                  ) : (
+                    formData.selectedCommonCards.map((name) => (
+                      <Badge key={name} variant="secondary" className="text-[10px] font-normal shrink-0">
+                        {name}
+                      </Badge>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           </CardContent>
-        </Card>
+          </Card>
+
+          {/* 积分兑换 + 提交订单按钮 */}
+          <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} items-center justify-center gap-3 pt-1`}>
+            <Button
+              type="button"
+              onClick={openRedeemDialog}
+              disabled={!formData.phoneNumber || !formData.memberCode || getCustomerPoints() <= 0 || isLoadingPoints}
+              title={getExchangeDisabledMessage() || (!formData.phoneNumber ? t("请先输入电话号码", "Enter phone number first") : undefined)}
+              className={`${isMobile ? 'w-full' : 'flex-1 max-w-[220px]'} h-11 gap-2 font-semibold text-base bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md hover:shadow-lg border-0`}
+            >
+              <span className="text-lg">🎁</span>
+              {t("积分兑换", "Redeem Points")}
+              {!isLoadingPoints && getCustomerPoints() > 0 && (
+                <Badge variant="secondary" className="ml-1 bg-white/20 text-white border-0 text-xs">
+                  {getCustomerPoints()} {t("分", "pts")}
+                </Badge>
+              )}
+            </Button>
+            <Button
+              onClick={handleSubmitOrder}
+              className={`${isMobile ? 'w-full' : 'flex-1 max-w-[220px]'} h-11 gap-2 font-semibold text-base`}
+              disabled={isSubmitting}
+            >
+              <Send className="h-4 w-4" />
+              {isSubmitting ? t("提交中...", "Submitting...") : t("提交订单", "Submit Order")}
+            </Button>
+          </div>
         </div>
       </div>
 
