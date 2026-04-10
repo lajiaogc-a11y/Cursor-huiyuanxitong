@@ -17,7 +17,7 @@ import {
   bulkCreateMembersService,
   lookupMemberForReferralService,
 } from './service.js';
-import { getMemberTenantIdService, updateMemberPasswordHashService } from './service.js';
+import { getMemberTenantIdService, updateMemberPasswordHashService, getDecryptedInitialPasswordService } from './service.js';
 
 function resolveTenantId(
   req: AuthenticatedRequest,
@@ -353,4 +353,37 @@ export async function adminResetMemberPasswordController(req: AuthenticatedReque
   } catch (e: any) {
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: e?.message || 'Reset failed' } });
   }
+}
+
+/**
+ * GET /api/members/:id/initial-password
+ * 仅管理员可调用，解密 initial_password 并返回明文（供"复制密码"功能）
+ */
+export async function getInitialPasswordController(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const role = req.user?.role;
+  if (role !== 'admin' && !req.user?.is_super_admin && !req.user?.is_platform_super_admin) {
+    res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Admin role required' } });
+    return;
+  }
+  const memberId = req.params.id;
+
+  if (!req.user?.is_platform_super_admin && req.user?.tenant_id) {
+    const memberTenant = await getMemberTenantIdService(memberId);
+    if (memberTenant === null) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Member not found' } });
+      return;
+    }
+    if (memberTenant !== req.user.tenant_id) {
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Access denied' } });
+      return;
+    }
+  }
+
+  const plaintext = await getDecryptedInitialPasswordService(memberId);
+  if (!plaintext) {
+    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'No initial password set' } });
+    return;
+  }
+
+  res.json({ success: true, data: { password: plaintext } });
 }

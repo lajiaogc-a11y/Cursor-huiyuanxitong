@@ -3,7 +3,7 @@
  * 要求认证，按 tenant_id 过滤数据
  */
 import { Router } from 'express';
-import { authMiddleware } from '../../middlewares/auth.js';
+import { authMiddleware, type AuthenticatedRequest } from '../../middlewares/auth.js';
 import {
   getKnowledgeCategoriesController,
   getKnowledgeArticlesController,
@@ -12,12 +12,12 @@ import {
 const router = Router();
 router.use(authMiddleware);
 
-router.get('/categories', (req, res, next) => {
-  return getKnowledgeCategoriesController(req as any, res).catch(next);
+router.get('/categories', (req: AuthenticatedRequest, res, next) => {
+  return getKnowledgeCategoriesController(req, res).catch(next);
 });
 
-router.get('/articles/:categoryId', (req, res, next) => {
-  return getKnowledgeArticlesController(req as any, res).catch(next);
+router.get('/articles/:categoryId', (req: AuthenticatedRequest, res, next) => {
+  return getKnowledgeArticlesController(req, res).catch(next);
 });
 
 export default router;

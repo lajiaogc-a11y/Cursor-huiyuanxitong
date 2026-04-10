@@ -1648,5 +1648,20 @@ export async function migrateSchemaPatches(): Promise<void> {
       INDEX idx_wcn_member (member_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
 
+  // ── Step 10: WhatsApp 手机号绑定表 ──
+  await createTbl('whatsapp_phone_bindings', `
+    CREATE TABLE whatsapp_phone_bindings (
+      id CHAR(36) NOT NULL PRIMARY KEY,
+      tenant_id CHAR(36) NULL,
+      phone_normalized VARCHAR(32) NOT NULL COMMENT '标准化后手机号',
+      member_id CHAR(36) NOT NULL COMMENT '绑定的会员 ID',
+      bound_by CHAR(36) NULL COMMENT '操作员 ID',
+      note VARCHAR(200) NULL COMMENT '绑定备注',
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+      UNIQUE INDEX uq_wpb_phone_tenant (phone_normalized, tenant_id),
+      INDEX idx_wpb_member (member_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+
   console.log('[schema-patch] done.');
 }

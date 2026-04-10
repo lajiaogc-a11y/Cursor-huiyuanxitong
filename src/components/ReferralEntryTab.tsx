@@ -32,7 +32,7 @@ interface RefereeInfo {
 }
 
 function apiMemberToMember(row: ApiMember): Member {
-  return mapDbMemberToMember(row as any);
+  return mapDbMemberToMember(row);
 }
 
 export default function ReferralEntryTab() {

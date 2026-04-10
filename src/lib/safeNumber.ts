@@ -11,12 +11,14 @@
 const _origToFixed = Number.prototype.toFixed;
 
 export function installSafeToFixed(): void {
-  (Number.prototype as any).toFixed = function (this: any, digits?: number) {
+  const numProto = Number.prototype as Record<string, unknown>;
+  numProto.toFixed = function (this: unknown, digits?: number): string {
     return _origToFixed.call(Number(this) || 0, digits);
   };
 
-  if (!(String.prototype as any).toFixed) {
-    (String.prototype as any).toFixed = function (this: string, digits?: number) {
+  const strProto = String.prototype as Record<string, unknown>;
+  if (typeof strProto.toFixed !== "function") {
+    strProto.toFixed = function (this: string, digits?: number): string {
       return (Number(this) || 0).toFixed(digits);
     };
   }

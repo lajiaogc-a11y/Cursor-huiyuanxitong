@@ -28,6 +28,8 @@ export { tenantQuotaApi } from './tenantQuota';
 export { uploadApi } from './upload';
 export { webhooksApi } from './webhooks';
 export { adminDeviceWhitelistApi } from './adminDeviceWhitelist';
+export { whatsappApi } from './whatsapp';
+export { localWhatsappBridge } from './localWhatsappBridge';
 
 export {
   apiClient,

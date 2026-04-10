@@ -2,58 +2,23 @@
  * MySQL 完整转储（mysqldump）— 由 Node API 流式输出，用于整站迁移。
  * 大库建议用 getMysqlDumpCurlExample 在终端执行，避免浏览器内存占满。
  */
-import { API_ACCESS_TOKEN_KEY } from '@/lib/apiClient';
+import { fetchMysqlDumpBlob, getMysqlDumpCurlExample, type MysqlDumpMode } from '@/api/databaseDump';
 
-function apiBase(): string {
-  const b = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
-  return b;
-}
-
-export type MysqlDumpMode = 'full' | 'schema' | 'data';
-
-export function getMysqlDumpUrl(mode: MysqlDumpMode): string {
-  return `${apiBase()}/api/admin/database/mysql-dump?mode=${encodeURIComponent(mode)}`;
-}
+export type { MysqlDumpMode };
+export { getMysqlDumpCurlExample };
 
 /** 浏览器内下载（适合中小型库；超大请用 curl） */
 export async function downloadMysqlDump(
   mode: MysqlDumpMode,
   onProgress?: (msg: string) => void,
 ): Promise<{ ok: boolean; filename?: string; error?: string }> {
-  const token =
-    typeof localStorage !== 'undefined' ? localStorage.getItem(API_ACCESS_TOKEN_KEY) : null;
-  if (!token) {
-    return { ok: false, error: '未登录' };
-  }
-  const url = getMysqlDumpUrl(mode);
   onProgress?.('请求备份…');
-  // 此处必须使用原生 fetch：响应是流式 SQL 文件（Blob 下载），apiClient 仅支持 JSON
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store',
-  });
-  if (!res.ok) {
-    let msg = res.statusText;
-    try {
-      const j = await res.json();
-      msg = j?.error?.message || j?.message || msg;
-    } catch {
-      /* ignore */
-    }
-    return { ok: false, error: msg };
+  const result = await fetchMysqlDumpBlob(mode);
+  if (!result.ok) {
+    return { ok: false, error: result.error };
   }
-  const cd = res.headers.get('Content-Disposition');
-  let filename = `dump_${mode}.sql`;
-  const m = cd?.match(/filename="?([^";]+)"?/i);
-  if (m) filename = m[1];
   onProgress?.('下载中…');
-  const blob = await res.blob();
   const { triggerBlobDownload } = await import('@/lib/downloadBlob');
-  triggerBlobDownload(blob, filename);
-  return { ok: true, filename };
-}
-
-export function getMysqlDumpCurlExample(mode: MysqlDumpMode): string {
-  const url = getMysqlDumpUrl(mode);
-  return `curl -L -o "backup_${mode}.sql" -H "Authorization: Bearer <YOUR_ACCESS_TOKEN>" "${url}"`;
+  triggerBlobDownload(result.blob, result.filename);
+  return { ok: true, filename: result.filename };
 }

@@ -135,11 +135,11 @@ const cspDirectives = {
   defaultSrc: ["'self'"],
   // 注意：'unsafe-inline' 和 'unsafe-eval' 是 React/Vite SPA 的临时需求
   // 上线后建议通过 nonce 方式逐步收紧
-  scriptSrc: ["'self'"],
+  scriptSrc: ["'self'", 'https://static.cloudflareinsights.com'],
   styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
   fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
   imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-  connectSrc: ["'self'", ...config.sitePublicOrigins],
+  connectSrc: ["'self'", ...config.sitePublicOrigins, 'https://cloudflareinsights.com'],
   frameSrc: ["'none'"],
   objectSrc: ["'none'"],
   baseUri: ["'self'"],

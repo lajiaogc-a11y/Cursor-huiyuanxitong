@@ -297,21 +297,8 @@ export default function MerchantSettlement() {
       });
     });
 
-    // Listen for postResetAdjustment updates (with debounce to prevent double refresh with Realtime)
-    const handleAdjustmentUpdate = () => {
-      // Set local save guard to suppress Realtime reload for this same change
-      localSavePendingRef.current = true;
-      if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
-      localSaveTimerRef.current = setTimeout(() => {
-        localSavePendingRef.current = false;
-      }, 3000);
-      forceRefreshSettlementCache().then(() => loadDataRef.current());
-    };
-    window.addEventListener('settlement-adjustment-updated', handleAdjustmentUpdate);
-
     return () => {
       unsubscribe?.();
-      window.removeEventListener('settlement-adjustment-updated', handleAdjustmentUpdate);
       if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
     };
   }, []);

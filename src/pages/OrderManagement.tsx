@@ -7,18 +7,11 @@ import {
   calculateProfit,
   calculateProfitRate
 } from "@/lib/orderCalculations";
-import { logOrderUpdateBalanceChange, syncMemberActivityOnOrderEdit } from "@/services/finance/balanceLogService";
-import { adjustPointsOnOrderEdit } from "@/services/points/pointsService";
-import { logOperation } from '@/services/audit/auditLogService';
+import { runBalanceLog, runActivitySync, runPointsSync, runAuditLog, invalidateOrderCaches } from "@/pages/orders/orderPostSaveEffects";
+import { OrderBatchSelectionBar } from "@/pages/orders/OrderBatchSelectionBar";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useSortableData } from "@/components/ui/sortable-table-head";
 import {
   Select,
@@ -737,99 +730,14 @@ export default function OrderManagement() {
         return; // 保持弹窗打开，用户可修正后重试
       }
       
-      // 记录余额变动日志（订单调整）
-      const derived = calculateNormalOrderDerivedValues({
-        cardValue: editingOrder.cardValue,
-        cardRate: editingOrder.cardRate,
-        actualPaid: editingOrder.actualPaid,
-        foreignRate: editingOrder.foreignRate,
-        fee: editingOrder.fee,
-        currency: editingOrder.demandCurrency,
-      });
-      const oldDerived = calculateNormalOrderDerivedValues({
-        cardValue: originalOrder.cardValue,
-        cardRate: originalOrder.cardRate,
-        actualPaid: originalOrder.actualPaid,
-        foreignRate: originalOrder.foreignRate,
-        fee: originalOrder.fee,
-        currency: originalOrder.demandCurrency,
-      });
-      
-      await logOrderUpdateBalanceChange({
-        vendorName: resolveVendorName(editingOrder.vendor) || '',
-        providerName: resolveProviderName(editingOrder.paymentProvider) || '',
-        oldVendorName: resolveVendorName(originalOrder.vendor) || '',
-        oldProviderName: resolveProviderName(originalOrder.paymentProvider) || '',
-        oldCardWorth: oldDerived.cardWorth,
-        oldPaymentValue: oldDerived.paymentValue,
-        oldCurrency: originalOrder.demandCurrency,
-        oldForeignRate: originalOrder.foreignRate,
-        newCardWorth: derived.cardWorth,
-        newPaymentValue: derived.paymentValue,
-        newCurrency: editingOrder.demandCurrency,
-        newForeignRate: editingOrder.foreignRate,
-        orderId: editingOrder.dbId,
-        orderNumber: editingOrder.id,
-        orderCreatedAt: editingOrder.createdAt,
-        operatorId: currentEmployee?.id,
-        operatorName: currentEmployee?.real_name,
-      });
-      
-      // 🔧 修复：订单编辑后同步更新 member_activity 的累积金额和利润
-      if (editingOrder.phoneNumber) {
-        try {
-          await syncMemberActivityOnOrderEdit({
-            memberId: '',
-            phoneNumber: editingOrder.phoneNumber || '',
-            oldActualPaid: originalOrder.actualPaid || 0,
-            oldProfit: oldDerived.profit || 0,
-            oldCurrency: originalOrder.demandCurrency || 'NGN',
-            newActualPaid: editingOrder.actualPaid || 0,
-            newProfit: derived.profit || 0,
-            newCurrency: editingOrder.demandCurrency || 'NGN',
-          });
-        } catch (err) {
-          logger.error('[OrderEdit] Member activity sync failed:', err);
-        }
-      }
-      
-      // 🔧 积分自动同步：订单编辑后自动调整积分差额
-      if (editingOrder.memberCode && editingOrder.phoneNumber) {
-        try {
-          await adjustPointsOnOrderEdit({
-            orderId: editingOrder.dbId,
-            memberCode: editingOrder.memberCode,
-            phoneNumber: editingOrder.phoneNumber,
-            oldActualPayment: parseFloat(String(originalOrder.actualPaid)) || 0,
-            oldCurrency: (originalOrder.demandCurrency || 'NGN') as any,
-            newActualPayment: parseFloat(String(editingOrder.actualPaid)) || 0,
-            newCurrency: (editingOrder.demandCurrency || 'NGN') as any,
-            creatorId: currentEmployee?.id,
-          });
-        } catch (err) {
-          logger.error('[OrderEdit] Points adjustment failed:', err);
-        }
-      }
-        
-      // 记录操作日志
-      logOperation(
-        'order_management',
-        'update',
-        editingOrder.dbId,
-        originalOrder,
-        { ...editingOrder, paymentValue: derived.paymentValue, cardWorth: derived.cardWorth, profit: derived.profit, profitRate: derived.profitRate },
-        t(`修改订单: ${editingOrder.id}`, `Edit order: ${editingOrder.id}`)
-      );
-        
+      const derived = calculateNormalOrderDerivedValues({ cardValue: editingOrder.cardValue, cardRate: editingOrder.cardRate, actualPaid: editingOrder.actualPaid, foreignRate: editingOrder.foreignRate, fee: editingOrder.fee, currency: editingOrder.demandCurrency });
+      const oldDerived = calculateNormalOrderDerivedValues({ cardValue: originalOrder.cardValue, cardRate: originalOrder.cardRate, actualPaid: originalOrder.actualPaid, foreignRate: originalOrder.foreignRate, fee: originalOrder.fee, currency: originalOrder.demandCurrency });
+      await runBalanceLog({ vendorName: resolveVendorName(editingOrder.vendor) || '', providerName: resolveProviderName(editingOrder.paymentProvider) || '', oldVendorName: resolveVendorName(originalOrder.vendor) || '', oldProviderName: resolveProviderName(originalOrder.paymentProvider) || '', oldCardWorth: oldDerived.cardWorth, oldPaymentValue: oldDerived.paymentValue, oldCurrency: originalOrder.demandCurrency, oldForeignRate: originalOrder.foreignRate, newCardWorth: derived.cardWorth, newPaymentValue: derived.paymentValue, newCurrency: editingOrder.demandCurrency, newForeignRate: editingOrder.foreignRate, orderId: editingOrder.dbId, orderNumber: editingOrder.id, orderCreatedAt: editingOrder.createdAt, operatorId: currentEmployee?.id, operatorName: currentEmployee?.real_name });
+      await runActivitySync({ phoneNumber: editingOrder.phoneNumber || '', oldActualPaid: originalOrder.actualPaid || 0, oldProfit: oldDerived.profit || 0, oldCurrency: originalOrder.demandCurrency || 'NGN', newActualPaid: editingOrder.actualPaid || 0, newProfit: derived.profit || 0, newCurrency: editingOrder.demandCurrency || 'NGN' });
+      await runPointsSync({ orderId: editingOrder.dbId, memberCode: editingOrder.memberCode || '', phoneNumber: editingOrder.phoneNumber || '', oldActualPayment: parseFloat(String(originalOrder.actualPaid)) || 0, oldCurrency: originalOrder.demandCurrency || 'NGN', newActualPayment: parseFloat(String(editingOrder.actualPaid)) || 0, newCurrency: editingOrder.demandCurrency || 'NGN', creatorId: currentEmployee?.id });
+      runAuditLog({ dbId: editingOrder.dbId, orderId: editingOrder.id, originalOrder, updatedSnapshot: { ...editingOrder, paymentValue: derived.paymentValue, cardWorth: derived.cardWorth, profit: derived.profit, profitRate: derived.profitRate }, t });
       await refetchOrders();
-      queryClient.invalidateQueries({ queryKey: ["meika-fiat-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["meika-usdt-orders"] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
-      queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
-      queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-      notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
-      notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
-      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
+      await invalidateOrderCaches();
       notify.success(t("订单已更新", "Order updated"));
     } else {
       // 非管理员：按字段判断，需审核的只提交审核不直接更新，可直接编辑的才更新
@@ -868,99 +776,14 @@ export default function OrderManagement() {
         return;
       }
       
-      // 记录余额变动日志（订单调整）
-      const derived = calculateNormalOrderDerivedValues({
-        cardValue: editingOrder.cardValue,
-        cardRate: editingOrder.cardRate,
-        actualPaid: editingOrder.actualPaid,
-        foreignRate: editingOrder.foreignRate,
-        fee: editingOrder.fee,
-        currency: editingOrder.demandCurrency,
-      });
-      const oldDerived = calculateNormalOrderDerivedValues({
-        cardValue: originalOrder.cardValue,
-        cardRate: originalOrder.cardRate,
-        actualPaid: originalOrder.actualPaid,
-        foreignRate: originalOrder.foreignRate,
-        fee: originalOrder.fee,
-        currency: originalOrder.demandCurrency,
-      });
-      
-      await logOrderUpdateBalanceChange({
-        vendorName: resolveVendorName(editingOrder.vendor) || '',
-        providerName: resolveProviderName(editingOrder.paymentProvider) || '',
-        oldVendorName: resolveVendorName(originalOrder.vendor) || '',
-        oldProviderName: resolveProviderName(originalOrder.paymentProvider) || '',
-        oldCardWorth: oldDerived.cardWorth,
-        oldPaymentValue: oldDerived.paymentValue,
-        oldCurrency: originalOrder.demandCurrency,
-        oldForeignRate: originalOrder.foreignRate,
-        newCardWorth: derived.cardWorth,
-        newPaymentValue: derived.paymentValue,
-        newCurrency: editingOrder.demandCurrency,
-        newForeignRate: editingOrder.foreignRate,
-        orderId: editingOrder.dbId,
-        orderNumber: editingOrder.id,
-        orderCreatedAt: editingOrder.createdAt,
-        operatorId: currentEmployee?.id,
-        operatorName: currentEmployee?.real_name,
-      });
-      
-      // 🔧 修复：订单编辑后同步更新 member_activity 的累积金额和利润
-      if (editingOrder.phoneNumber) {
-        try {
-          await syncMemberActivityOnOrderEdit({
-            memberId: '',
-            phoneNumber: editingOrder.phoneNumber || '',
-            oldActualPaid: originalOrder.actualPaid || 0,
-            oldProfit: oldDerived.profit || 0,
-            oldCurrency: originalOrder.demandCurrency || 'NGN',
-            newActualPaid: editingOrder.actualPaid || 0,
-            newProfit: derived.profit || 0,
-            newCurrency: editingOrder.demandCurrency || 'NGN',
-          });
-        } catch (err) {
-          logger.error('[OrderEdit] Member activity sync failed:', err);
-        }
-      }
-      
-      // 🔧 积分自动同步：非管理员直接编辑后也自动调整积分差额
-      if (editingOrder.memberCode && editingOrder.phoneNumber) {
-        try {
-          await adjustPointsOnOrderEdit({
-            orderId: editingOrder.dbId,
-            memberCode: editingOrder.memberCode,
-            phoneNumber: editingOrder.phoneNumber,
-            oldActualPayment: parseFloat(String(originalOrder.actualPaid)) || 0,
-            oldCurrency: (originalOrder.demandCurrency || 'NGN') as any,
-            newActualPayment: parseFloat(String(editingOrder.actualPaid)) || 0,
-            newCurrency: (editingOrder.demandCurrency || 'NGN') as any,
-            creatorId: currentEmployee?.id,
-          });
-        } catch (err) {
-          logger.error('[OrderEdit] Points adjustment failed:', err);
-        }
-      }
-        
-      // 记录操作日志
-      logOperation(
-        'order_management',
-        'update',
-        editingOrder.dbId,
-        originalOrder,
-        { ...editingOrder, paymentValue: derived.paymentValue, cardWorth: derived.cardWorth, profit: derived.profit, profitRate: derived.profitRate },
-        t(`修改订单: ${editingOrder.id}`, `Edit order: ${editingOrder.id}`)
-      );
-        
+      const derived = calculateNormalOrderDerivedValues({ cardValue: editingOrder.cardValue, cardRate: editingOrder.cardRate, actualPaid: editingOrder.actualPaid, foreignRate: editingOrder.foreignRate, fee: editingOrder.fee, currency: editingOrder.demandCurrency });
+      const oldDerived = calculateNormalOrderDerivedValues({ cardValue: originalOrder.cardValue, cardRate: originalOrder.cardRate, actualPaid: originalOrder.actualPaid, foreignRate: originalOrder.foreignRate, fee: originalOrder.fee, currency: originalOrder.demandCurrency });
+      await runBalanceLog({ vendorName: resolveVendorName(editingOrder.vendor) || '', providerName: resolveProviderName(editingOrder.paymentProvider) || '', oldVendorName: resolveVendorName(originalOrder.vendor) || '', oldProviderName: resolveProviderName(originalOrder.paymentProvider) || '', oldCardWorth: oldDerived.cardWorth, oldPaymentValue: oldDerived.paymentValue, oldCurrency: originalOrder.demandCurrency, oldForeignRate: originalOrder.foreignRate, newCardWorth: derived.cardWorth, newPaymentValue: derived.paymentValue, newCurrency: editingOrder.demandCurrency, newForeignRate: editingOrder.foreignRate, orderId: editingOrder.dbId, orderNumber: editingOrder.id, orderCreatedAt: editingOrder.createdAt, operatorId: currentEmployee?.id, operatorName: currentEmployee?.real_name });
+      await runActivitySync({ phoneNumber: editingOrder.phoneNumber || '', oldActualPaid: originalOrder.actualPaid || 0, oldProfit: oldDerived.profit || 0, oldCurrency: originalOrder.demandCurrency || 'NGN', newActualPaid: editingOrder.actualPaid || 0, newProfit: derived.profit || 0, newCurrency: editingOrder.demandCurrency || 'NGN' });
+      await runPointsSync({ orderId: editingOrder.dbId, memberCode: editingOrder.memberCode || '', phoneNumber: editingOrder.phoneNumber || '', oldActualPayment: parseFloat(String(originalOrder.actualPaid)) || 0, oldCurrency: originalOrder.demandCurrency || 'NGN', newActualPayment: parseFloat(String(editingOrder.actualPaid)) || 0, newCurrency: editingOrder.demandCurrency || 'NGN', creatorId: currentEmployee?.id });
+      runAuditLog({ dbId: editingOrder.dbId, orderId: editingOrder.id, originalOrder, updatedSnapshot: { ...editingOrder, paymentValue: derived.paymentValue, cardWorth: derived.cardWorth, profit: derived.profit, profitRate: derived.profitRate }, t });
       await refetchOrders();
-      queryClient.invalidateQueries({ queryKey: ["meika-fiat-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["meika-usdt-orders"] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-trend'] });
-      queryClient.invalidateQueries({ queryKey: ['profit-compare-current'] });
-      queryClient.invalidateQueries({ queryKey: ['profit-compare-previous'] });
-      notifyDataMutation({ table: 'orders', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
-      notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
-      notifyDataMutation({ table: 'points_ledger', operation: 'UPDATE', source: 'manual' }).catch(logger.error);
+      await invalidateOrderCaches();
       notify.success(t("订单已更新", "Order updated"));
     }
     
@@ -1772,43 +1595,16 @@ export default function OrderManagement() {
                       selectedDbIds: selectedNormalDbIds,
                       onToggleSelectDbId: toggleNormalDbId,
                       onToggleSelectAllPage: toggleNormalPage,
-                      batchActionBar:
-                        selectedNormalDbIds.size > 0 ? (
-                          <TooltipProvider delayDuration={300}>
-                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <span className="text-sm text-muted-foreground">
-                                {t(`已选 ${selectedNormalDbIds.size} 条`, `${selectedNormalDbIds.size} selected`)}
-                              </span>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="outline" size="sm" onClick={() => setSelectedNormalDbIds(new Set())}>
-                                    {t("清空选择", "Clear selection")}
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>{t("取消全部勾选", "Clear all checkboxes")}</TooltipContent>
-                              </Tooltip>
-                              {canBatchProcessOrders ? (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={normalBatchCancelCount === 0}
-                                      onClick={() => setOrderBatchDialog({ mode: "cancel", tab: "normal" })}
-                                    >
-                                      {t("批量处理", "Batch process")}
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    {normalBatchCancelCount === 0
-                                      ? t("所选行中没有「已完成」订单", "No completed orders in selection")
-                                      : t("将所选「已完成」订单批量取消", "Cancel selected completed orders")}
-                                  </TooltipContent>
-                                </Tooltip>
-                              ) : null}
-                            </div>
-                          </TooltipProvider>
-                        ) : null,
+                      batchActionBar: (
+                        <OrderBatchSelectionBar
+                          selectedCount={selectedNormalDbIds.size}
+                          batchCancelCount={normalBatchCancelCount}
+                          canBatch={canBatchProcessOrders}
+                          onClearSelection={() => setSelectedNormalDbIds(new Set())}
+                          onBatchClick={() => setOrderBatchDialog({ mode: "cancel", tab: "normal" })}
+                          t={t}
+                        />
+                      ),
                     }
                   : {})}
               />
@@ -1854,43 +1650,16 @@ export default function OrderManagement() {
                       selectedDbIds: selectedUsdtDbIds,
                       onToggleSelectDbId: toggleUsdtDbId,
                       onToggleSelectAllPage: toggleUsdtPage,
-                      batchActionBar:
-                        selectedUsdtDbIds.size > 0 ? (
-                          <TooltipProvider delayDuration={300}>
-                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <span className="text-sm text-muted-foreground">
-                                {t(`已选 ${selectedUsdtDbIds.size} 条`, `${selectedUsdtDbIds.size} selected`)}
-                              </span>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="outline" size="sm" onClick={() => setSelectedUsdtDbIds(new Set())}>
-                                    {t("清空选择", "Clear selection")}
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>{t("取消全部勾选", "Clear all checkboxes")}</TooltipContent>
-                              </Tooltip>
-                              {canBatchProcessOrders ? (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={usdtBatchCancelCount === 0}
-                                      onClick={() => setOrderBatchDialog({ mode: "cancel", tab: "usdt" })}
-                                    >
-                                      {t("批量处理", "Batch process")}
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    {usdtBatchCancelCount === 0
-                                      ? t("所选行中没有「已完成」订单", "No completed orders in selection")
-                                      : t("将所选「已完成」订单批量取消", "Cancel selected completed orders")}
-                                  </TooltipContent>
-                                </Tooltip>
-                              ) : null}
-                            </div>
-                          </TooltipProvider>
-                        ) : null,
+                      batchActionBar: (
+                        <OrderBatchSelectionBar
+                          selectedCount={selectedUsdtDbIds.size}
+                          batchCancelCount={usdtBatchCancelCount}
+                          canBatch={canBatchProcessOrders}
+                          onClearSelection={() => setSelectedUsdtDbIds(new Set())}
+                          onBatchClick={() => setOrderBatchDialog({ mode: "cancel", tab: "usdt" })}
+                          t={t}
+                        />
+                      ),
                     }
                   : {})}
               />

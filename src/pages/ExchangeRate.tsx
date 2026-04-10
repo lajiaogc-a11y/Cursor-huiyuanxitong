@@ -101,7 +101,7 @@ import {
 } from "@/pages/exchangeRate/exchangeRateHelpers";
 import { useMerchantConfig } from "@/hooks/finance/useMerchantConfig";
 import { ExchangeRateRedeemDrawer, type ExchangeRateRedeemPreviewData } from "@/pages/exchangeRate/ExchangeRateRedeemDrawer";
-import { useOrderSubmit } from "@/pages/exchangeRate/useOrderSubmit";
+import { useOrderSubmit } from "@/hooks/orders/useOrderSubmit";
 
 let currencyRatesCache: CurrencyRates | null = null;
 let currencyRatesCacheLoaded = false;

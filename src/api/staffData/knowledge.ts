@@ -1,24 +1,5 @@
 import { apiClient } from "@/lib/apiClient";
-
-const CONTENT_TYPES = new Set(["text", "phrase", "image"]);
-
-/** 与 DB / 旧迁移对齐：visibility `all`、空值视为 public；content_type 非法时回退 text */
-function normalizeCategoryRow(row: Record<string, unknown>): Record<string, unknown> {
-  const ct = String(row.content_type ?? "text").toLowerCase();
-  const visRaw = String(row.visibility ?? "public").toLowerCase().trim();
-  const visibility = visRaw === "private" ? "private" : "public";
-  return {
-    ...row,
-    content_type: CONTENT_TYPES.has(ct) ? ct : "text",
-    visibility,
-  };
-}
-
-function normalizeArticleRow(row: Record<string, unknown>): Record<string, unknown> {
-  const visRaw = String(row.visibility ?? "public").toLowerCase().trim();
-  const visibility = visRaw === "private" ? "private" : "public";
-  return { ...row, visibility };
-}
+import { normalizeCategoryRow, normalizeArticleRow } from "@/lib/knowledgeNormalizer";
 
 export async function getKnowledgeCategories(tenantId?: string | null): Promise<unknown[]> {
   const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";

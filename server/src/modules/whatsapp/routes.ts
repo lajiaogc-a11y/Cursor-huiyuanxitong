@@ -1,37 +1,36 @@
 /**
  * WhatsApp 工作台路由
+ *
+ * Step 10: 新增 search-members, unbind-member-phone
  */
 import { Router } from 'express';
-import { authMiddleware, type AuthenticatedRequest } from '../../middlewares/auth.js';
-import * as ctrl from './controller.js';
+import { authMiddleware } from '../../middlewares/auth.js';
+import {
+  normalizePhoneController,
+  memberByPhoneController,
+  conversationContextController,
+  getConversationStatusController,
+  updateConversationStatusController,
+  listConversationStatusesController,
+  bindMemberPhoneController,
+  unbindMemberPhoneController,
+  searchMembersController,
+  addNoteController,
+  listNotesController,
+} from './controller.js';
 
 const router = Router();
 
-router.post('/normalize-phone', authMiddleware, (req, res, next) =>
-  ctrl.normalizePhoneController(req as AuthenticatedRequest, res).catch(next));
-
-router.get('/member-by-phone', authMiddleware, (req, res, next) =>
-  ctrl.memberByPhoneController(req as AuthenticatedRequest, res).catch(next));
-
-router.get('/conversation-context', authMiddleware, (req, res, next) =>
-  ctrl.conversationContextController(req as AuthenticatedRequest, res).catch(next));
-
-router.get('/conversation-status', authMiddleware, (req, res, next) =>
-  ctrl.getConversationStatusController(req as AuthenticatedRequest, res).catch(next));
-
-router.post('/conversation-status', authMiddleware, (req, res, next) =>
-  ctrl.updateConversationStatusController(req as AuthenticatedRequest, res).catch(next));
-
-router.get('/conversation-statuses', authMiddleware, (req, res, next) =>
-  ctrl.listConversationStatusesController(req as AuthenticatedRequest, res).catch(next));
-
-router.post('/bind-member-phone', authMiddleware, (req, res, next) =>
-  ctrl.bindMemberPhoneController(req as AuthenticatedRequest, res).catch(next));
-
-router.post('/notes', authMiddleware, (req, res, next) =>
-  ctrl.addNoteController(req as AuthenticatedRequest, res).catch(next));
-
-router.get('/notes', authMiddleware, (req, res, next) =>
-  ctrl.listNotesController(req as AuthenticatedRequest, res).catch(next));
+router.post('/normalize-phone',       authMiddleware, normalizePhoneController);
+router.get('/member-by-phone',         authMiddleware, memberByPhoneController);
+router.get('/conversation-context',    authMiddleware, conversationContextController);
+router.get('/conversation-status',     authMiddleware, getConversationStatusController);
+router.post('/conversation-status',    authMiddleware, updateConversationStatusController);
+router.get('/conversation-statuses',   authMiddleware, listConversationStatusesController);
+router.post('/bind-member-phone',      authMiddleware, bindMemberPhoneController);
+router.post('/unbind-member-phone',    authMiddleware, unbindMemberPhoneController);
+router.get('/search-members',          authMiddleware, searchMembersController);
+router.post('/notes',                  authMiddleware, addNoteController);
+router.get('/notes',                   authMiddleware, listNotesController);
 
 export default router;

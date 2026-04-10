@@ -1107,9 +1107,73 @@ CREATE TABLE IF NOT EXISTS tenant_migration_rollbacks (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
+-- WhatsApp 工作台 — 会话状态表
+-- ============================================================
+CREATE TABLE IF NOT EXISTS whatsapp_conversation_status (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  tenant_id CHAR(36) NULL,
+  account_id VARCHAR(64) NOT NULL COMMENT 'WhatsApp 账号标识',
+  channel VARCHAR(32) NOT NULL DEFAULT 'whatsapp',
+  phone_raw VARCHAR(64) NOT NULL COMMENT '原始手机号',
+  phone_normalized VARCHAR(32) NOT NULL COMMENT '标准化后手机号 (E.164)',
+  member_id CHAR(36) NULL COMMENT '匹配到的会员 ID',
+  status ENUM('unread','read_no_reply','replied','follow_up_required','priority','closed') NOT NULL DEFAULT 'unread',
+  priority_level TINYINT NOT NULL DEFAULT 0 COMMENT '0=普通 1=高 2=紧急',
+  assigned_to CHAR(36) NULL COMMENT '分配给的客服员工 ID',
+  last_message_at DATETIME(3) NULL,
+  last_read_at DATETIME(3) NULL,
+  last_replied_at DATETIME(3) NULL,
+  last_status_changed_at DATETIME(3) NULL,
+  last_status_note VARCHAR(500) NULL,
+  is_closed TINYINT NOT NULL DEFAULT 0,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  INDEX idx_wcs_tenant (tenant_id),
+  INDEX idx_wcs_account (account_id),
+  INDEX idx_wcs_phone (phone_normalized),
+  INDEX idx_wcs_member (member_id),
+  INDEX idx_wcs_status (status),
+  UNIQUE INDEX uq_wcs_account_phone (account_id, phone_normalized)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- WhatsApp 工作台 — 会话备注表
+-- ============================================================
+CREATE TABLE IF NOT EXISTS whatsapp_conversation_notes (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  tenant_id CHAR(36) NULL,
+  account_id VARCHAR(64) NOT NULL,
+  phone_normalized VARCHAR(32) NOT NULL,
+  member_id CHAR(36) NULL,
+  note TEXT NOT NULL,
+  created_by CHAR(36) NULL COMMENT '创建人员工 ID',
+  created_by_name VARCHAR(100) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  INDEX idx_wcn_tenant (tenant_id),
+  INDEX idx_wcn_phone (account_id, phone_normalized),
+  INDEX idx_wcn_member (member_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- WhatsApp 工作台 — 手机号绑定表（Step 10）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS whatsapp_phone_bindings (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  tenant_id CHAR(36) NULL,
+  phone_normalized VARCHAR(32) NOT NULL COMMENT '标准化后手机号',
+  member_id CHAR(36) NOT NULL COMMENT '绑定的会员 ID',
+  bound_by CHAR(36) NULL COMMENT '操作员 ID',
+  note VARCHAR(200) NULL COMMENT '绑定备注',
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  UNIQUE INDEX uq_wpb_phone_tenant (phone_normalized, tenant_id),
+  INDEX idx_wpb_member (member_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
 -- 完成
 -- ============================================================
--- 总计: 47+ 张核心表 + 补充表
+-- 总计: 50+ 张核心表 + 补充表
 -- 所有 PostgreSQL 特有语法已转换为 MySQL 8.0 兼容语法
 -- UUID 主键使用 CHAR(36) + DEFAULT (UUID())
 -- timestamptz → DATETIME(3) + CURRENT_TIMESTAMP(3)

@@ -342,13 +342,11 @@ export default function ShiftHandoverTab() {
       invalidateShiftHandoverCache();
       smartRefresh();
     };
-    window.addEventListener('settlement-adjustment-updated', handleSettlementChange);
     window.addEventListener('settlement-data-changed', handleSettlementChange);
     window.addEventListener('data-refresh:shared_data_store', handleSettlementChange);
     window.addEventListener('data-refresh:orders', handleSettlementChange);
     window.addEventListener('data-refresh:ledger_transactions', handleSettlementChange);
     return () => {
-      window.removeEventListener('settlement-adjustment-updated', handleSettlementChange);
       window.removeEventListener('settlement-data-changed', handleSettlementChange);
       window.removeEventListener('data-refresh:shared_data_store', handleSettlementChange);
       window.removeEventListener('data-refresh:orders', handleSettlementChange);

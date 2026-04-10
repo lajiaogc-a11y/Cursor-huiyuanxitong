@@ -2,7 +2,9 @@
  * 共享 Member 映射工具
  * 统一 snake_case (DB/API) ↔ camelCase (前端 Member) 的转换逻辑
  */
+import type { ApiMember } from '@/api/members';
 import type { Member } from '@/hooks/members/useMembers';
+import type { MemberByPhone } from '@/services/members/memberLookupService';
 
 // ─── 工具函数 ───────────────────────────────────────────────
 function parseJsonArray<T>(val: unknown, fallback: T[] = []): T[] {
@@ -58,7 +60,10 @@ export interface MapOptions {
   recorderName?: string;
 }
 
-export function mapDbMemberToMember(row: DbMemberRow, opts?: MapOptions): Member {
+export function mapDbMemberToMember(
+  row: DbMemberRow | ApiMember | MemberByPhone,
+  opts?: MapOptions,
+): Member {
   const { referral, recorderName } = opts || {};
   return {
     id: row.id,
@@ -82,7 +87,7 @@ export function mapDbMemberToMember(row: DbMemberRow, opts?: MapOptions): Member
     currencyCode: '',
     referrerPhone: referral?.referrer_phone || '',
     referrerMemberCode: referral?.referrer_member_code || '',
-    initialPassword: row.initial_password || '',
+    initialPassword: '',
     inviteSuccessLifetimeCount: Math.max(0, Math.floor(Number(row.invite_success_lifetime_count) || 0)),
     lifetimeRewardPointsEarned: Math.max(0, Number(row.lifetime_reward_points_earned) || 0),
   };

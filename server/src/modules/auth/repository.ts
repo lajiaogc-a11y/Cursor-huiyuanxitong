@@ -18,10 +18,15 @@ export interface VerifyEmployeeResult {
   error_code?: string;
 }
 
+/** 登录校验单行：成功为完整员工信息，失败为仅含 error_code 的判别式 */
+export type VerifyEmployeeLoginItem =
+  | VerifyEmployeeResult
+  | { error_code: 'USER_NOT_FOUND' | 'WRONG_PASSWORD' | 'ACCOUNT_DISABLED' };
+
 export async function verifyEmployeeLoginRepository(
   username: string,
   password: string
-): Promise<{ data: VerifyEmployeeResult[] | null; error: Error | null }> {
+): Promise<{ data: VerifyEmployeeLoginItem[] | null; error: Error | null }> {
   try {
     const row = await queryOne<{
       id: string; username: string; real_name: string; role: string;
@@ -32,14 +37,14 @@ export async function verifyEmployeeLoginRepository(
       [username.trim()]
     );
     if (!row) {
-      return { data: [{ error_code: 'USER_NOT_FOUND' } as any], error: null };
+      return { data: [{ error_code: 'USER_NOT_FOUND' }], error: null };
     }
     const match = await bcrypt.compare(password, row.password_hash || '');
     if (!match) {
-      return { data: [{ error_code: 'WRONG_PASSWORD' } as any], error: null };
+      return { data: [{ error_code: 'WRONG_PASSWORD' }], error: null };
     }
     if (row.status === 'disabled') {
-      return { data: [{ error_code: 'ACCOUNT_DISABLED' } as any], error: null };
+      return { data: [{ error_code: 'ACCOUNT_DISABLED' }], error: null };
     }
     // 查询 tenant_code
     let tenantCode: string | null = null;
@@ -107,34 +112,7 @@ export async function getMaintenanceModeStatusRepository(
   return { effectiveEnabled: false };
 }
 
-function normalizeIp(ip: string | null | undefined): string | null {
-  if (!ip) return null;
-  const trimmed = ip.trim();
-  if (!trimmed || trimmed === 'unknown') return null;
-  if (trimmed.startsWith('::ffff:')) return trimmed.slice(7);
-  return trimmed;
-}
-
-async function resolveIpLocation(ip: string | null): Promise<string | null> {
-  const normalized = normalizeIp(ip);
-  if (!normalized) return null;
-  if (normalized === '127.0.0.1' || normalized === '::1' || normalized === 'localhost') return 'localhost';
-  if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(normalized)) return 'LAN';
-  try {
-    const resp = await fetch(
-      `http://ip-api.com/json/${encodeURIComponent(normalized)}?fields=status,country,regionName,city&lang=zh-CN`,
-      { signal: AbortSignal.timeout(3000) },
-    );
-    const data = await resp.json() as { status: string; country?: string; regionName?: string; city?: string };
-    if (data.status === 'success') {
-      const parts = [data.city, data.regionName, data.country].filter(Boolean);
-      return parts.join(', ') || null;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
+import { resolveIpLocation } from '../../utils/ipGeoLookup.js';
 
 export async function logEmployeeLoginRepository(
   employeeId: string | null,

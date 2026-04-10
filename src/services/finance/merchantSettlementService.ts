@@ -6,7 +6,12 @@ import { loadSharedData, saveSharedData, clearSharedCacheKey } from '@/services/
 import { pickBilingual } from '@/lib/appLocale';
 import { createLedgerEntry, createAdjustmentEntry, softDeleteLedgerEntry, setInitialBalanceLedger, reverseAllEntriesForSource, reverseInitialBalanceEntry, getLedgerBalance as _getLedgerBalance, reconcileAndCorrect as _reconcileAndCorrect } from '@/services/finance/ledgerTransactionService';
 import { notifyDataMutation } from '@/services/system/dataRefreshManager';
+import { emitLegacyEvents } from '@/services/system/dataConsistencyHub';
 import { formatBeijingTime } from '@/lib/beijingTime';
+
+function emitSettlementChanged(): void {
+  emitLegacyEvents(['settlement-data-changed']);
+}
 
 /**
  * 统一写后管道：每次结算变更完成后调用，确保 ledger 与缓存一致。
@@ -15,7 +20,7 @@ import { formatBeijingTime } from '@/lib/beijingTime';
  */
 async function postMutationPipeline(): Promise<void> {
   notifyDataMutation({ table: 'ledger_transactions', operation: 'UPDATE', source: 'manual' }).catch(console.error);
-  window.dispatchEvent(new CustomEvent('settlement-data-changed'));
+  emitSettlementChanged();
 }
 
 // 获取当前用户信息的辅助函数
@@ -174,7 +179,7 @@ async function saveCardMerchantSettlements(settlements: CardMerchantSettlement[]
   cardSettlementsCache = cloned;
   cacheInitialized = true;
   await saveSharedData('cardMerchantSettlements', cloned);
-  window.dispatchEvent(new CustomEvent('settlement-data-changed'));
+  emitSettlementChanged();
 }
 
 export function getOrCreateVendorSettlement(vendorName: string): CardMerchantSettlement {
@@ -408,7 +413,7 @@ export async function savePaymentProviderSettlements(settlements: PaymentProvide
   providerSettlementsCache = cloned;
   cacheInitialized = true;
   await saveSharedData('paymentProviderSettlements', cloned);
-  window.dispatchEvent(new CustomEvent('settlement-data-changed'));
+  emitSettlementChanged();
 }
 
 export function getOrCreateProviderSettlement(providerName: string): PaymentProviderSettlement {

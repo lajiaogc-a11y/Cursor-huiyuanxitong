@@ -1,18 +1,23 @@
-import { useState } from 'react';
+/**
+ * 跟进记录面板 — 纯 UI 组件
+ * 类型来自 conversationStatusService
+ */
+import { useState, memo } from 'react';
 import { Plus, StickyNote } from 'lucide-react';
-import type { ConversationNoteRow } from '@/services/whatsapp/conversationStatusService';
+import type { ConversationNote } from '@/services/whatsapp/conversationStatusService';
+
+export type { ConversationNote };
 
 interface Props {
-  notes: ConversationNoteRow[];
+  notes: ConversationNote[];
   onAddNote: (text: string) => void;
-  loading?: boolean;
 }
 
 function formatDate(ts: string) {
   return new Date(ts).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-export function FollowUpPanel({ notes, onAddNote, loading }: Props) {
+function FollowUpPanelInner({ notes, onAddNote }: Props) {
   const [text, setText] = useState('');
   const [adding, setAdding] = useState(false);
 
@@ -56,16 +61,15 @@ export function FollowUpPanel({ notes, onAddNote, loading }: Props) {
       )}
 
       <div className="max-h-48 overflow-y-auto">
-        {loading && <div className="text-center text-muted-foreground text-[10px] py-3">加载中...</div>}
-        {!loading && notes.length === 0 && (
+        {notes.length === 0 && (
           <div className="text-center text-muted-foreground text-[10px] py-4">暂无跟进记录</div>
         )}
         {notes.map(n => (
           <div key={n.id} className="px-3 py-2 border-b border-border/50 last:border-0">
             <div className="text-xs text-foreground">{n.note}</div>
             <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
-              <span>{n.created_by_name ?? '系统'}</span>
-              <span>{formatDate(n.created_at)}</span>
+              <span>{n.createdBy}</span>
+              <span>{formatDate(n.createdAt)}</span>
             </div>
           </div>
         ))}
@@ -73,3 +77,5 @@ export function FollowUpPanel({ notes, onAddNote, loading }: Props) {
     </div>
   );
 }
+
+export const FollowUpPanel = memo(FollowUpPanelInner);

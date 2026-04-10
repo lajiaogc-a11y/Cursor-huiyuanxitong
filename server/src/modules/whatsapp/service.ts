@@ -1,24 +1,33 @@
 /**
  * WhatsApp 工作台 Service — 业务编排层
  *
- * 职责：手机号标准化、会员匹配、会话上下文聚合、状态管理
+ * Step 10: 多阶段会员匹配（binding → exact → suffix），searchMembers
+ *
+ * 职责：手机号标准化、会员匹配、会话上下文聚合、状态管理、绑定
  * 禁止：直接 SQL、HTTP 相关
  */
 import * as repo from './repository.js';
 import type {
   NormalizePhoneResult,
-  MemberMatchResult,
-  ConversationContext,
   ConversationStatus,
   ConversationStatusRow,
   ConversationNoteRow,
+  MemberSummaryDto,
+  MemberMatchResponse,
+  OrderSummaryDto,
+  ConversationContextResponse,
 } from './types.js';
 
-// ── 手机号标准化 ──
+// ══════════════════════════════════════
+//  手机号标准化
+// ══════════════════════════════════════
 
 export function normalizePhone(phone: string, countryCode?: string): NormalizePhoneResult {
   const original = phone.trim();
-  let digits = original.replace(/[\s\-().]/g, '');
+  let digits = original.replace(/[\s\-().（）\u200B\u00A0]/g, '');
+
+  // WhatsApp JID
+  digits = digits.replace(/@(s\.whatsapp\.net|c\.us|g\.us)$/i, '');
 
   if (digits.startsWith('+')) {
     // already has country code
@@ -35,37 +44,130 @@ export function normalizePhone(phone: string, countryCode?: string): NormalizePh
   return { original, normalized, valid };
 }
 
-// ── 会员匹配 ──
+// ══════════════════════════════════════
+//  DB Row → DTO 映射
+// ══════════════════════════════════════
 
-export async function matchMemberByPhone(phone: string, tenantId: string | null): Promise<MemberMatchResult> {
+function toMemberDto(
+  raw: Record<string, unknown>,
+  activity: Record<string, unknown> | null,
+): MemberSummaryDto {
+  return {
+    id:              String(raw.id ?? ''),
+    name:            String(raw.nickname ?? raw.real_name ?? raw.name ?? ''),
+    memberCode:      String(raw.member_code ?? ''),
+    phone:           String(raw.phone_number ?? ''),
+    level:           String(raw.member_level ?? raw.level ?? ''),
+    status:          String(raw.status ?? ''),
+    giftCardBalance: Number(activity?.remaining_gift_amount ?? activity?.gift_amount ?? 0),
+    points:          Number(activity?.remaining_points ?? 0),
+    orderCount:      Number(activity?.consumption_count ?? raw.order_count ?? 0),
+  };
+}
+
+function toOrderDto(raw: Record<string, unknown>): OrderSummaryDto {
+  return {
+    id:          String(raw.id ?? ''),
+    orderNumber: String(raw.order_number ?? ''),
+    orderType:   String(raw.order_type ?? ''),
+    amount:      Number(raw.amount ?? 0),
+    currency:    raw.currency != null ? String(raw.currency) : null,
+    status:      String(raw.status ?? ''),
+    createdAt:   String(raw.created_at ?? ''),
+  };
+}
+
+// ══════════════════════════════════════
+//  Step 10: 多阶段会员匹配
+//
+//  优先级：
+//    1. binding 表精确绑定
+//    2. members 表精确匹配 (phone_number = ?)
+//    3. members 表后缀匹配 (phone_number LIKE '%suffix')
+//
+//  如果匹配到 >1 条 → multiple_matches + candidates
+// ══════════════════════════════════════
+
+export async function matchMemberByPhone(
+  phone: string,
+  tenantId: string | null,
+): Promise<MemberMatchResponse> {
   try {
     const { normalized } = normalizePhone(phone);
-    const member = await repo.findMemberByPhone(normalized, tenantId);
-    if (!member) return { status: 'not_found', member: null, activity: null };
+    const digits = normalized.replace(/\D/g, '');
 
-    const activity = await repo.findMemberActivity(String(member.id));
-    return { status: 'matched', member, activity };
+    // Stage 1: 检查 binding 表
+    const binding = await repo.findPhoneBinding(normalized, tenantId);
+    if (binding) {
+      const memberRow = await repo.findMemberById(binding.member_id);
+      if (memberRow) {
+        const activity = await repo.findMemberActivity(String(memberRow.id));
+        return { matchStatus: 'matched', member: toMemberDto(memberRow, activity), matchSource: 'binding' };
+      }
+    }
+
+    // Stage 2: 精确匹配
+    const exactMatches = await repo.findMembersByPhoneExact(normalized, tenantId, 5);
+    if (exactMatches.length === 1) {
+      const activity = await repo.findMemberActivity(String(exactMatches[0].id));
+      return { matchStatus: 'matched', member: toMemberDto(exactMatches[0], activity), matchSource: 'exact' };
+    }
+    if (exactMatches.length > 1) {
+      const candidates = await enrichCandidates(exactMatches);
+      return { matchStatus: 'multiple_matches', member: null, candidates, matchSource: 'exact' };
+    }
+
+    // Stage 3: 后缀匹配 (last 8 digits)
+    const suffix = digits.slice(-8);
+    if (suffix.length >= 7) {
+      const suffixMatches = await repo.findMembersByPhoneSuffix(suffix, tenantId, 5);
+      if (suffixMatches.length === 1) {
+        const activity = await repo.findMemberActivity(String(suffixMatches[0].id));
+        return { matchStatus: 'matched', member: toMemberDto(suffixMatches[0], activity), matchSource: 'suffix' };
+      }
+      if (suffixMatches.length > 1) {
+        const candidates = await enrichCandidates(suffixMatches);
+        return { matchStatus: 'multiple_matches', member: null, candidates, matchSource: 'suffix' };
+      }
+    }
+
+    return { matchStatus: 'not_found', member: null };
   } catch (e) {
     console.error('[WhatsApp] matchMemberByPhone error:', e);
-    return { status: 'error', member: null, activity: null };
+    return { matchStatus: 'error', member: null };
   }
 }
 
-// ── 会话上下文聚合 ──
+async function enrichCandidates(rows: Record<string, unknown>[]): Promise<MemberSummaryDto[]> {
+  const result: MemberSummaryDto[] = [];
+  for (const row of rows.slice(0, 5)) {
+    const activity = await repo.findMemberActivity(String(row.id));
+    result.push(toMemberDto(row, activity));
+  }
+  return result;
+}
+
+// ══════════════════════════════════════
+//  会话上下文聚合
+// ══════════════════════════════════════
 
 export async function getConversationContext(
-  phone: string, tenantId: string | null, accountId?: string,
-): Promise<ConversationContext> {
+  phone: string,
+  tenantId: string | null,
+  accountId?: string,
+): Promise<ConversationContextResponse> {
   const { normalized } = normalizePhone(phone);
   const matchResult = await matchMemberByPhone(normalized, tenantId);
 
-  let recentOrders: Record<string, unknown>[] = [];
+  let recentOrders: OrderSummaryDto[] = [];
   let recentNotes: ConversationNoteRow[] = [];
   let conversationStatus: ConversationStatusRow | null = null;
 
-  if (matchResult.member) {
-    const memberId = String(matchResult.member.id);
-    recentOrders = await repo.findRecentOrders(memberId, tenantId);
+  const memberDto = matchResult.member;
+
+  if (memberDto) {
+    const rawOrders = await repo.findRecentOrders(memberDto.id, tenantId);
+    recentOrders = rawOrders.map(toOrderDto);
   }
 
   if (accountId) {
@@ -73,19 +175,35 @@ export async function getConversationContext(
     recentNotes = await repo.listNotes(accountId, normalized, tenantId);
   }
 
+  const pointsSummary = memberDto
+    ? { remaining: memberDto.points, lifetime: memberDto.points + memberDto.orderCount * 100 }
+    : null;
+
+  const giftCardSummary = memberDto
+    ? { balance: memberDto.giftCardBalance, activeCards: memberDto.giftCardBalance > 0 ? 1 : 0 }
+    : null;
+
   return {
-    member: matchResult.member,
-    activity: matchResult.activity,
+    memberSummary: memberDto,
+    giftCardSummary,
+    pointsSummary,
     recentOrders,
     recentNotes,
     conversationStatus,
+    matchStatus: matchResult.matchStatus,
+    matchSource: matchResult.matchSource,
+    candidates: matchResult.candidates,
   };
 }
 
-// ── 会话状态管理 ──
+// ══════════════════════════════════════
+//  会话状态管理
+// ══════════════════════════════════════
 
 export async function getStatus(
-  accountId: string, phone: string, tenantId: string | null,
+  accountId: string,
+  phone: string,
+  tenantId: string | null,
 ): Promise<ConversationStatusRow | null> {
   const { normalized } = normalizePhone(phone);
   return repo.getConversationStatus(accountId, normalized, tenantId);
@@ -114,21 +232,75 @@ export async function updateStatus(params: {
 }
 
 export async function listStatuses(
-  tenantId: string | null, accountId?: string, statusFilter?: ConversationStatus,
+  tenantId: string | null,
+  accountId?: string,
+  statusFilter?: ConversationStatus,
 ): Promise<ConversationStatusRow[]> {
   return repo.listConversationStatuses(tenantId, accountId, statusFilter);
 }
 
-// ── 会员绑定 ──
+// ══════════════════════════════════════
+//  Step 10: 会员绑定（增强版）
+//
+//  同时写入 binding 表和 conversation_status.member_id
+// ══════════════════════════════════════
 
-export async function bindMember(
-  accountId: string, phone: string, memberId: string, tenantId: string | null,
-): Promise<void> {
-  const { normalized } = normalizePhone(phone);
-  await repo.bindMemberToConversation(accountId, normalized, memberId, tenantId);
+export async function bindMember(params: {
+  accountId: string;
+  phone: string;
+  memberId: string;
+  tenantId: string | null;
+  operatorId?: string | null;
+  note?: string | null;
+}): Promise<{ bound: boolean; member: MemberSummaryDto | null }> {
+  const { normalized } = normalizePhone(params.phone);
+
+  await repo.savePhoneBinding({
+    phoneNormalized: normalized,
+    memberId: params.memberId,
+    tenantId: params.tenantId,
+    boundBy: params.operatorId ?? null,
+    note: params.note,
+  });
+
+  await repo.bindMemberToConversation(params.accountId, normalized, params.memberId, params.tenantId);
+
+  const memberRow = await repo.findMemberById(params.memberId);
+  if (!memberRow) return { bound: true, member: null };
+
+  const activity = await repo.findMemberActivity(params.memberId);
+  return { bound: true, member: toMemberDto(memberRow, activity) };
 }
 
-// ── 备注 ──
+export async function unbindMember(
+  phone: string,
+  tenantId: string | null,
+): Promise<void> {
+  const { normalized } = normalizePhone(phone);
+  await repo.removePhoneBinding(normalized, tenantId);
+}
+
+// ══════════════════════════════════════
+//  Step 10: 会员搜索（供绑定 UI 使用）
+// ══════════════════════════════════════
+
+export async function searchMembers(
+  keyword: string,
+  tenantId: string | null,
+): Promise<MemberSummaryDto[]> {
+  if (!keyword || keyword.trim().length < 2) return [];
+  const rows = await repo.searchMembers(keyword.trim(), tenantId, 10);
+  const result: MemberSummaryDto[] = [];
+  for (const row of rows) {
+    const activity = await repo.findMemberActivity(String(row.id));
+    result.push(toMemberDto(row, activity));
+  }
+  return result;
+}
+
+// ══════════════════════════════════════
+//  备注
+// ══════════════════════════════════════
 
 export async function addNote(params: {
   accountId: string;
@@ -152,7 +324,9 @@ export async function addNote(params: {
 }
 
 export async function listNotes(
-  accountId: string, phone: string, tenantId: string | null,
+  accountId: string,
+  phone: string,
+  tenantId: string | null,
 ): Promise<ConversationNoteRow[]> {
   const { normalized } = normalizePhone(phone);
   return repo.listNotes(accountId, normalized, tenantId);

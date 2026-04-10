@@ -1,55 +1,106 @@
 import { apiClient } from "@/lib/apiClient";
+import {
+  scalarToDisplayString,
+  pickActivityTypeLabel,
+  parseActivityTypeActive,
+} from "@/lib/referenceListNormalizer";
 
-/** 避免数字/科学计数法在界面上显示成大量字母 e（如 1e+21） */
-function scalarToDisplayString(raw: unknown): string {
-  if (raw == null || raw === "") return "";
-  if (typeof raw === "number" && Number.isFinite(raw)) {
-    if (Number.isInteger(raw)) return String(raw);
-    const t = String(raw);
-    if (!/[eE]/.test(t)) return t;
-    const fixed = raw.toFixed(12).replace(/\.?0+$/, "");
-    return fixed === "-0" ? "0" : fixed;
-  }
-  const s = String(raw).trim();
-  if (!s || s === "null" || s === "undefined") return "";
-  if (/^\d+\.?\d*[eE][+-]?\d+$/.test(s)) {
-    const n = Number(s);
-    if (Number.isFinite(n)) {
-      const fixed = n.toFixed(12).replace(/\.?0+$/, "");
-      return fixed === "-0" ? "0" : fixed;
-    }
-  }
-  return s;
+function extractArrayPayload(res: unknown): unknown[] {
+  const raw = res as Record<string, unknown>;
+  if (Array.isArray(raw)) return raw;
+  const data = raw.data;
+  return Array.isArray(data) ? data : [];
 }
 
-/** 排除误导入/单列字母 code（如 e）等不应作为「活动类型名称」展示的垃圾值 */
-function isJunkActivityTypeLabel(s: string): boolean {
-  const t = s.trim();
-  if (!t) return true;
-  if (/^[eE]$/.test(t)) return true;
-  if (/^\d+\.?\d*[eE][+-]?\d+$/.test(t)) return true;
-  return false;
+export type CurrencyListItem = {
+  id: string;
+  code: string;
+  name_zh: string;
+  name_en?: string | null;
+  symbol?: string | null;
+  badge_color?: string | null;
+  sort_order: number;
+  is_active: boolean;
+};
+
+function parseCurrencyRow(row: Record<string, unknown>): CurrencyListItem {
+  return {
+    id: String(row.id ?? ""),
+    code: String(row.code ?? ""),
+    name_zh: String(row.name_zh ?? row.name ?? ""),
+    name_en: row.name_en != null ? String(row.name_en) : null,
+    symbol: row.symbol != null ? String(row.symbol) : null,
+    badge_color: row.badge_color != null ? String(row.badge_color) : null,
+    sort_order: Number(row.sort_order ?? 0),
+    is_active: parseActivityTypeActive(row.is_active),
+  };
 }
 
-function pickActivityTypeLabel(row: Record<string, unknown>): string {
-  // 先用人-readable 字段；value（如 activity_1）优先于 code，避免旧表里 code 被填成单列字母时盖住正常 value
-  const keys = ["label", "name", "value", "code"] as const;
-  for (const key of keys) {
-    const s = scalarToDisplayString(row[key]);
-    if (s && !isJunkActivityTypeLabel(s)) return s;
-  }
-  return "";
+export type CustomerSourceListItem = {
+  id: string;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+function parseCustomerSourceRow(row: Record<string, unknown>): CustomerSourceListItem {
+  return {
+    id: String(row.id ?? ""),
+    name: String(row.name ?? ""),
+    sort_order: Number(row.sort_order ?? 0),
+    is_active: parseActivityTypeActive(row.is_active),
+    created_at: String(row.created_at ?? ""),
+    updated_at: String(row.updated_at ?? ""),
+  };
 }
 
-function parseActivityTypeActive(raw: unknown): boolean {
-  if (raw === true || raw === 1) return true;
-  if (raw === false || raw === 0) return false;
-  if (typeof raw === "string") {
-    const low = raw.trim().toLowerCase();
-    if (low === "1" || low === "true" || low === "yes") return true;
-    if (low === "0" || low === "false" || low === "no") return false;
-  }
-  return true;
+export type ShiftReceiverListItem = {
+  id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+function parseShiftReceiverRow(row: Record<string, unknown>): ShiftReceiverListItem {
+  return {
+    id: String(row.id ?? ""),
+    name: String(row.name ?? ""),
+    sort_order: Number(row.sort_order ?? 0),
+    created_at: String(row.created_at ?? ""),
+    updated_at: String(row.updated_at ?? ""),
+  };
+}
+
+export type ShiftHandoverListItem = {
+  id: string;
+  handover_employee_id: string | null;
+  handover_employee_name: string;
+  receiver_name: string;
+  handover_time: string;
+  card_merchant_data: unknown;
+  payment_provider_data: unknown;
+  remark: string | null;
+  created_at: string;
+};
+
+function parseShiftHandoverRow(row: Record<string, unknown>): ShiftHandoverListItem {
+  return {
+    id: String(row.id ?? ""),
+    handover_employee_id:
+      row.handover_employee_id != null && String(row.handover_employee_id).trim() !== ""
+        ? String(row.handover_employee_id)
+        : null,
+    handover_employee_name: String(row.handover_employee_name ?? ""),
+    receiver_name: String(row.receiver_name ?? ""),
+    handover_time: String(row.handover_time ?? ""),
+    card_merchant_data: row.card_merchant_data ?? null,
+    payment_provider_data: row.payment_provider_data ?? null,
+    remark: row.remark != null && String(row.remark) !== "" ? String(row.remark) : null,
+    created_at: String(row.created_at ?? ""),
+  };
 }
 
 export async function getCurrenciesApi(): Promise<
@@ -65,8 +116,9 @@ export async function getCurrenciesApi(): Promise<
   }>
 > {
   const res = await apiClient.get<unknown>("/api/data/currencies");
-  const raw = res as Record<string, unknown>;
-  return Array.isArray(raw) ? (raw as any[]) : ((raw.data as any[]) ?? []);
+  return extractArrayPayload(res).map((item) =>
+    parseCurrencyRow(item as Record<string, unknown>),
+  );
 }
 
 export async function getActivityTypesApi(): Promise<
@@ -110,8 +162,9 @@ export async function getCustomerSourcesApi(): Promise<
   }>
 > {
   const res = await apiClient.get<unknown>("/api/data/customer-sources");
-  const raw = res as Record<string, unknown>;
-  return Array.isArray(raw) ? (raw as any[]) : ((raw.data as any[]) ?? []);
+  return extractArrayPayload(res).map((item) =>
+    parseCustomerSourceRow(item as Record<string, unknown>),
+  );
 }
 
 export async function getShiftReceiversApi(): Promise<
@@ -124,8 +177,9 @@ export async function getShiftReceiversApi(): Promise<
   }>
 > {
   const res = await apiClient.get<unknown>("/api/data/shift-receivers");
-  const raw = res as Record<string, unknown>;
-  return Array.isArray(raw) ? (raw as any[]) : ((raw.data as any[]) ?? []);
+  return extractArrayPayload(res).map((item) =>
+    parseShiftReceiverRow(item as Record<string, unknown>),
+  );
 }
 
 export async function getShiftHandoversApi(tenantId?: string | null): Promise<
@@ -143,6 +197,7 @@ export async function getShiftHandoversApi(tenantId?: string | null): Promise<
 > {
   const q = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";
   const res = await apiClient.get<unknown>(`/api/data/shift-handovers${q}`);
-  const raw = res as Record<string, unknown>;
-  return Array.isArray(raw) ? (raw as any[]) : ((raw.data as any[]) ?? []);
+  return extractArrayPayload(res).map((item) =>
+    parseShiftHandoverRow(item as Record<string, unknown>),
+  );
 }

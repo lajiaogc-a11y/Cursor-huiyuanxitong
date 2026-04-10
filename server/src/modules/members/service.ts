@@ -127,6 +127,18 @@ export async function getMemberTenantIdService(memberId: string): Promise<string
   return getMemberTenantIdById(memberId);
 }
 
+/** 获取会员初始密码（解密后明文） */
+export async function getDecryptedInitialPasswordService(memberId: string): Promise<string | null> {
+  const { queryOne } = await import('../../database/index.js');
+  const { decryptField, isEncrypted } = await import('../../utils/fieldCipher.js');
+  const row = await queryOne<{ initial_password: string | null }>(
+    'SELECT initial_password FROM members WHERE id = ? LIMIT 1',
+    [memberId],
+  );
+  if (!row || !row.initial_password) return null;
+  return isEncrypted(row.initial_password) ? decryptField(row.initial_password) : row.initial_password;
+}
+
 /** 更新会员密码哈希，返回受影响行数 */
 export async function updateMemberPasswordHashService(
   memberId: string,

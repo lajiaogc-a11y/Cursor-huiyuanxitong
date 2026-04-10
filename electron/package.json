@@ -1,0 +1,22 @@
+{
+  "name": "whatsapp-companion",
+  "version": "0.2.0",
+  "private": true,
+  "description": "WhatsApp Companion local bridge server for the membership system workbench",
+  "scripts": {
+    "start": "npx tsx start.ts",
+    "dev": "npx tsx watch start.ts"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "https-proxy-agent": "^9.0.0",
+    "qrcode": "^1.5.4",
+    "whatsapp-web.js": "^1.26.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/qrcode": "^1.5.5",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

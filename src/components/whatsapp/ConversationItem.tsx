@@ -1,16 +1,20 @@
+/**
+ * 会话列表单项 — Step 11 React.memo 优化
+ */
+import { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { ConversationStatusBadge } from './ConversationStatusBadge';
 import type { WaConversation } from '@/services/whatsapp/localSessionBridgeService';
-import type { ConversationStatus } from '@/services/whatsapp/conversationStatusService';
+
+export type { WaConversation };
 
 interface Props {
-  conversation: WaConversation;
+  item: WaConversation;
   isActive: boolean;
-  status?: ConversationStatus | null;
   onClick: () => void;
 }
 
-function formatRelativeTime(dateStr: string): string {
+function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   if (diff < 60_000) return '刚刚';
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}分钟前`;
@@ -18,7 +22,7 @@ function formatRelativeTime(dateStr: string): string {
   return `${Math.floor(diff / 86_400_000)}天前`;
 }
 
-export function ConversationItem({ conversation, isActive, status, onClick }: Props) {
+function ConversationItemInner({ item, isActive, onClick }: Props) {
   return (
     <button
       onClick={onClick}
@@ -28,22 +32,22 @@ export function ConversationItem({ conversation, isActive, status, onClick }: Pr
       )}
     >
       <div className="w-9 h-9 rounded-full bg-muted flex-shrink-0 flex items-center justify-center text-sm font-medium">
-        {conversation.name.charAt(0).toUpperCase()}
+        {item.name.charAt(0).toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1">
-          <span className="text-sm font-medium truncate">{conversation.name}</span>
+          <span className="text-sm font-medium truncate">{item.name}</span>
           <span className="text-[10px] text-muted-foreground flex-shrink-0">
-            {formatRelativeTime(conversation.lastMessageAt)}
+            {timeAgo(item.lastMessageAt)}
           </span>
         </div>
         <div className="flex items-center justify-between gap-1 mt-0.5">
-          <span className="text-xs text-muted-foreground truncate">{conversation.lastMessage}</span>
+          <span className="text-xs text-muted-foreground truncate">{item.lastMessage}</span>
           <div className="flex items-center gap-1 flex-shrink-0">
-            {status && <ConversationStatusBadge status={status} />}
-            {conversation.unreadCount > 0 && (
-              <span className="w-4.5 h-4.5 rounded-full bg-primary text-[10px] text-primary-foreground flex items-center justify-center">
-                {conversation.unreadCount}
+            {item.status && <ConversationStatusBadge status={item.status} />}
+            {item.unreadCount > 0 && (
+              <span className="min-w-[18px] h-[18px] rounded-full bg-primary text-[10px] text-primary-foreground flex items-center justify-center px-1">
+                {item.unreadCount}
               </span>
             )}
           </div>
@@ -52,3 +56,5 @@ export function ConversationItem({ conversation, isActive, status, onClick }: Pr
     </button>
   );
 }
+
+export const ConversationItem = memo(ConversationItemInner);

@@ -15,3 +15,12 @@ export async function adminSetMemberInitialPassword(memberId: string, newPasswor
 export async function adminGetMemberReferrals(memberId: string): Promise<{ success?: boolean; referrals?: unknown[] }> {
   return memberAdminApi.getReferrals(memberId) as Promise<{ success?: boolean; referrals?: unknown[] }>;
 }
+
+export async function adminGetInitialPassword(memberId: string): Promise<string | null> {
+  try {
+    const res = await memberAdminApi.getInitialPassword(memberId) as { password?: string };
+    return res?.password || null;
+  } catch {
+    return null;
+  }
+}

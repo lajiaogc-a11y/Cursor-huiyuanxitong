@@ -18,6 +18,7 @@ import {
   lookupMemberForReferralController,
   bulkCreateMembersController,
   adminResetMemberPasswordController,
+  getInitialPasswordController,
 } from './controller.js';
 
 /* ── shared param / query fragments ── */
@@ -107,6 +108,7 @@ router.post('/bulk',                  authMiddleware, validate({ body: bulkCreat
 router.put('/:id',                    authMiddleware, validate({ params: idParam, body: updateMemberBody }), updateMemberController);
 router.put('/by-phone/:phone',        authMiddleware, validate({ params: phoneParam, body: updateMemberBody }), updateMemberByPhoneController);
 router.post('/:id/reset-password',    authMiddleware, validate({ params: idParam, body: resetPasswordBody }), adminResetMemberPasswordController);
+router.get('/:id/initial-password',   authMiddleware, validate({ params: idParam }), getInitialPasswordController);
 router.delete('/:id',                 authMiddleware, validate({ params: idParam, query: optionalTenantQuery }), deleteMemberController);
 
 export default router;

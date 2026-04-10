@@ -77,7 +77,7 @@ export async function updatePoster(
       `UPDATE task_posters SET title = ? WHERE id = ? AND tenant_id = ?`,
       [updates.title, posterId, tenantId]
     );
-    return (result as any)?.affectedRows > 0;
+    return result.affectedRows > 0;
   }
   return false;
 }
@@ -88,5 +88,5 @@ export async function deletePoster(posterId: string, tenantId: string): Promise<
     `DELETE FROM task_posters WHERE id = ? AND tenant_id = ?`,
     [posterId, tenantId]
   );
-  return (result as any)?.affectedRows > 0;
+  return result.affectedRows > 0;
 }

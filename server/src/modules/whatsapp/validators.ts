@@ -1,5 +1,7 @@
 /**
  * WhatsApp 工作台 — 输入验证
+ *
+ * Step 10: 新增 searchMembersSchema, unbindMemberSchema
  */
 import { z } from 'zod';
 
@@ -37,6 +39,15 @@ export const bindMemberPhoneSchema = z.object({
   accountId: z.string().min(1).max(64),
   phone: z.string().min(1).max(32),
   memberId: z.string().min(1).max(36),
+  note: z.string().max(200).optional(),
+});
+
+export const unbindMemberPhoneSchema = z.object({
+  phone: z.string().min(1).max(32),
+});
+
+export const searchMembersSchema = z.object({
+  keyword: z.string().min(2).max(50),
 });
 
 export const addNoteSchema = z.object({

@@ -1,6 +1,10 @@
 /**
  * WhatsApp 工作台 — 共享类型
+ *
+ * Step 10: 新增 PhoneBindingRow, MemberMatchResponse.candidates
  */
+
+// ── 会话状态枚举 ──
 
 export type ConversationStatus =
   | 'unread'
@@ -9,6 +13,8 @@ export type ConversationStatus =
   | 'follow_up_required'
   | 'priority'
   | 'closed';
+
+// ── 数据库行类型 ──
 
 export interface ConversationStatusRow {
   id: string;
@@ -43,23 +49,64 @@ export interface ConversationNoteRow {
   created_at: string;
 }
 
+export interface PhoneBindingRow {
+  id: string;
+  tenant_id: string | null;
+  phone_normalized: string;
+  member_id: string;
+  bound_by: string | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── 内部类型 ──
+
 export interface NormalizePhoneResult {
   original: string;
   normalized: string;
   valid: boolean;
 }
 
-export interface MemberMatchResult {
-  status: 'matched' | 'not_found' | 'multiple_matches' | 'error';
-  member: Record<string, unknown> | null;
-  activity: Record<string, unknown> | null;
-  matches?: number;
+// ── 响应 DTO（匹配前端 API Client 规范） ──
+
+export interface MemberSummaryDto {
+  id: string;
+  name: string;
+  memberCode: string;
+  phone: string;
+  level: string;
+  status: string;
+  giftCardBalance: number;
+  points: number;
+  orderCount: number;
 }
 
-export interface ConversationContext {
-  member: Record<string, unknown> | null;
-  activity: Record<string, unknown> | null;
-  recentOrders: Record<string, unknown>[];
+export interface MemberMatchResponse {
+  matchStatus: 'matched' | 'not_found' | 'multiple_matches' | 'error';
+  member: MemberSummaryDto | null;
+  candidates?: MemberSummaryDto[];
+  matchSource?: 'binding' | 'exact' | 'suffix';
+}
+
+export interface OrderSummaryDto {
+  id: string;
+  orderNumber: string;
+  orderType: string;
+  amount: number;
+  currency: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export interface ConversationContextResponse {
+  memberSummary: MemberSummaryDto | null;
+  giftCardSummary: { balance: number; activeCards: number } | null;
+  pointsSummary: { remaining: number; lifetime: number } | null;
+  recentOrders: OrderSummaryDto[];
   recentNotes: ConversationNoteRow[];
   conversationStatus: ConversationStatusRow | null;
+  matchStatus?: 'matched' | 'not_found' | 'multiple_matches' | 'error';
+  matchSource?: 'binding' | 'exact' | 'suffix';
+  candidates?: MemberSummaryDto[];
 }

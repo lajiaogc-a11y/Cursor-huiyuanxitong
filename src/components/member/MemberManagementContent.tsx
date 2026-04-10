@@ -49,7 +49,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatBeijingDateHM } from "@/lib/beijingTime";
 import { getDisplayPhone } from "@/lib/phoneMask";
-import { adminSetMemberInitialPassword } from "@/services/members/memberAdminRpcService";
+import { adminSetMemberInitialPassword, adminGetInitialPassword } from "@/services/members/memberAdminRpcService";
 import { useAuditWorkflow } from "@/hooks/audit/useAuditWorkflow";
 import { useModulePermissions } from "@/hooks/staff/useFieldPermissions";
 import {
@@ -420,7 +420,7 @@ export default function MemberManagementContent({ searchTerm: externalSearchTerm
   };
 
   const handleCopyPassword = async (member: Member) => {
-    const pwd = member.initialPassword;
+    const pwd = await adminGetInitialPassword(member.id);
     if (!pwd) {
       notify.error(t("该会员暂无初始密码", "No initial password set for this member"));
       return;

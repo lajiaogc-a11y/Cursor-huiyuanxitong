@@ -33,7 +33,7 @@ import { useCustomerSources } from "@/hooks/crm/useCustomerSources";
 import { useCards } from "@/hooks/finance/useMerchantConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDisplayPhone } from "@/lib/phoneMask";
-import { adminGetMemberReferrals, adminSetMemberInitialPassword } from "@/services/members/memberAdminRpcService";
+import { adminGetMemberReferrals, adminSetMemberInitialPassword, adminGetInitialPassword } from "@/services/members/memberAdminRpcService";
 import { MEMBER_LEVELS } from "@/config/memberLevels";
 import { formatBeijingDateHM, formatBeijingDate } from "@/lib/beijingTime";
 import { PageHeader, PageActions, KPIGrid } from "@/components/common";
@@ -218,7 +218,7 @@ export default function MemberManagement() {
       notify.error(t("仅管理员可执行此操作", "Only admins can perform this action"));
       return;
     }
-    const pwd = member.initialPassword;
+    const pwd = await adminGetInitialPassword(member.id);
     if (!pwd) {
       notify.error(t("该会员暂无初始密码", "No initial password set for this member"));
       return;

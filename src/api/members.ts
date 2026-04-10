@@ -17,6 +17,7 @@ export interface ApiMember {
   remark?: string;
   source_id?: string | null;
   recorder_id?: string | null;
+  recorder_name?: string | null;
   creator_id?: string | null;
   created_at?: string;
   updated_at?: string;

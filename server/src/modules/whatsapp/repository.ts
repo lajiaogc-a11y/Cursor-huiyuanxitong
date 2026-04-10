@@ -1,10 +1,12 @@
 /**
  * WhatsApp 工作台 Repository — 纯数据访问层
+ *
+ * Step 10: 新增多匹配检测、binding 查询、会员关键词搜索
  */
 import { query, queryOne, execute } from '../../database/index.js';
 import crypto from 'crypto';
 import { toMySqlDatetime } from '../../lib/shanghaiTime.js';
-import type { ConversationStatusRow, ConversationNoteRow, ConversationStatus } from './types.js';
+import type { ConversationStatusRow, ConversationNoteRow, ConversationStatus, PhoneBindingRow } from './types.js';
 
 function genId() { return crypto.randomUUID(); }
 
@@ -130,18 +132,49 @@ export async function listNotes(
   );
 }
 
-// ── 会员查询（复用 members 表）──
+// ══════════════════════════════════════
+//  Step 10: 会员查询增强（多匹配 + 后缀 + 模糊）
+// ══════════════════════════════════════
 
-export async function findMemberByPhone(phone: string, tenantId: string | null): Promise<Record<string, unknown> | null> {
+/**
+ * 精确匹配：phone_number 完全等于 phone 或 digits
+ */
+export async function findMembersByPhoneExact(
+  phone: string, tenantId: string | null, limit = 5,
+): Promise<Record<string, unknown>[]> {
   const digits = phone.replace(/\D/g, '');
-  const conds = ['1=1'];
-  const args: unknown[] = [];
-  if (tenantId) { conds.push('(tenant_id IS NULL OR tenant_id = ?)'); args.push(tenantId); }
-  const row = await queryOne<Record<string, unknown>>(
-    `SELECT * FROM members WHERE (phone_number = ? OR phone_number = ? OR phone_number LIKE ?) AND ${conds.join(' AND ')} LIMIT 1`,
-    [phone, digits, `%${digits.slice(-8)}`, ...args],
+  const { sql: t, args: tA } = buildTenantClause(tenantId);
+  return query<Record<string, unknown>>(
+    `SELECT * FROM members WHERE (phone_number = ? OR phone_number = ?) ${t} LIMIT ?`,
+    [phone, digits, ...tA, limit],
   );
-  return row ?? null;
+}
+
+/**
+ * 后缀匹配：phone_number 尾 N 位与目标一致
+ */
+export async function findMembersByPhoneSuffix(
+  suffix: string, tenantId: string | null, limit = 5,
+): Promise<Record<string, unknown>[]> {
+  if (suffix.length < 7) return [];
+  const { sql: t, args: tA } = buildTenantClause(tenantId);
+  return query<Record<string, unknown>>(
+    `SELECT * FROM members WHERE phone_number LIKE ? ${t} LIMIT ?`,
+    [`%${suffix}`, ...tA, limit],
+  );
+}
+
+/** 兼容旧调用签名 */
+export async function findMemberByPhone(phone: string, tenantId: string | null): Promise<Record<string, unknown> | null> {
+  const exact = await findMembersByPhoneExact(phone, tenantId, 1);
+  if (exact.length > 0) return exact[0];
+
+  const digits = phone.replace(/\D/g, '');
+  const suffix = digits.slice(-8);
+  if (suffix.length < 7) return null;
+
+  const fuzzy = await findMembersByPhoneSuffix(suffix, tenantId, 1);
+  return fuzzy.length > 0 ? fuzzy[0] : null;
 }
 
 export async function findMemberActivity(memberId: string): Promise<Record<string, unknown> | null> {
@@ -155,5 +188,77 @@ export async function findRecentOrders(memberId: string, tenantId: string | null
   return query<Record<string, unknown>>(
     `SELECT id, order_number, order_type, amount, currency, status, created_at FROM orders WHERE member_id = ? ${t} ORDER BY created_at DESC LIMIT ?`,
     [memberId, ...tA, limit],
+  );
+}
+
+export async function findMemberById(memberId: string): Promise<Record<string, unknown> | null> {
+  return queryOne<Record<string, unknown>>('SELECT * FROM members WHERE id = ? LIMIT 1', [memberId]);
+}
+
+// ══════════════════════════════════════
+//  Step 10: 手机号绑定表 CRUD
+// ══════════════════════════════════════
+
+export async function findPhoneBinding(
+  phoneNormalized: string, tenantId: string | null,
+): Promise<PhoneBindingRow | null> {
+  const { sql: t, args: tA } = buildTenantClause(tenantId);
+  return queryOne<PhoneBindingRow>(
+    `SELECT * FROM whatsapp_phone_bindings WHERE phone_normalized = ? ${t} LIMIT 1`,
+    [phoneNormalized, ...tA],
+  );
+}
+
+export async function savePhoneBinding(params: {
+  phoneNormalized: string;
+  memberId: string;
+  tenantId: string | null;
+  boundBy: string | null;
+  note?: string | null;
+}): Promise<PhoneBindingRow> {
+  const now = toMySqlDatetime(new Date());
+  const existing = await findPhoneBinding(params.phoneNormalized, params.tenantId);
+
+  if (existing) {
+    await execute(
+      `UPDATE whatsapp_phone_bindings SET member_id = ?, bound_by = ?, note = ?, updated_at = ? WHERE id = ?`,
+      [params.memberId, params.boundBy, params.note ?? null, now, existing.id],
+    );
+    return { ...existing, member_id: params.memberId, updated_at: now } as PhoneBindingRow;
+  }
+
+  const id = genId();
+  await execute(
+    `INSERT INTO whatsapp_phone_bindings (id, tenant_id, phone_normalized, member_id, bound_by, note, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, params.tenantId, params.phoneNormalized, params.memberId, params.boundBy, params.note ?? null, now, now],
+  );
+  return (await queryOne<PhoneBindingRow>('SELECT * FROM whatsapp_phone_bindings WHERE id = ?', [id]))!;
+}
+
+export async function removePhoneBinding(
+  phoneNormalized: string, tenantId: string | null,
+): Promise<void> {
+  const { sql: t, args: tA } = buildTenantClause(tenantId);
+  await execute(
+    `DELETE FROM whatsapp_phone_bindings WHERE phone_normalized = ? ${t}`,
+    [phoneNormalized, ...tA],
+  );
+}
+
+// ══════════════════════════════════════
+//  Step 10: 会员关键词搜索（绑定 UI 使用）
+// ══════════════════════════════════════
+
+export async function searchMembers(
+  keyword: string, tenantId: string | null, limit = 10,
+): Promise<Record<string, unknown>[]> {
+  const like = `%${keyword}%`;
+  const { sql: t, args: tA } = buildTenantClause(tenantId);
+  return query<Record<string, unknown>>(
+    `SELECT * FROM members
+     WHERE (phone_number LIKE ? OR name LIKE ? OR nickname LIKE ? OR member_code LIKE ?) ${t}
+     ORDER BY updated_at DESC LIMIT ?`,
+    [like, like, like, like, ...tA, limit],
   );
 }

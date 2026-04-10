@@ -4,6 +4,7 @@
 import { createCustomerSourceData, patchCustomerSourceData, deleteCustomerSourceData } from '@/api/customerSourceData';
 import { getCustomerSourcesApi } from '@/api/staffData';
 import { logOperation } from '@/services/audit/auditLogService';
+import { emitDataRefresh } from '@/services/system/dataConsistencyHub';
 
 type CustomerSourceRow = {
   id: string;
@@ -109,9 +110,7 @@ async function refreshCache(): Promise<void> {
       mapApiRowToCustomerSource(s as unknown as Record<string, unknown>),
     );
     try {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('data-refresh:customer_sources'));
-      }
+      emitDataRefresh({ table: 'customer_sources', operation: '*', source: 'manual' });
     } catch {
       /* ignore */
     }

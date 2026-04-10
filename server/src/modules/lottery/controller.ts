@@ -173,7 +173,7 @@ export async function adminListPrizesController(req: AuthenticatedRequest, res: 
   const prizes = raw.map((p) => ({
     ...p,
     stock_enabled: Number(p.stock_enabled) === 1,
-    enabled: Number((p as any).enabled) !== 0,
+    enabled: Number(p.enabled) !== 0,
   }));
   res.json({ success: true, prizes });
 }

@@ -39,11 +39,11 @@ import { mapDbMemberToMember } from "@/lib/mappers/memberMapper";
 const memberLevels = [...MEMBER_LEVELS];
 
 function apiMemberToMember(row: ApiMember): Member {
-  return mapDbMemberToMember(row as any);
+  return mapDbMemberToMember(row);
 }
 
 function memberByPhoneToMember(m: MemberByPhone): Member {
-  return mapDbMemberToMember(m as any);
+  return mapDbMemberToMember(m);
 }
 
 // 币种偏好选项

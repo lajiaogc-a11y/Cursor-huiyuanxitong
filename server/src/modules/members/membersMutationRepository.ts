@@ -3,6 +3,7 @@
  */
 import { query, queryOne, execute } from '../../database/index.js';
 import { generateMemberCode } from '../../utils/memberCode.js';
+import { encryptField } from '../../utils/fieldCipher.js';
 import bcrypt from 'bcryptjs';
 import type { CreateMemberBody, UpdateMemberBody, BulkCreateMemberItem } from './types.js';
 import {
@@ -57,7 +58,7 @@ export async function createMemberRepository(tenantId: string, body: CreateMembe
       creatorId,
       recorderId,
       passwordHash,
-      initialPassword,
+      encryptField(initialPassword),
     ]
   );
 
@@ -441,7 +442,7 @@ export async function bulkCreateMembersRepository(
           item.source_id ?? null,
           item.creator_id ?? null,
           passwordHash,
-          initialPassword,
+          encryptField(initialPassword),
         ]);
         createdIds.push(id);
         inserted = true;

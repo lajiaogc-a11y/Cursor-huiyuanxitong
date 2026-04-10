@@ -64,7 +64,7 @@ export const ROUTES = {
     ADMIN_SETTINGS: "/staff/admin/settings",
     ADMIN_SETTINGS_TAB: "/staff/admin/settings/:tab",
     ADMIN_SETTINGS_DEFAULT: "/staff/admin/settings/ip-control",
-    WHATSAPP: "/staff/whatsapp",
+    WHATSAPP: "/dashboard/whatsapp",
   },
   PUBLIC_RATES: "/public-rates",
   NOT_FOUND: "/404",

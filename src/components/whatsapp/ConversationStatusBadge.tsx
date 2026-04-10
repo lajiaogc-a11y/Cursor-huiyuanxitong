@@ -1,15 +1,19 @@
+/**
+ * 会话状态标签 — Step 11 React.memo 优化
+ */
+import { memo } from 'react';
 import { cn } from '@/lib/utils';
-import { STATUS_LABELS, type ConversationStatus } from '@/services/whatsapp/conversationStatusService';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { STATUS_META, type ConversationStatus } from '@/services/whatsapp/conversationStatusService';
+
+export type { ConversationStatus };
 
 interface Props {
   status: ConversationStatus;
   className?: string;
 }
 
-export function ConversationStatusBadge({ status, className }: Props) {
-  const { language } = useLanguage();
-  const meta = STATUS_LABELS[status];
+function ConversationStatusBadgeInner({ status, className }: Props) {
+  const meta = STATUS_META[status];
   if (!meta) return null;
   return (
     <span className={cn(
@@ -17,7 +21,9 @@ export function ConversationStatusBadge({ status, className }: Props) {
       meta.color,
       className,
     )}>
-      {language === 'zh' ? meta.zh : meta.en}
+      {meta.zh}
     </span>
   );
 }
+
+export const ConversationStatusBadge = memo(ConversationStatusBadgeInner);

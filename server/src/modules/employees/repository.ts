@@ -2,6 +2,7 @@
  * Employees Repository - 员工管理数据访问
  */
 import bcrypt from 'bcryptjs';
+import type { ResultSetHeader } from 'mysql2';
 import { query, queryOne, execute } from '../../database/index.js';
 import { getPool } from '../../database/index.js';
 
@@ -267,11 +268,11 @@ export async function deleteEmployeeRepository(employeeId: string): Promise<bool
       [`DELETE FROM shift_handovers WHERE handover_employee_id = ?`, [employeeId]],
       [`DELETE FROM shift_receivers WHERE creator_id = ?`, [employeeId]],
       [`UPDATE webhooks SET created_by = null WHERE created_by = ?`, [employeeId]],
-    ] as Array<[string, any[]]>;
+    ] satisfies ReadonlyArray<readonly [string, readonly string[]]>;
 
     for (const [sql, params] of safeTables) {
       try {
-        await conn.query(sql, params as any);
+        await conn.query(sql, [...params]);
       } catch (err: any) {
         // ER_NO_SUCH_TABLE (1146) or ER_BAD_FIELD_ERROR (1054) — skip
         if (err?.errno === 1146 || err?.errno === 1054) continue;
@@ -279,9 +280,9 @@ export async function deleteEmployeeRepository(employeeId: string): Promise<bool
       }
     }
 
-    const [rows] = await conn.query(`DELETE FROM employees WHERE id = ?`, [employeeId]) as any;
+    const [deleteHeader] = await conn.query<ResultSetHeader>(`DELETE FROM employees WHERE id = ?`, [employeeId]);
     await conn.commit();
-    return (rows?.affectedRows ?? 0) > 0;
+    return (deleteHeader.affectedRows ?? 0) > 0;
   } catch (error) {
     await conn.rollback();
     throw error;

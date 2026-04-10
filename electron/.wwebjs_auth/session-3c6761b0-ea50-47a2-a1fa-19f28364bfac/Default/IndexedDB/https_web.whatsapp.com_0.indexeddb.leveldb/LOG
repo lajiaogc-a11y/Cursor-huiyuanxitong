@@ -1,0 +1,41 @@
+2026/04/10-12:13:22.016 33e4 Creating DB D:\CURSOR\会员系统测试\Cursor-huiyuanxitong-1acb32f3440fcc8fef37d256fd35834406f97ab5\electron\.wwebjs_auth\session-3c6761b0-ea50-47a2-a1fa-19f28364bfac\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb since it was missing.
+2026/04/10-12:13:22.020 33e4 Reusing MANIFEST D:\CURSOR\会员系统测试\Cursor-huiyuanxitong-1acb32f3440fcc8fef37d256fd35834406f97ab5\electron\.wwebjs_auth\session-3c6761b0-ea50-47a2-a1fa-19f28364bfac\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/04/10-12:13:22.446 4c58 Level-0 table #5: started
+2026/04/10-12:13:22.448 4c58 Level-0 table #5: 13130 bytes OK
+2026/04/10-12:13:22.450 4c58 Delete type=0 #3
+2026/04/10-12:13:22.450 a50 Manual compaction at level-0 from '\x00\x06\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x07\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/04/10-12:13:23.167 4c58 Level-0 table #7: started
+2026/04/10-12:13:23.169 4c58 Level-0 table #7: 2972 bytes OK
+2026/04/10-12:13:23.171 4c58 Delete type=0 #4
+2026/04/10-12:13:23.171 a50 Manual compaction at level-0 from '\x00\x01\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x02\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/04/10-12:13:23.171 a50 Manual compaction at level-1 from '\x00\x01\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x02\x00\x00\x00' @ 0 : 0; will stop at '\x00\x01\x06 \x03\x00\x00\x00\x00\x00\x80V@\x00\x01\x0b\x00I\x00d\x00T\x00t\x00l\x009\x000\x00D\x00a\x00y\x00s' @ 1069 : 0
+2026/04/10-12:13:23.172 a50 Compacting 1@1 + 1@2 files
+2026/04/10-12:13:23.174 a50 Generated table #8@1: 49 keys, 1031 bytes
+2026/04/10-12:13:23.174 a50 Compacted 1@1 + 1@2 files => 1031 bytes
+2026/04/10-12:13:23.176 a50 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/04/10-12:13:23.176 a50 Delete type=2 #7
+2026/04/10-12:13:23.177 4c58 Manual compaction at level-1 from '\x00\x01\x06 \x03\x00\x00\x00\x00\x00\x80V@\x00\x01\x0b\x00I\x00d\x00T\x00t\x00l\x009\x000\x00D\x00a\x00y\x00s' @ 1069 : 0 .. '\x00\x02\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/04/10-12:13:30.438 a50 Level-0 table #10: started
+2026/04/10-12:13:30.440 a50 Level-0 table #10: 14133 bytes OK
+2026/04/10-12:13:30.442 a50 Delete type=2 #5
+2026/04/10-12:13:30.442 a50 Delete type=0 #6
+2026/04/10-12:13:30.443 a50 Manual compaction at level-0 from '\x00\x0d\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0e\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/04/10-12:13:30.443 68b8 Manual compaction at level-1 from '\x00\x0d\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0e\x00\x00\x00' @ 0 : 0; will stop at '\x00\x10\x00\x00\x05' @ 1936 : 1
+2026/04/10-12:13:30.443 68b8 Compacting 1@1 + 1@2 files
+2026/04/10-12:13:30.445 68b8 Generated table #11@1: 266 keys, 6670 bytes
+2026/04/10-12:13:30.445 68b8 Compacted 1@1 + 1@2 files => 6670 bytes
+2026/04/10-12:13:30.447 68b8 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/04/10-12:13:30.447 68b8 Delete type=2 #10
+2026/04/10-12:13:30.447 a50 Manual compaction at level-1 from '\x00\x10\x00\x00\x05' @ 1936 : 1 .. '\x00\x0e\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/04/10-12:13:30.792 a50 Level-0 table #13: started
+2026/04/10-12:13:30.793 a50 Level-0 table #13: 3724 bytes OK
+2026/04/10-12:13:30.795 a50 Delete type=2 #8
+2026/04/10-12:13:30.795 a50 Delete type=0 #9
+2026/04/10-12:13:30.796 a50 Manual compaction at level-0 from '\x00\x0e\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0f\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/04/10-12:13:30.796 a50 Manual compaction at level-1 from '\x00\x0e\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0f\x00\x00\x00' @ 0 : 0; will stop at '\x00\x11\x00\x00\x05' @ 2175 : 1
+2026/04/10-12:13:30.796 a50 Compacting 1@1 + 1@2 files
+2026/04/10-12:13:30.798 a50 Generated table #14@1: 45 keys, 927 bytes
+2026/04/10-12:13:30.798 a50 Compacted 1@1 + 1@2 files => 927 bytes
+2026/04/10-12:13:30.800 a50 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/04/10-12:13:30.800 a50 Delete type=2 #13
+2026/04/10-12:13:30.800 a50 Manual compaction at level-1 from '\x00\x11\x00\x00\x05' @ 2175 : 1 .. '\x00\x0f\x00\x00\x00' @ 0 : 0; will stop at (end)

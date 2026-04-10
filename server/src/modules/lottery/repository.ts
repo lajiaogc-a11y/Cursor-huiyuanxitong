@@ -88,10 +88,7 @@ export async function upsertPrizes(tenantId: string | null, prizes: (LotteryPriz
       const stockEnabled = p.stock_enabled ? 1 : 0;
       const stockTotal = Number.isFinite(Number(p.stock_total)) ? Math.floor(Number(p.stock_total)) : -1;
       const dailyStockLimit = Number.isFinite(Number(p.daily_stock_limit)) ? Math.floor(Number(p.daily_stock_limit)) : -1;
-      const explicitCost = Number(p.prize_cost);
-      const prizeCost = Number.isFinite(explicitCost) && explicitCost > 0
-        ? explicitCost
-        : p.type === 'points' ? Math.max(0, Number(p.value) || 0) : 0;
+      const prizeCost = Number.isFinite(Number(p.prize_cost)) ? Number(p.prize_cost) : 0;
       const prizeEnabled = p.enabled === false || (p.enabled as unknown) === 0 ? 0 : 1;
       const preservedStockUsed = existing.get(prizeId)?.stock_used ?? Math.max(0, Math.floor(Number(p.stock_used) || 0));
       await conn.query(

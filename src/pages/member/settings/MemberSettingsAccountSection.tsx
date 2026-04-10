@@ -164,6 +164,8 @@ export function MemberSettingsAccountSection({
                     aria-hidden
                   />
                   <Input
+                    id="settings-nickname"
+                    name="nickname"
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
                     placeholder={t("输入新昵称", "Enter new nickname")}
@@ -279,7 +281,7 @@ export function MemberSettingsAccountSection({
                 }}
               >
                 <div className="space-y-1.5">
-                  <Label className="text-[13px] text-[hsl(var(--pu-m-text-dim)/0.78)]">
+                  <Label htmlFor="settings-pwd-old" className="text-[13px] text-[hsl(var(--pu-m-text-dim)/0.78)]">
                     {t("当前密码", "Current password")}
                   </Label>
                   <div className="relative">
@@ -290,6 +292,8 @@ export function MemberSettingsAccountSection({
                       aria-hidden
                     />
                     <Input
+                      id="settings-pwd-old"
+                      name="currentPassword"
                       type="password"
                       autoComplete="current-password"
                       value={pwdOld}
@@ -300,7 +304,7 @@ export function MemberSettingsAccountSection({
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[13px] text-[hsl(var(--pu-m-text-dim)/0.78)]">
+                  <Label htmlFor="settings-pwd-new" className="text-[13px] text-[hsl(var(--pu-m-text-dim)/0.78)]">
                     {t("新密码（至少 6 位）", "New password (min 6 chars)")}
                   </Label>
                   <div className="relative">
@@ -311,6 +315,8 @@ export function MemberSettingsAccountSection({
                       aria-hidden
                     />
                     <Input
+                      id="settings-pwd-new"
+                      name="newPassword"
                       type="password"
                       autoComplete="new-password"
                       value={pwdNew}
@@ -321,7 +327,7 @@ export function MemberSettingsAccountSection({
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[13px] text-[hsl(var(--pu-m-text-dim)/0.78)]">
+                  <Label htmlFor="settings-pwd-confirm" className="text-[13px] text-[hsl(var(--pu-m-text-dim)/0.78)]">
                     {t("确认新密码", "Confirm password")}
                   </Label>
                   <div className="relative">
@@ -332,6 +338,8 @@ export function MemberSettingsAccountSection({
                       aria-hidden
                     />
                     <Input
+                      id="settings-pwd-confirm"
+                      name="confirmPassword"
                       type="password"
                       autoComplete="new-password"
                       value={pwdConfirm}
