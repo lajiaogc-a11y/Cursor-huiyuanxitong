@@ -1,15 +1,17 @@
 /**
  * WhatsApp Worker Thread — @whiskeysockets/baileys
  *
- * 纯 Node.js WhatsApp 多设备协议，无需 Chrome/Puppeteer。
  * 在 Worker Thread 中运行，通过 parentPort 与主线程通信。
  *
- * 上报消息类型：
- *   qr           — QR 码就绪（可能多次刷新）
- *   scanned      — 用户已扫码，等待手机确认
- *   ready        — 登录成功，连接就绪
- *   disconnected — 断开连接
- *   error        — 致命错误
+ * 上报消息类型（→ 主线程）：
+ *   qr / scanned / ready / disconnected / error
+ *   message_upsert   — 新消息 / 历史消息
+ *   contacts_upsert  — 联系人同步
+ *   message_status   — 消息状态更新（已送达/已读）
+ *
+ * 接收命令（← 主线程）：
+ *   send_message      — 发送文本消息
+ *   read_messages      — 标记已读
  */
 
 import { workerData, parentPort } from 'node:worker_threads';
@@ -99,43 +101,39 @@ async function run() {
     let qrCount = 0;
     let hasAuthenticated = false;
 
+    // ── 连接状态事件 ──
+
     sock.ev.on('connection.update', async (update: Record<string, unknown>) => {
       const { connection, lastDisconnect, qr, receivedPendingNotifications } = update;
 
-      // QR 码就绪（Baileys 会在过期后自动刷新，每次触发新 qr 事件）
       if (qr) {
         qrCount++;
         try {
           const QRCode = await import('qrcode');
           const qrDataUrl = await QRCode.default.toDataURL(qr as string, { width: 300, margin: 2 });
           send({ type: 'qr', sessionId, qrDataUrl, qrIndex: qrCount });
-          console.log(`[Worker] QR #${qrCount} generated for session ${sessionId}`);
         } catch (err) {
           send({ type: 'error', sessionId, message: `QR generation failed: ${err}` });
         }
       }
 
-      // 用户扫码后，Baileys 进入 connecting 状态
       if (connection === 'connecting' && hasAuthenticated) {
         send({ type: 'scanned', sessionId });
-        console.log(`[Worker] Session ${sessionId} scanned, waiting confirmation...`);
       }
 
-      // 连接成功
       if (connection === 'open') {
         hasAuthenticated = true;
         const phone = (sock.user?.id as string)?.split(':')[0] ?? '';
         const displayName = (sock.user?.name as string) ?? '';
         send({ type: 'ready', sessionId, phone, displayName });
-        console.log(`[Worker] Session ${sessionId} connected: ${phone}`);
+        console.log(`[Worker] ${sessionId.slice(0, 8)} connected: ${phone}`);
       }
 
-      // 收到历史消息通知 — 标志完全就绪
       if (receivedPendingNotifications) {
-        console.log(`[Worker] Session ${sessionId} fully synced`);
+        send({ type: 'history_sync_complete', sessionId });
+        console.log(`[Worker] ${sessionId.slice(0, 8)} history sync complete`);
       }
 
-      // 连接断开
       if (connection === 'close') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const statusCode = (lastDisconnect as any)?.error?.output?.statusCode;
@@ -144,12 +142,145 @@ async function run() {
           : statusCode === 401 ? 'unauthorized'
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           : String((lastDisconnect as any)?.error?.message ?? 'closed');
-        send({ type: 'disconnected', sessionId, reason });
-        console.log(`[Worker] Session ${sessionId} disconnected: ${reason} (code: ${statusCode})`);
+        send({ type: 'disconnected', sessionId, reason, shouldReconnect: !loggedOut && statusCode !== 401 });
+        console.log(`[Worker] ${sessionId.slice(0, 8)} disconnected: ${reason}`);
       }
     });
 
     sock.ev.on('creds.update', saveCreds);
+
+    // ── 联系人同步 ──
+
+    sock.ev.on('contacts.upsert', (contacts: Array<{ id: string; name?: string; notify?: string }>) => {
+      if (contacts.length === 0) return;
+      send({
+        type: 'contacts_upsert',
+        sessionId,
+        contacts: contacts.map((c: { id: string; name?: string; notify?: string }) => ({
+          id: c.id,
+          name: c.name || c.notify || '',
+          notify: c.notify || '',
+        })),
+      });
+    });
+
+    sock.ev.on('contacts.update', (updates: Array<{ id: string; name?: string; notify?: string }>) => {
+      if (updates.length === 0) return;
+      send({
+        type: 'contacts_upsert',
+        sessionId,
+        contacts: updates.map((c: { id: string; name?: string; notify?: string }) => ({
+          id: c.id,
+          name: c.name || c.notify || '',
+          notify: c.notify || '',
+        })),
+      });
+    });
+
+    // ── 消息接收（新消息 + 历史消息） ──
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    sock.ev.on('messages.upsert', (upsert: { messages: any[]; type: string }) => {
+      const { messages, type: upsertType } = upsert;
+      if (!messages || messages.length === 0) return;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const parsed = messages.map((m: any) => {
+        const body =
+          m.message?.conversation ||
+          m.message?.extendedTextMessage?.text ||
+          m.message?.imageMessage?.caption ||
+          m.message?.videoMessage?.caption ||
+          m.message?.documentMessage?.caption ||
+          '';
+        const msgType = m.message?.imageMessage ? 'image'
+          : m.message?.videoMessage ? 'video'
+          : m.message?.audioMessage ? 'audio'
+          : m.message?.documentMessage ? 'document'
+          : m.message?.stickerMessage ? 'sticker'
+          : 'text';
+
+        return {
+          id: m.key?.id || '',
+          remoteJid: m.key?.remoteJid || '',
+          fromMe: m.key?.fromMe ?? false,
+          body,
+          timestamp: typeof m.messageTimestamp === 'number'
+            ? m.messageTimestamp * 1000
+            : (m.messageTimestamp?.low ?? 0) * 1000 || Date.now(),
+          type: msgType,
+          pushName: m.pushName || '',
+        };
+      }).filter((m: { id: string; remoteJid: string }) =>
+        m.id && m.remoteJid && !m.remoteJid.includes('status@broadcast')
+      );
+
+      if (parsed.length === 0) return;
+
+      send({
+        type: 'message_upsert',
+        sessionId,
+        upsertType,
+        messages: parsed,
+      });
+    });
+
+    // ── 消息状态更新 ──
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    sock.ev.on('messages.update', (updates: any[]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const statusUpdates = updates.filter((u: any) => u.update?.status !== undefined).map((u: any) => ({
+        id: u.key?.id || '',
+        remoteJid: u.key?.remoteJid || '',
+        fromMe: u.key?.fromMe ?? false,
+        status: u.update.status,
+      }));
+
+      if (statusUpdates.length > 0) {
+        send({ type: 'message_status', sessionId, updates: statusUpdates });
+      }
+    });
+
+    // ── 接收主线程命令 ──
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    port.on('message', async (cmd: any) => {
+      if (!cmd || !cmd.action) return;
+
+      switch (cmd.action) {
+        case 'send_message': {
+          const { requestId, jid, text } = cmd;
+          try {
+            const result = await sock.sendMessage(jid, { text });
+            send({
+              type: 'send_result',
+              sessionId,
+              requestId,
+              success: true,
+              messageId: result?.key?.id || '',
+              timestamp: Date.now(),
+            });
+          } catch (err: unknown) {
+            send({
+              type: 'send_result',
+              sessionId,
+              requestId,
+              success: false,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+          break;
+        }
+        case 'read_messages': {
+          const { keys } = cmd;
+          try {
+            await sock.readMessages(keys);
+          } catch { /* ignore */ }
+          break;
+        }
+      }
+    });
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
