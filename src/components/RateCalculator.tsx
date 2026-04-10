@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+
 import { Badge } from "@/components/ui/badge";
 import { DrawerDetail } from "@/components/shell/DrawerDetail";
 import {
@@ -538,6 +538,19 @@ export default function RateCalculator({
       navigator.clipboard.writeText(formData.bankCard);
       notify.success(t("复制成功", "Copy successful"));
     }
+  };
+
+  // 复制会员资料
+  const copyMemberInfo = () => {
+    const lines = [
+      '本会员资料如下',
+      `注册时间：${registrationDisplay.dateStr}`,
+      `入网时长：${registrationDisplay.days !== '-' ? registrationDisplay.days + '天' : '-'}`,
+      `累积次数：${isLoadingPoints ? '...' : (memberPointsSummary?.orderCount || 0)}次`,
+      `会员备注：${formData.remarkMember || '-'}`,
+    ];
+    navigator.clipboard.writeText(lines.join('\n'));
+    notify.success(t("会员资料已复制", "Member info copied"));
   };
 
   // 验证银行卡
@@ -1236,6 +1249,17 @@ export default function RateCalculator({
             </div>
           </div>
           )}
+          {/* 快速复制区 */}
+          <div className="border-t border-border/50 px-2 py-1.5 flex gap-2">
+            <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={copyBankCard}>
+              <Copy className="h-3 w-3" />
+              {t("银行卡", "Bank Card")}
+            </Button>
+            <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={copyMemberInfo}>
+              <Copy className="h-3 w-3" />
+              {t("资料", "Profile")}
+            </Button>
+          </div>
         </Card>
 
         {/* 右侧区域 - 8/12 (必填信息 + 会员信息) */}
@@ -1342,7 +1366,7 @@ export default function RateCalculator({
                     onChange={(e) => handlePhoneNumberChange(e.target.value)}
                     placeholder={t("输入电话", "Enter phone")}
                     maxLength={18}
-                    className="h-7 min-w-0 flex-1 text-xs"
+                    className="h-7 min-w-0 flex-1 text-xs text-left"
                   />
                 </div>
                 {/* 银行卡 */}
@@ -1354,7 +1378,7 @@ export default function RateCalculator({
                       onChange={(e) => updateField('bankCard', e.target.value)}
                       onBlur={(e) => validateBankCard(e.target.value)}
                       placeholder={t("卡号 银行", "Card# Bank")}
-                      className={`h-7 min-w-0 flex-1 text-xs ${bankCardError ? 'border-destructive' : ''}`}
+                      className={`h-7 min-w-0 flex-1 text-xs text-left ${bankCardError ? 'border-destructive' : ''}`}
                     />
                     <Button variant="outline" size="sm" className="h-7 w-7 shrink-0 p-0" aria-label="Copy" onClick={copyBankCard}>
                       <Copy className="h-3 w-3" />
@@ -1368,7 +1392,7 @@ export default function RateCalculator({
                     value={formData.customerFeature}
                     onChange={(e) => updateField("customerFeature", e.target.value)}
                     placeholder={t("输入", "Enter")}
-                    className="h-7 min-w-0 flex-1 text-xs border-primary/25 bg-background focus-visible:ring-primary/35"
+                    className="h-7 min-w-0 flex-1 text-xs text-left border-primary/25 bg-background focus-visible:ring-primary/35"
                   />
                 </div>
                 {/* 来源 */}
@@ -1389,29 +1413,24 @@ export default function RateCalculator({
                     </Select>
                   </div>
                 </div>
-              </div>
-              {/* 备注区域 */}
-              <div className={`grid gap-2 ${isMobile ? "grid-cols-1" : "grid-cols-2"}`}>
-                <div className={`flex ${isMobile ? "flex-col gap-1" : "items-start gap-1.5"}`}>
-                  <Label className={`text-[10px] shrink-0 font-medium text-primary dark:text-primary ${isMobile ? "" : "w-16 pt-1.5"}`}>
-                    {t("订单备注", "Order Note")}
-                  </Label>
-                  <Textarea
+                {/* 订单备注 */}
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <Label className="w-16 shrink-0 text-[10px] leading-tight font-medium text-primary dark:text-primary">{t("订单备注", "Order Note")}</Label>
+                  <Input
                     value={formData.remarkOrder}
                     onChange={(e) => updateField("remarkOrder", e.target.value)}
-                    placeholder={t("提交后同步到订单管理", "Syncs to order management")}
-                    className="flex-1 h-[44px] min-h-[44px] resize-none text-xs border-primary/25 bg-background focus-visible:ring-primary/35"
+                    placeholder={t("同步到订单管理", "Syncs to orders")}
+                    className="h-7 min-w-0 flex-1 text-xs text-left border-primary/25 bg-background focus-visible:ring-primary/35"
                   />
                 </div>
-                <div className={`flex ${isMobile ? "flex-col gap-1" : "items-start gap-1.5"}`}>
-                  <Label className={`text-[10px] shrink-0 font-medium text-primary dark:text-primary ${isMobile ? "" : "w-16 pt-1.5"}`}>
-                    {t("会员备注", "Member Note")}
-                  </Label>
-                  <Textarea
+                {/* 会员备注 */}
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <Label className="w-16 shrink-0 text-[10px] leading-tight font-medium text-primary dark:text-primary">{t("会员备注", "Member Note")}</Label>
+                  <Input
                     value={formData.remarkMember}
                     onChange={(e) => updateField("remarkMember", e.target.value)}
-                    placeholder={t("提交后同步到会员管理", "Syncs to member management")}
-                    className="flex-1 h-[44px] min-h-[44px] resize-none text-xs border-primary/25 bg-background focus-visible:ring-primary/35"
+                    placeholder={t("同步到会员管理", "Syncs to members")}
+                    className="h-7 min-w-0 flex-1 text-xs text-left border-primary/25 bg-background focus-visible:ring-primary/35"
                   />
                 </div>
               </div>
@@ -1454,20 +1473,20 @@ export default function RateCalculator({
                 >
                   {t("累积次数", "Orders")}
                 </Label>
-                <div className="h-6 flex-1 flex items-center justify-end px-2 bg-muted/50 rounded border text-sm font-medium tabular-nums">
+                <div className="h-6 flex-1 flex items-center px-2 bg-muted/50 rounded border text-sm font-medium tabular-nums">
                   {isLoadingPoints ? '...' : (memberPointsSummary?.orderCount || 0)} {t("次", "x")}
                 </div>
               </div>
               {/* Row 2: 推荐奖励 | 客户积分 | 币种偏好 */}
               <div className="flex items-center gap-1.5">
                 <Label className="text-[10px] w-16 shrink-0 text-muted-foreground">{t("推荐奖励", "Referral")}</Label>
-                <div className="h-6 flex-1 flex items-center justify-end px-2 bg-muted/50 rounded border text-sm font-medium tabular-nums">
+                <div className="h-6 flex-1 flex items-center px-2 bg-muted/50 rounded border text-sm font-medium tabular-nums">
                   {isLoadingPoints ? '...' : getReferralRewardPoints()}
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
                 <Label className="text-[10px] w-16 shrink-0 text-muted-foreground">{t("客户积分", "Points")}</Label>
-                <div className={`h-6 flex-1 flex items-center justify-end px-2 bg-muted/50 rounded border text-sm font-bold tabular-nums ${getCustomerPoints() < 0 ? 'text-destructive' : 'text-foreground'}`}>
+                <div className={`h-6 flex-1 flex items-center px-2 bg-muted/50 rounded border text-sm font-bold tabular-nums ${getCustomerPoints() < 0 ? 'text-destructive' : 'text-foreground'}`}>
                   {isLoadingPoints ? '...' : getCustomerPoints()}
                 </div>
               </div>
@@ -1486,7 +1505,7 @@ export default function RateCalculator({
               </div>
               <div className="flex items-center gap-1.5">
                 <Label className="text-[10px] w-16 shrink-0 text-muted-foreground">{t("入网时长", "Days")}</Label>
-                <div className="h-6 flex-1 flex items-center justify-end px-2 bg-muted/50 rounded border text-sm font-medium tabular-nums">
+                <div className="h-6 flex-1 flex items-center px-2 bg-muted/50 rounded border text-sm font-medium tabular-nums">
                   {registrationDisplay.days !== '-' ? `${registrationDisplay.days} ${t("天", "d")}` : '-'}
                 </div>
               </div>
