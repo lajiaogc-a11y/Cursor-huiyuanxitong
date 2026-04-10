@@ -98,10 +98,10 @@ export function AddAccountDialog({ open, onClose, onConnected }: Props) {
         return;
       }
 
-      if (qrStatus.state === 'qr_pending' && qrStatus.qrDataUrl) {
-        setQrDataUrl(qrStatus.qrDataUrl);
-        // 演示 QR 的 data 里包含 DEMO- 前缀
-        setIsDemoQr(qrStatus.qrDataUrl.length < 200);
+      if (qrStatus.state === 'qr_pending') {
+        if (qrStatus.qrDataUrl) setQrDataUrl(qrStatus.qrDataUrl);
+        // demo sessionId 或 companion 离线 → 演示 QR
+        setIsDemoQr(!companionOnline || sid.startsWith('demo-'));
         setStage('qr_pending');
       } else if (qrStatus.state === 'disconnected') {
         stopPolling();
@@ -119,14 +119,9 @@ export function AddAccountDialog({ open, onClose, onConnected }: Props) {
 
     const result = await addSession(name, proxyUrl.trim() || undefined);
     if (!result) {
+      // 不应再发生（离线时已自动演示模式），保留兜底
       setStage('error');
-      setErrorMsg(
-        '无法连接到 PC 客户端（WhatsApp Companion）。\n\n' +
-        '请确认：\n' +
-        '1. 已下载并安装 PC 客户端（右上角 ↓ 按钮）\n' +
-        '2. PC 客户端已启动运行\n' +
-        '3. 未被防火墙/杀毒软件拦截',
-      );
+      setErrorMsg('无法生成二维码，请刷新页面后重试');
       return;
     }
 

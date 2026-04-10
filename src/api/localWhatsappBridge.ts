@@ -84,6 +84,8 @@ const BRIDGE_BASE = 'http://localhost:3100';
 const DETECT_TIMEOUT_MS = 2000;
 
 let companionOnline: boolean | null = null;
+// 演示 QR 缓存，避免每次轮询重新生成导致闪烁
+const demoQrCache = new Map<string, string>();
 
 async function detectCompanion(): Promise<boolean> {
   if (companionOnline !== null) return companionOnline;
@@ -331,11 +333,15 @@ export const localWhatsappBridge = {
 
   /**
    * 新增 WhatsApp 账号（开始扫码流程）
-   * 返回 sessionId，随后用 getSessionQr 轮询 QR 码
+   * companion 离线时自动回退演示模式，返回 demo- 前缀的 sessionId
    */
   addSession: async (displayName: string, proxyUrl?: string): Promise<BridgeResult<{ sessionId: string }>> => {
     const online = await detectCompanion();
-    if (!online) return fail('COMPANION_OFFLINE', '请先启动本地 WhatsApp Companion');
+    if (!online) {
+      // 离线自动演示模式：生成 demo sessionId，前端 getSessionQr 会返回演示 QR
+      const demoSessionId = `demo-${Date.now()}`;
+      return ok({ sessionId: demoSessionId });
+    }
     try {
       const body: Record<string, unknown> = { displayName };
       if (proxyUrl) body.proxyUrl = proxyUrl;
@@ -350,10 +356,25 @@ export const localWhatsappBridge = {
    * 查询 QR 码状态（轮询）
    * state: 'initializing' | 'qr_pending' | 'authenticated' | 'connected' | 'disconnected'
    * qrDataUrl: base64 PNG data URL（state=qr_pending 时有值）
+   * companion 离线时自动回退演示模式，生成本地演示 QR
    */
   getSessionQr: async (sessionId: string): Promise<BridgeResult<{ state: string; qrDataUrl: string | null }>> => {
     const online = await detectCompanion();
-    if (!online) return fail('COMPANION_OFFLINE', '请先启动本地 WhatsApp Companion');
+    if (!online) {
+      // 演示模式：用 qrcode 生成本地演示 QR，内容固定（不含 Date.now()）避免每次轮询闪烁
+      try {
+        // 从缓存取，避免重复生成
+        const cached = demoQrCache.get(sessionId);
+        if (cached) return ok({ state: 'qr_pending', qrDataUrl: cached });
+        const QRCode = (await import('qrcode')).default;
+        const demoText = `DEMO-WA-${sessionId}`;
+        const dataUrl = await QRCode.toDataURL(demoText, { width: 300, margin: 2 });
+        demoQrCache.set(sessionId, dataUrl);
+        return ok({ state: 'qr_pending', qrDataUrl: dataUrl });
+      } catch {
+        return ok({ state: 'qr_pending', qrDataUrl: null });
+      }
+    }
     try {
       const data = await bridgeGet<{ sessionId: string; state: string; qrDataUrl: string | null }>(
         `/sessions/${encodeURIComponent(sessionId)}/qr`,
