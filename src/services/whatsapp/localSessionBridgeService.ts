@@ -177,9 +177,7 @@ export async function checkCompanionOnline(): Promise<boolean> {
 
 /**
  * 添加新 WhatsApp 账号（触发 QR 扫码流程）
- * @param displayName  账号备注名
- * @param proxyUrl     可选：HTTP 代理地址，如 http://127.0.0.1:7890
- * 返回 sessionId 供后续轮询 QR 码使用
+ * companion 离线时返回 null（不生成假数据）
  */
 export async function addSession(
   displayName: string,
@@ -195,8 +193,7 @@ export async function addSession(
 
 /**
  * 查询扫码状态（轮询用）
- * state: 'initializing' | 'qr_pending' | 'connected' | 'disconnected'
- * qrDataUrl: base64 PNG（state=qr_pending 时有值）
+ * companion 离线时返回 null（不生成假二维码）
  */
 export async function getSessionQr(
   sessionId: string,

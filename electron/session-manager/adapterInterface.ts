@@ -11,7 +11,7 @@ export interface AdapterSession {
   name: string;
   phone: string;
   isConnected: boolean;
-  state: string; // 'initializing' | 'qr_pending' | 'connected' | 'disconnected' | ...
+  state: string; // 'initializing' | 'qr_pending' | 'scanned' | 'connected' | 'disconnected' | 'error'
 }
 
 export interface AdapterConversation {

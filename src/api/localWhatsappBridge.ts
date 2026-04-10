@@ -1,17 +1,16 @@
 /**
  * 本地 WhatsApp 会话桥接 API Client
  *
- * Step 9 — 懒检测 companion + 自动 fallback
- *
  * 职责：
  *   - 抽象本地 WhatsApp 会话数据源
  *   - 首次调用时自动检测 localhost:3100 companion 是否在线
  *   - companion 在线 → 真实 HTTP 请求
- *   - companion 离线 → 内存 mock fallback（开发体验不中断）
+ *   - companion 离线 → 会话/消息类使用 mock fallback；登录类返回明确错误
  *   - 返回统一 BridgeResult<T> 结构
  * 规则：
  *   - 只负责数据获取/发送，不处理 UI / DOM / 业务展示逻辑
  *   - Service 层通过本文件获取本地会话数据
+ *   - 登录相关接口（addSession / getSessionQr）不生成假数据
  */
 import type { ConversationStatus } from './whatsapp';
 
@@ -84,8 +83,6 @@ const BRIDGE_BASE = 'http://localhost:3100';
 const DETECT_TIMEOUT_MS = 2000;
 
 let companionOnline: boolean | null = null;
-// 演示 QR 缓存，避免每次轮询重新生成导致闪烁
-const demoQrCache = new Map<string, string>();
 
 async function detectCompanion(): Promise<boolean> {
   if (companionOnline !== null) return companionOnline;
@@ -332,15 +329,13 @@ export const localWhatsappBridge = {
   },
 
   /**
-   * 新增 WhatsApp 账号（开始扫码流程）
-   * companion 离线时自动回退演示模式，返回 demo- 前缀的 sessionId
+   * 创建登录会话（开始扫码流程）
+   * companion 离线时返回明确错误，不生成假数据
    */
   addSession: async (displayName: string, proxyUrl?: string): Promise<BridgeResult<{ sessionId: string }>> => {
     const online = await detectCompanion();
     if (!online) {
-      // 离线自动演示模式：生成 demo sessionId，前端 getSessionQr 会返回演示 QR
-      const demoSessionId = `demo-${Date.now()}`;
-      return ok({ sessionId: demoSessionId });
+      return fail('COMPANION_OFFLINE', '本地 PC 客户端未运行，请先启动 WhatsApp Companion');
     }
     try {
       const body: Record<string, unknown> = { displayName };
@@ -354,26 +349,14 @@ export const localWhatsappBridge = {
 
   /**
    * 查询 QR 码状态（轮询）
-   * state: 'initializing' | 'qr_pending' | 'authenticated' | 'connected' | 'disconnected'
+   * state: 'initializing' | 'qr_pending' | 'scanned' | 'authenticated' | 'connected' | 'disconnected' | 'error'
    * qrDataUrl: base64 PNG data URL（state=qr_pending 时有值）
-   * companion 离线时自动回退演示模式，生成本地演示 QR
+   * companion 离线时返回明确错误，不生成假二维码
    */
   getSessionQr: async (sessionId: string): Promise<BridgeResult<{ state: string; qrDataUrl: string | null }>> => {
     const online = await detectCompanion();
     if (!online) {
-      // 演示模式：用 qrcode 生成本地演示 QR，内容固定（不含 Date.now()）避免每次轮询闪烁
-      try {
-        // 从缓存取，避免重复生成
-        const cached = demoQrCache.get(sessionId);
-        if (cached) return ok({ state: 'qr_pending', qrDataUrl: cached });
-        const QRCode = (await import('qrcode')).default;
-        const demoText = `DEMO-WA-${sessionId}`;
-        const dataUrl = await QRCode.toDataURL(demoText, { width: 300, margin: 2 });
-        demoQrCache.set(sessionId, dataUrl);
-        return ok({ state: 'qr_pending', qrDataUrl: dataUrl });
-      } catch {
-        return ok({ state: 'qr_pending', qrDataUrl: null });
-      }
+      return fail('COMPANION_OFFLINE', '本地 PC 客户端未运行');
     }
     try {
       const data = await bridgeGet<{ sessionId: string; state: string; qrDataUrl: string | null }>(
