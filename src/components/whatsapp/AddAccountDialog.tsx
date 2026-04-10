@@ -12,7 +12,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import {
   QrCode, Loader2, CheckCircle2, XCircle,
-  RefreshCw, X, Wifi, WifiOff, Info, ChevronDown, ChevronUp,
+  RefreshCw, X, Wifi, Info, ChevronDown, ChevronUp,
   Smartphone,
 } from 'lucide-react';
 import { addSession, getSessionQr, checkCompanionOnline } from '@/services/whatsapp/localSessionBridgeService';
@@ -121,8 +121,11 @@ export function AddAccountDialog({ open, onClose, onConnected }: Props) {
     if (!result) {
       setStage('error');
       setErrorMsg(
-        '无法连接到 WhatsApp Companion（localhost:3100）。\n\n' +
-        '请先启动本地 Companion：\n  cd electron && npx tsx start.ts',
+        '无法连接到 PC 客户端（WhatsApp Companion）。\n\n' +
+        '请确认：\n' +
+        '1. 已下载并安装 PC 客户端（右上角 ↓ 按钮）\n' +
+        '2. PC 客户端已启动运行\n' +
+        '3. 未被防火墙/杀毒软件拦截',
       );
       return;
     }
@@ -176,27 +179,19 @@ export function AddAccountDialog({ open, onClose, onConnected }: Props) {
             'mx-5 mb-3 px-3 py-2 rounded-lg text-xs',
             companionOnline
               ? 'bg-green-50 text-green-700 border border-green-200'
-              : 'bg-amber-50 text-amber-700 border border-amber-200',
+              : 'bg-blue-50 text-blue-700 border border-blue-200',
           )}>
             {companionOnline
               ? (
                 <div className="flex items-center gap-2">
                   <Wifi className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span>Companion 已连接（localhost:3100）{isDemo ? ' — 演示模式' : ' — 真实模式'}</span>
+                  <span>PC 客户端已连接{isDemo ? ' — 演示模式' : ''}</span>
                 </div>
               )
               : (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <WifiOff className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span className="font-medium">PC 客户端未启动</span>
-                  </div>
-                  <div className="text-[11px] leading-relaxed space-y-1 pl-5">
-                    <p>需要先下载并安装 <strong>FastGC WhatsApp Companion</strong> 桌面客户端：</p>
-                    <p>1. 点击右上角 <strong>↓ 下载按钮</strong> 获取安装包</p>
-                    <p>2. 安装并启动客户端</p>
-                    <p>3. 返回此页面即可扫码登录</p>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Info className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>如已启动 PC 客户端，可直接点击下方按钮连接</span>
                 </div>
               )
             }
@@ -293,31 +288,25 @@ export function AddAccountDialog({ open, onClose, onConnected }: Props) {
                 </div>
               )}
 
-              {/* 不在线时的提示 */}
-              {!companionOnline && (
-                <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-3 space-y-2">
+              {/* 不在线时的提示（仍允许点击尝试） */}
+              {companionOnline === false && (
+                <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 space-y-1">
                   <div className="flex items-center gap-2 font-medium">
-                    <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                    PC 客户端未检测到
+                    <Info className="w-3.5 h-3.5 flex-shrink-0" />
+                    未自动检测到 PC 客户端
                   </div>
                   <p className="pl-5 leading-relaxed">
-                    请先在右上角 <strong>↓ 下载按钮</strong> 下载并安装 PC 客户端，
-                    安装后启动即可自动连接。
+                    如已安装并启动，可直接点击下方按钮尝试连接。
+                    若未安装，请在右上角 <strong>↓</strong> 按钮下载。
                   </p>
                 </div>
               )}
 
               <button
                 onClick={handleStart}
-                disabled={!companionOnline}
-                className={cn(
-                  'w-full py-2.5 rounded-xl text-sm font-medium transition-colors',
-                  companionOnline
-                    ? 'bg-[#25D366] text-white hover:bg-[#1ebe5d]'
-                    : 'bg-muted text-muted-foreground cursor-not-allowed',
-                )}
+                className="w-full py-2.5 rounded-xl text-sm font-medium transition-colors bg-[#25D366] text-white hover:bg-[#1ebe5d]"
               >
-                {companionOnline ? '生成二维码' : '请先安装并启动 PC 客户端'}
+                {companionOnline ? '生成二维码' : '尝试连接并生成二维码'}
               </button>
             </div>
           )}

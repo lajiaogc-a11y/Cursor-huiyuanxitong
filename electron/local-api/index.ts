@@ -17,10 +17,10 @@ export const DEFAULT_HOST = '127.0.0.1';
 // ── CORS 处理 ──
 
 function setCorsHeaders(req: http.IncomingMessage, res: http.ServerResponse) {
+  // Companion 只监听 127.0.0.1，仅本机可访问，安全风险可控
+  // 必须允许 HTTPS 生产域名（如 https://crm.fastgc.cc）和本地开发地址
   const origin = req.headers.origin ?? '';
-  if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
+  res.setHeader('Access-Control-Allow-Origin', origin || '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Bridge-Token');
   res.setHeader('Access-Control-Max-Age', '86400');
