@@ -9,6 +9,33 @@ import { lazy, LazyExoticComponent, ComponentType } from 'react';
 
 const RELOAD_FLAG = '__chunk_reload__';
 
+function safeGetSessionFlag(key: string): string | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSetSessionFlag(key: string, value: string): void {
+  try {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem(key, value);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function safeRemoveSessionFlag(key: string): void {
+  try {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.removeItem(key);
+  } catch {
+    // ignore storage errors
+  }
+}
+
 function isChunkLoadError(error: unknown): boolean {
   if (!error) return false;
   const msg = (error as Error).message || '';
@@ -31,17 +58,21 @@ export function lazyWithRetry<T extends ComponentType<any>>(
     new Promise<{ default: T }>((resolve, reject) => {
       const attempt = (remaining: number) => {
         componentImport()
-          .then(resolve)
+          .then((module) => {
+            // Import succeeded: clear previous reload marker.
+            safeRemoveSessionFlag(RELOAD_FLAG);
+            resolve(module);
+          })
           .catch((error) => {
             if (remaining <= 1) {
               if (isChunkLoadError(error)) {
-                const alreadyReloaded = sessionStorage.getItem(RELOAD_FLAG);
+                const alreadyReloaded = safeGetSessionFlag(RELOAD_FLAG);
                 if (!alreadyReloaded) {
-                  sessionStorage.setItem(RELOAD_FLAG, '1');
+                  safeSetSessionFlag(RELOAD_FLAG, '1');
                   window.location.reload();
                   return;
                 }
-                sessionStorage.removeItem(RELOAD_FLAG);
+                safeRemoveSessionFlag(RELOAD_FLAG);
               }
               reject(error);
               return;
@@ -49,7 +80,6 @@ export function lazyWithRetry<T extends ComponentType<any>>(
             setTimeout(() => attempt(remaining - 1), interval);
           });
       };
-      sessionStorage.removeItem(RELOAD_FLAG);
       attempt(retries);
     })
   );
