@@ -394,42 +394,33 @@ export function Header() {
               <div className="px-3 py-2 text-sm font-medium border-b">
                 {t("下载 PC 客户端", "Download PC Client")}
               </div>
-              <div className="p-1">
-                {pcDownloadUrl ? (
-                  <DropdownMenuItem asChild className="cursor-pointer py-2.5">
-                    <a href={pcDownloadUrl} target="_blank" rel="noopener noreferrer">
-                      <Download className="mr-2 h-4 w-4" />
-                      {t("Windows 客户端", "Windows Client")}
-                    </a>
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem disabled className="py-2.5 opacity-60">
-                    <Download className="mr-2 h-4 w-4" />
-                    {t("Windows 客户端（暂未配置）", "Windows Client (not configured)")}
-                  </DropdownMenuItem>
-                )}
-                {macDownloadUrl ? (
-                  <DropdownMenuItem asChild className="cursor-pointer py-2.5">
-                    <a href={macDownloadUrl} target="_blank" rel="noopener noreferrer">
-                      <Download className="mr-2 h-4 w-4" />
-                      {t("macOS 客户端", "macOS Client")}
-                    </a>
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem disabled className="py-2.5 opacity-60">
-                    <Download className="mr-2 h-4 w-4" />
-                    {t("macOS 客户端（暂未配置）", "macOS Client (not configured)")}
-                  </DropdownMenuItem>
-                )}
-              </div>
-              {(!pcDownloadUrl && !macDownloadUrl) && (
-                <div className="px-3 py-2 text-[11px] text-amber-500 border-t">
-                  {t("管理员可在「平台设置 → 客户端下载」中配置下载地址", "Admin can configure download URLs in Platform Settings → Client Download")}
-                </div>
-              )}
-              {(pcDownloadUrl || macDownloadUrl) && (
-                <div className="px-3 py-2 text-[11px] text-muted-foreground border-t">
-                  {t("安装后启动 Companion 即可在 WhatsApp 工作台扫码登录", "After installation, start Companion to scan QR in WhatsApp Workbench")}
+              {(pcDownloadUrl || macDownloadUrl) ? (
+                <>
+                  <div className="p-1">
+                    {pcDownloadUrl && (
+                      <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+                        <a href={pcDownloadUrl} target="_blank" rel="noopener noreferrer">
+                          <Download className="mr-2 h-4 w-4" />
+                          {t("Windows 客户端", "Windows Client")}
+                        </a>
+                      </DropdownMenuItem>
+                    )}
+                    {macDownloadUrl && (
+                      <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+                        <a href={macDownloadUrl} target="_blank" rel="noopener noreferrer">
+                          <Download className="mr-2 h-4 w-4" />
+                          {t("macOS 客户端", "macOS Client")}
+                        </a>
+                      </DropdownMenuItem>
+                    )}
+                  </div>
+                  <div className="px-3 py-2 text-[11px] text-muted-foreground border-t">
+                    {t("下载后解压运行，启动后可在 WhatsApp 工作台扫码登录", "Extract and run after download. Then scan QR in WhatsApp Workbench.")}
+                  </div>
+                </>
+              ) : (
+                <div className="px-3 py-2.5 text-sm text-muted-foreground">
+                  {t("客户端内测中，请联系管理员获取安装包", "Client in beta — contact admin for installer")}
                 </div>
               )}
             </DropdownMenuContent>
