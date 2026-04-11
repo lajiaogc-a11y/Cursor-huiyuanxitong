@@ -130,24 +130,17 @@ export function Header() {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
 
-  // PC 客户端下载链接（从后端 shared_data_store 加载，无配置时回退到 GitHub Release）
-  const FALLBACK_RELEASE_URL = 'https://github.com/fastgc/whatsapp-companion/releases/latest';
+  // PC 客户端下载链接（从后端 shared_data_store 加载，无配置时保持空）
   const [pcDownloadUrl, setPcDownloadUrl] = useState('');
   const [macDownloadUrl, setMacDownloadUrl] = useState('');
   useEffect(() => {
     import('@/api/staffData/sharedDataApi').then(({ getSharedDataApi }) => {
       getSharedDataApi<{ windows?: string; mac?: string }>('companionDownloadUrls').then(data => {
         if (data) {
-          setPcDownloadUrl(data.windows || FALLBACK_RELEASE_URL);
-          setMacDownloadUrl(data.mac || FALLBACK_RELEASE_URL);
-        } else {
-          setPcDownloadUrl(FALLBACK_RELEASE_URL);
-          setMacDownloadUrl(FALLBACK_RELEASE_URL);
+          setPcDownloadUrl(data.windows ?? '');
+          setMacDownloadUrl(data.mac ?? '');
         }
-      }).catch(() => {
-        setPcDownloadUrl(FALLBACK_RELEASE_URL);
-        setMacDownloadUrl(FALLBACK_RELEASE_URL);
-      });
+      }).catch(() => { /* keep empty */ });
     });
   }, []);
 
@@ -402,22 +395,43 @@ export function Header() {
                 {t("下载 PC 客户端", "Download PC Client")}
               </div>
               <div className="p-1">
-                <DropdownMenuItem asChild className="cursor-pointer py-2.5">
-                  <a href={pcDownloadUrl} target="_blank" rel="noopener noreferrer">
+                {pcDownloadUrl ? (
+                  <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+                    <a href={pcDownloadUrl} target="_blank" rel="noopener noreferrer">
+                      <Download className="mr-2 h-4 w-4" />
+                      {t("Windows 客户端", "Windows Client")}
+                    </a>
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem disabled className="py-2.5 opacity-60">
                     <Download className="mr-2 h-4 w-4" />
-                    {t("Windows 客户端", "Windows Client")}
-                  </a>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild className="cursor-pointer py-2.5">
-                  <a href={macDownloadUrl} target="_blank" rel="noopener noreferrer">
+                    {t("Windows 客户端（暂未配置）", "Windows Client (not configured)")}
+                  </DropdownMenuItem>
+                )}
+                {macDownloadUrl ? (
+                  <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+                    <a href={macDownloadUrl} target="_blank" rel="noopener noreferrer">
+                      <Download className="mr-2 h-4 w-4" />
+                      {t("macOS 客户端", "macOS Client")}
+                    </a>
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem disabled className="py-2.5 opacity-60">
                     <Download className="mr-2 h-4 w-4" />
-                    {t("macOS 客户端", "macOS Client")}
-                  </a>
-                </DropdownMenuItem>
+                    {t("macOS 客户端（暂未配置）", "macOS Client (not configured)")}
+                  </DropdownMenuItem>
+                )}
               </div>
-              <div className="px-3 py-2 text-[11px] text-muted-foreground border-t">
-                {t("安装后启动 Companion 即可在 WhatsApp 工作台扫码登录", "After installation, start Companion to scan QR in WhatsApp Workbench")}
-              </div>
+              {(!pcDownloadUrl && !macDownloadUrl) && (
+                <div className="px-3 py-2 text-[11px] text-amber-500 border-t">
+                  {t("管理员可在「平台设置 → 客户端下载」中配置下载地址", "Admin can configure download URLs in Platform Settings → Client Download")}
+                </div>
+              )}
+              {(pcDownloadUrl || macDownloadUrl) && (
+                <div className="px-3 py-2 text-[11px] text-muted-foreground border-t">
+                  {t("安装后启动 Companion 即可在 WhatsApp 工作台扫码登录", "After installation, start Companion to scan QR in WhatsApp Workbench")}
+                </div>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 
