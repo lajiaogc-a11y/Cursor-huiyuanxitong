@@ -1,8 +1,9 @@
 {
   "name": "whatsapp-companion",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "private": true,
-  "description": "WhatsApp Companion local bridge server for the membership system workbench",
+  "type": "module",
+  "description": "WhatsApp Companion — 本地 bridge + Electron 桌面客户端",
   "scripts": {
     "start": "npx tsx start.ts",
     "dev": "npx tsx watch start.ts"

@@ -16,6 +16,7 @@ import {
   type LoginSession,
   type LoginState,
 } from '@/services/whatsapp/accountLoginService';
+import { isRunningInElectron } from '@/api/localWhatsappBridge';
 
 interface Props {
   open: boolean;
@@ -254,12 +255,17 @@ function InputPanel({
               {isCompanionOff ? '需要启动本地 PC 客户端' : state === 'expired' ? '二维码已过期' : '连接出错'}
             </p>
             {errorMessage && <p className="leading-relaxed">{errorMessage}</p>}
-            {isCompanionOff && (
+            {isCompanionOff && !isRunningInElectron() && (
               <div className="leading-relaxed space-y-0.5">
                 <p>请确保以下条件：</p>
                 <p>1. 已下载并安装 PC 客户端（右上角 <strong>↓</strong> 按钮）</p>
                 <p>2. PC 客户端已启动运行</p>
                 <p>3. 未被防火墙/杀毒软件拦截</p>
+              </div>
+            )}
+            {isCompanionOff && isRunningInElectron() && (
+              <div className="leading-relaxed">
+                <p>Companion 服务异常，请尝试重启应用。</p>
               </div>
             )}
           </div>

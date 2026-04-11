@@ -82,6 +82,16 @@ const BRIDGE_BASE = 'http://localhost:3100';
 const DETECT_TIMEOUT_MS = 2000;
 const CACHE_TTL_MS = 30_000;
 
+/**
+ * 检测当前是否在 Electron 桌面客户端内运行。
+ * Electron preload 通过 contextBridge 注入 window.electronAPI。
+ */
+export function isRunningInElectron(): boolean {
+  return typeof window !== 'undefined'
+    && (window as Record<string, unknown>).electronAPI !== undefined
+    && ((window as Record<string, unknown>).electronAPI as Record<string, unknown>)?.isElectron === true;
+}
+
 let companionOnline: boolean | null = null;
 let lastDetectTime = 0;
 

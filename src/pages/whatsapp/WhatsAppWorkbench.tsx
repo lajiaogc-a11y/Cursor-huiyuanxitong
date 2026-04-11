@@ -20,6 +20,7 @@ import { AddAccountDialog } from '@/components/whatsapp/AddAccountDialog';
 import * as bridge from '@/services/whatsapp/localSessionBridgeService';
 import { CompanionOfflineError } from '@/services/whatsapp/localSessionBridgeService';
 import * as statusSvc from '@/services/whatsapp/conversationStatusService';
+import { isRunningInElectron } from '@/api/localWhatsappBridge';
 import { loadConversationContext, persistNote, type ConversationContext } from '@/services/whatsapp/conversationContextService';
 import { bindMemberToPhone, unbindMember, invalidateMatchCache } from '@/services/whatsapp/memberMatchService';
 import type { WaSession, WaConversation, WaMessage, AccountStats } from '@/services/whatsapp/localSessionBridgeService';
@@ -432,26 +433,34 @@ export default function WhatsAppWorkbench() {
 
   // ── Companion 离线 ──
   if (workbenchState === 'companion_offline') {
+    const inElectron = isRunningInElectron();
     return (
       <div className="h-[calc(100vh-64px)] flex items-center justify-center bg-background">
         <div className="text-center max-w-md">
           <Monitor className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-          <h2 className="text-lg font-semibold text-foreground mb-2">WhatsApp Companion 未连接</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-2">
+            {inElectron ? 'Companion 正在初始化...' : 'WhatsApp Companion 未连接'}
+          </h2>
           <p className="text-sm text-muted-foreground mb-4">
-            工作台需要本地 PC 客户端（WhatsApp Companion）才能运行。
-            请确保已在本机启动 Companion 程序。
+            {inElectron
+              ? '本地 WhatsApp 服务正在启动，请稍候...'
+              : '工作台需要本地 PC 客户端（WhatsApp Companion）才能运行。请确保已在本机启动 Companion 程序。'}
           </p>
-          <div className="bg-muted/50 rounded-lg p-4 text-left text-xs text-muted-foreground mb-4 font-mono">
-            <div className="mb-1">启动方式：</div>
-            <div className="pl-2">cd electron</div>
-            <div className="pl-2">npm install</div>
-            <div className="pl-2">npx tsx start.ts</div>
-          </div>
+          {!inElectron && (
+            <div className="bg-muted/50 rounded-lg p-4 text-left text-xs text-muted-foreground mb-4 font-mono">
+              <div className="mb-1">方式一：下载桌面客户端（推荐）</div>
+              <div className="pl-2 mb-2">点击右上角下载按钮安装 PC 客户端，双击即可一键启动</div>
+              <div className="mb-1">方式二：命令行启动</div>
+              <div className="pl-2">cd electron</div>
+              <div className="pl-2">npm install</div>
+              <div className="pl-2">npx tsx start.ts</div>
+            </div>
+          )}
           <button
             onClick={initLoad}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 transition-colors"
           >
-            <RefreshCw className="w-4 h-4" /> 重新检测
+            <RefreshCw className="w-4 h-4" /> {inElectron ? '重试' : '重新检测'}
           </button>
         </div>
       </div>

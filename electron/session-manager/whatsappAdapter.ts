@@ -55,9 +55,11 @@ interface SessionEntry {
 }
 
 const MAX_RESTART = 3;
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const WORKER_PATH = join(__dirname, 'whatsappWorker.ts');
+const __selfFile = fileURLToPath(import.meta.url);
+const __selfDir = dirname(__selfFile);
+// tsx 运行时文件为 .ts；esbuild 编译后为 .js — 自动检测
+const WORKER_EXT = __selfFile.endsWith('.ts') ? '.ts' : '.js';
+const WORKER_PATH = join(__selfDir, `whatsappWorker${WORKER_EXT}`);
 
 export class WhatsAppAdapter implements IWhatsAppAdapter {
   private sessions = new Map<string, SessionEntry>();

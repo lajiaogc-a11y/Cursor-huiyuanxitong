@@ -32,9 +32,10 @@
     "deploy:release": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy-full.ps1",
     "deploy:remote-api": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy-remote-node-api.ps1",
     "restart:remote-migrate": "powershell -ExecutionPolicy Bypass -File ./scripts/restart-remote-api-migrate.ps1",
-    "build:electron": "cross-env VITE_BUILD_TARGET=electron vite build && electron-builder",
-    "build:electron:win": "cross-env VITE_BUILD_TARGET=electron vite build && electron-builder --win",
-    "build:electron:mac": "cross-env VITE_BUILD_TARGET=electron vite build && electron-builder --mac",
+    "build:electron-code": "node scripts/build-electron.mjs",
+    "build:electron": "node scripts/build-electron.mjs && cross-env VITE_BUILD_TARGET=electron vite build && electron-builder",
+    "build:electron:win": "node scripts/build-electron.mjs && cross-env VITE_BUILD_TARGET=electron vite build && electron-builder --win",
+    "build:electron:mac": "node scripts/build-electron.mjs && cross-env VITE_BUILD_TARGET=electron vite build && electron-builder --mac",
     "electron:dev": "cross-env NODE_ENV=development electron .",
     "build:capacitor": "cross-env VITE_BUILD_TARGET=capacitor vite build && npx cap sync",
     "cap:android": "npm run build:capacitor && npx cap open android",
@@ -112,16 +113,21 @@
     "xlsx": "^0.18.5",
     "zod": "^3.25.76"
   },
-  "main": "electron/main.js",
+  "main": "electron/dist/main/index.js",
   "build": {
-    "appId": "cc.fastgc.giftsystem",
-    "productName": "FastGC会员系统",
+    "appId": "cc.fastgc.whatsapp",
+    "productName": "FastGC WhatsApp 工作台",
     "directories": {
       "output": "release"
     },
     "files": [
       "dist/**/*",
-      "electron/**/*"
+      "electron/dist/**/*",
+      "electron/node_modules/**/*",
+      "electron/package.json"
+    ],
+    "asarUnpack": [
+      "electron/dist/session-manager/whatsappWorker.js"
     ],
     "win": {
       "target": [
@@ -138,7 +144,8 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "FastGC WhatsApp"
     }
   },
   "devDependencies": {

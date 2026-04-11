@@ -1,42 +1,20 @@
 /**
- * WhatsApp Companion 入口
- *
- * 模式选择（P0 — 明确模式，禁止隐式 fallback）：
- *
- *   USE_DEMO=1  → 强制 DemoAdapter（仅开发/测试用）
- *   其他情况    → 加载 WhatsAppAdapter（真实 Baileys）
- *                 失败时**直接报错退出**，不回退 DemoAdapter
+ * WhatsApp Companion CLI 入口
  *
  * 用法：
  *   cd electron
- *   npm install
- *   npx tsx start.ts              # 真实模式（baileys 必须已安装）
- *   USE_DEMO=1 npx tsx start.ts   # 强制演示模式
+ *   npx tsx start.ts              # 真实模式
+ *   USE_DEMO=1 npx tsx start.ts   # 演示模式
+ *
+ * 此文件仅供独立运行。Electron 桌面应用通过 main/index.ts 启动。
  */
 
-import { startLocalApi, DEFAULT_PORT, DEFAULT_HOST } from './local-api/index.js';
-import type { IWhatsAppAdapter } from './session-manager/adapterInterface.js';
-
-async function createAdapter(): Promise<{ adapter: IWhatsAppAdapter; mode: string }> {
-  // ── 仅当显式设置 USE_DEMO=1 时才加载 DemoAdapter ──
-  if (process.env.USE_DEMO === '1') {
-    console.warn('[Companion] ⚠ USE_DEMO=1 — 强制演示模式，数据非真实');
-    const { createDemoAdapter } = await import('./session-manager/demoAdapter.js');
-    return { adapter: createDemoAdapter(), mode: 'Demo (explicit)' };
-  }
-
-  // ── 真实模式 — 不允许 fallback ──
-  const { WhatsAppAdapter } = await import('./session-manager/whatsappAdapter.js');
-  const adapter = await WhatsAppAdapter.create('./.wa_sessions');
-  return { adapter, mode: 'Baileys (real)' };
-}
+import { startCompanionServer, DEFAULT_HOST } from './companionLauncher.js';
 
 async function main() {
-  let adapter: IWhatsAppAdapter;
-  let mode: string;
-
+  let result;
   try {
-    ({ adapter, mode } = await createAdapter());
+    result = await startCompanionServer();
   } catch (err: unknown) {
     const reason = err instanceof Error ? err.message : String(err);
     console.error('');
@@ -56,9 +34,9 @@ async function main() {
     process.exit(1);
   }
 
-  const { port, close } = await startLocalApi({ adapter, adapterMode: mode });
-
+  const { mode, port, close, adapter } = result;
   const isDemo = mode.includes('Demo');
+
   console.log('');
   console.log('╔═══════════════════════════════════════════════════════════════╗');
   console.log(`║  WhatsApp Companion  [${mode.padEnd(22)}]  http://${DEFAULT_HOST}:${port}  ║`);
