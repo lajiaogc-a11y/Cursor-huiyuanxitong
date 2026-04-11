@@ -89,6 +89,7 @@ export function useReferrals() {
         referee_phone: refereePhone,
         referee_member_code: refereeMemberCode,
         source: '转介绍',
+        level: 1,
       };
       if (referrerId) insertData.referrer_id = referrerId;
       if (refereeId) insertData.referee_id = refereeId;

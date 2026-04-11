@@ -318,6 +318,7 @@ export async function migrateSchemaPatches(): Promise<void> {
   try { await execute('ALTER TABLE referral_relations MODIFY COLUMN referee_id CHAR(36) NULL'); } catch { /* already nullable */ }
   try { await execute('ALTER TABLE referral_relations DROP FOREIGN KEY fk_referral_referrer'); } catch { /* already dropped or doesn't exist */ }
   try { await execute('ALTER TABLE referral_relations DROP FOREIGN KEY fk_referral_referee'); } catch { /* already dropped or doesn't exist */ }
+  try { await execute('ALTER TABLE referral_relations MODIFY COLUMN level INT NOT NULL DEFAULT 1'); } catch { /* level column may not exist or already has default */ }
   await addCol('role_permissions', 'module_name', 'VARCHAR(100) NULL');
   await addCol('role_permissions', 'field_name', 'VARCHAR(100) NULL');
   await addCol('role_permissions', 'can_view', 'TINYINT(1) NOT NULL DEFAULT 1');

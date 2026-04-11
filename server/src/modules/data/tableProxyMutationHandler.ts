@@ -146,6 +146,11 @@ export async function tableInsertController(req: AuthenticatedRequest, res: Resp
         }
       }
 
+      // referral_relations.level 为 NOT NULL，前端 INSERT 常不传；默认值 1（直接推荐层级）
+      if (table === 'referral_relations') {
+        if (row.level == null) row.level = 1;
+      }
+
       // 旧库 phone_reservations.reserved_by 常为 NOT NULL；通用 INSERT 漏列会报 1364
       if (
         table === 'phone_reservations' &&

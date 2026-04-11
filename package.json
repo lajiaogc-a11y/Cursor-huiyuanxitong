@@ -1,7 +1,7 @@
 {
   "name": "giftcard-member-system",
   "private": true,
-  "version": "1.1.3",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "prepare": "husky",
@@ -36,6 +36,8 @@
     "build:electron": "node scripts/build-electron.mjs && cross-env VITE_BUILD_TARGET=electron vite build && electron-builder",
     "build:electron:win": "node scripts/build-electron.mjs && cross-env VITE_BUILD_TARGET=electron vite build && electron-builder --win",
     "build:electron:mac": "node scripts/build-electron.mjs && cross-env VITE_BUILD_TARGET=electron vite build && electron-builder --mac",
+    "build:electron:release": "node scripts/build-electron.mjs && cross-env VITE_BUILD_TARGET=electron vite build && powershell -ExecutionPolicy Bypass -File scripts/pre-extract-wincodesign.ps1 && electron-builder --win --publish=never",
+    "release:electron": "powershell -ExecutionPolicy Bypass -File scripts/build-release.ps1",
     "electron:dev": "cross-env NODE_ENV=development electron .",
     "build:capacitor": "cross-env VITE_BUILD_TARGET=capacitor vite build && npx cap sync",
     "cap:android": "npm run build:capacitor && npx cap open android",
@@ -135,8 +137,9 @@
     ],
     "win": {
       "target": [
-        "dir"
+        { "target": "nsis", "arch": ["x64"] }
       ],
+      "artifactName": "FastGC-WhatsApp-Setup-${version}.exe",
       "icon": "public/favicon.ico",
       "sign": null,
       "signingHashAlgorithms": null
@@ -149,9 +152,21 @@
       "category": "public.app-category.business"
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "shortcutName": "FastGC WhatsApp"
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "shortcutName": "FastGC WhatsApp 工作台",
+      "installerIcon": "public/favicon.ico",
+      "uninstallerIcon": "public/favicon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false,
+      "installerSidebar": null,
+      "uninstallerSidebar": null
+    },
+    "publish": {
+      "provider": "generic",
+      "url": "https://admin.crm.fastgc.cc/downloads/"
     }
   },
   "devDependencies": {

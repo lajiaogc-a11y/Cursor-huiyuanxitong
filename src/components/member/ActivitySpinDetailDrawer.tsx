@@ -93,12 +93,16 @@ export function ActivitySpinDetailDrawer({
                     if (s === "daily_free_draw") return t("每日免费抽奖", "Daily free draw");
                     if (s === "share") return t("分享奖励", "Share reward");
                     if (s.startsWith("order_completed:")) return t("完成订单", "Order completed");
+                    if (s.startsWith("order_revoked:")) return t("订单撤销", "Order revoked");
                     if (s === "referral") return t("邀请奖励", "Referral reward");
                     if (s === "invite_welcome") return t("注册欢迎", "Welcome bonus");
                     if (s === "check_in") return t("签到奖励", "Check-in reward");
                     if (s === "daily_free") return t("每日免费", "Daily free");
                     if (s === "admin_grant") return t("管理员发放", "Admin granted");
-                    return s;
+                    if (s === "admin_deduct") return t("管理员扣除", "Admin deducted");
+                    if (s === "order_bonus") return t("订单奖励", "Order bonus");
+                    if (s === "invite") return t("邀请奖励", "Invite reward");
+                    return t("其他", "Other");
                   })();
                   return (
                     <TableRow key={idx}>

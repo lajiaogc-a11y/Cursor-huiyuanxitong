@@ -10,3 +10,22 @@ interface ImportMetaEnv {
   readonly VITE_MEMBER_HOSTS?: string;
   readonly VITE_STAFF_HOSTS?: string;
 }
+
+/** Electron preload 暴露的桌面端 API */
+interface ElectronAPI {
+  isElectron: true;
+  platform: string;
+  getVersion: () => Promise<string>;
+  checkForUpdate: () => void;
+  installUpdate: () => void;
+  onUpdateStatus: (cb: (status: {
+    state: 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
+    version?: string;
+    percent?: number;
+    message?: string;
+  }) => void) => () => void;
+}
+
+interface Window {
+  electronAPI?: ElectronAPI;
+}
