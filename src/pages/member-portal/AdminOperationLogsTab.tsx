@@ -51,7 +51,7 @@ export function AdminOperationLogsTab() {
         p_limit: pageSize,
         p_offset: (page - 1) * pageSize,
       });
-      setLogs((r?.logs as any[]) || []);
+      setLogs((r?.logs as Record<string, unknown>[]) || []);
       setTotal(r?.total ?? 0);
     } catch (e) {
       console.error('[AdminOperationLogs] load failed:', e);

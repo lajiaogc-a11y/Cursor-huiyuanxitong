@@ -3,14 +3,14 @@
  *
  * 职责：
  *   - 抽象本地 WhatsApp 会话数据源
- *   - 首次调用时自动检测 localhost:3100 companion 是否在线
+ *   - 每次调用检测 localhost:3100 companion 是否在线
  *   - companion 在线 → 真实 HTTP 请求
- *   - companion 离线 → 会话/消息类使用 mock fallback；登录类返回明确错误
+ *   - companion 离线 → 返回明确 COMPANION_OFFLINE 错误，绝不回退 mock
  *   - 返回统一 BridgeResult<T> 结构
- * 规则：
- *   - 只负责数据获取/发送，不处理 UI / DOM / 业务展示逻辑
- *   - Service 层通过本文件获取本地会话数据
- *   - 登录相关接口（addSession / getSessionQr）不生成假数据
+ *
+ * P0 规则：
+ *   - 不存在任何 mock 数据、demo 回退、内存假会话
+ *   - companion 不在线 = 系统不可用，前端必须明确展示
  */
 import type { ConversationStatus } from './whatsapp';
 
@@ -72,20 +72,38 @@ export interface AccountStats {
 }
 
 // ══════════════════════════════════════
-//  Companion 懒检测
+//  Companion 检测
 //
-//  首次 API 调用时自动探测 localhost:3100/health
-//  结果缓存到 companionOnline，后续调用直接复用
-//  可通过 resetDetection() 重新检测（如 companion 重启后）
+//  每次 API 调用时探测 localhost:3100/health
+//  结果缓存 30 秒，过期后重新检测
 // ══════════════════════════════════════
 
 const BRIDGE_BASE = 'http://localhost:3100';
 const DETECT_TIMEOUT_MS = 2000;
+const CACHE_TTL_MS = 30_000;
 
 let companionOnline: boolean | null = null;
+let lastDetectTime = 0;
+
+/**
+ * 可选 bridge token，用于 BRIDGE_TOKEN 环境变量启用时的认证。
+ * 前端可通过 setBridgeToken() 设置。
+ */
+let bridgeToken = '';
+export function setBridgeToken(token: string) { bridgeToken = token; }
+export function getBridgeToken(): string { return bridgeToken; }
+
+function authHeaders(): Record<string, string> {
+  const h: Record<string, string> = {};
+  if (bridgeToken) h['X-Bridge-Token'] = bridgeToken;
+  return h;
+}
 
 async function detectCompanion(): Promise<boolean> {
-  if (companionOnline !== null) return companionOnline;
+  const now = Date.now();
+  if (companionOnline !== null && (now - lastDetectTime) < CACHE_TTL_MS) {
+    return companionOnline;
+  }
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), DETECT_TIMEOUT_MS);
@@ -95,17 +113,14 @@ async function detectCompanion(): Promise<boolean> {
   } catch {
     companionOnline = false;
   }
-  if (companionOnline) {
-    console.log('[WA Bridge] Companion detected at', BRIDGE_BASE);
-  } else {
-    console.log('[WA Bridge] Companion not available, using mock fallback');
-  }
+  lastDetectTime = now;
   return companionOnline;
 }
 
 /** 重置检测缓存（companion 重启后调用） */
 export function resetDetection() {
   companionOnline = null;
+  lastDetectTime = 0;
 }
 
 /** 查询当前 companion 是否在线（不触发新检测） */
@@ -125,13 +140,12 @@ function fail(code: string, message: string): BridgeResult<never> {
   return { success: false, error: { code, message } };
 }
 
-function delay(ms: number) { return new Promise(r => setTimeout(r, ms)); }
-function ts(offset: number) { return new Date(Date.now() + offset).toISOString(); }
+const OFFLINE_ERROR = () => fail('COMPANION_OFFLINE', '本地 WhatsApp Companion 未运行，请先启动 PC 客户端');
 
-// ── 真实 HTTP 请求 ──
+// ── 真实 HTTP 请求（携带可选 token） ──
 
 async function bridgeGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${BRIDGE_BASE}${path}`);
+  const res = await fetch(`${BRIDGE_BASE}${path}`, { headers: authHeaders() });
   if (!res.ok) throw new Error(`Bridge ${res.status}: ${res.statusText}`);
   const json = await res.json() as { success: boolean; data: T };
   if (json.success) return json.data;
@@ -141,7 +155,7 @@ async function bridgeGet<T>(path: string): Promise<T> {
 async function bridgePost<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${BRIDGE_BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Bridge ${res.status}: ${res.statusText}`);
@@ -151,71 +165,25 @@ async function bridgePost<T>(path: string, body: unknown): Promise<T> {
 }
 
 async function bridgeDelete(path: string): Promise<void> {
-  const res = await fetch(`${BRIDGE_BASE}${path}`, { method: 'DELETE' });
+  const res = await fetch(`${BRIDGE_BASE}${path}`, { method: 'DELETE', headers: authHeaders() });
   if (!res.ok) throw new Error(`Bridge ${res.status}: ${res.statusText}`);
 }
 
 // ══════════════════════════════════════
-//  Mock 可变数据（fallback）
-// ══════════════════════════════════════
-
-const MOCK_SESSIONS: WaSession[] = [
-  { id: 's1', accountId: 'acct_main',  name: '主号 (138)', phone: '+8613800001111', isConnected: true },
-  { id: 's2', accountId: 'acct_cs',    name: '客服号 (139)', phone: '+8613900002222', isConnected: true },
-  { id: 's3', accountId: 'acct_spare', name: '备用 (151)', phone: '+8615100005555', isConnected: false },
-];
-
-const MOCK_CONVERSATIONS: Record<string, WaConversation[]> = {
-  acct_main: [
-    { id: 'c1', phone: '+2348012345678', name: 'John Doe',      lastMessage: 'Hi, I want to check my points',           lastMessageAt: ts(-120_000),  unreadCount: 2, status: 'unread' },
-    { id: 'c2', phone: '+233501234567',  name: 'Ama Mensah',    lastMessage: 'Order confirmed, thanks',                 lastMessageAt: ts(-3_600_000), unreadCount: 0, status: 'replied' },
-    { id: 'c3', phone: '+8613700003333', name: '李明',           lastMessage: '我想兑换积分',                              lastMessageAt: ts(-7_200_000), unreadCount: 1, status: 'read_no_reply' },
-    { id: 'c4', phone: '+2349011112222', name: 'Blessing Eze',  lastMessage: 'Please follow up on my withdrawal',       lastMessageAt: ts(-14_400_000), unreadCount: 0, status: 'follow_up_required' },
-  ],
-  acct_cs: [
-    { id: 'c5', phone: '+2349087654321', name: 'Chidi Okafor', lastMessage: 'When will my card arrive?', lastMessageAt: ts(-600_000),    unreadCount: 3, status: 'priority' },
-    { id: 'c6', phone: '+8615900004444', name: '王芳',          lastMessage: '充值已完成',                  lastMessageAt: ts(-86_400_000), unreadCount: 0, status: 'closed' },
-  ],
-  acct_spare: [],
-};
-
-const MOCK_MESSAGES = new Map<string, WaMessage[]>();
-
-function mockKey(accountId: string, phone: string) { return `${accountId}|${phone}`; }
-
-function seedMockMessages(phone: string): WaMessage[] {
-  const base = Date.now();
-  return [
-    { id: 'm1', fromMe: false, body: `Hi, this is ${phone}. I need help with my account.`,     timestamp: new Date(base - 300_000).toISOString(), type: 'text' },
-    { id: 'm2', fromMe: true,  body: 'Hello! How can I help you today?',                       timestamp: new Date(base - 240_000).toISOString(), type: 'text', status: 'read' },
-    { id: 'm3', fromMe: false, body: 'I want to check my account balance and recent orders.',   timestamp: new Date(base - 180_000).toISOString(), type: 'text' },
-    { id: 'm4', fromMe: true,  body: 'Sure, let me look that up for you. One moment please.',   timestamp: new Date(base - 120_000).toISOString(), type: 'text', status: 'delivered' },
-    { id: 'm5', fromMe: false, body: 'Thank you, I really appreciate it!',                      timestamp: new Date(base - 60_000).toISOString(),  type: 'text' },
-  ];
-}
-
-function findMockConv(accountId: string, phone: string): WaConversation | undefined {
-  return (MOCK_CONVERSATIONS[accountId] ?? []).find(c => c.phone === phone);
-}
-
-// ══════════════════════════════════════
-//  导出 API
+//  导出 API — 所有方法 companion 离线时返回明确错误
 // ══════════════════════════════════════
 
 export const localWhatsappBridge = {
 
   /** 检查 companion 健康（供外部手动触发） */
   checkHealth: async (): Promise<boolean> => {
-    companionOnline = null;
+    resetDetection();
     return detectCompanion();
   },
 
   getSessions: async (): Promise<BridgeResult<WaSession[]>> => {
     const online = await detectCompanion();
-    if (!online) {
-      await delay(80);
-      return ok([...MOCK_SESSIONS]);
-    }
+    if (!online) return OFFLINE_ERROR();
     try {
       const data = await bridgeGet<WaSession[]>('/sessions');
       return ok(data);
@@ -226,10 +194,7 @@ export const localWhatsappBridge = {
 
   getConversations: async (accountId: string): Promise<BridgeResult<WaConversation[]>> => {
     const online = await detectCompanion();
-    if (!online) {
-      await delay(80);
-      return ok([...(MOCK_CONVERSATIONS[accountId] ?? [])]);
-    }
+    if (!online) return OFFLINE_ERROR();
     try {
       const data = await bridgeGet<WaConversation[]>(`/conversations?accountId=${encodeURIComponent(accountId)}`);
       return ok(data);
@@ -240,12 +205,7 @@ export const localWhatsappBridge = {
 
   getMessages: async (accountId: string, phone: string): Promise<BridgeResult<WaMessage[]>> => {
     const online = await detectCompanion();
-    if (!online) {
-      await delay(60);
-      const k = mockKey(accountId, phone);
-      if (!MOCK_MESSAGES.has(k)) MOCK_MESSAGES.set(k, seedMockMessages(phone));
-      return ok([...MOCK_MESSAGES.get(k)!]);
-    }
+    if (!online) return OFFLINE_ERROR();
     try {
       const data = await bridgeGet<WaMessage[]>(
         `/messages?accountId=${encodeURIComponent(accountId)}&phone=${encodeURIComponent(phone)}`,
@@ -258,30 +218,7 @@ export const localWhatsappBridge = {
 
   sendMessage: async (payload: SendPayload): Promise<BridgeResult<WaMessage>> => {
     const online = await detectCompanion();
-    if (!online) {
-      await delay(50);
-      const msg: WaMessage = {
-        id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        fromMe: true,
-        body: payload.body,
-        timestamp: new Date().toISOString(),
-        type: (payload.type as WaMessage['type']) ?? 'text',
-        status: 'sent',
-      };
-      const k = mockKey(payload.accountId, payload.phone);
-      const msgs = MOCK_MESSAGES.get(k) ?? [];
-      MOCK_MESSAGES.set(k, [...msgs, msg]);
-
-      const conv = findMockConv(payload.accountId, payload.phone);
-      if (conv) {
-        conv.lastMessage = payload.body;
-        conv.lastMessageAt = msg.timestamp;
-        if (conv.status !== 'priority' && conv.status !== 'follow_up_required') {
-          conv.status = 'replied';
-        }
-      }
-      return ok(msg);
-    }
+    if (!online) return OFFLINE_ERROR();
     try {
       const data = await bridgePost<WaMessage>('/send', payload);
       return ok(data);
@@ -292,15 +229,7 @@ export const localWhatsappBridge = {
 
   markAsRead: async (accountId: string, phone: string): Promise<BridgeResult<void>> => {
     const online = await detectCompanion();
-    if (!online) {
-      await delay(20);
-      const conv = findMockConv(accountId, phone);
-      if (conv) {
-        conv.unreadCount = 0;
-        if (conv.status === 'unread') conv.status = 'read_no_reply';
-      }
-      return ok(undefined as void);
-    }
+    if (!online) return OFFLINE_ERROR();
     try {
       await bridgePost<void>('/mark-read', { accountId, phone });
       return ok(undefined as void);
@@ -311,15 +240,7 @@ export const localWhatsappBridge = {
 
   updateConversationStatus: async (accountId: string, phone: string, status: ConversationStatus): Promise<BridgeResult<void>> => {
     const online = await detectCompanion();
-    if (!online) {
-      await delay(20);
-      const conv = findMockConv(accountId, phone);
-      if (conv) {
-        conv.status = status;
-        if (status === 'closed') conv.unreadCount = 0;
-      }
-      return ok(undefined as void);
-    }
+    if (!online) return OFFLINE_ERROR();
     try {
       await bridgePost<void>('/update-status', { accountId, phone, status });
       return ok(undefined as void);
@@ -328,15 +249,9 @@ export const localWhatsappBridge = {
     }
   },
 
-  /**
-   * 创建登录会话（开始扫码流程）
-   * companion 离线时返回明确错误，不生成假数据
-   */
   addSession: async (displayName: string, proxyUrl?: string): Promise<BridgeResult<{ sessionId: string }>> => {
     const online = await detectCompanion();
-    if (!online) {
-      return fail('COMPANION_OFFLINE', '本地 PC 客户端未运行，请先启动 WhatsApp Companion');
-    }
+    if (!online) return OFFLINE_ERROR();
     try {
       const body: Record<string, unknown> = { displayName };
       if (proxyUrl) body.proxyUrl = proxyUrl;
@@ -347,17 +262,9 @@ export const localWhatsappBridge = {
     }
   },
 
-  /**
-   * 查询 QR 码状态（轮询）
-   * state: 'initializing' | 'qr_pending' | 'scanned' | 'authenticated' | 'connected' | 'disconnected' | 'error'
-   * qrDataUrl: base64 PNG data URL（state=qr_pending 时有值）
-   * companion 离线时返回明确错误，不生成假二维码
-   */
   getSessionQr: async (sessionId: string): Promise<BridgeResult<{ state: string; qrDataUrl: string | null }>> => {
     const online = await detectCompanion();
-    if (!online) {
-      return fail('COMPANION_OFFLINE', '本地 PC 客户端未运行');
-    }
+    if (!online) return OFFLINE_ERROR();
     try {
       const data = await bridgeGet<{ sessionId: string; state: string; qrDataUrl: string | null }>(
         `/sessions/${encodeURIComponent(sessionId)}/qr`,
@@ -368,10 +275,6 @@ export const localWhatsappBridge = {
     }
   },
 
-  /**
-   * 查询登录状态详情（独立端点，不含 QR 图片）
-   * 返回 state / phone / displayName / errorMessage
-   */
   getLoginStatus: async (sessionId: string): Promise<BridgeResult<{
     state: string;
     phone: string | null;
@@ -379,9 +282,7 @@ export const localWhatsappBridge = {
     errorMessage: string | null;
   }>> => {
     const online = await detectCompanion();
-    if (!online) {
-      return fail('COMPANION_OFFLINE', '本地 PC 客户端未运行');
-    }
+    if (!online) return OFFLINE_ERROR();
     try {
       const data = await bridgeGet<{
         sessionId: string;
@@ -401,12 +302,9 @@ export const localWhatsappBridge = {
     }
   },
 
-  /**
-   * 删除账号（断开并移除）
-   */
   deleteSession: async (sessionId: string): Promise<BridgeResult<void>> => {
     const online = await detectCompanion();
-    if (!online) return fail('COMPANION_OFFLINE', '请先启动本地 WhatsApp Companion');
+    if (!online) return OFFLINE_ERROR();
     try {
       await bridgeDelete(`/sessions/${encodeURIComponent(sessionId)}`);
       return ok(undefined as void);
@@ -417,20 +315,7 @@ export const localWhatsappBridge = {
 
   getAccountStats: async (accountId: string): Promise<BridgeResult<AccountStats>> => {
     const online = await detectCompanion();
-    if (!online) {
-      const list = MOCK_CONVERSATIONS[accountId] ?? [];
-      let unreadCount = 0;
-      let readNoReplyCount = 0;
-      let followUpCount = 0;
-      let priorityCount = 0;
-      for (const c of list) {
-        if (c.status === 'unread')             unreadCount += c.unreadCount || 1;
-        if (c.status === 'read_no_reply')      readNoReplyCount++;
-        if (c.status === 'follow_up_required') followUpCount++;
-        if (c.status === 'priority')           priorityCount++;
-      }
-      return ok({ totalConversations: list.length, unreadCount, readNoReplyCount, followUpCount, priorityCount });
-    }
+    if (!online) return OFFLINE_ERROR();
     try {
       const data = await bridgeGet<AccountStats>(`/stats?accountId=${encodeURIComponent(accountId)}`);
       return ok(data);

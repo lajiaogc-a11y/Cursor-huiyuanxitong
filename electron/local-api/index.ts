@@ -3,6 +3,10 @@
  *
  * 在 127.0.0.1:3100 启动轻量 HTTP 服务器，供前端 localWhatsappBridge.ts 调用。
  * 使用 Node.js 内置 http 模块，不依赖 express / fastify。
+ *
+ * 安全控制：
+ *   - CORS 白名单：只允许已知域名和本地开发地址
+ *   - 可选 BRIDGE_TOKEN：设置后所有非 /health 请求需携带 X-Bridge-Token
  */
 
 import * as http from 'node:http';
@@ -10,20 +14,39 @@ import { URL } from 'node:url';
 import type { IWhatsAppAdapter } from '../session-manager/adapterInterface.js';
 import { createRouteHandler } from './routes.js';
 
-export const LOCAL_API_VERSION = '0.2.0';
+export const LOCAL_API_VERSION = '0.3.0';
 export const DEFAULT_PORT = 3100;
 export const DEFAULT_HOST = '127.0.0.1';
 
-// ── CORS 处理 ──
+// ── CORS 白名单 ──
 
-function setCorsHeaders(req: http.IncomingMessage, res: http.ServerResponse) {
-  // Companion 只监听 127.0.0.1，仅本机可访问，安全风险可控
-  // 必须允许 HTTPS 生产域名（如 https://crm.fastgc.cc）和本地开发地址
+const ALLOWED_ORIGINS = new Set([
+  'https://admin.crm.fastgc.cc',
+  'https://crm.fastgc.cc',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  'http://127.0.0.1:3000',
+]);
+
+function isOriginAllowed(origin: string): boolean {
+  if (!origin) return true; // same-origin requests
+  return ALLOWED_ORIGINS.has(origin);
+}
+
+function setCorsHeaders(req: http.IncomingMessage, res: http.ServerResponse): boolean {
   const origin = req.headers.origin ?? '';
-  res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  if (!isOriginAllowed(origin)) {
+    return false;
+  }
+  res.setHeader('Access-Control-Allow-Origin', origin || DEFAULT_HOST);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Bridge-Token');
   res.setHeader('Access-Control-Max-Age', '86400');
+  res.setHeader('Vary', 'Origin');
+  return true;
 }
 
 // ── JSON 工具 ──
@@ -50,6 +73,7 @@ function parseBody(req: http.IncomingMessage): Promise<Record<string, unknown>> 
 
 export interface StartOptions {
   adapter: IWhatsAppAdapter;
+  adapterMode?: string;
   port?: number;
   host?: string;
 }
@@ -60,10 +84,19 @@ export async function startLocalApi(options: StartOptions): Promise<{
 }> {
   const port = options.port ?? DEFAULT_PORT;
   const host = options.host ?? DEFAULT_HOST;
-  const routeHandler = createRouteHandler(options.adapter);
+  const bridgeToken = process.env.BRIDGE_TOKEN?.trim() || '';
+  const routeHandler = createRouteHandler(options.adapter, options.adapterMode ?? 'unknown');
+
+  if (bridgeToken) {
+    console.log('[local-api] BRIDGE_TOKEN 已启用，非 /health 请求需携带 X-Bridge-Token 头');
+  }
 
   const server = http.createServer(async (req, res) => {
-    setCorsHeaders(req, res);
+    const corsOk = setCorsHeaders(req, res);
+    if (!corsOk) {
+      sendJson(res, { success: false, error: { code: 'CORS_DENIED', message: 'Origin not allowed' } }, 403);
+      return;
+    }
 
     if (req.method === 'OPTIONS') {
       res.writeHead(204);
@@ -73,11 +106,19 @@ export async function startLocalApi(options: StartOptions): Promise<{
 
     try {
       const url = new URL(req.url ?? '/', `http://${host}:${port}`);
+
+      if (bridgeToken && url.pathname !== '/health') {
+        const reqToken = req.headers['x-bridge-token'];
+        if (reqToken !== bridgeToken) {
+          sendJson(res, { success: false, error: { code: 'AUTH_FAILED', message: 'Invalid or missing X-Bridge-Token' } }, 401);
+          return;
+        }
+      }
+
       const method = (req.method ?? 'GET').toUpperCase();
       const needsBody = method === 'POST' || method === 'PUT' || method === 'PATCH';
       const body = needsBody ? await parseBody(req) : {};
 
-      // 路由处理器现在是异步的
       const result = await routeHandler(method, url.pathname, url.searchParams, body);
       sendJson(res, result.data, result.status);
     } catch (err: unknown) {

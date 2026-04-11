@@ -1,13 +1,8 @@
 /**
  * WhatsApp 工作台 API Client — 后端请求封装
  *
- * Step 8: 对齐后端实际响应字段：
- *   - normalizePhone → { rawPhone, normalizedPhone }
- *   - member-by-phone → { matchStatus, member }（不再有 activity）
- *   - conversation-context → { memberSummary, giftCardSummary, pointsSummary, ... }
- *   - MemberSummaryDto.name（非 nickname）
- *   - OrderSummaryDto.amount 为 number、createdAt（非 date）
- *   - StatusRecord / NoteRow 使用 snake_case → 前端 mapper 转 camelCase
+ * 所有方法直接请求后端 /api/whatsapp/* 接口，无 mock 数据。
+ * 后端字段 snake_case → 前端 camelCase 映射在本文件完成。
  */
 import { apiGet, apiPost } from './client';
 
@@ -18,12 +13,6 @@ import { apiGet, apiPost } from './client';
 export type ApiResult<T> =
   | { success: true; data: T }
   | { success: false; error: { code: string; message: string } };
-
-// ══════════════════════════════════════
-//  Mock 开关（Phase 4 后端就绪后切为 false）
-// ══════════════════════════════════════
-
-const USE_MOCK = false;
 
 // ══════════════════════════════════════
 //  Wire Types（与后端 DTO 严格对齐）
@@ -184,45 +173,6 @@ async function safeApi<T>(fn: () => Promise<T>): Promise<ApiResult<T>> {
 }
 
 // ══════════════════════════════════════
-//  Mock 数据
-// ══════════════════════════════════════
-
-const MOCK_MEMBERS: MemberData[] = [
-  { id: 'mem_001', name: 'John Doe',     memberCode: '22222222', phone: '+2348012345678', level: 'VIP Gold', status: 'active', giftCardBalance: 5000, points: 3580, orderCount: 12 },
-  { id: 'mem_002', name: '李明',          memberCode: '33333333', phone: '+8613700003333', level: 'Silver',   status: 'active', giftCardBalance: 0,    points: 920,  orderCount: 5 },
-  { id: 'mem_003', name: 'Chidi Okafor', memberCode: '44444444', phone: '+2349087654321', level: 'Bronze',   status: 'active', giftCardBalance: 1200, points: 150,  orderCount: 2 },
-];
-
-const MOCK_ORDERS: Record<string, OrderData[]> = {
-  mem_001: [
-    { id: 'o1', orderNumber: 'ORD-20260408-001', orderType: 'purchase', amount: 150000, currency: 'NGN', status: 'completed', createdAt: '2026-04-08T10:00:00Z' },
-    { id: 'o2', orderNumber: 'ORD-20260405-003', orderType: 'purchase', amount: 80000,  currency: 'NGN', status: 'completed', createdAt: '2026-04-05T14:30:00Z' },
-    { id: 'o3', orderNumber: 'ORD-20260401-012', orderType: 'exchange', amount: 200,    currency: 'USDT',status: 'completed', createdAt: '2026-04-01T09:00:00Z' },
-  ],
-  mem_002: [
-    { id: 'o4', orderNumber: 'ORD-20260407-008', orderType: 'purchase', amount: 12000,  currency: 'CNY', status: 'completed', createdAt: '2026-04-07T16:00:00Z' },
-  ],
-  mem_003: [
-    { id: 'o5', orderNumber: 'ORD-20260406-022', orderType: 'purchase', amount: 35000,  currency: 'NGN', status: 'completed', createdAt: '2026-04-06T11:00:00Z' },
-    { id: 'o6', orderNumber: 'ORD-20260402-005', orderType: 'purchase', amount: 22000,  currency: 'NGN', status: 'completed', createdAt: '2026-04-02T08:00:00Z' },
-  ],
-};
-
-const mockStatusStore = new Map<string, StatusRecordData>();
-const mockNoteStore = new Map<string, NoteData[]>();
-
-function mockKey(accountId: string, phone: string) { return `${accountId}|${phone}`; }
-
-function mockPhoneSuffix(phone: string, len = 8): string {
-  return phone.replace(/\D/g, '').slice(-len);
-}
-
-function mockFindMember(phone: string): MemberData | null {
-  const suffix = mockPhoneSuffix(phone);
-  return MOCK_MEMBERS.find(m => mockPhoneSuffix(m.phone) === suffix) ?? null;
-}
-
-// ══════════════════════════════════════
 //  导出 API
 // ══════════════════════════════════════
 
@@ -232,22 +182,10 @@ export const whatsappApi = {
     phone: string,
     countryCode?: string,
   ): Promise<ApiResult<NormalizePhoneData>> => {
-    if (USE_MOCK) {
-      const clean = phone.trim().replace(/[\s\-().（）]/g, '');
-      const normalized = (clean.startsWith('00') ? '+' + clean.slice(2) : clean).replace(/[^\d+]/g, '');
-      return ok({ rawPhone: phone, normalizedPhone: normalized });
-    }
     return safeApi(() => apiPost<NormalizePhoneData>('/api/whatsapp/normalize-phone', { phone, countryCode }));
   },
 
   getMemberByPhone: async (phone: string): Promise<ApiResult<MemberMatchData>> => {
-    if (USE_MOCK) {
-      const suffix = mockPhoneSuffix(phone);
-      const matches = MOCK_MEMBERS.filter(m => mockPhoneSuffix(m.phone) === suffix);
-      if (matches.length === 1) return ok({ matchStatus: 'matched', member: matches[0], matchSource: 'exact' as const });
-      if (matches.length > 1) return ok({ matchStatus: 'multiple_matches', member: null, candidates: matches });
-      return ok({ matchStatus: 'not_found', member: null });
-    }
     return safeApi(() => apiGet<MemberMatchData>(`/api/whatsapp/member-by-phone${qs({ phone })}`));
   },
 
@@ -255,21 +193,6 @@ export const whatsappApi = {
     phone: string,
     accountId?: string,
   ): Promise<ApiResult<ConversationContextData>> => {
-    if (USE_MOCK) {
-      const suffix = mockPhoneSuffix(phone);
-      const matches = MOCK_MEMBERS.filter(m => mockPhoneSuffix(m.phone) === suffix);
-      const member = matches.length === 1 ? matches[0] : null;
-      const matchStatus = matches.length === 1 ? 'matched' as const
-        : matches.length > 1 ? 'multiple_matches' as const : 'not_found' as const;
-      const candidates = matches.length > 1 ? matches : undefined;
-      const recentOrders = member ? (MOCK_ORDERS[member.id] ?? []) : [];
-      const k = accountId ? mockKey(accountId, phone) : '';
-      const recentNotes = k ? (mockNoteStore.get(k) ?? []) : [];
-      const conversationStatus = k ? (mockStatusStore.get(k) ?? null) : null;
-      const pointsSummary = member ? { remaining: member.points, lifetime: member.points + 500 } : null;
-      const giftCardSummary = member ? { balance: member.giftCardBalance, activeCards: member.giftCardBalance > 0 ? 1 : 0 } : null;
-      return ok({ memberSummary: member, giftCardSummary, pointsSummary, recentOrders, recentNotes, conversationStatus, matchStatus, candidates });
-    }
     const result = await safeApi(() =>
       apiGet<Record<string, unknown>>(`/api/whatsapp/conversation-context${qs({ phone, accountId })}`),
     );
@@ -297,9 +220,6 @@ export const whatsappApi = {
     accountId: string,
     phone: string,
   ): Promise<ApiResult<StatusRecordData | null>> => {
-    if (USE_MOCK) {
-      return ok(mockStatusStore.get(mockKey(accountId, phone)) ?? null);
-    }
     const result = await safeApi(() =>
       apiGet<Record<string, unknown> | null>(`/api/whatsapp/conversation-status${qs({ accountId, phone })}`),
     );
@@ -310,19 +230,6 @@ export const whatsappApi = {
   updateConversationStatus: async (
     payload: UpdateStatusPayload,
   ): Promise<ApiResult<StatusRecordData>> => {
-    if (USE_MOCK) {
-      const record: StatusRecordData = {
-        id: `sr_${Date.now()}`,
-        accountId: payload.accountId,
-        phone: payload.phone,
-        status: payload.status,
-        priorityLevel: payload.priorityLevel ?? (payload.status === 'priority' ? 1 : 0),
-        assignedTo: payload.assignedTo ?? null,
-        updatedAt: new Date().toISOString(),
-      };
-      mockStatusStore.set(mockKey(payload.accountId, payload.phone), record);
-      return ok(record);
-    }
     const result = await safeApi(() =>
       apiPost<Record<string, unknown>>('/api/whatsapp/conversation-status', payload),
     );
@@ -333,51 +240,22 @@ export const whatsappApi = {
   bindMemberPhone: async (
     payload: BindMemberPhonePayload,
   ): Promise<ApiResult<BindResult>> => {
-    if (USE_MOCK) {
-      const member = mockFindMember(payload.phone);
-      return ok({ bound: true, member });
-    }
     return safeApi(() => apiPost<BindResult>('/api/whatsapp/bind-member-phone', payload));
   },
 
   unbindMemberPhone: async (
     payload: UnbindPayload,
   ): Promise<ApiResult<{ unbound: boolean }>> => {
-    if (USE_MOCK) return ok({ unbound: true });
     return safeApi(() => apiPost<{ unbound: boolean }>('/api/whatsapp/unbind-member-phone', payload));
   },
 
   searchMembers: async (
     keyword: string,
   ): Promise<ApiResult<MemberData[]>> => {
-    if (USE_MOCK) {
-      const lower = keyword.toLowerCase();
-      const results = MOCK_MEMBERS.filter(m =>
-        m.name.toLowerCase().includes(lower) ||
-        m.memberCode.includes(keyword) ||
-        m.phone.includes(keyword),
-      );
-      return ok(results);
-    }
     return safeApi(() => apiGet<MemberData[]>(`/api/whatsapp/search-members${qs({ keyword })}`));
   },
 
   addNote: async (payload: AddNotePayload): Promise<ApiResult<NoteData>> => {
-    if (USE_MOCK) {
-      const note: NoteData = {
-        id: `note_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        accountId: payload.accountId,
-        phone: payload.phone,
-        note: payload.note,
-        createdBy: '当前操作员',
-        createdByName: '当前操作员',
-        createdAt: new Date().toISOString(),
-      };
-      const k = mockKey(payload.accountId, payload.phone);
-      const existing = mockNoteStore.get(k) ?? [];
-      mockNoteStore.set(k, [note, ...existing]);
-      return ok(note);
-    }
     const result = await safeApi(() =>
       apiPost<Record<string, unknown>>('/api/whatsapp/notes', payload),
     );
@@ -389,9 +267,6 @@ export const whatsappApi = {
     accountId: string,
     phone: string,
   ): Promise<ApiResult<NoteData[]>> => {
-    if (USE_MOCK) {
-      return ok(mockNoteStore.get(mockKey(accountId, phone)) ?? []);
-    }
     const result = await safeApi(() =>
       apiGet<Record<string, unknown>[]>(`/api/whatsapp/notes${qs({ accountId, phone })}`),
     );

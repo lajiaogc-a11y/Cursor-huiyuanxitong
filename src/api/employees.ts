@@ -94,7 +94,7 @@ export async function getEmployeeNameHistoryApi(employeeId: string): Promise<Arr
 }>> {
   const res = await apiClient.get<unknown>(`/api/employees/${encodeURIComponent(employeeId)}/name-history`);
   const raw = res as Record<string, unknown>;
-  return Array.isArray(raw) ? raw as any[] : ((raw.data as any[]) ?? []);
+  return Array.isArray(raw) ? raw as Record<string, unknown>[] : ((raw.data as Record<string, unknown>[]) ?? []);
 }
 
 export async function deleteEmployeeApi(employeeId: string): Promise<boolean> {
@@ -131,5 +131,5 @@ export async function listActiveVisibleEmployeesApi(params?: ListEmployeesParams
   if (params?.tenant_id) q.set('tenant_id', params.tenant_id);
   const res = await apiClient.get<unknown>(`/api/employees/active-visible${q.toString() ? `?${q.toString()}` : ''}`);
   const raw = res as Record<string, unknown>;
-  return Array.isArray(raw) ? raw as any[] : ((raw.data as Array<{ id: string; real_name: string }>) ?? []);
+  return Array.isArray(raw) ? raw as Array<{ id: string; real_name: string }> : ((raw.data as Array<{ id: string; real_name: string }>) ?? []);
 }

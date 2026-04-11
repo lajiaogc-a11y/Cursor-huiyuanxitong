@@ -74,7 +74,7 @@ let _rates: UsdtLiveRates = { ...DEFAULT_RATES };
 let _config: UsdtLiveRateConfig = { ...DEFAULT_CONFIG };
 let _lastFetchTime = 0;
 let _fetching = false;
-let _timerId: ReturnType<typeof setInterval> | null = null;
+let _timerId: ReturnType<typeof setTimeout> | ReturnType<typeof setInterval> | null = null;
 let _initDone = false;
 let _initPromise: Promise<void> | null = null;
 const _listeners = new Set<() => void>();
@@ -106,10 +106,10 @@ async function _doFetch(force: boolean, opts?: { silent?: boolean }) {
   bumpUsdtRatesSnapshot();
 
   try {
-    const data = (await fetchUsdtRatesViaApi({
+    const data = await fetchUsdtRatesViaApi({
       lastConfirmedMid: _config.lastConfirmedMid,
       anomalyThresholdPercent: _config.anomalyThresholdPercent,
-    })) as any;
+    });
 
     if (data.success !== false && (data.mid > 0 || data.data?.mid > 0)) {
       const d = data.data || data;
@@ -127,18 +127,18 @@ async function _doFetch(force: boolean, opts?: { silent?: boolean }) {
 
       if (d.anomaly) {
         _config = { ..._config, paused: true, pauseReason: d.anomalyMessage || _tGlobal('价格变动超过阈值', 'Price change exceeds threshold') };
-        saveSharedData('usdtLiveRateConfig' as any, _config);
+        saveSharedData('usdtLiveRateConfig', _config);
         notify.warning(_tGlobal('USDT汇率异常波动，已暂停自动更新', 'USDT rate fluctuation detected, auto-update paused'));
         _stopTimer();
       }
 
       _rates = newRates;
       _lastFetchTime = Date.now();
-      saveSharedData('usdtLiveRates' as any, newRates);
+      saveSharedData('usdtLiveRates', newRates);
 
       if (!d.anomaly && !_config.paused) {
         _config = { ..._config, lastConfirmedMid: d.mid };
-        saveSharedData('usdtLiveRateConfig' as any, _config);
+        saveSharedData('usdtLiveRateConfig', _config);
       }
 
       // 定时自动采集不弹成功 Toast，避免「一直在弹」的干扰；手动刷新仍提示
@@ -172,14 +172,14 @@ function _startTimer() {
     _timerId = setTimeout(() => {
       _doFetch(true, { silent: true });
       _timerId = setInterval(() => _doFetch(true, { silent: true }), intervalMs);
-    }, remaining) as any;
+    }, remaining);
   }
 }
 
 function _stopTimer() {
   if (_timerId !== null) {
     clearInterval(_timerId);
-    clearTimeout(_timerId as any);
+    clearTimeout(_timerId);
     _timerId = null;
   }
 }
@@ -191,15 +191,15 @@ async function _ensureInit() {
   _initPromise = (async () => {
     try {
       const [savedConfig, savedRates] = await Promise.all([
-        loadSharedData<UsdtLiveRateConfig>('usdtLiveRateConfig' as any),
-        loadSharedData<UsdtLiveRates>('usdtLiveRates' as any),
+        loadSharedData<UsdtLiveRateConfig>('usdtLiveRateConfig'),
+        loadSharedData<UsdtLiveRates>('usdtLiveRates'),
       ]);
       if (savedConfig) {
         _config = { ...DEFAULT_CONFIG, ...savedConfig };
         const raw = _config.intervalSeconds;
         _config.intervalSeconds = clampIntervalSec(_config.intervalSeconds);
         if (raw !== _config.intervalSeconds) {
-          saveSharedData('usdtLiveRateConfig' as any, _config).catch(() => { /* config correction save is best-effort */ });
+          saveSharedData('usdtLiveRateConfig', _config).catch(() => { /* config correction save is best-effort */ });
         }
       }
       if (savedRates && savedRates.mid > 0) {
@@ -231,10 +231,10 @@ export async function globalUpdateConfig(partial: Partial<UsdtLiveRateConfig>) {
     _config.intervalSeconds = clampIntervalSec(partial.intervalSeconds);
   }
   bumpUsdtRatesSnapshot();
-  const ok = await saveSharedData('usdtLiveRateConfig' as any, _config);
+  const ok = await saveSharedData('usdtLiveRateConfig', _config);
   if (!ok) {
     await new Promise(r => setTimeout(r, 600));
-    await saveSharedData('usdtLiveRateConfig' as any, _config);
+    await saveSharedData('usdtLiveRateConfig', _config);
   }
   _startTimer();
 }

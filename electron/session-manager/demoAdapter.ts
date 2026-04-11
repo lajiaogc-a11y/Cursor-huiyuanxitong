@@ -15,6 +15,7 @@ import type {
   AdapterMessage,
   AdapterStats,
   AdapterSendPayload,
+  AdapterHealthInfo,
 } from './adapterInterface.js';
 
 // ── 演示账号快照 ──
@@ -232,6 +233,11 @@ export function createDemoAdapter(): IWhatsAppAdapter {
       const idx = sessions.findIndex(s => s.id === sessionId);
       if (idx !== -1) sessions.splice(idx, 1);
       delete conversations[sessionId];
+    },
+
+    getHealthInfo(): AdapterHealthInfo {
+      const connected = sessions.filter(s => s.isConnected).length;
+      return { sessionsTotal: sessions.length, sessionsConnected: connected, workersRunning: 0 };
     },
 
     async destroy() {

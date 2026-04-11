@@ -137,16 +137,25 @@ export async function listNotes(
 // ══════════════════════════════════════
 
 /**
- * 精确匹配：phone_number 完全等于 phone 或 digits
+ * 精确匹配：phone_number 完全等于 phone / digits / +digits / 0digits
+ * 覆盖生产环境中 phone_number 字段格式不统一的场景
  */
 export async function findMembersByPhoneExact(
   phone: string, tenantId: string | null, limit = 5,
 ): Promise<Record<string, unknown>[]> {
   const digits = phone.replace(/\D/g, '');
+  const withPlus = phone.startsWith('+') ? phone : `+${digits}`;
+  const withZero = digits.length >= 10 ? `0${digits.slice(-10)}` : null;
   const { sql: t, args: tA } = buildTenantClause(tenantId);
+  const conditions = ['phone_number = ?', 'phone_number = ?', 'phone_number = ?'];
+  const args: unknown[] = [phone, digits, withPlus];
+  if (withZero) {
+    conditions.push('phone_number = ?');
+    args.push(withZero);
+  }
   return query<Record<string, unknown>>(
-    `SELECT * FROM members WHERE (phone_number = ? OR phone_number = ?) ${t} LIMIT ?`,
-    [phone, digits, ...tA, limit],
+    `SELECT * FROM members WHERE (${conditions.join(' OR ')}) ${t} LIMIT ?`,
+    [...args, ...tA, limit],
   );
 }
 

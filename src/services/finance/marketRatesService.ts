@@ -6,11 +6,33 @@ import { financeApi } from "@/api/finance";
 import { EXTERNAL_API } from "@/config/externalApis";
 import { externalGet, internalAuthGet } from "@/lib/externalHttpClient";
 
+export interface RateSourceDto {
+  name: string;
+  buy: number;
+  sell: number;
+  mid: number;
+}
+
+export interface UsdtRatesApiResponse {
+  success: boolean;
+  error?: string;
+  sources: RateSourceDto[];
+  mid: number;
+  avgBuy: number;
+  avgSell: number;
+  anomaly: boolean;
+  anomalyMessage: string;
+  binanceAvailable: boolean;
+  okxAvailable: boolean;
+  fetchedAt: string;
+  data?: UsdtRatesApiResponse;
+}
+
 export async function fetchUsdtRatesViaApi(body: {
   lastConfirmedMid?: number;
   anomalyThresholdPercent?: number;
-}): Promise<unknown> {
-  return financeApi.fetchUsdtRates(body);
+}): Promise<UsdtRatesApiResponse> {
+  return financeApi.fetchUsdtRates(body) as Promise<UsdtRatesApiResponse>;
 }
 
 export type FetchBtcPriceApiResult = { success: boolean; price?: number; source?: string };

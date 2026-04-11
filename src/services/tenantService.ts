@@ -453,7 +453,7 @@ export async function getTenantOrders(
     limit,
     offset,
   }).catch(() => [] as unknown[]);
-  return (data || []) as any[];
+  return (data || []) as Record<string, unknown>[];
 }
 
 export async function getTenantMembers(
@@ -472,7 +472,7 @@ export async function getTenantMembers(
     limit,
     offset,
   }).catch(() => [] as unknown[]);
-  return (data || []) as any[];
+  return (data || []) as Record<string, unknown>[];
 }
 
 export async function setTenantSuperAdmin(employeeId: string): Promise<{ success: boolean; errorCode?: string }> {

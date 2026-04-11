@@ -1,5 +1,5 @@
 /**
- * Tenant shared types
+ * Tenant shared types — 与后端 controller 的 body 字段严格对齐
  */
 
 export interface Tenant {
@@ -12,13 +12,15 @@ export interface Tenant {
 }
 
 export interface CreateTenantBody {
-  name: string;
-  admin_username: string;
-  admin_password: string;
-  admin_real_name: string;
+  tenantCode: string;
+  tenantName: string;
+  adminUsername: string;
+  adminRealName: string;
+  adminPassword: string;
 }
 
 export interface UpdateTenantBody {
-  name?: string;
-  status?: 'active' | 'disabled';
+  tenantCode?: string;
+  tenantName?: string;
+  status?: string;
 }

@@ -1,18 +1,15 @@
 /**
  * 本地会话桥接 Service
  *
- * Step 9 — 委派到 API Client（localWhatsappBridge）
- *
  * 职责：
  *   - 为页面层提供稳定的方法签名（getSessions / getConversations / …）
  *   - 调用 API Client（localWhatsappBridge）获取数据
- *   - API Client 内部自动检测 companion 是否在线：
- *       在线 → 真实 HTTP 请求 localhost:3100
- *       离线 → 内存 mock fallback
+ *   - companion 离线时抛出 CompanionOfflineError，由页面层展示
  *   - 在本层添加排序等纯业务逻辑
- * 规则：
+ *
+ * P0 规则：
+ *   - 不存在 mock fallback，companion 离线 = 抛错
  *   - 不直接发后端请求，不操作 DOM
- *   - 上层页面只消费本模块导出，无需关心数据来源
  */
 
 import type { ConversationStatus } from './conversationStatusService';
@@ -24,9 +21,10 @@ import {
   type WaMessage as BridgeMessage,
   type SendPayload as BridgeSendPayload,
   type AccountStats as BridgeAccountStats,
+  type BridgeResult,
 } from '@/api/localWhatsappBridge';
 
-// ── 类型（与 API Client 保持兼容，页面层通过本模块导入） ──
+// ── 类型 ──
 
 export interface WaSession {
   id: string;
@@ -69,7 +67,34 @@ export interface AccountStats {
   priorityCount: number;
 }
 
-// ── 内部工具：BridgeResult → 业务类型 ──
+// ── 自定义错误 ──
+
+export class CompanionOfflineError extends Error {
+  code = 'COMPANION_OFFLINE';
+  constructor(message?: string) {
+    super(message ?? '本地 WhatsApp Companion 未运行');
+    this.name = 'CompanionOfflineError';
+  }
+}
+
+export class BridgeError extends Error {
+  code: string;
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = 'BridgeError';
+    this.code = code;
+  }
+}
+
+// ── 内部工具 ──
+
+function unwrap<T>(result: BridgeResult<T>): T {
+  if (result.success) return result.data;
+  if (result.error.code === 'COMPANION_OFFLINE') {
+    throw new CompanionOfflineError(result.error.message);
+  }
+  throw new BridgeError(result.error.code, result.error.message);
+}
 
 function unwrapSessions(data: BridgeSession[]): WaSession[] {
   return data.map(s => ({
@@ -107,18 +132,14 @@ function unwrapStats(data: BridgeAccountStats): AccountStats {
   return { ...data };
 }
 
-// ── 公开 API（方法签名与 Phase 2 完全一致，页面层零改动） ──
+// ── 公开 API ──
 
 export async function getSessions(): Promise<WaSession[]> {
-  const result = await localWhatsappBridge.getSessions();
-  if (!result.success) return [];
-  return unwrapSessions(result.data);
+  return unwrapSessions(unwrap(await localWhatsappBridge.getSessions()));
 }
 
 export async function getConversations(accountId: string): Promise<WaConversation[]> {
-  const result = await localWhatsappBridge.getConversations(accountId);
-  if (!result.success) return [];
-  const list = unwrapConversations(result.data);
+  const list = unwrapConversations(unwrap(await localWhatsappBridge.getConversations(accountId)));
   return list.sort((a, b) => {
     const w = statusSortWeight(a.status) - statusSortWeight(b.status);
     if (w !== 0) return w;
@@ -127,95 +148,95 @@ export async function getConversations(accountId: string): Promise<WaConversatio
 }
 
 export async function getMessages(accountId: string, phone: string): Promise<WaMessage[]> {
-  const result = await localWhatsappBridge.getMessages(accountId, phone);
-  if (!result.success) return [];
-  return unwrapMessages(result.data);
+  return unwrapMessages(unwrap(await localWhatsappBridge.getMessages(accountId, phone)));
 }
 
 export async function sendMessage(payload: SendPayload): Promise<WaMessage> {
-  const result = await localWhatsappBridge.sendMessage(payload);
-  if (!result.success) throw new Error(result.error.message);
+  const m = unwrap(await localWhatsappBridge.sendMessage(payload));
   return {
-    id: result.data.id,
-    fromMe: result.data.fromMe,
-    body: result.data.body,
-    timestamp: result.data.timestamp,
-    status: result.data.status,
+    id: m.id,
+    fromMe: m.fromMe,
+    body: m.body,
+    timestamp: m.timestamp,
+    status: m.status,
   };
 }
 
-/** 标记会话为已读（bridge 会把 unread → read_no_reply） */
 export async function markAsRead(accountId: string, phone: string): Promise<void> {
-  await localWhatsappBridge.markAsRead(accountId, phone);
+  unwrap(await localWhatsappBridge.markAsRead(accountId, phone));
 }
 
-/** 同步更新会话列表中的状态 */
 export async function updateConversationStatus(
   accountId: string, phone: string, status: ConversationStatus,
 ): Promise<void> {
-  await localWhatsappBridge.updateConversationStatus(accountId, phone, status);
+  unwrap(await localWhatsappBridge.updateConversationStatus(accountId, phone, status));
 }
 
-/** 获取指定账号的会话统计 */
 export async function getAccountStats(accountId: string): Promise<AccountStats> {
-  const result = await localWhatsappBridge.getAccountStats(accountId);
-  if (!result.success) return { totalConversations: 0, unreadCount: 0, readNoReplyCount: 0, followUpCount: 0, priorityCount: 0 };
-  return unwrapStats(result.data);
+  return unwrapStats(unwrap(await localWhatsappBridge.getAccountStats(accountId)));
 }
 
 /**
- * 检测 Companion 是否在线（localhost:3100）
+ * 检测 Companion 是否在线 + 模式 + worker 信息
  */
-export async function checkCompanionOnline(): Promise<boolean> {
+export async function checkCompanionHealth(): Promise<{
+  online: boolean;
+  mode?: string;
+  isDemo?: boolean;
+  sessionsConnected?: number;
+  workersRunning?: number;
+}> {
   try {
-    const res = await fetch('http://localhost:3100/health', { signal: AbortSignal.timeout(3000) });
-    return res.ok;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3000);
+    const res = await fetch('http://localhost:3100/health', { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return { online: false };
+    const json = await res.json() as {
+      success: boolean;
+      data: {
+        mode?: string;
+        isDemo?: boolean;
+        sessionsConnected?: number;
+        workersRunning?: number;
+      };
+    };
+    if (json.success) {
+      return {
+        online: true,
+        mode: json.data.mode,
+        isDemo: json.data.isDemo,
+        sessionsConnected: json.data.sessionsConnected,
+        workersRunning: json.data.workersRunning,
+      };
+    }
+    return { online: true };
   } catch {
-    return false;
+    return { online: false };
   }
 }
 
-/**
- * 添加新 WhatsApp 账号（触发 QR 扫码流程）
- * companion 离线时返回 null（不生成假数据）
- */
 export async function addSession(
   displayName: string,
   proxyUrl?: string,
-): Promise<{ sessionId: string } | null> {
-  const result = await localWhatsappBridge.addSession(displayName, proxyUrl);
-  if (!result.success) {
-    console.error('[BridgeService] addSession failed:', result.error.message);
-    return null;
-  }
-  return result.data;
+): Promise<{ sessionId: string }> {
+  return unwrap(await localWhatsappBridge.addSession(displayName, proxyUrl));
 }
 
-/**
- * 查询扫码状态（轮询用）
- * companion 离线时返回 null（不生成假二维码）
- */
 export async function getSessionQr(
   sessionId: string,
-): Promise<{ state: string; qrDataUrl: string | null } | null> {
-  const result = await localWhatsappBridge.getSessionQr(sessionId);
-  if (!result.success) return null;
-  return result.data;
+): Promise<{ state: string; qrDataUrl: string | null }> {
+  return unwrap(await localWhatsappBridge.getSessionQr(sessionId));
 }
 
-/**
- * 删除账号（断开并从列表移除）
- */
 export async function deleteSession(sessionId: string): Promise<void> {
-  await localWhatsappBridge.deleteSession(sessionId);
+  unwrap(await localWhatsappBridge.deleteSession(sessionId));
 }
 
-/** 获取所有账号的聚合统计（用于账号列表 badge） */
 export async function getAllAccountStats(): Promise<Record<string, AccountStats>> {
-  const sessResult = await localWhatsappBridge.getSessions();
-  if (!sessResult.success) return {};
+  const sessions = unwrap(await localWhatsappBridge.getSessions());
   const result: Record<string, AccountStats> = {};
-  for (const s of sessResult.data) {
+  for (const s of sessions) {
     const statResult = await localWhatsappBridge.getAccountStats(s.accountId);
     if (statResult.success) result[s.accountId] = unwrapStats(statResult.data);
   }

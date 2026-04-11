@@ -1045,7 +1045,7 @@ export async function addPostResetAdjustment(
     await createLedgerEntry({
       accountType: merchantType === 'card_vendor' ? 'card_vendor' : 'payment_provider',
       accountId: merchantName,
-      sourceType: 'post_reset_adjustment' as any,
+      sourceType: 'post_reset_adjustment',
       sourceId: `pra_${merchantName}_${Date.now()}`,
       amount: delta,
       note: pickBilingual(`重置后调整: ${delta > 0 ? '+' : ''}¥${delta.toFixed(2)}`, `Post-reset adjustment: ${delta > 0 ? '+' : ''}¥${delta.toFixed(2)}`),

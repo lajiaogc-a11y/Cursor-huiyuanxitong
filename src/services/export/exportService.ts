@@ -34,24 +34,24 @@ async function getMemberExportData(options?: ExportOrdersOptions): Promise<any[]
   const members = membersData || [];
   if (members.length === 0) return [];
 
-  const sources: any[] = (await customerSourcesApi.list().catch((err) => { console.warn('[exportService] customer sources fetch failed silently:', err); return []; })) as any[];
+  const sources = (await customerSourcesApi.list().catch((err) => { console.warn('[exportService] customer sources fetch failed silently:', err); return []; })) as Record<string, unknown>[];
   const sourceMap: Record<string, string> = {};
-  (sources || []).forEach((s: any) => { sourceMap[s.id] = s.name; });
+  (sources || []).forEach((s) => { sourceMap[String(s.id)] = String(s.name ?? ''); });
 
-  const employees: any[] = await listEmployeesApi().catch((err) => { console.warn('[exportService] employee list fetch failed silently:', err); return []; });
+  const employees = await listEmployeesApi().catch((err) => { console.warn('[exportService] employee list fetch failed silently:', err); return []; }) as Record<string, unknown>[];
   const employeeMap: Record<string, string> = {};
-  (employees || []).forEach((e: any) => { employeeMap[e.id] = e.real_name; });
+  (employees || []).forEach((e) => { employeeMap[String(e.id)] = String(e.real_name ?? ''); });
 
-  const referrals: any[] = (await listReferralsApi(tenantId ?? undefined).catch((err) => {
+  const referrals = (await listReferralsApi(tenantId ?? undefined).catch((err) => {
     console.warn('[exportService] referrals fetch failed silently:', err);
     return [];
-  })) as any[];
+  })) as Record<string, unknown>[];
   const referralByReferee: Record<string, { phone: string; code: string }> = {};
-  (referrals || []).forEach((r: any) => {
+  (referrals || []).forEach((r) => {
     if (r?.referee_phone) {
-      referralByReferee[r.referee_phone] = {
-        phone: r.referrer_phone || '',
-        code: r.referrer_member_code || '',
+      referralByReferee[String(r.referee_phone)] = {
+        phone: String(r.referrer_phone ?? ''),
+        code: String(r.referrer_member_code ?? ''),
       };
     }
   });
@@ -201,7 +201,7 @@ export async function exportTable(
         headers,
         ...data.map(row =>
           tableConfig.columns.map(col => {
-            const value = (row as any)[col.key];
+            const value = (row as Record<string, unknown>)[col.key];
             if (typeof value === 'object' && value !== null) {
               return JSON.stringify(value);
             }
@@ -221,7 +221,7 @@ export async function exportTable(
     } else {
       const csvHeaders = headers.map(h => escapeCSVField(h));
       const rows = data.map(row =>
-        tableConfig.columns.map(col => escapeCSVField((row as any)[col.key]))
+        tableConfig.columns.map(col => escapeCSVField((row as Record<string, unknown>)[col.key]))
       );
 
       const BOM = '\uFEFF';
@@ -276,7 +276,7 @@ export async function exportAllTables(
         );
 
         const rows = data.map(row =>
-          tableConfig.columns.map(col => escapeCSVField((row as any)[col.key]))
+          tableConfig.columns.map(col => escapeCSVField((row as Record<string, unknown>)[col.key]))
         );
 
         const BOM = '\uFEFF';

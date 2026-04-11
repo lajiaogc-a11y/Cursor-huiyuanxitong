@@ -120,6 +120,7 @@ export function AddAccountDialog({ open, onClose, onConnected }: Props) {
               companionOnline={companionOnline}
               onStart={handleStart}
               onRetry={handleRetry}
+              onCancel={handleClose}
             />
           )}
 
@@ -211,6 +212,7 @@ function InputPanel({
   companionOnline,
   onStart,
   onRetry,
+  onCancel,
 }: {
   state: LoginState;
   displayName: string;
@@ -223,6 +225,7 @@ function InputPanel({
   companionOnline: boolean | null;
   onStart: () => void;
   onRetry: () => void;
+  onCancel: () => void;
 }) {
   const isError = state === 'error' || state === 'expired';
   const isCompanionOff = state === 'companion_offline';
@@ -343,7 +346,7 @@ function InputPanel({
         </button>
         {(isError || isCompanionOff) && (
           <button
-            onClick={() => { /* 回到 idle 重填信息 */ }}
+            onClick={onCancel}
             className="px-4 py-2.5 rounded-xl text-sm border hover:bg-muted transition-colors"
           >
             取消

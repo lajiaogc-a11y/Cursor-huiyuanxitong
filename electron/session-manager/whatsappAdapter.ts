@@ -24,6 +24,7 @@ import type {
   AdapterMessage,
   AdapterStats,
   AdapterSendPayload,
+  AdapterHealthInfo,
 } from './adapterInterface.js';
 
 // ── Worker 消息类型 ──
@@ -67,11 +68,29 @@ export class WhatsAppAdapter implements IWhatsAppAdapter {
   }
 
   static async create(dataPath = './.wa_sessions'): Promise<WhatsAppAdapter> {
-    await import('@whiskeysockets/baileys');
-    await import('qrcode');
-    if (!existsSync(WORKER_PATH)) {
-      throw new Error(`Worker script not found: ${WORKER_PATH}`);
+    console.log('[WhatsAppAdapter] Verifying dependencies...');
+
+    try {
+      await import('@whiskeysockets/baileys');
+      console.log('[WhatsAppAdapter] ✓ @whiskeysockets/baileys loaded');
+    } catch (e: unknown) {
+      throw new Error(`@whiskeysockets/baileys not installed: ${e instanceof Error ? e.message : e}`);
     }
+
+    try {
+      await import('qrcode');
+      console.log('[WhatsAppAdapter] ✓ qrcode loaded');
+    } catch (e: unknown) {
+      throw new Error(`qrcode not installed: ${e instanceof Error ? e.message : e}`);
+    }
+
+    if (!existsSync(WORKER_PATH)) {
+      throw new Error(`Worker script not found at: ${WORKER_PATH}`);
+    }
+    console.log(`[WhatsAppAdapter] ✓ Worker script found: ${WORKER_PATH}`);
+    console.log(`[WhatsAppAdapter] ✓ Data path: ${dataPath}`);
+    console.log('[WhatsAppAdapter] Adapter ready (real mode)');
+
     return new WhatsAppAdapter(dataPath);
   }
 
@@ -117,16 +136,35 @@ export class WhatsAppAdapter implements IWhatsAppAdapter {
 
   private spawnWorker(entry: SessionEntry) {
     const { id: sessionId } = entry;
+    const sid = sessionId.slice(0, 8);
 
-    const worker = new Worker(WORKER_PATH, {
-      workerData: { sessionId, displayName: entry.displayName, dataPath: this.dataPath, proxyUrl: entry.proxyUrl },
-    });
+    console.log(`[WhatsApp] Spawning worker for ${sid} (path: ${WORKER_PATH})`);
+
+    let worker: Worker;
+    try {
+      worker = new Worker(WORKER_PATH, {
+        workerData: { sessionId, displayName: entry.displayName, dataPath: this.dataPath, proxyUrl: entry.proxyUrl },
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[WhatsApp] Failed to spawn worker for ${sid}: ${msg}`);
+      entry.state = 'error';
+      entry.errorMessage = `Worker spawn failed: ${msg}`;
+      return;
+    }
+
     entry.worker = worker;
+    console.log(`[WhatsApp] Worker spawned for ${sid} (threadId: ${worker.threadId})`);
+
+    worker.on('online', () => {
+      console.log(`[WhatsApp] Worker online for ${sid} (threadId: ${worker.threadId})`);
+    });
 
     worker.on('message', (msg: WorkerMsg) => this.handleWorkerMessage(entry, msg));
 
     worker.on('error', (err) => {
-      console.error(`[WhatsApp] Worker error ${sessionId.slice(0, 8)}:`, err.message);
+      console.error(`[WhatsApp] Worker error ${sid}: ${err.message}`);
+      console.error(`[WhatsApp] Worker error stack: ${err.stack ?? 'N/A'}`);
       if (entry.state !== 'destroyed') {
         entry.state = 'error';
         entry.errorMessage = err.message;
@@ -134,12 +172,12 @@ export class WhatsAppAdapter implements IWhatsAppAdapter {
     });
 
     worker.on('exit', (code) => {
+      console.log(`[WhatsApp] Worker exited for ${sid} (code: ${code}, state: ${entry.state})`);
       if (entry.state === 'destroyed') return;
 
-      // 已连接但 worker 意外退出 → 自动重启
       if (entry.state === 'connected' && entry.restartCount < MAX_RESTART) {
         entry.restartCount++;
-        console.warn(`[WhatsApp] ${sessionId.slice(0, 8)} worker crashed (exit ${code}), restarting (${entry.restartCount}/${MAX_RESTART})...`);
+        console.warn(`[WhatsApp] ${sid} worker crashed (exit ${code}), restarting (${entry.restartCount}/${MAX_RESTART})...`);
         entry.state = 'disconnected';
         entry.worker = null;
         setTimeout(() => {
@@ -151,6 +189,7 @@ export class WhatsAppAdapter implements IWhatsAppAdapter {
       if (code !== 0 && entry.state !== 'connected') {
         entry.state = 'error';
         entry.errorMessage = `Worker exited with code ${code}`;
+        console.error(`[WhatsApp] ${sid} worker failed (exit ${code}) — no more retries`);
       }
     });
   }
@@ -403,6 +442,21 @@ export class WhatsAppAdapter implements IWhatsAppAdapter {
     const entry = this.sessions.get(accountId);
     if (!entry) return { totalConversations: 0, unreadCount: 0, readNoReplyCount: 0, followUpCount: 0, priorityCount: 0 };
     return entry.store.getStats();
+  }
+
+  // ── 健康状态 ──
+
+  getHealthInfo(): AdapterHealthInfo {
+    let sessionsTotal = 0;
+    let sessionsConnected = 0;
+    let workersRunning = 0;
+    for (const entry of this.sessions.values()) {
+      if (entry.state === 'destroyed') continue;
+      sessionsTotal++;
+      if (entry.state === 'connected') sessionsConnected++;
+      if (entry.worker !== null) workersRunning++;
+    }
+    return { sessionsTotal, sessionsConnected, workersRunning };
   }
 
   // ── 清理 ──

@@ -1,5 +1,6 @@
 /**
- * Tenants API Service - 通过 Backend API 获取租户列表
+ * Tenants API Service - 通过 Backend API 管理租户
+ * 字段与后端 controller camelCase 严格对齐
  */
 import { tenantsApi } from '@/api/tenants';
 import { unwrapApiData } from '@/api/client';
@@ -36,8 +37,14 @@ export async function createTenantApi(params: {
   authSyncSuccess?: boolean;
   authSyncMessage?: string;
 }> {
-  const res = await tenantsApi.create(params as any);
-  return unwrapApiData<any>(res) ?? {};
+  const res = await tenantsApi.create({
+    tenantCode: params.tenantCode,
+    tenantName: params.tenantName,
+    adminUsername: params.adminUsername,
+    adminRealName: params.adminRealName,
+    adminPassword: params.adminPassword,
+  });
+  return unwrapApiData<Record<string, unknown>>(res) ?? {};
 }
 
 export async function updateTenantApi(tenantId: string, params: {
@@ -45,7 +52,11 @@ export async function updateTenantApi(tenantId: string, params: {
   tenantName: string;
   status: string;
 }): Promise<void> {
-  await tenantsApi.update(tenantId, params as any);
+  await tenantsApi.update(tenantId, {
+    tenantCode: params.tenantCode,
+    tenantName: params.tenantName,
+    status: params.status,
+  });
 }
 
 export async function resetTenantAdminPasswordApi(tenantId: string, params: {
@@ -58,8 +69,10 @@ export async function resetTenantAdminPasswordApi(tenantId: string, params: {
   authSyncSuccess?: boolean;
   authSyncMessage?: string;
 }> {
-  const res = await tenantsApi.resetAdminPassword(tenantId, params as any);
-  return unwrapApiData<any>(res) ?? {};
+  const res = await tenantsApi.resetAdminPassword(tenantId, {
+    newPassword: params.newPassword,
+  });
+  return unwrapApiData<Record<string, unknown>>(res) ?? {};
 }
 
 export async function deleteTenantApi(tenantId: string, params: {
@@ -71,5 +84,5 @@ export async function deleteTenantApi(tenantId: string, params: {
 }
 
 export async function setTenantSuperAdminApi(employeeId: string): Promise<void> {
-  await tenantsApi.setSuperAdmin({ tenant_id: '', user_id: employeeId });
+  await tenantsApi.setSuperAdmin({ employeeId });
 }

@@ -1,15 +1,16 @@
 /**
  * WhatsApp Companion 入口
  *
- * 启动策略：
- *   1. 默认尝试加载真实 WhatsApp 适配器（@whiskeysockets/baileys）
- *   2. 若 baileys 未安装，自动 fallback 到 DemoAdapter
- *   3. 设置 USE_DEMO=1 可强制使用 DemoAdapter
+ * 模式选择（P0 — 明确模式，禁止隐式 fallback）：
+ *
+ *   USE_DEMO=1  → 强制 DemoAdapter（仅开发/测试用）
+ *   其他情况    → 加载 WhatsAppAdapter（真实 Baileys）
+ *                 失败时**直接报错退出**，不回退 DemoAdapter
  *
  * 用法：
  *   cd electron
  *   npm install
- *   npx tsx start.ts              # 自动检测模式
+ *   npx tsx start.ts              # 真实模式（baileys 必须已安装）
  *   USE_DEMO=1 npx tsx start.ts   # 强制演示模式
  */
 
@@ -17,41 +18,55 @@ import { startLocalApi, DEFAULT_PORT, DEFAULT_HOST } from './local-api/index.js'
 import type { IWhatsAppAdapter } from './session-manager/adapterInterface.js';
 
 async function createAdapter(): Promise<{ adapter: IWhatsAppAdapter; mode: string }> {
-  // 强制演示模式
+  // ── 仅当显式设置 USE_DEMO=1 时才加载 DemoAdapter ──
   if (process.env.USE_DEMO === '1') {
+    console.warn('[Companion] ⚠ USE_DEMO=1 — 强制演示模式，数据非真实');
     const { createDemoAdapter } = await import('./session-manager/demoAdapter.js');
-    return { adapter: createDemoAdapter(), mode: 'Demo (mock)' };
+    return { adapter: createDemoAdapter(), mode: 'Demo (explicit)' };
   }
 
-  // 默认尝试真实模式
-  try {
-    const { WhatsAppAdapter } = await import('./session-manager/whatsappAdapter.js');
-    const adapter = await WhatsAppAdapter.create('./.wa_sessions');
-    return { adapter, mode: 'Baileys (real)' };
-  } catch (err: unknown) {
-    const reason = err instanceof Error ? err.message : String(err);
-    console.warn(`[Companion] Real adapter unavailable: ${reason.slice(0, 120)}`);
-    console.warn('[Companion] Falling back to Demo mode. Install baileys: npm install @whiskeysockets/baileys qrcode');
-  }
-
-  const { createDemoAdapter } = await import('./session-manager/demoAdapter.js');
-  return { adapter: createDemoAdapter(), mode: 'Demo (fallback)' };
+  // ── 真实模式 — 不允许 fallback ──
+  const { WhatsAppAdapter } = await import('./session-manager/whatsappAdapter.js');
+  const adapter = await WhatsAppAdapter.create('./.wa_sessions');
+  return { adapter, mode: 'Baileys (real)' };
 }
 
 async function main() {
-  const { adapter, mode } = await createAdapter();
-  const { port, close } = await startLocalApi({ adapter });
+  let adapter: IWhatsAppAdapter;
+  let mode: string;
 
-  const isReal = mode.startsWith('Baileys');
+  try {
+    ({ adapter, mode } = await createAdapter());
+  } catch (err: unknown) {
+    const reason = err instanceof Error ? err.message : String(err);
+    console.error('');
+    console.error('╔═══════════════════════════════════════════════════════════════╗');
+    console.error('║  ❌  WhatsApp Companion 启动失败                              ║');
+    console.error('╠═══════════════════════════════════════════════════════════════╣');
+    console.error(`║  原因: ${reason.slice(0, 55).padEnd(55)}║`);
+    console.error('║                                                             ║');
+    console.error('║  解决方案：                                                   ║');
+    console.error('║    cd electron && npm install                                ║');
+    console.error('║    确保 @whiskeysockets/baileys 和 qrcode 已安装              ║');
+    console.error('║                                                             ║');
+    console.error('║  如需开发/测试，可用演示模式：                                 ║');
+    console.error('║    USE_DEMO=1 npx tsx start.ts                               ║');
+    console.error('╚═══════════════════════════════════════════════════════════════╝');
+    console.error('');
+    process.exit(1);
+  }
+
+  const { port, close } = await startLocalApi({ adapter, adapterMode: mode });
+
+  const isDemo = mode.includes('Demo');
   console.log('');
   console.log('╔═══════════════════════════════════════════════════════════════╗');
   console.log(`║  WhatsApp Companion  [${mode.padEnd(22)}]  http://${DEFAULT_HOST}:${port}  ║`);
   console.log('╠═══════════════════════════════════════════════════════════════╣');
-  if (isReal) {
-    console.log('║  ✅ 真实模式 — Baileys 已就绪，等待前端扫码请求               ║');
+  if (isDemo) {
+    console.log('║  ⚠ 演示模式 — USE_DEMO=1，数据非真实                         ║');
   } else {
-    console.log('║  ⚠️  演示模式 — QR 非真实，30秒后自动模拟连接                 ║');
-    console.log('║  安装真实依赖：npm install @whiskeysockets/baileys qrcode    ║');
+    console.log('║  ✅ 真实模式 — Baileys 已就绪，等待前端扫码请求               ║');
   }
   console.log('║                                                             ║');
   console.log('║  接口：                                                      ║');
@@ -59,6 +74,9 @@ async function main() {
   console.log('║    GET  /sessions/:id/qr    — QR 码 + 状态（轮询）           ║');
   console.log('║    GET  /sessions/:id/status — 登录状态详情                   ║');
   console.log('║    DELETE /sessions/:id      — 取消/移除会话                  ║');
+  console.log('║    GET  /conversations       — 会话列表                      ║');
+  console.log('║    GET  /messages            — 消息列表                      ║');
+  console.log('║    POST /send                — 发送消息                      ║');
   console.log('║    GET  /health              — 健康检查                      ║');
   console.log('║                                                             ║');
   console.log('║  状态: 运行中 ● | 请保持此窗口打开                           ║');
@@ -77,6 +95,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('[Companion] Failed to start:', err);
+  console.error('[Companion] Fatal:', err);
   process.exit(1);
 });

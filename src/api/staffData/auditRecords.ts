@@ -21,7 +21,7 @@ export async function getAuditRecordsApi(params?: {
   const raw = res as Record<string, unknown>;
   const data = raw?.data && typeof raw.data === "object" ? (raw.data as Record<string, unknown>) : raw;
   return {
-    records: Array.isArray(data?.records) ? (data.records as any[]) : [],
+    records: Array.isArray(data?.records) ? (data.records as Record<string, unknown>[]) : [],
     totalCount: Number(data?.totalCount ?? 0) || 0,
   };
 }

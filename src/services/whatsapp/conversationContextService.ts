@@ -8,7 +8,7 @@
  *   - 提供 persistNote 方法持久化备注到后端
  * 规则：
  *   - 本层编排 API Client 调用，页面只消费结果
- *   - API 返回数据优先，本地 mock 仅作 fallback
+ *   - API 返回数据为主数据源
  */
 
 import { whatsappApi, type MemberData, type OrderData, type NoteData } from '@/api/whatsapp';
@@ -63,7 +63,7 @@ function noteDataToLocal(n: NoteData): ConversationNote {
 
 /**
  * 加载指定联系人的完整上下文
- * API 返回数据为主，本地 statusSvc 仅在 API 无数据时 fallback
+ * API 返回数据为主，本地 statusSvc 仅做 optimistic update
  */
 export async function loadConversationContext(
   phone: string,

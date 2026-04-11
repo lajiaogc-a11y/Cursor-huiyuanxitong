@@ -134,11 +134,12 @@ export async function generateCustomerList(params?: {
   });
   const res = (raw && typeof raw === 'object' ? raw : null) as Record<string, unknown> | null;
   if (!res) return empty;
+  const nested = (res.data && typeof res.data === 'object' ? res.data : null) as Record<string, unknown> | null;
   const phones = Array.isArray(res.phones) ? res.phones
-    : Array.isArray((res as any).data?.phones) ? (res as any).data.phones
+    : Array.isArray(nested?.phones) ? nested.phones
     : [];
   const sample = Array.isArray(res.sample) ? res.sample
-    : Array.isArray((res as any).data?.sample) ? (res as any).data.sample
+    : Array.isArray(nested?.sample) ? nested.sample
     : [];
   return {
     count: typeof res.count === 'number' ? res.count : phones.length,
@@ -164,8 +165,9 @@ export async function createCustomerMaintenanceTask(params: {
     distribute: params.distribute,
   });
   const res = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-  const taskId = res.task_id ?? (res as any).data?.task_id;
-  const distributed = res.distributed ?? (res as any).data?.distributed ?? {};
+  const nested = (res.data && typeof res.data === 'object' ? res.data : null) as Record<string, unknown> | null;
+  const taskId = res.task_id ?? nested?.task_id;
+  const distributed = res.distributed ?? nested?.distributed ?? {};
   if (taskId) {
     return { task_id: String(taskId), distributed: distributed as Record<string, number> };
   }
@@ -182,7 +184,8 @@ export async function getMyTaskItems(
   if (!tenantId) return [];
   const raw = await tasksApi.getMyItems({ tenant_id: tenantId, _: String(Date.now()) });
   if (Array.isArray(raw)) return raw;
-  if (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) return (raw as any).data;
+  const wrapped = raw as Record<string, unknown> | null;
+  if (wrapped && Array.isArray(wrapped.data)) return wrapped.data;
   return [];
 }
 
@@ -274,7 +277,8 @@ export async function getMaintenanceHistory(_params: {
 export async function getOpenTasks(tenantId: string): Promise<{ id: string; title: string; created_at: string; total_items: number }[]> {
   const raw = await tasksApi.getOpen({ tenant_id: tenantId });
   if (Array.isArray(raw)) return raw;
-  if (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) return (raw as any).data;
+  const wrapped = raw as Record<string, unknown> | null;
+  if (wrapped && Array.isArray(wrapped.data)) return wrapped.data;
   return [];
 }
 
@@ -313,7 +317,8 @@ export async function savePosterToLibrary(params: {
     title: params.title || null,
   });
   const res = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-  const posterId = res.id ?? (res as any).data?.id;
+  const nestedPoster = (res.data && typeof res.data === 'object' ? res.data : null) as Record<string, unknown> | null;
+  const posterId = res.id ?? nestedPoster?.id;
   if (posterId) {
     notifyDataMutation({ table: "task_posters", operation: "INSERT", source: "mutation" }).catch(console.error);
     return { id: String(posterId) };
@@ -324,7 +329,8 @@ export async function savePosterToLibrary(params: {
 export async function getTaskPosters(tenantId: string): Promise<TaskPoster[]> {
   const raw = await taskPostersApi.list({ tenant_id: tenantId });
   if (Array.isArray(raw)) return raw;
-  if (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) return (raw as any).data;
+  const wrapped = raw as Record<string, unknown> | null;
+  if (wrapped && Array.isArray(wrapped.data)) return wrapped.data;
   return [];
 }
 
@@ -357,8 +363,9 @@ export async function createPosterTask(params: {
     distribute: params.distribute,
   });
   const res = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-  const taskId = res.task_id ?? (res as any).data?.task_id;
-  const distributed = res.distributed ?? (res as any).data?.distributed ?? {};
+  const nestedTask = (res.data && typeof res.data === 'object' ? res.data : null) as Record<string, unknown> | null;
+  const taskId = res.task_id ?? nestedTask?.task_id;
+  const distributed = res.distributed ?? nestedTask?.distributed ?? {};
   if (taskId) {
     return { task_id: String(taskId), distributed: distributed as Record<string, number> };
   }

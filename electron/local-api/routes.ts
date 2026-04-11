@@ -61,16 +61,24 @@ export type RouteResult = { status: number; data: unknown };
 
 export function createRouteHandler(
   adapter: IWhatsAppAdapter,
+  adapterMode: string = 'unknown',
 ): (method: string, path: string, query: URLSearchParams, body: Record<string, unknown>) => Promise<RouteResult> {
+
+  const isDemo = adapterMode.toLowerCase().includes('demo');
 
   return async (method, path, query, body): Promise<RouteResult> => {
 
     // GET /health
     if (method === 'GET' && path === '/health') {
+      const health = adapter.getHealthInfo();
       return ok({
         status: 'ok',
         version: LOCAL_API_VERSION,
-        sessions: adapter.getSessions().length,
+        mode: adapterMode,
+        isDemo,
+        sessions: health.sessionsTotal,
+        sessionsConnected: health.sessionsConnected,
+        workersRunning: health.workersRunning,
         uptime: process.uptime(),
       });
     }

@@ -54,7 +54,7 @@ export function AdminSpinHistoryTab({ t }: { t: PortalT }) {
         p_limit: pageSize,
         p_offset: (page - 1) * pageSize,
       });
-      setSpins((r?.spins as any[]) || []);
+      setSpins((r?.spins as Record<string, unknown>[]) || []);
       setTotal(r?.total ?? 0);
     } catch (e) {
       console.error('[AdminSpinHistory] load failed:', e);

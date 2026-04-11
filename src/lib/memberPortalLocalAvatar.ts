@@ -61,9 +61,9 @@ export async function compressImageFileToAvatarDataUrl(file: File): Promise<stri
 
   // iOS / some WebViews may throw "找不到对象" (Object not found) for createImageBitmap
   // or fail to decode certain formats. Fall back to the FileReader+Image pipeline.
-  if (typeof (globalThis as any).createImageBitmap === "function") {
+  if (typeof globalThis.createImageBitmap === "function") {
     try {
-      const bitmap = await (globalThis as any).createImageBitmap(file);
+      const bitmap = await globalThis.createImageBitmap(file);
       try {
         const w = bitmap.width;
         const h = bitmap.height;

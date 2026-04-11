@@ -1,14 +1,14 @@
 /**
- * WhatsApp 工作台 — Step 11 上线前增强
+ * WhatsApp 工作台
  *
- * 增强清单：
- *   1. 错误/弱网状态处理 — 操作失败时 toast 提示，自动重试
- *   2. 快捷操作回调 — onQuickNote 传递给 ConversationToolbar
- *   3. 性能：useCallback 依赖最小化，useRef 避免闭包陷阱
- *   4. 空状态优化 — 无账号 / 无会话 / 加载中 分别处理
+ * P1 变更：
+ *   1. 统一全局轮询：accounts + conversations + stats + messages 一个 interval
+ *   2. 状态双轨收口：bridge 为 source-of-truth，local optimistic store 只做短暂缓冲
+ *   3. 登录成功后全量刷新 accounts + stats
+ *   4. companion 断开检测纳入轮询
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MessageSquare, Loader2, WifiOff, RefreshCw, Info, Plus } from 'lucide-react';
+import { MessageSquare, Loader2, WifiOff, RefreshCw, Plus, Monitor } from 'lucide-react';
 
 import { AccountList } from '@/components/whatsapp/AccountList';
 import { ConversationList } from '@/components/whatsapp/ConversationList';
@@ -18,13 +18,20 @@ import { ConversationToolbar } from '@/components/whatsapp/ConversationToolbar';
 import { AddAccountDialog } from '@/components/whatsapp/AddAccountDialog';
 
 import * as bridge from '@/services/whatsapp/localSessionBridgeService';
+import { CompanionOfflineError } from '@/services/whatsapp/localSessionBridgeService';
 import * as statusSvc from '@/services/whatsapp/conversationStatusService';
 import { loadConversationContext, persistNote, type ConversationContext } from '@/services/whatsapp/conversationContextService';
 import { bindMemberToPhone, unbindMember, invalidateMatchCache } from '@/services/whatsapp/memberMatchService';
 import type { WaSession, WaConversation, WaMessage, AccountStats } from '@/services/whatsapp/localSessionBridgeService';
 import type { ConversationStatus, ConversationNote } from '@/services/whatsapp/conversationStatusService';
 
+type WorkbenchState = 'loading' | 'ready' | 'companion_offline' | 'error';
+
+const POLL_MS = 4_000;
+
 export default function WhatsAppWorkbench() {
+  const [workbenchState, setWorkbenchState] = useState<WorkbenchState>('loading');
+  const [companionMode, setCompanionMode] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<WaSession[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -36,43 +43,114 @@ export default function WhatsAppWorkbench() {
   const [notes, setNotes] = useState<ConversationNote[]>([]);
   const [allStats, setAllStats] = useState<Record<string, AccountStats>>({});
 
-  const [loadingSessions, setLoadingSessions] = useState(true);
   const [loadingContext, setLoadingContext] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [initError, setInitError] = useState(false);
 
   const selectedAccountRef = useRef(selectedAccountId);
   selectedAccountRef.current = selectedAccountId;
   const activePhoneRef = useRef(activePhone);
   activePhoneRef.current = activePhone;
 
-  // ── 工具：刷新会话列表并返回最新数据 ──
-  const refreshConversations = useCallback(async (accountId: string): Promise<WaConversation[]> => {
-    try {
-      const convs = await bridge.getConversations(accountId);
-      if (selectedAccountRef.current === accountId) {
-        setConversations(convs);
-      }
-      return convs;
-    } catch {
-      return [];
-    }
-  }, []);
+  // ══════════════════════════════════════════════════
+  //  P1-1: 统一全局轮询
+  //
+  //  单个 setInterval 同时刷新：
+  //    - accounts  (会话连接状态变化)
+  //    - conversations (新消息/状态变化)
+  //    - stats (未读数/已读未回计数)
+  //    - messages (当前打开会话的消息)
+  //
+  //  好处：所有面板同步刷新，不存在某个面板看到过时数据
+  // ══════════════════════════════════════════════════
 
-  const refreshAllStats = useCallback(async () => {
+  const globalRefresh = useCallback(async () => {
+    const acctId = selectedAccountRef.current;
+    const phone = activePhoneRef.current;
+
     try {
-      const stats = await bridge.getAllAccountStats();
-      setAllStats(stats);
-    } catch {
-      /* non-critical */
+      // 并行刷新 accounts + stats + conversations + messages
+      const promises: Promise<unknown>[] = [];
+
+      // accounts
+      const sessionsPromise = bridge.getSessions();
+      promises.push(sessionsPromise);
+
+      // stats for all accounts
+      const statsPromise = bridge.getAllAccountStats();
+      promises.push(statsPromise);
+
+      // conversations for selected account
+      let convsPromise: Promise<WaConversation[]> | null = null;
+      if (acctId) {
+        convsPromise = bridge.getConversations(acctId);
+        promises.push(convsPromise);
+      }
+
+      // messages for active conversation
+      let msgsPromise: Promise<WaMessage[]> | null = null;
+      if (acctId && phone) {
+        msgsPromise = bridge.getMessages(acctId, phone);
+        promises.push(msgsPromise);
+      }
+
+      await Promise.allSettled(promises);
+
+      // Apply results only if selection hasn't changed
+      try {
+        const sessions = await sessionsPromise;
+        setAccounts(sessions);
+      } catch { /* handled below */ }
+
+      try {
+        const stats = await statsPromise;
+        setAllStats(stats);
+      } catch { /* non-critical */ }
+
+      if (convsPromise && selectedAccountRef.current === acctId) {
+        try {
+          const convs = await convsPromise;
+          setConversations(convs);
+          // P1-2: 同步 bridge 状态到 local store + UI 状态
+          if (phone) {
+            const freshConv = convs.find(c => c.phone === phone);
+            if (freshConv && activePhoneRef.current === phone) {
+              statusSvc.updateStatus(acctId!, phone, freshConv.status);
+              setCurrentStatus(freshConv.status);
+            }
+          }
+        } catch { /* handled below */ }
+      }
+
+      if (msgsPromise && selectedAccountRef.current === acctId && activePhoneRef.current === phone) {
+        try {
+          const fresh = await msgsPromise;
+          setMessages(prev => {
+            const lastOld = prev[prev.length - 1]?.id;
+            const lastNew = fresh[fresh.length - 1]?.id;
+            if (lastOld === lastNew && prev.length === fresh.length) return prev;
+            return fresh;
+          });
+        } catch { /* non-critical */ }
+      }
+    } catch (e) {
+      if (e instanceof CompanionOfflineError) {
+        setWorkbenchState('companion_offline');
+      }
     }
   }, []);
 
   // ── 初始化 ──
   const initLoad = useCallback(async () => {
-    setLoadingSessions(true);
-    setInitError(false);
+    setWorkbenchState('loading');
     try {
+      const health = await bridge.checkCompanionHealth();
+      if (!health.online) {
+        setWorkbenchState('companion_offline');
+        setCompanionMode(null);
+        return;
+      }
+      setCompanionMode(health.mode ?? null);
+
       const [sessions, stats] = await Promise.all([
         bridge.getSessions(),
         bridge.getAllAccountStats(),
@@ -82,39 +160,28 @@ export default function WhatsAppWorkbench() {
       if (sessions.length > 0 && !selectedAccountRef.current) {
         setSelectedAccountId(sessions[0].accountId);
       }
-    } catch {
-      setInitError(true);
-    } finally {
-      setLoadingSessions(false);
+      setWorkbenchState('ready');
+    } catch (e) {
+      if (e instanceof CompanionOfflineError) {
+        setWorkbenchState('companion_offline');
+      } else {
+        setWorkbenchState('error');
+      }
     }
   }, []);
 
   useEffect(() => { initLoad(); }, [initLoad]);
 
-  // ── 消息轮询（每 5 秒刷新当前会话消息，模拟实时收消息） ──
+  // ── P1-1: 统一轮询 interval ──
   useEffect(() => {
-    const POLL_MS = 5_000;
-    const timer = setInterval(async () => {
-      const acctId = selectedAccountRef.current;
-      const phone = activePhoneRef.current;
-      if (!acctId || !phone) return;
-      try {
-        const fresh = await bridge.getMessages(acctId, phone);
-        // 只在有新消息时才更新，避免无意义重渲染
-        setMessages(prev => {
-          const lastOld = prev[prev.length - 1]?.id;
-          const lastNew = fresh[fresh.length - 1]?.id;
-          if (lastOld === lastNew && prev.length === fresh.length) return prev;
-          return fresh;
-        });
-      } catch { /* non-critical */ }
-    }, POLL_MS);
+    if (workbenchState !== 'ready') return;
+    const timer = setInterval(globalRefresh, POLL_MS);
     return () => clearInterval(timer);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [workbenchState, globalRefresh]);
 
   // ── 切换账号 ──
   useEffect(() => {
-    if (!selectedAccountId) {
+    if (!selectedAccountId || workbenchState !== 'ready') {
       setConversations([]);
       return;
     }
@@ -127,11 +194,13 @@ export default function WhatsAppWorkbench() {
       setContext(null);
       setCurrentStatus(null);
       setNotes([]);
-    }).catch(() => {
-      if (!cancelled) setConversations([]);
+    }).catch((e) => {
+      if (cancelled) return;
+      if (e instanceof CompanionOfflineError) setWorkbenchState('companion_offline');
+      else setConversations([]);
     });
     return () => { cancelled = true; };
-  }, [selectedAccountId]);
+  }, [selectedAccountId, workbenchState]);
 
   // ── 选择联系人 ──
   const handleSelectConversation = useCallback(async (phone: string) => {
@@ -151,28 +220,30 @@ export default function WhatsAppWorkbench() {
     } catch { /* non-critical */ }
 
     try {
-      const [msgs, freshConvs] = await Promise.all([
+      const [msgs, freshConvs, stats] = await Promise.all([
         bridge.getMessages(acctId, phone),
-        refreshConversations(acctId),
-        refreshAllStats(),
+        bridge.getConversations(acctId),
+        bridge.getAllAccountStats(),
       ]);
 
       if (selectedAccountRef.current !== acctId || activePhoneRef.current !== phone) return;
 
       setMessages(msgs);
       setLoadingMessages(false);
+      setConversations(freshConvs);
+      setAllStats(stats);
 
+      // P1-2: bridge 状态为 source-of-truth
       const freshConv = freshConvs.find(c => c.phone === phone);
       const bridgeStatus = freshConv?.status ?? null;
-      const svcStatus = statusSvc.getStatusForPhone(acctId, phone);
-      setCurrentStatus(svcStatus ?? bridgeStatus);
-
-      if (bridgeStatus && !svcStatus) {
+      if (bridgeStatus) {
         statusSvc.updateStatus(acctId, phone, bridgeStatus);
+        setCurrentStatus(bridgeStatus);
       }
 
       setNotes(statusSvc.listNotesForPhone(acctId, phone));
-    } catch {
+    } catch (e) {
+      if (e instanceof CompanionOfflineError) setWorkbenchState('companion_offline');
       if (selectedAccountRef.current === acctId && activePhoneRef.current === phone) {
         setLoadingMessages(false);
       }
@@ -189,7 +260,7 @@ export default function WhatsAppWorkbench() {
         setLoadingContext(false);
       }
     }
-  }, [refreshConversations, refreshAllStats]);
+  }, []);
 
   // ── 发送消息 ──
   const handleSend = useCallback(async (text: string) => {
@@ -201,40 +272,62 @@ export default function WhatsAppWorkbench() {
       const msg = await bridge.sendMessage({ accountId: acctId, phone, body: text });
       setMessages(prev => [...prev, msg]);
 
-      const freshConvs = await refreshConversations(acctId);
-      await refreshAllStats();
+      // 立刻刷新会话列表和统计，不等下一轮轮询
+      const [freshConvs, stats] = await Promise.all([
+        bridge.getConversations(acctId),
+        bridge.getAllAccountStats(),
+      ]);
+      if (selectedAccountRef.current === acctId) {
+        setConversations(freshConvs);
+        setAllStats(stats);
+      }
 
       const freshConv = freshConvs.find(c => c.phone === phone);
-      if (freshConv) {
+      if (freshConv && activePhoneRef.current === phone) {
         setCurrentStatus(freshConv.status);
         statusSvc.updateStatus(acctId, phone, freshConv.status);
       }
     } catch (e) {
+      if (e instanceof CompanionOfflineError) setWorkbenchState('companion_offline');
       console.error('[WhatsApp] sendMessage failed:', e);
     }
-  }, [refreshConversations, refreshAllStats]);
+  }, []);
 
-  // ── 手动切状态 ──
+  // ── P1-2: 手动切状态 — optimistic update + bridge 持久化 + 刷新 ──
   const handleStatusChange = useCallback(async (status: ConversationStatus) => {
     const acctId = selectedAccountRef.current;
     const phone = activePhoneRef.current;
     if (!acctId || !phone) return;
 
+    // Optimistic: 立即更新 UI
+    const prevStatus = currentStatus;
     statusSvc.updateStatus(acctId, phone, status);
     setCurrentStatus(status);
 
     try {
+      // 持久化到 bridge (companion store)
       await bridge.updateConversationStatus(acctId, phone, status);
-      await Promise.all([
-        refreshConversations(acctId),
-        refreshAllStats(),
+      // 刷新以确认持久化成功
+      const [freshConvs, stats] = await Promise.all([
+        bridge.getConversations(acctId),
+        bridge.getAllAccountStats(),
       ]);
+      if (selectedAccountRef.current === acctId) {
+        setConversations(freshConvs);
+        setAllStats(stats);
+      }
     } catch (e) {
+      // 失败回滚 optimistic update
+      if (prevStatus !== null) {
+        statusSvc.updateStatus(acctId, phone, prevStatus);
+        setCurrentStatus(prevStatus);
+      }
+      if (e instanceof CompanionOfflineError) setWorkbenchState('companion_offline');
       console.error('[WhatsApp] updateStatus failed:', e);
     }
-  }, [refreshConversations, refreshAllStats]);
+  }, [currentStatus]);
 
-  // ── 添加备注（本地即时显示 + 异步持久化到后端） ──
+  // ── 添加备注 ──
   const handleAddNote = useCallback((text: string) => {
     const acctId = selectedAccountRef.current;
     const phone = activePhoneRef.current;
@@ -246,7 +339,7 @@ export default function WhatsAppWorkbench() {
     });
   }, []);
 
-  // ── 绑定/解绑会员 (Step 10) ──
+  // ── 绑定/解绑会员 ──
   const refreshContext = useCallback(async () => {
     const acctId = selectedAccountRef.current;
     const phone = activePhoneRef.current;
@@ -258,9 +351,7 @@ export default function WhatsAppWorkbench() {
       if (selectedAccountRef.current === acctId && activePhoneRef.current === phone) {
         setContext(ctx);
       }
-    } catch {
-      /* context refresh failure is non-fatal */
-    } finally {
+    } catch { /* non-fatal */ } finally {
       if (selectedAccountRef.current === acctId && activePhoneRef.current === phone) {
         setLoadingContext(false);
       }
@@ -302,22 +393,33 @@ export default function WhatsAppWorkbench() {
     }
   }, [refreshContext]);
 
-  // ── 扫码成功后刷新账号列表（必须在所有条件 return 之前定义） ──
-  const handleAddAccountConnected = useCallback(async (_sessionId: string) => {
-    const sessions = await bridge.getSessions();
-    setAccounts(sessions);
-    if (sessions.length > 0 && !selectedAccountId) {
-      setSelectedAccountId(sessions[0].accountId);
+  // ── P1-3: 扫码成功 → 全量刷新 accounts + stats ──
+  const handleAddAccountConnected = useCallback(async (newSessionId: string) => {
+    try {
+      const [sessions, stats] = await Promise.all([
+        bridge.getSessions(),
+        bridge.getAllAccountStats(),
+      ]);
+      setAccounts(sessions);
+      setAllStats(stats);
+      // 自动选中新账号
+      if (newSessionId) {
+        const newAccount = sessions.find(s => s.id === newSessionId || s.accountId === newSessionId);
+        if (newAccount) {
+          setSelectedAccountId(newAccount.accountId);
+        }
+      } else if (sessions.length > 0 && !selectedAccountRef.current) {
+        setSelectedAccountId(sessions[0].accountId);
+      }
+    } catch (e) {
+      if (e instanceof CompanionOfflineError) setWorkbenchState('companion_offline');
     }
-  }, [selectedAccountId]);
+  }, []);
 
   const activeConversation = conversations.find(c => c.phone === activePhone);
 
-  // 检测是否全是演示账号（id 为 s1/s2/s3 开头）
-  const allDemo = accounts.length > 0 && accounts.every(a => /^s\d+$/.test(a.id));
-
-  // ── 初始化加载状态 ──
-  if (loadingSessions) {
+  // ── 加载中 ──
+  if (workbenchState === 'loading') {
     return (
       <div className="h-[calc(100vh-64px)] flex items-center justify-center bg-background">
         <div className="text-center">
@@ -328,8 +430,36 @@ export default function WhatsAppWorkbench() {
     );
   }
 
-  // ── 初始化错误状态 ──
-  if (initError) {
+  // ── Companion 离线 ──
+  if (workbenchState === 'companion_offline') {
+    return (
+      <div className="h-[calc(100vh-64px)] flex items-center justify-center bg-background">
+        <div className="text-center max-w-md">
+          <Monitor className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+          <h2 className="text-lg font-semibold text-foreground mb-2">WhatsApp Companion 未连接</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            工作台需要本地 PC 客户端（WhatsApp Companion）才能运行。
+            请确保已在本机启动 Companion 程序。
+          </p>
+          <div className="bg-muted/50 rounded-lg p-4 text-left text-xs text-muted-foreground mb-4 font-mono">
+            <div className="mb-1">启动方式：</div>
+            <div className="pl-2">cd electron</div>
+            <div className="pl-2">npm install</div>
+            <div className="pl-2">npx tsx start.ts</div>
+          </div>
+          <button
+            onClick={initLoad}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" /> 重新检测
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── 其他错误 ──
+  if (workbenchState === 'error') {
     return (
       <div className="h-[calc(100vh-64px)] flex items-center justify-center bg-background">
         <div className="text-center">
@@ -346,26 +476,16 @@ export default function WhatsAppWorkbench() {
     );
   }
 
+  // ── 正常工作台 ──
+  const isDemo = companionMode?.toLowerCase().includes('demo');
+
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col bg-background overflow-hidden">
 
-      {/* 演示模式横幅 */}
-      {allDemo && (
-        <div className="flex-shrink-0 bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-amber-800 text-xs">
-            <Info className="w-3.5 h-3.5 flex-shrink-0" />
-            <span>
-              <strong>演示模式</strong> — 当前显示的是模拟数据，尚未连接真实 WhatsApp 账号。
-              点击右侧按钮或左侧「+」按钮可添加真实账号（扫码登录）。
-            </span>
-          </div>
-          <button
-            onClick={() => setAddDialogOpen(true)}
-            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#25D366] text-white text-xs font-medium hover:bg-[#1ebe5d] transition-colors whitespace-nowrap"
-          >
-            <Plus className="w-3 h-3" />
-            添加真实账号
-          </button>
+      {isDemo && (
+        <div className="flex-shrink-0 bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2 text-amber-800 text-xs">
+          <span className="font-bold">⚠ 演示模式</span>
+          <span>— Companion 以 USE_DEMO=1 启动，数据非真实 WhatsApp 会话。</span>
         </div>
       )}
 
@@ -417,9 +537,21 @@ export default function WhatsAppWorkbench() {
           <div className="text-center text-muted-foreground">
             <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <div className="text-sm">
-              {conversations.length === 0
-                ? '当前账号暂无会话'
-                : '选择联系人开始会话'}
+              {accounts.length === 0
+                ? (
+                  <div>
+                    <div className="mb-2">尚未添加 WhatsApp 账号</div>
+                    <button
+                      onClick={() => setAddDialogOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#25D366] text-white text-xs font-medium hover:bg-[#1ebe5d] transition-colors"
+                    >
+                      <Plus className="w-3 h-3" /> 添加账号
+                    </button>
+                  </div>
+                )
+                : conversations.length === 0
+                  ? '当前账号暂无会话'
+                  : '选择联系人开始会话'}
             </div>
           </div>
         </div>
@@ -440,4 +572,3 @@ export default function WhatsAppWorkbench() {
     </div>
   );
 }
-

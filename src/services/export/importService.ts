@@ -335,8 +335,8 @@ export async function importTableFromXLSX(
       return result;
     }
 
-    const headers = (jsonData[0] as any[]).map(h => String(h || '').trim());
-    const rawRows = jsonData.slice(1) as any[][];
+    const headers = (jsonData[0] as unknown[]).map(h => String(h || '').trim());
+    const rawRows = jsonData.slice(1) as unknown[][];
 
     const validation = validateImportData(tableName, headers, isEnglish);
 
@@ -451,7 +451,7 @@ export async function parseXLSXForPreview(
       return null;
     }
 
-    const headers = (jsonData[0] as any[]).map(h => String(h || '').trim());
+    const headers = (jsonData[0] as unknown[]).map(h => String(h || '').trim());
     const rowCount = jsonData.length - 1;
     const validation = validateImportData(tableName, headers, isEnglish);
 

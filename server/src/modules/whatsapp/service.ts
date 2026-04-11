@@ -24,23 +24,42 @@ import type {
 
 export function normalizePhone(phone: string, countryCode?: string): NormalizePhoneResult {
   const original = phone.trim();
-  let digits = original.replace(/[\s\-().（）\u200B\u00A0]/g, '');
+  if (!original) return { original, normalized: '', valid: false };
 
-  // WhatsApp JID
-  digits = digits.replace(/@(s\.whatsapp\.net|c\.us|g\.us)$/i, '');
+  let cleaned = original;
 
-  if (digits.startsWith('+')) {
-    // already has country code
-  } else if (digits.startsWith('00')) {
-    digits = '+' + digits.slice(2);
-  } else if (countryCode) {
-    const cc = countryCode.replace(/\D/g, '');
-    if (!digits.startsWith(cc)) digits = '+' + cc + digits;
-    else digits = '+' + digits;
+  // Strip WhatsApp JID suffix
+  cleaned = cleaned.replace(/@(s\.whatsapp\.net|c\.us|g\.us)$/i, '');
+
+  // Remove all non-digit noise except leading +
+  cleaned = cleaned.replace(/[\s\-().（）\u200B\u00A0\u200E\u200F]/g, '');
+
+  // Handle 00 international prefix
+  if (cleaned.startsWith('00') && !cleaned.startsWith('+')) {
+    cleaned = '+' + cleaned.slice(2);
   }
 
-  const normalized = digits.replace(/[^\d+]/g, '');
-  const valid = /^\+?\d{7,15}$/.test(normalized);
+  const hasPlus = cleaned.startsWith('+');
+  const digits = cleaned.replace(/[^\d]/g, '');
+
+  if (!digits || digits.length < 7) return { original, normalized: digits, valid: false };
+
+  let normalized: string;
+  if (hasPlus) {
+    normalized = '+' + digits;
+  } else if (countryCode) {
+    const cc = countryCode.replace(/\D/g, '');
+    normalized = digits.startsWith(cc) ? '+' + digits : '+' + cc + digits;
+  } else if (digits.length >= 10) {
+    // 10+ 位纯数字，尝试判断是否已包含国家码
+    const knownPrefixes = ['234', '86', '233', '254', '27', '1', '44'];
+    const hasKnownPrefix = knownPrefixes.some(p => digits.startsWith(p));
+    normalized = hasKnownPrefix ? '+' + digits : digits;
+  } else {
+    normalized = digits;
+  }
+
+  const valid = /^\+\d{7,15}$/.test(normalized);
   return { original, normalized, valid };
 }
 
@@ -93,20 +112,26 @@ export async function matchMemberByPhone(
   tenantId: string | null,
 ): Promise<MemberMatchResponse> {
   try {
-    const { normalized } = normalizePhone(phone);
+    const { normalized, valid } = normalizePhone(phone);
+    if (!normalized) return { matchStatus: 'not_found', member: null };
+
     const digits = normalized.replace(/\D/g, '');
 
-    // Stage 1: 检查 binding 表
-    const binding = await repo.findPhoneBinding(normalized, tenantId);
-    if (binding) {
-      const memberRow = await repo.findMemberById(binding.member_id);
-      if (memberRow) {
-        const activity = await repo.findMemberActivity(String(memberRow.id));
-        return { matchStatus: 'matched', member: toMemberDto(memberRow, activity), matchSource: 'binding' };
+    // Stage 1: 检查 binding 表（精确绑定 + 无前缀变体）
+    const bindingVariants = [normalized];
+    if (!normalized.startsWith('+') && digits.length >= 10) bindingVariants.push('+' + digits);
+    for (const variant of bindingVariants) {
+      const binding = await repo.findPhoneBinding(variant, tenantId);
+      if (binding) {
+        const memberRow = await repo.findMemberById(binding.member_id);
+        if (memberRow) {
+          const activity = await repo.findMemberActivity(String(memberRow.id));
+          return { matchStatus: 'matched', member: toMemberDto(memberRow, activity), matchSource: 'binding' };
+        }
       }
     }
 
-    // Stage 2: 精确匹配
+    // Stage 2: 精确匹配（repository 已覆盖多种格式变体）
     const exactMatches = await repo.findMembersByPhoneExact(normalized, tenantId, 5);
     if (exactMatches.length === 1) {
       const activity = await repo.findMemberActivity(String(exactMatches[0].id));
@@ -129,6 +154,10 @@ export async function matchMemberByPhone(
         const candidates = await enrichCandidates(suffixMatches);
         return { matchStatus: 'multiple_matches', member: null, candidates, matchSource: 'suffix' };
       }
+    }
+
+    if (!valid) {
+      console.warn(`[WhatsApp] Phone normalization yielded invalid format: "${phone}" → "${normalized}"`);
     }
 
     return { matchStatus: 'not_found', member: null };

@@ -48,6 +48,12 @@ export interface AdapterSendPayload {
   type?: string;
 }
 
+export interface AdapterHealthInfo {
+  sessionsTotal: number;
+  sessionsConnected: number;
+  workersRunning: number;
+}
+
 export interface IWhatsAppAdapter {
   /** 同步获取账号列表（内存缓存） */
   getSessions(): AdapterSession[];
@@ -68,6 +74,9 @@ export interface IWhatsAppAdapter {
     errorMessage: string | null;
   } | null>;
   removeSession(sessionId: string): Promise<void>;
+
+  /** 健康状态（worker 级别） */
+  getHealthInfo(): AdapterHealthInfo;
 
   /** 清理资源 */
   destroy(): Promise<void>;

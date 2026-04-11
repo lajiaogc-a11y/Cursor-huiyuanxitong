@@ -34,7 +34,7 @@ let formDataCache: ExchangeRateFormData | null = null;
 export async function getExchangeRateFormDataAsync(): Promise<ExchangeRateFormData | null> {
   try {
     // 使用独立的键，避免与 rateSettingEntries（汇率条目列表）冲突
-    const data = await loadSharedData<ExchangeRateFormData>('exchangeRateFormData' as any);
+    const data = await loadSharedData<ExchangeRateFormData>('exchangeRateFormData');
     formDataCache = data;
     return data;
   } catch (error) {
@@ -52,11 +52,11 @@ export function getExchangeRateFormData(): ExchangeRateFormData | null {
 export async function saveExchangeRateFormData(data: ExchangeRateFormData): Promise<void> {
   formDataCache = data;
   // 使用独立的键，避免与 rateSettingEntries（汇率条目列表）冲突
-  await saveSharedData('exchangeRateFormData' as any, data);
+  await saveSharedData('exchangeRateFormData', data);
 }
 
 export async function clearExchangeRateFormData(): Promise<void> {
   formDataCache = null;
   // 使用独立的键，避免与 rateSettingEntries（汇率条目列表）冲突
-  await saveSharedData('exchangeRateFormData' as any, null);
+  await saveSharedData('exchangeRateFormData', null);
 }

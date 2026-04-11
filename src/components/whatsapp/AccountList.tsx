@@ -42,13 +42,12 @@ function AccountListInner({ accounts, selectedId, onSelect, onAddAccount, stats 
         {accounts.map((a) => {
           const s = stats?.[a.accountId];
           const totalBadge = (s?.unreadCount ?? 0) + (s?.readNoReplyCount ?? 0);
-          const isReal = !a.id.startsWith('s'); // demo sessions have 's1','s2' ids
 
           return (
             <button
               key={a.id}
               onClick={() => onSelect(a.accountId)}
-              title={`${a.name}${isReal ? '' : ' [演示]'}\n未读: ${s?.unreadCount ?? 0}  已读未回: ${s?.readNoReplyCount ?? 0}`}
+              title={`${a.name}\n未读: ${s?.unreadCount ?? 0}  已读未回: ${s?.readNoReplyCount ?? 0}`}
               className={cn(
                 'w-11 h-11 rounded-full flex items-center justify-center text-xs font-bold transition-colors relative flex-shrink-0',
                 selectedId === a.accountId
@@ -79,13 +78,6 @@ function AccountListInner({ accounts, selectedId, onSelect, onAddAccount, stats 
               {/* 已读未回橙点 */}
               {(s?.readNoReplyCount ?? 0) > 0 && totalBadge === 0 && (
                 <span className="absolute -top-0.5 -left-0.5 w-2.5 h-2.5 rounded-full bg-orange-500 border border-background" />
-              )}
-
-              {/* 演示账号标识 */}
-              {!isReal && (
-                <span className="absolute top-0 left-0 w-4 h-4 rounded-full bg-yellow-500/80 text-[7px] text-white flex items-center justify-center font-bold border border-background">
-                  示
-                </span>
               )}
             </button>
           );

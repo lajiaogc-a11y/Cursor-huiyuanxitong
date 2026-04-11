@@ -8,8 +8,7 @@ import { generateMemberCode } from '@/lib/memberCode';
 
 export { generateMemberCode };
 
-// 使用 user_data_store 的数据键（用户级持久化）
-const DATA_KEY = 'member_entry_form' as const;
+const DATA_KEY = SYNC_KEYS.MEMBER_ENTRY_FORM;
 
 export interface MemberEntryFormData {
   phoneNumber: string;
@@ -67,7 +66,7 @@ export function useMemberEntryFormPersistence() {
     
     const loadFromDb = async () => {
       try {
-        const saved = await loadFromDatabase(DATA_KEY as any);
+        const saved = await loadFromDatabase(DATA_KEY);
         if (isMountedRef.current && saved) {
           const merged = { ...defaultFormData, ...saved };
           setFormDataState(merged);
@@ -100,7 +99,7 @@ export function useMemberEntryFormPersistence() {
     }
     saveTimeoutRef.current = setTimeout(() => {
       pendingDataRef.current = null;
-      saveToDatabase(DATA_KEY as any, data).catch(error => {
+      saveToDatabase(DATA_KEY, data).catch(error => {
         console.error('[MemberEntryFormPersistence] Failed to save:', error);
       });
     }, SAVE_DEBOUNCE_MS);
@@ -143,7 +142,7 @@ export function useMemberEntryFormPersistence() {
     const newFormData = { ...defaultFormData };
     setFormDataState(newFormData);
     memoryCache = newFormData;
-    await saveToDatabase(DATA_KEY as any, newFormData);
+    await saveToDatabase(DATA_KEY, newFormData);
   }, []);
   
   // 清空除电话号码外的字段
@@ -166,7 +165,7 @@ export function useMemberEntryFormPersistence() {
         clearTimeout(saveTimeoutRef.current);
       }
       if (pendingDataRef.current) {
-        saveToDatabase(DATA_KEY as any, pendingDataRef.current).catch(console.error);
+        saveToDatabase(DATA_KEY, pendingDataRef.current).catch(console.error);
       }
     };
   }, []);

@@ -89,7 +89,9 @@ export type SharedDataKey =
   // 海报表格列勾选（勾选=生成海报时显示）
   | 'posterTableColumns'
   // 利润分析百分比设置
-  | 'profitAnalysisRates';
+  | 'profitAnalysisRates'
+  // 汇率计算器表单数据
+  | 'exchangeRateFormData';
 
 // 汇率计算器手动输入汇率数据结构
 export interface CalculatorInputRates {

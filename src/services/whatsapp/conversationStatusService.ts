@@ -4,7 +4,7 @@
  * 职责：
  *   - 统一管理会话状态的类型、标签、颜色映射
  *   - 已读未回 (read_no_reply) 等复杂判断集中在此，不允许散落在组件
- *   - 当前阶段使用内存 mock 状态存储，下一轮替换为 API 调用
+ *   - 本地内存 optimistic store（短暂缓存），后端为最终事实源
  * 规则：
  *   - 不发请求，不操作 DOM
  */
@@ -57,7 +57,7 @@ export const ALL_STATUSES: ConversationStatus[] = [
   'unread', 'read_no_reply', 'replied', 'follow_up_required', 'priority', 'closed',
 ];
 
-// ── Phase 1 内存存储（mock） ──
+// ── 本地内存 optimistic store ──
 
 const statusStore = new Map<string, ConversationStatusRecord>();
 const noteStore = new Map<string, ConversationNote[]>();

@@ -113,7 +113,7 @@ const EXPORT_TABLES = [
 // 批量获取表数据 — 通过后端 API
 async function fetchTableData(tableName: string): Promise<any[]> {
   try {
-    const data = (await migrationApi.fetchTableData(tableName)) as any[];
+    const data = (await migrationApi.fetchTableData(tableName)) as Record<string, unknown>[];
     return data || [];
   } catch (err) {
     console.error(`Error fetching ${tableName}:`, err);
