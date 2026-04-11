@@ -176,13 +176,13 @@ export async function reconcileSpinBalance(memberId: string): Promise<number> {
     'SELECT COALESCE(SUM(amount), 0) AS total FROM spin_credits WHERE member_id = ?',
     [memberId],
   );
-  const ledgerBalance = Math.max(0, Math.floor(Number(ledgerRow?.total ?? 0)));
+  const ledgerBalance = Math.floor(Number(ledgerRow?.total ?? 0));
 
   const actRow = await dbQueryOne<{ bal: number }>(
     'SELECT COALESCE(lottery_spin_balance, 0) AS bal FROM member_activity WHERE member_id = ?',
     [memberId],
   );
-  const cachedBalance = Math.max(0, Math.floor(Number(actRow?.bal ?? 0)));
+  const cachedBalance = Math.floor(Number(actRow?.bal ?? 0));
 
   if (cachedBalance !== ledgerBalance) {
     console.warn(
@@ -206,14 +206,14 @@ export async function reconcileSpinBalanceConn(conn: PoolConnection, memberId: s
     'SELECT COALESCE(SUM(amount), 0) AS total FROM spin_credits WHERE member_id = ?',
     [memberId],
   );
-  const ledgerBalance = Math.max(0, Math.floor(Number(ledgerRow?.total ?? 0)));
+  const ledgerBalance = Math.floor(Number(ledgerRow?.total ?? 0));
 
   const actRow = await queryOneConn<{ bal: number }>(
     conn,
     'SELECT COALESCE(lottery_spin_balance, 0) AS bal FROM member_activity WHERE member_id = ? FOR UPDATE',
     [memberId],
   );
-  const cachedBalance = Math.max(0, Math.floor(Number(actRow?.bal ?? 0)));
+  const cachedBalance = Math.floor(Number(actRow?.bal ?? 0));
 
   if (cachedBalance !== ledgerBalance) {
     console.warn(

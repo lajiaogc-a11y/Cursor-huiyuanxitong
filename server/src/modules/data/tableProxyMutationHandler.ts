@@ -25,7 +25,7 @@ import { draw, getQuota } from '../lottery/service.js';
 import { grantOrderCompletedSpinCredits, restoreOrderCompletedSpinCredits } from '../lottery/repository.js';
 import { notifyMemberOrderCompletedSpinReward } from '../memberInboxNotifications/repository.js';
 import { incrementMemberActivityForNewOrder } from '../members/memberActivityTotals.js';
-import { reverseActivityDataForOrder } from '../admin/orderReversal.js';
+import { reverseActivityDataForOrder, revokeSpinCreditsForOrder } from '../admin/orderReversal.js';
 import { assertErrorReportsDeleteAllowed } from '../../permissions/rolePermissionAssert.js';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { runWebhookProcessorRpc } from '../webhooks/rpcBridge.js';
@@ -411,6 +411,11 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
           } catch (revErr) {
             logger.error('TableProxy', 'UPDATE orders reverseActivityData:', revErr);
           }
+          try {
+            await revokeSpinCreditsForOrder(String(row.id));
+          } catch (spinErr) {
+            logger.error('TableProxy', 'UPDATE orders revokeSpinCredits:', spinErr);
+          }
         }
       }
     }
@@ -522,7 +527,11 @@ export async function tableDeleteController(req: AuthenticatedRequest, res: Resp
           try { await reverseActivityDataForOrder(String(row.id)); }
           catch (revErr) { logger.error('TableProxy', 'DELETE orders reverseActivityData:', revErr); }
         }
-        if (row.id) orderIdsToClean.push(String(row.id));
+        if (row.id) {
+          orderIdsToClean.push(String(row.id));
+          try { await revokeSpinCreditsForOrder(String(row.id)); }
+          catch (spinErr) { logger.error('TableProxy', 'DELETE orders revokeSpinCredits:', spinErr); }
+        }
       }
       // 删除前归档到 archived_orders，防数据永久丢失
       if (orderIdsToClean.length > 0) {

@@ -26,10 +26,14 @@ interface OrderRow {
 }
 
 /**
- * 为单个订单执行活动数据回滚（member_activity 累积字段 + points_ledger 负积分）
+ * 为单个订单执行活动数据回滚（member_activity 累积字段 + points_ledger 负积分 + 抽奖次数回收）
  */
 export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok: boolean; error?: string }> {
   try {
+    // ★ 抽奖次数回收 — 必须在幂等检查之前执行，因为幂等检查只针对积分
+    // 即使积分已被回滚，抽奖次数仍然需要回收
+    await revokeSpinCreditsForOrder(orderId);
+
     // Idempotency: skip if reversal entries already exist for this order
     const existing = await queryOne<{ cnt: number }>(
       `SELECT COUNT(*) AS cnt FROM points_ledger WHERE order_id = ? AND status = 'reversed' AND points_earned < 0`,
@@ -244,26 +248,40 @@ export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok
       );
     }
 
-    // 5. 回收订单授予的抽奖次数（允许余额变为负数）
-    const spinMemberId = order.member_id || '';
-    if (spinMemberId) {
-      try {
-        const { revoked, amount } = await revokeOrderCompletedSpinCredits({
-          orderId,
-          memberId: spinMemberId,
-        });
-        if (revoked) {
-          console.log(`[OrderReversal] Revoked ${amount} spin credits for order ${orderId}, member ${spinMemberId}`);
-        }
-      } catch (spinErr) {
-        console.error(`[OrderReversal] Spin credit revocation failed for order ${orderId}:`, spinErr);
-      }
-    }
-
     return { ok: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return { ok: false, error: msg };
+  }
+}
+
+/**
+ * 独立的抽奖次数回收函数，可从任何地方调用。
+ * 不依赖订单是否仍存在于 orders 表（适用于删除后场景）。
+ * 通过 spin_credits 中的 source 查找原始授予记录来确定 memberId。
+ */
+export async function revokeSpinCreditsForOrder(orderId: string): Promise<{ revoked: boolean; amount: number }> {
+  try {
+    const source = `order_completed:${orderId}`;
+    const grantRow = await queryOne<{ member_id: string; amount: number }>(
+      'SELECT member_id, amount FROM spin_credits WHERE source = ? LIMIT 1',
+      [source],
+    );
+    if (!grantRow || Number(grantRow.amount) <= 0) {
+      return { revoked: false, amount: 0 };
+    }
+
+    const { revoked, amount } = await revokeOrderCompletedSpinCredits({
+      orderId,
+      memberId: grantRow.member_id,
+    });
+    if (revoked) {
+      console.log(`[OrderReversal] Revoked ${amount} spin credits for order ${orderId}, member ${grantRow.member_id}`);
+    }
+    return { revoked, amount };
+  } catch (spinErr) {
+    console.error(`[OrderReversal] Spin credit revocation failed for order ${orderId}:`, spinErr);
+    return { revoked: false, amount: 0 };
   }
 }
 
