@@ -7,7 +7,8 @@
 
 import type { IWhatsAppAdapter, AdapterSession, AdapterConversation, AdapterMessage } from '../session-manager/adapterInterface.js';
 import type { SessionDto, ConversationDto, MessageDto, AccountStatsDto, AddSessionResultDto, QrStatusDto } from './types.js';
-import { LOCAL_API_VERSION } from './index.js';
+
+const LOCAL_API_VERSION = '0.3.0';
 
 // ── DTO 映射 ──
 

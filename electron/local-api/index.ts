@@ -128,8 +128,13 @@ export async function startLocalApi(options: StartOptions): Promise<{
   });
 
   return new Promise((resolve, reject) => {
-    server.on('error', reject);
+    server.on('error', (err) => {
+      console.error(`[local-api] Server error: ${err.message}`);
+      reject(err);
+    });
     server.listen(port, host, () => {
+      console.log(`[local-api] HTTP server LISTENING on http://${host}:${port}`);
+      console.log(`[local-api] Health check: http://${host}:${port}/health`);
       resolve({
         port,
         close: () => new Promise<void>((res) => server.close(() => res())),

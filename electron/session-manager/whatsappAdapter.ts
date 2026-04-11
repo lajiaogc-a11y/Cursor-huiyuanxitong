@@ -57,9 +57,10 @@ interface SessionEntry {
 const MAX_RESTART = 3;
 const __selfFile = fileURLToPath(import.meta.url);
 const __selfDir = dirname(__selfFile);
-// tsx 运行时文件为 .ts；esbuild 编译后为 .js — 自动检测
 const WORKER_EXT = __selfFile.endsWith('.ts') ? '.ts' : '.js';
-const WORKER_PATH = join(__selfDir, `whatsappWorker${WORKER_EXT}`);
+const RAW_WORKER_PATH = join(__selfDir, `whatsappWorker${WORKER_EXT}`);
+// asar 内的路径无法被 Worker 线程加载，需要替换为 asar.unpacked 路径
+const WORKER_PATH = RAW_WORKER_PATH.replace(/app\.asar([\/\\])/, 'app.asar.unpacked$1');
 
 export class WhatsAppAdapter implements IWhatsAppAdapter {
   private sessions = new Map<string, SessionEntry>();
@@ -71,26 +72,35 @@ export class WhatsAppAdapter implements IWhatsAppAdapter {
 
   static async create(dataPath = './.wa_sessions'): Promise<WhatsAppAdapter> {
     console.log('[WhatsAppAdapter] Verifying dependencies...');
+    console.log(`[WhatsAppAdapter] __selfFile = ${__selfFile}`);
+    console.log(`[WhatsAppAdapter] RAW_WORKER_PATH = ${RAW_WORKER_PATH}`);
+    console.log(`[WhatsAppAdapter] WORKER_PATH (resolved) = ${WORKER_PATH}`);
 
     try {
       await import('@whiskeysockets/baileys');
-      console.log('[WhatsAppAdapter] ✓ @whiskeysockets/baileys loaded');
+      console.log('[WhatsAppAdapter] @whiskeysockets/baileys loaded OK');
     } catch (e: unknown) {
-      throw new Error(`@whiskeysockets/baileys not installed: ${e instanceof Error ? e.message : e}`);
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`[WhatsAppAdapter] @whiskeysockets/baileys FAILED: ${msg}`);
+      throw new Error(`@whiskeysockets/baileys not installed: ${msg}`);
     }
 
     try {
       await import('qrcode');
-      console.log('[WhatsAppAdapter] ✓ qrcode loaded');
+      console.log('[WhatsAppAdapter] qrcode loaded OK');
     } catch (e: unknown) {
-      throw new Error(`qrcode not installed: ${e instanceof Error ? e.message : e}`);
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`[WhatsAppAdapter] qrcode FAILED: ${msg}`);
+      throw new Error(`qrcode not installed: ${msg}`);
     }
 
     if (!existsSync(WORKER_PATH)) {
+      console.error(`[WhatsAppAdapter] Worker NOT FOUND at: ${WORKER_PATH}`);
+      console.error(`[WhatsAppAdapter] RAW path exists? ${existsSync(RAW_WORKER_PATH)}`);
       throw new Error(`Worker script not found at: ${WORKER_PATH}`);
     }
-    console.log(`[WhatsAppAdapter] ✓ Worker script found: ${WORKER_PATH}`);
-    console.log(`[WhatsAppAdapter] ✓ Data path: ${dataPath}`);
+    console.log(`[WhatsAppAdapter] Worker script found: ${WORKER_PATH}`);
+    console.log(`[WhatsAppAdapter] Data path: ${dataPath}`);
     console.log('[WhatsAppAdapter] Adapter ready (real mode)');
 
     return new WhatsAppAdapter(dataPath);

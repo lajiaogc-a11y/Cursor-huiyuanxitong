@@ -90,12 +90,16 @@ export async function getMemberPointsSummary(
 
     const phoneQ = String(phoneNumber || '').trim();
     const mid = String(memberId ?? '').trim();
-    const accountsQuery =
-      phoneQ.length > 0
-        ? `select=balance,last_reset_time&or=${encodeURIComponent(
-            `member_code.eq.${memberCode},phone.eq.${phoneQ}`,
-          )}&limit=1`
-        : `select=balance,last_reset_time&member_code=eq.${encodeURIComponent(memberCode)}&limit=1`;
+    let accountsQuery: string;
+    if (mid) {
+      accountsQuery = `select=balance,last_reset_time&member_id=eq.${encodeURIComponent(mid)}&limit=1`;
+    } else if (phoneQ.length > 0) {
+      accountsQuery = `select=balance,last_reset_time&or=${encodeURIComponent(
+        `member_code.eq.${memberCode},phone.eq.${phoneQ}`,
+      )}&limit=1`;
+    } else {
+      accountsQuery = `select=balance,last_reset_time&member_code=eq.${encodeURIComponent(memberCode)}&limit=1`;
+    }
 
     const activitySelect =
       'order_count,total_accumulated_ngn,total_accumulated_ghs,total_accumulated_usdt';

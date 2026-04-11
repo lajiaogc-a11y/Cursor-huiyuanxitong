@@ -1,13 +1,8 @@
 /**
- * 编译 electron/ 目录下的 TypeScript 文件为 CJS JavaScript
+ * 编译 electron/ 目录下的 TypeScript 文件为 ESM JavaScript
  *
  * 使用 esbuild 逐文件转译（非 bundle），保留目录结构。
  * 输出到 electron/dist/，供 electron-builder 打包。
- *
- * esbuild 自动处理：
- *   - import → require
- *   - export → module.exports
- *   - import.meta.url → __filename CJS 等价
  */
 
 import { build } from 'esbuild';
@@ -32,7 +27,6 @@ function collectTsFiles(dir) {
   return results;
 }
 
-// Clean previous output
 if (existsSync(OUT_DIR)) {
   rmSync(OUT_DIR, { recursive: true, force: true });
 }

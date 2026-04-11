@@ -52,16 +52,18 @@ export async function applyPointsLedgerDeltaOnConn(
   const { ledgerId, memberId, type, delta, description, referenceType, referenceId, createdBy, extras, clampToZero } = input;
   const x = extras ?? {};
 
-  const memberRow = await qOne<{ tenant_id: string | null }>(
+  const memberRow = await qOne<{ tenant_id: string | null; member_code: string | null; phone_number: string | null }>(
     conn,
-    'SELECT tenant_id FROM members WHERE id = ? LIMIT 1',
+    'SELECT tenant_id, member_code, phone_number FROM members WHERE id = ? LIMIT 1',
     [memberId],
   );
   const memberTenantId = memberRow?.tenant_id ?? null;
+  const memberCodeFromDb = memberRow?.member_code ?? null;
+  const phoneFromDb = memberRow?.phone_number ?? null;
 
-  let acct = await qOne<{ id: string; balance: number; tenant_id: string | null }>(
+  let acct = await qOne<{ id: string; balance: number; tenant_id: string | null; member_code: string | null; phone: string | null }>(
     conn,
-    'SELECT id, balance, tenant_id FROM points_accounts WHERE member_id = ? FOR UPDATE',
+    'SELECT id, balance, tenant_id, member_code, phone FROM points_accounts WHERE member_id = ? FOR UPDATE',
     [memberId]
   );
   if (!acct) {
@@ -71,16 +73,24 @@ export async function applyPointsLedgerDeltaOnConn(
     const newId = randomUUID();
     await exec(
       conn,
-      'INSERT INTO points_accounts (id, member_id, tenant_id, balance, total_earned, total_spent) VALUES (?, ?, ?, 0, 0, 0)',
-      [newId, memberId, memberTenantId]
+      'INSERT INTO points_accounts (id, member_id, tenant_id, balance, total_earned, total_spent, member_code, phone) VALUES (?, ?, ?, 0, 0, 0, ?, ?)',
+      [newId, memberId, memberTenantId, memberCodeFromDb, phoneFromDb]
     );
-    acct = { id: newId, balance: 0, tenant_id: memberTenantId };
-  } else if (!acct.tenant_id && memberTenantId) {
-    await exec(conn, 'UPDATE points_accounts SET tenant_id = ? WHERE id = ? AND tenant_id IS NULL', [
-      memberTenantId,
-      acct.id,
-    ]);
-    acct = { ...acct, tenant_id: memberTenantId };
+    acct = { id: newId, balance: 0, tenant_id: memberTenantId, member_code: memberCodeFromDb, phone: phoneFromDb };
+  } else {
+    const needsTenant = !acct.tenant_id && memberTenantId;
+    const needsCode = !acct.member_code && memberCodeFromDb;
+    const needsPhone = !acct.phone && phoneFromDb;
+    if (needsTenant || needsCode || needsPhone) {
+      const sets: string[] = [];
+      const vals: unknown[] = [];
+      if (needsTenant) { sets.push('tenant_id = ?'); vals.push(memberTenantId); }
+      if (needsCode) { sets.push('member_code = ?'); vals.push(memberCodeFromDb); }
+      if (needsPhone) { sets.push('phone = ?'); vals.push(phoneFromDb); }
+      vals.push(acct.id);
+      await exec(conn, `UPDATE points_accounts SET ${sets.join(', ')} WHERE id = ?`, vals);
+      acct = { ...acct, tenant_id: acct.tenant_id || memberTenantId, member_code: acct.member_code || memberCodeFromDb, phone: acct.phone || phoneFromDb };
+    }
   }
 
   const before = Number(acct.balance);
