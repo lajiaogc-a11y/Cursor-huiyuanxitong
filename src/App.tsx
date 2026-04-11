@@ -97,6 +97,22 @@ const App = () => (
               {showStaffPortal && <Route path="/admin/settings/:tab" element={<LegacyAdminSettingsTabRedirect />} />}
 
               {SITE_MODE === "staff" && <Route path="/" element={<Navigate to="/staff/login" replace />} />}
+              <Route
+                path="/login"
+                element={
+                  showStaffPortal
+                    ? <Navigate to={ROUTES.STAFF.LOGIN} replace />
+                    : <Navigate to={ROUTES.MEMBER.ROOT} replace />
+                }
+              />
+              <Route
+                path="/signup"
+                element={
+                  showStaffPortal
+                    ? <Navigate to={ROUTES.STAFF.SIGNUP} replace />
+                    : <Navigate to={ROUTES.MEMBER.ROOT} replace />
+                }
+              />
 
               {showMemberPortal && !showStaffPortal && (
                 <Route path="/staff/*" element={<CrossPortalHardRedirect portal="staff" />} />
