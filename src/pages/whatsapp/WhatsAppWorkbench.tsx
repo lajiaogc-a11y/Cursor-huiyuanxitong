@@ -321,8 +321,8 @@ export default function WhatsAppWorkbench() {
       // 失败回滚 optimistic update
       if (prevStatus !== null) {
         statusSvc.updateStatus(acctId, phone, prevStatus);
-        setCurrentStatus(prevStatus);
       }
+      setCurrentStatus(prevStatus);
       if (e instanceof CompanionOfflineError) setWorkbenchState('companion_offline');
       console.error('[WhatsApp] updateStatus failed:', e);
     }

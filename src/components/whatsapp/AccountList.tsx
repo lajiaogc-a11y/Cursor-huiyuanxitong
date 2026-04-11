@@ -55,7 +55,7 @@ function AccountListInner({ accounts, selectedId, onSelect, onAddAccount, stats 
                   : 'bg-muted hover:bg-muted-foreground/20 text-muted-foreground',
               )}
             >
-              {a.name.charAt(0)}
+              {(a.name || '?').charAt(0)}
 
               {/* 连接状态点 */}
               <span className={cn(

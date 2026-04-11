@@ -17,6 +17,7 @@ import { statusSortWeight } from './conversationStatusService';
 import {
   localWhatsappBridge,
   resetDetection,
+  getBridgeToken,
   type WaSession as BridgeSession,
   type WaConversation as BridgeConversation,
   type WaMessage as BridgeMessage,
@@ -33,6 +34,7 @@ export interface WaSession {
   name: string;
   phone?: string;
   isConnected: boolean;
+  state?: string;
 }
 
 export interface WaConversation {
@@ -104,6 +106,7 @@ function unwrapSessions(data: BridgeSession[]): WaSession[] {
     name: s.name,
     phone: s.phone,
     isConnected: s.isConnected,
+    state: s.state,
   }));
 }
 
@@ -192,7 +195,10 @@ export async function checkCompanionHealth(): Promise<{
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 3000);
-    const res = await fetch('http://localhost:3100/health', { signal: ctrl.signal });
+    const headers: Record<string, string> = {};
+    const token = getBridgeToken();
+    if (token) headers['X-Bridge-Token'] = token;
+    const res = await fetch('http://localhost:3100/health', { signal: ctrl.signal, headers });
     clearTimeout(timer);
     if (!res.ok) return { online: false };
     const json = await res.json() as {

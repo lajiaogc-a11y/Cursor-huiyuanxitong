@@ -32,7 +32,7 @@ function ConversationItemInner({ item, isActive, onClick }: Props) {
       )}
     >
       <div className="w-9 h-9 rounded-full bg-muted flex-shrink-0 flex items-center justify-center text-sm font-medium">
-        {item.name.charAt(0).toUpperCase()}
+        {(item.name || '?').charAt(0).toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1">

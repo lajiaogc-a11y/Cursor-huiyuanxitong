@@ -7,7 +7,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import {
-  QrCode, Loader2, CheckCircle2, XCircle, AlertTriangle,
+  QrCode, Loader2, CheckCircle2, AlertTriangle,
   RefreshCw, X, Wifi, WifiOff, Info, ChevronDown, ChevronUp,
   Smartphone, Download, Clock,
 } from 'lucide-react';

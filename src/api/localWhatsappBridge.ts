@@ -33,6 +33,7 @@ export interface WaSession {
   phone?: string;
   avatarUrl?: string;
   isConnected: boolean;
+  state?: string;
 }
 
 export interface WaConversation {
