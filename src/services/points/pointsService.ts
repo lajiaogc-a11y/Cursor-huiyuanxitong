@@ -8,7 +8,7 @@ import { pointsApi } from '@/api/points';
 import { CurrencyCode } from '@/config/currencies';
 import { getPointsSettingsAsync, PointsSettings } from '@/services/points/pointsSettingsService';
 import { logOperation } from '@/services/audit/auditLogService';
-import { loadSharedData } from '@/services/finance/sharedDataService';
+import { getSharedDataTenantId } from '@/services/finance/sharedDataService';
 import { notifyDataMutation } from '@/services/system/dataRefreshManager';
 import { logger } from '@/lib/logger';
 
@@ -62,10 +62,11 @@ function getExchangeRate(currency: CurrencyCode, settings: PointsSettings): numb
 // ============= 查找推荐人 =============
 async function findReferrer(orderPhoneNumber: string): Promise<ReferrerInfo | null> {
   try {
-    const data = await getReferrerByPhone(orderPhoneNumber);
+    const tenantId = getSharedDataTenantId();
+    const data = await getReferrerByPhone(orderPhoneNumber, tenantId);
 
     if (!data?.referrer_phone) {
-      logger.log(`[PointsService] No referrer found for phone: ${orderPhoneNumber}`);
+      logger.log(`[PointsService] No referrer found for phone: ${orderPhoneNumber} (tenantId: ${tenantId ?? 'null'})`);
       return null;
     }
 

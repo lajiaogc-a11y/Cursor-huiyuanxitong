@@ -255,10 +255,12 @@ export async function bulkCreateMembers(
   return Array.isArray(data) ? data : null;
 }
 
-export async function getReferrerByPhone(phone: string): Promise<{ referrer_phone: string; referrer_member_code: string } | null> {
+export async function getReferrerByPhone(phone: string, tenantId?: string | null): Promise<{ referrer_phone: string; referrer_member_code: string } | null> {
   try {
+    const tid = tenantId != null && String(tenantId).trim() !== '' ? String(tenantId).trim() : '';
+    const q = tid ? `?tenant_id=${encodeURIComponent(tid)}` : '';
     const res = await apiClient.get<{ referrer_phone: string; referrer_member_code: string } | null>(
-      `/api/members/referrer-by-phone/${encodeURIComponent(phone)}`
+      `/api/members/referrer-by-phone/${encodeURIComponent(phone)}${q}`
     );
     return res && typeof res === 'object' ? res : null;
   } catch { return null; }
