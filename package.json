@@ -132,12 +132,19 @@
       {
         "from": "electron/node_modules",
         "to": "resources/app/electron/node_modules",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "artifactName": "FastGC-WhatsApp-Setup-${version}.exe",
       "icon": "public/favicon.ico",

@@ -14,7 +14,6 @@ export default tseslint.config(
       "release",
       "**/release/**",
       "reference-ui/**",
-      "会员前端设计/**",
     ],
   },
   {
