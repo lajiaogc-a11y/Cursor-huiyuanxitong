@@ -2,9 +2,10 @@
  * Electron 主进程
  *
  * 启动顺序：
- *   1. app.whenReady()
- *   2. bootCompanion() — 创建 adapter + 启动 local API (localhost:3100)
- *   3. createWindow()  — 创建 BrowserWindow 加载前端
+ *   1. 获取单实例锁（防止多开）
+ *   2. app.whenReady()
+ *   3. bootCompanion() — 检测端口 → 复用/新建 Companion
+ *   4. createWindow()  — 创建 BrowserWindow 加载前端
  *
  * 生产模式：加载 https://admin.crm.fastgc.cc/dashboard/whatsapp
  * 开发模式：加载 http://localhost:5173/dashboard/whatsapp
@@ -20,7 +21,7 @@ const __selfDir = dirname(__selfFile);
 
 process.env.ELECTRON_APP = '1';
 
-export const ELECTRON_MAIN_VERSION = '1.0.0';
+export const ELECTRON_MAIN_VERSION = '1.0.1';
 
 const isDev = !app.isPackaged;
 const PROD_URL = 'https://admin.crm.fastgc.cc/dashboard/whatsapp';
@@ -29,7 +30,7 @@ const DEV_URL = 'http://localhost:5173/dashboard/whatsapp';
 let mainWindow: BrowserWindow | null = null;
 let companionAdapter: IWhatsAppAdapter | null = null;
 let companionClose: (() => Promise<void>) | null = null;
-let companionError: string | null = null;
+let companionReused = false;
 
 function log(tag: string, msg: string) {
   const ts = new Date().toISOString().slice(11, 23);
@@ -39,6 +40,23 @@ function log(tag: string, msg: string) {
 function logError(tag: string, msg: string) {
   const ts = new Date().toISOString().slice(11, 23);
   console.error(`[${ts}] [Electron:${tag}] ${msg}`);
+}
+
+// ── 单实例锁：防止多开客户端 ──
+
+const gotLock = app.requestSingleInstanceLock();
+
+if (!gotLock) {
+  log('lock', 'Another instance is already running — quitting');
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    log('lock', 'Second instance detected — focusing existing window');
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
 }
 
 // ── Companion 启动 ──
@@ -55,7 +73,13 @@ async function bootCompanion(): Promise<void> {
   const result = await startCompanionServer();
   companionAdapter = result.adapter;
   companionClose = result.close;
-  log('boot', `Companion STARTED — mode=${result.mode}, port=${result.port}`);
+  companionReused = result.reused;
+
+  if (result.reused) {
+    log('boot', `Companion REUSED — existing instance on port ${result.port}`);
+  } else {
+    log('boot', `Companion STARTED (new) — mode=${result.mode}, port=${result.port}`);
+  }
 }
 
 // ── BrowserWindow ──
@@ -114,49 +138,70 @@ function createWindow(): void {
   });
 }
 
-// ── App 生命周期 ──
+// ── 友好错误提示 ──
 
-app.whenReady().then(async () => {
-  log('lifecycle', '=== APP READY ===');
-  log('lifecycle', `version=${app.getVersion()}, electron=${process.versions.electron}, node=${process.versions.node}`);
-  log('lifecycle', `exe=${process.execPath}`);
-  log('lifecycle', `cwd=${process.cwd()}`);
-  log('lifecycle', `resourcesPath=${process.resourcesPath ?? 'N/A'}`);
-  log('lifecycle', `__selfDir=${__selfDir}`);
+function showCompanionError(err: unknown): void {
+  const rawMsg = err instanceof Error ? err.message : String(err);
 
-  try {
-    await bootCompanion();
-    log('lifecycle', 'Companion boot SUCCESS');
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : String(err);
-    companionError = msg;
-    logError('lifecycle', `Companion boot FAILED:\n${msg}`);
+  if (rawMsg.includes('PORT_CONFLICT')) {
     dialog.showErrorBox(
-      'Companion 启动失败',
-      `本地 WhatsApp 服务未能启动，工作台将无法连接。\n\n原因: ${err instanceof Error ? err.message : String(err)}\n\n请联系管理员或查看日志。`,
+      '端口被占用',
+      '端口 3100 已被其他程序占用，Companion 无法启动。\n\n' +
+      '解决方法：\n' +
+      '1. 在任务管理器中关闭占用端口 3100 的程序\n' +
+      '2. 重新启动本客户端\n\n' +
+      '如不确定哪个程序占用，可尝试重启电脑。',
     );
+    return;
   }
 
-  createWindow();
-  log('lifecycle', 'Window created');
-});
+  dialog.showErrorBox(
+    'Companion 启动失败',
+    `本地 WhatsApp 服务未能启动，工作台将无法连接。\n\n原因: ${rawMsg}\n\n请联系管理员或查看日志。`,
+  );
+}
 
-app.on('window-all-closed', () => {
-  log('lifecycle', 'All windows closed');
-  if (process.platform !== 'darwin') app.quit();
-});
+// ── App 生命周期 ──
 
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
-});
+if (gotLock) {
+  app.whenReady().then(async () => {
+    log('lifecycle', '=== APP READY ===');
+    log('lifecycle', `version=${app.getVersion()}, electron=${process.versions.electron}, node=${process.versions.node}`);
+    log('lifecycle', `exe=${process.execPath}`);
+    log('lifecycle', `cwd=${process.cwd()}`);
+    log('lifecycle', `resourcesPath=${process.resourcesPath ?? 'N/A'}`);
+    log('lifecycle', `__selfDir=${__selfDir}`);
 
-app.on('before-quit', async () => {
-  log('lifecycle', 'before-quit: cleaning up...');
-  try {
-    if (companionAdapter) await companionAdapter.destroy();
-  } catch { /* ignore */ }
-  try {
-    if (companionClose) await companionClose();
-  } catch { /* ignore */ }
-  log('lifecycle', 'cleanup done');
-});
+    try {
+      await bootCompanion();
+      log('lifecycle', companionReused ? 'Companion reuse SUCCESS' : 'Companion boot SUCCESS');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : String(err);
+      logError('lifecycle', `Companion boot FAILED:\n${msg}`);
+      showCompanionError(err);
+    }
+
+    createWindow();
+    log('lifecycle', 'Window created');
+  });
+
+  app.on('window-all-closed', () => {
+    log('lifecycle', 'All windows closed');
+    if (process.platform !== 'darwin') app.quit();
+  });
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+
+  app.on('before-quit', async () => {
+    log('lifecycle', 'before-quit: cleaning up...');
+    if (!companionReused) {
+      try { if (companionAdapter) await companionAdapter.destroy(); } catch { /* ignore */ }
+      try { if (companionClose) await companionClose(); } catch { /* ignore */ }
+    } else {
+      log('lifecycle', 'Companion was reused — skipping cleanup (external instance)');
+    }
+    log('lifecycle', 'cleanup done');
+  });
+}
