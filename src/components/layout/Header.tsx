@@ -130,16 +130,23 @@ export function Header() {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
 
-  // PC 客户端下载链接（从后端 shared_data_store 加载）
+  // PC 客户端下载链接（从后端 shared_data_store 加载，无配置时回退到 GitHub Release）
+  const FALLBACK_RELEASE_URL = 'https://github.com/fastgc/whatsapp-companion/releases/latest';
   const [pcDownloadUrl, setPcDownloadUrl] = useState('');
   const [macDownloadUrl, setMacDownloadUrl] = useState('');
   useEffect(() => {
     import('@/api/staffData/sharedDataApi').then(({ getSharedDataApi }) => {
       getSharedDataApi<{ windows?: string; mac?: string }>('companionDownloadUrls').then(data => {
         if (data) {
-          setPcDownloadUrl(data.windows ?? '');
-          setMacDownloadUrl(data.mac ?? '');
+          setPcDownloadUrl(data.windows || FALLBACK_RELEASE_URL);
+          setMacDownloadUrl(data.mac || FALLBACK_RELEASE_URL);
+        } else {
+          setPcDownloadUrl(FALLBACK_RELEASE_URL);
+          setMacDownloadUrl(FALLBACK_RELEASE_URL);
         }
+      }).catch(() => {
+        setPcDownloadUrl(FALLBACK_RELEASE_URL);
+        setMacDownloadUrl(FALLBACK_RELEASE_URL);
       });
     });
   }, []);
@@ -396,13 +403,13 @@ export function Header() {
               </div>
               <div className="p-1">
                 <DropdownMenuItem asChild className="cursor-pointer py-2.5">
-                  <a href={pcDownloadUrl || "#"} download={!!pcDownloadUrl} onClick={!pcDownloadUrl ? (e) => { e.preventDefault(); notify.info(t("下载地址未配置", "Download URL not configured")); } : undefined}>
+                  <a href={pcDownloadUrl} target="_blank" rel="noopener noreferrer">
                     <Download className="mr-2 h-4 w-4" />
                     {t("Windows 客户端", "Windows Client")}
                   </a>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="cursor-pointer py-2.5">
-                  <a href={macDownloadUrl || "#"} download={!!macDownloadUrl} onClick={!macDownloadUrl ? (e) => { e.preventDefault(); notify.info(t("下载地址未配置", "Download URL not configured")); } : undefined}>
+                  <a href={macDownloadUrl} target="_blank" rel="noopener noreferrer">
                     <Download className="mr-2 h-4 w-4" />
                     {t("macOS 客户端", "macOS Client")}
                   </a>

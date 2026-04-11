@@ -16,6 +16,7 @@ import type { ConversationStatus } from './conversationStatusService';
 import { statusSortWeight } from './conversationStatusService';
 import {
   localWhatsappBridge,
+  resetDetection,
   type WaSession as BridgeSession,
   type WaConversation as BridgeConversation,
   type WaMessage as BridgeMessage,
@@ -177,7 +178,8 @@ export async function getAccountStats(accountId: string): Promise<AccountStats> 
 }
 
 /**
- * 检测 Companion 是否在线 + 模式 + worker 信息
+ * 检测 Companion 是否在线 + 模式 + worker 信息。
+ * 成功后会重置 bridge 层的检测缓存，确保后续 API 调用不会被旧缓存误判为离线。
  */
 export async function checkCompanionHealth(): Promise<{
   online: boolean;
@@ -186,6 +188,7 @@ export async function checkCompanionHealth(): Promise<{
   sessionsConnected?: number;
   workersRunning?: number;
 }> {
+  resetDetection();
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 3000);
