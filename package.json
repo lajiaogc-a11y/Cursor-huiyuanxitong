@@ -119,23 +119,16 @@
   "build": {
     "appId": "cc.fastgc.whatsapp",
     "productName": "FastGC WhatsApp 工作台",
-    "asar": false,
+    "asar": true,
     "directories": {
       "output": "release"
     },
     "files": [
       "dist/**/*",
       "electron/dist/**/*",
-      "electron/package.json"
-    ],
-    "extraFiles": [
-      {
-        "from": "electron/node_modules",
-        "to": "resources/app/electron/node_modules",
-        "filter": [
-          "**/*"
-        ]
-      }
+      "electron/package.json",
+      "electron/node_modules/**/*",
+      "!**/*.map"
     ],
     "win": {
       "target": [
