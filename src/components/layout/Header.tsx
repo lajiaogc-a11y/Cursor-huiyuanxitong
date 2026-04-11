@@ -133,6 +133,7 @@ export function Header() {
   // PC 客户端下载链接（从后端 shared_data_store 加载，无配置时保持空）
   const [pcDownloadUrl, setPcDownloadUrl] = useState('');
   const [macDownloadUrl, setMacDownloadUrl] = useState('');
+  const [downloadLinksLoaded, setDownloadLinksLoaded] = useState(false);
   useEffect(() => {
     import('@/api/staffData/sharedDataApi').then(({ getSharedDataApi }) => {
       getSharedDataApi<{ windows?: string; mac?: string }>('companionDownloadUrls').then(data => {
@@ -140,7 +141,7 @@ export function Header() {
           setPcDownloadUrl(data.windows ?? '');
           setMacDownloadUrl(data.mac ?? '');
         }
-      }).catch(() => { /* keep empty */ });
+      }).catch(() => { /* keep empty */ }).finally(() => setDownloadLinksLoaded(true));
     });
   }, []);
 
@@ -415,12 +416,14 @@ export function Header() {
                     )}
                   </div>
                   <div className="px-3 py-2 text-[11px] text-muted-foreground border-t">
-                    {t("下载后解压运行，启动后可在 WhatsApp 工作台扫码登录", "Extract and run after download. Then scan QR in WhatsApp Workbench.")}
+                    {t("下载安装后双击启动，即可在 WhatsApp 工作台扫码登录", "Install and launch, then scan QR in WhatsApp Workbench.")}
                   </div>
                 </>
               ) : (
                 <div className="px-3 py-2.5 text-sm text-muted-foreground">
-                  {t("客户端内测中，请联系管理员获取安装包", "Client in beta — contact admin for installer")}
+                  {downloadLinksLoaded
+                    ? t("暂无可用安装包，请联系管理员", "No installer available — contact admin")
+                    : t("正在加载下载链接…", "Loading download links…")}
                 </div>
               )}
             </DropdownMenuContent>

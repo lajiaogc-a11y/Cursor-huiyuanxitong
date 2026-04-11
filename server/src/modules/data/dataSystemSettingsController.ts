@@ -178,6 +178,8 @@ export async function getIpCountryCheckController(req: Request, res: Response): 
   }
 }
 
+const GLOBAL_SHARED_DATA_KEYS = new Set(['companionDownloadUrls']);
+
 export async function getSharedDataController(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const queryTenantId = req.query.tenant_id as string | undefined;
@@ -195,7 +197,10 @@ export async function getSharedDataController(req: AuthenticatedRequest, res: Re
       res.json({ success: true, data: null });
       return;
     }
-    const data = await getSharedDataRepository(tenantId, dataKey);
+    let data = await getSharedDataRepository(tenantId, dataKey);
+    if (data == null && GLOBAL_SHARED_DATA_KEYS.has(dataKey)) {
+      data = await getSharedDataRepository(null, dataKey);
+    }
     res.json({ success: true, data: data ?? null });
   } catch (e) {
     logger.error('Data', 'getSharedData error:', e);
@@ -267,7 +272,13 @@ export async function getSharedDataBatchController(req: AuthenticatedRequest, re
       return;
     }
     const data = await getMultipleSharedDataRepository(tenantId, dataKeys);
-    res.json({ success: true, data: data && typeof data === 'object' ? data : {} });
+    const result: Record<string, unknown> = data && typeof data === 'object' ? { ...data as Record<string, unknown> } : {};
+    const missingGlobalKeys = dataKeys.filter(k => GLOBAL_SHARED_DATA_KEYS.has(k) && result[k] == null);
+    for (const gk of missingGlobalKeys) {
+      const globalVal = await getSharedDataRepository(null, gk);
+      if (globalVal != null) result[gk] = globalVal;
+    }
+    res.json({ success: true, data: result });
   } catch (e) {
     logger.error('Data', 'getSharedDataBatch error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch shared data' } });
