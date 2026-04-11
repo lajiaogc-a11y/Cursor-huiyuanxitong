@@ -22,7 +22,7 @@ import { insertOperationLogRepository } from './repository.js';
 import { generateUniqueActivityGiftNumber } from '../../lib/giftNumber.js';
 import { ensureOrderNumberForInsert } from '../orders/orderNumber.js';
 import { draw, getQuota } from '../lottery/service.js';
-import { grantOrderCompletedSpinCredits } from '../lottery/repository.js';
+import { grantOrderCompletedSpinCredits, restoreOrderCompletedSpinCredits } from '../lottery/repository.js';
 import { notifyMemberOrderCompletedSpinReward } from '../memberInboxNotifications/repository.js';
 import { incrementMemberActivityForNewOrder } from '../members/memberActivityTotals.js';
 import { reverseActivityDataForOrder } from '../admin/orderReversal.js';
@@ -394,6 +394,15 @@ export async function tableUpdateController(req: AuthenticatedRequest, res: Resp
               }
             } catch (spinErr) {
               logger.error('TableProxy', 'order completed spin:', spinErr);
+            }
+            try {
+              await restoreOrderCompletedSpinCredits({
+                orderId: String(row.id),
+                memberId: memberId || null,
+                tenantId: tenantId || null,
+              });
+            } catch (restoreSpinErr) {
+              logger.error('TableProxy', 'order restore spin:', restoreSpinErr);
             }
           }
         } else if (prev === 'completed' && newStatus !== 'completed') {

@@ -95,7 +95,7 @@ export async function runCreateOrderSideEffects(
   let pointsStatus: "none" | "added" = "none";
 
   const pointsCurrency = normalizeCurrencyCode(order.demandCurrency);
-  if (pointsCurrency && orderPoints > 0 && order.memberCode && order.phoneNumber) {
+  if (pointsCurrency && order.memberCode && order.phoneNumber) {
     try {
       const pointsResult = await createPointsOnOrderCreate({
         orderId: dbId,
@@ -106,7 +106,7 @@ export async function runCreateOrderSideEffects(
         creatorId: employeeId,
       });
       if (pointsResult.success) {
-        earnedPoints = orderPoints;
+        earnedPoints = pointsResult.consumptionPoints;
         pointsStatus = "added";
         await import('@/services/orders/ordersApiService').then(m => m.updateOrderPointsApi(dbId, { points_status: 'added' }));
       }

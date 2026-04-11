@@ -5,6 +5,7 @@
 import { query, queryOne, execute, withTransaction } from '../../database/index.js';
 import { randomUUID } from 'crypto';
 import { applyPointsLedgerDeltaOnConn } from '../points/pointsLedgerAccount.js';
+import { revokeOrderCompletedSpinCredits } from '../lottery/repository.js';
 
 interface GiftRow {
   id: string;
@@ -241,6 +242,22 @@ export async function reverseActivityDataForOrder(orderId: string): Promise<{ ok
          WHERE member_id = ?`,
         [pointsToDeduct, mid]
       );
+    }
+
+    // 5. 回收订单授予的抽奖次数（允许余额变为负数）
+    const spinMemberId = order.member_id || '';
+    if (spinMemberId) {
+      try {
+        const { revoked, amount } = await revokeOrderCompletedSpinCredits({
+          orderId,
+          memberId: spinMemberId,
+        });
+        if (revoked) {
+          console.log(`[OrderReversal] Revoked ${amount} spin credits for order ${orderId}, member ${spinMemberId}`);
+        }
+      } catch (spinErr) {
+        console.error(`[OrderReversal] Spin credit revocation failed for order ${orderId}:`, spinErr);
+      }
     }
 
     return { ok: true };

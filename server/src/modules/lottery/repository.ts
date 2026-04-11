@@ -592,6 +592,83 @@ export async function grantOrderCompletedSpinCredits(args: {
   });
 }
 
+/**
+ * 订单取消/删除时回收该订单授予的抽奖次数。
+ * 幂等：同一 orderId 只回收一次。
+ * 允许余额变为负数（会员已用完抽奖次数的情况）。
+ */
+export async function revokeOrderCompletedSpinCredits(args: {
+  orderId: string;
+  memberId: string | null;
+}): Promise<{ revoked: boolean; amount: number }> {
+  const memberId = args.memberId != null ? String(args.memberId).trim() : '';
+  if (!memberId) return { revoked: false, amount: 0 };
+
+  const source = `order_completed:${args.orderId}`;
+  const revokeSource = `order_revoked:${args.orderId}`;
+
+  return withTransaction(async (conn) => {
+    const grantRow = await queryOneConn<{ id: string; amount: number }>(
+      conn,
+      'SELECT id, amount FROM spin_credits WHERE source = ? LIMIT 1',
+      [source],
+    );
+    if (!grantRow || Number(grantRow.amount) <= 0) return { revoked: false, amount: 0 };
+
+    const alreadyRevoked = await queryOneConn<{ id: string }>(
+      conn,
+      'SELECT id FROM spin_credits WHERE source = ? LIMIT 1',
+      [revokeSource],
+    );
+    if (alreadyRevoked) return { revoked: false, amount: 0 };
+
+    const revokeAmount = -Math.abs(Number(grantRow.amount));
+    const { addSpinForceConn } = await import('./spinBalanceAccount.js');
+    await addSpinForceConn(conn, memberId, revokeAmount, revokeSource);
+    return { revoked: true, amount: Math.abs(revokeAmount) };
+  });
+}
+
+/**
+ * 订单恢复时重新授予抽奖次数（先清除回收记录再重新判断授予）。
+ * 与 grantOrderCompletedSpinCredits 的区别：会先删除旧的回收记录。
+ */
+export async function restoreOrderCompletedSpinCredits(args: {
+  orderId: string;
+  memberId: string | null;
+  tenantId: string | null;
+}): Promise<{ granted: boolean; amount: number }> {
+  const memberId = args.memberId != null ? String(args.memberId).trim() : '';
+  if (!memberId) return { granted: false, amount: 0 };
+
+  const revokeSource = `order_revoked:${args.orderId}`;
+
+  return withTransaction(async (conn) => {
+    const revokedRow = await queryOneConn<{ id: string; amount: number }>(
+      conn,
+      'SELECT id, amount FROM spin_credits WHERE source = ? LIMIT 1',
+      [revokeSource],
+    );
+    if (revokedRow) {
+      const restoreAmount = Math.abs(Number(revokedRow.amount));
+      if (restoreAmount > 0) {
+        const restoreSource = `order_restored:${args.orderId}`;
+        const alreadyRestored = await queryOneConn<{ id: string }>(
+          conn,
+          'SELECT id FROM spin_credits WHERE source = ? LIMIT 1',
+          [restoreSource],
+        );
+        if (!alreadyRestored) {
+          const { addSpinForceConn } = await import('./spinBalanceAccount.js');
+          await addSpinForceConn(conn, memberId, restoreAmount, restoreSource);
+          return { granted: true, amount: restoreAmount };
+        }
+      }
+    }
+    return { granted: false, amount: 0 };
+  });
+}
+
 /* ──────────── 会员 tenant 查询 ──────────── */
 
 export async function getMemberTenantId(memberId: string): Promise<string | null> {

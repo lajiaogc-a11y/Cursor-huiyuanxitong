@@ -120,6 +120,51 @@ export async function addSpin(
 }
 
 /**
+ * 强制扣减/增加抽奖次数，允许余额变为负数。
+ * 用于订单取消/删除时回收已授予的抽奖次数。
+ * 如果会员已用完次数，余额会变为负数直到后续获得新次数补回。
+ */
+export async function addSpinForceConn(
+  conn: PoolConnection,
+  memberId: string,
+  amount: number,
+  source: string,
+): Promise<{ newBalance: number }> {
+  const delta = Math.floor(Number(amount) || 0);
+  if (delta === 0) {
+    const row = await queryOneConn<{ bal: number }>(
+      conn, 'SELECT COALESCE(lottery_spin_balance, 0) AS bal FROM member_activity WHERE member_id = ?', [memberId],
+    );
+    return { newBalance: Number(row?.bal ?? 0) };
+  }
+
+  await ensureMemberActivityRowForLotteryConn(conn, memberId);
+
+  await conn.query(
+    'UPDATE member_activity SET lottery_spin_balance = COALESCE(lottery_spin_balance, 0) + ?, updated_at = NOW(3) WHERE member_id = ?',
+    [delta, memberId],
+  );
+
+  const scTenantRow = await queryOneConn<{ tenant_id: string | null }>(
+    conn, 'SELECT tenant_id FROM members WHERE id = ? LIMIT 1', [memberId],
+  );
+  await conn.query(
+    'INSERT INTO spin_credits (id, member_id, tenant_id, amount, source, created_at) VALUES (UUID(), ?, ?, ?, ?, NOW(3))',
+    [memberId, scTenantRow?.tenant_id ?? null, delta, source],
+  );
+
+  const [balRows] = await conn.query(
+    'SELECT COALESCE(lottery_spin_balance, 0) AS bal FROM member_activity WHERE member_id = ?',
+    [memberId],
+  );
+  const newBalance = Number((balRows as { bal?: number }[])[0]?.bal ?? 0);
+
+  console.log(`[addSpinForce] member=${memberId} delta=${delta > 0 ? '+' : ''}${delta} source=${source} newBalance=${newBalance}`);
+
+  return { newBalance };
+}
+
+/**
  * 读时对账：以 SUM(spin_credits.amount) 为权威来源，
  * 若与 member_activity.lottery_spin_balance 不一致则自动修正。
  * 返回修正后的真实余额。
