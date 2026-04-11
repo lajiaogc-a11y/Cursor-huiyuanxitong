@@ -27,6 +27,7 @@ function resolveTenantId(
   const isPlatform = !!req.user?.is_platform_super_admin;
   if (isPlatform) {
     if (requestedTenantId) return requestedTenantId;
+    if (req.user?.tenant_id) return req.user.tenant_id;
     return options?.allowPlatformAll ? undefined : undefined;
   }
   return req.user?.tenant_id ?? undefined;
@@ -239,7 +240,9 @@ export async function listReferralsController(req: AuthenticatedRequest, res: Re
 export async function getReferrerByPhoneController(req: AuthenticatedRequest, res: Response): Promise<void> {
   const effectiveTenantId = resolveTenantId(req, req.query.tenant_id as string | undefined, { allowPlatformAll: true });
   const phone = decodeURIComponent(req.params.phone).trim();
+  console.log(`[ReferrerLookup] phone=${phone} tenantId=${effectiveTenantId} user=${req.user?.id} isPlatform=${!!req.user?.is_platform_super_admin}`);
   const data = await getReferrerByRefereePhoneService(phone, effectiveTenantId);
+  console.log(`[ReferrerLookup] result for phone=${phone}:`, data ? JSON.stringify(data) : 'null');
   res.json({ success: true, data: data ?? null });
 }
 

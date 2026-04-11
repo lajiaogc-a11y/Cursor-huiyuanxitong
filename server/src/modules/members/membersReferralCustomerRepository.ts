@@ -35,12 +35,18 @@ export async function getReferrerByRefereePhoneRepository(
        WHERE (rr.referee_phone = ? OR rr.referee_phone = ?)
          AND ree_m.tenant_id = ?
        LIMIT 1`
-    : null;
-  if (!sql) return null;
+    : `SELECT COALESCE(rr.referrer_phone, ref_m.phone_number) AS referrer_phone,
+              COALESCE(rr.referrer_member_code, ref_m.member_code) AS referrer_member_code
+       FROM referral_relations rr
+       LEFT JOIN members ref_m ON ref_m.id = rr.referrer_id
+       WHERE (rr.referee_phone = ? OR rr.referee_phone = ?)
+       LIMIT 1`;
   const params = tenantId
     ? [refereePhone, normalized, tenantId]
     : [refereePhone, normalized];
-  return queryOne<{ referrer_phone: string; referrer_member_code: string }>(sql, params);
+  const result = await queryOne<{ referrer_phone: string; referrer_member_code: string }>(sql, params);
+  console.log(`[ReferrerRepo] phone=${refereePhone} normalized=${normalized} tenantId=${tenantId ?? 'null'} found=${!!result}`);
+  return result;
 }
 
 export async function getCustomerDetailByPhoneRepository(phone: string, tenantId?: string | null): Promise<{

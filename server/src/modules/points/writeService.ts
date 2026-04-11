@@ -46,9 +46,12 @@ export async function postLedgerService(
   const orderId = body.order_id != null ? String(body.order_id) : null;
   const tenantId = await resolveTenantIdForPoints(req, orderId);
 
+  console.log(`[PostLedger] type=${transactionType} points=${pointsEarned} orderId=${orderId} member=${body.member_code} phone=${body.phone_number} tenantId=${tenantId}`);
+
   if (orderId) {
     const dup = await findIssuedLedgerDuplicate(orderId, transactionType);
     if (dup) {
+      console.log(`[PostLedger] SKIPPED (dup) type=${transactionType} orderId=${orderId}`);
       return { id: null, skipped: true };
     }
   }
